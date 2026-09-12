@@ -38,11 +38,11 @@
       <aside class="rail">
         <div class="mark">PIT<span>LANE</span></div>
         <nav>
-          <button class="nav-btn active" data-view="garage" title="Гараж"><span>▣</span><i>Бокс</i></button>
-          <button class="nav-btn" data-view="dyno" title="Динамика"><span>↯</span><i>Паспорт</i></button>
-          <button class="nav-btn" data-view="run" title="Замер"><span>▶</span><i>Замер</i></button>
-          <button class="nav-btn" data-view="lap" title="Круг"><span>◷</span><i>Круг</i></button>
-          <button class="nav-btn" data-view="tops" title="Топ"><span>▲</span><i>Топ</i></button>
+          <button class="nav-btn active" data-view="garage" title="Гараж"><span>▣</span><i data-i18n="nav.box">Бокс</i></button>
+          <button class="nav-btn" data-view="dyno" title="Динамика"><span>↯</span><i data-i18n="nav.dyno">Паспорт</i></button>
+          <button class="nav-btn" data-view="run" title="Замер"><span>▶</span><i data-i18n="nav.run">Замер</i></button>
+          <button class="nav-btn" data-view="lap" title="Круг"><span>◷</span><i data-i18n="nav.lap">Круг</i></button>
+          <button class="nav-btn" data-view="tops" title="Топ"><span>▲</span><i data-i18n="nav.top">Топ</i></button>
         </nav>
         
         <div class="rail-foot">TRACK ONLY</div>
@@ -79,9 +79,9 @@
         <section id="view-garage" class="view active garage-hero">
           <div id="emptyGarage" class="empty-garage">
             <div class="ghost-car" aria-hidden="true"></div>
-            <h2>Гараж пуст</h2>
-            <p class="muted">Добавь свой автомобиль — марка, кузов, год, мотор.</p>
-            <button type="button" id="btnAddCar">Добавить автомобиль</button>
+            <h2 data-i18n="garage.empty">Гараж пуст</h2>
+            <p class="muted" data-i18n="garage.hint">Добавь свой автомобиль — марка, кузов, год, мотор.</p>
+            <button type="button" id="btnAddCar" data-i18n="garage.add">Добавить автомобиль</button>
           </div>
           <div id="addWizard" class="add-wizard hidden">
             <h2>Новый автомобиль</h2>
@@ -195,14 +195,14 @@
         </section>
 
         <section id="view-run" class="view">
-          <h2>GPS-замер</h2>
-          <p class="muted">Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.</p>
+          <h2 data-i18n="run.title">Замер</h2>
+          <p class="muted" data-i18n="run.hint">Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.</p>
           <div class="speedo card">
             <div class="speed-num" id="liveSpeed">0</div>
             <div class="speed-unit">км/ч · точность <span id="gpsAcc">—</span></div>
             <div class="run-status" id="runStatus">ожидание GPS</div>
             <div class="form-row">
-              <button type="button" class="go-btn" id="btnArm">Старт замера</button>
+              <button type="button" class="go-btn" id="btnArm" data-i18n="run.start">Старт замера</button>
             </div>
           </div>
           <div class="sheet">
@@ -215,6 +215,18 @@
             <div class="stat"><label>100–0</label><b id="run1000">—</b></div>
             <div class="stat"><label>G</label><b id="liveG">—</b></div>
           </div>
+          <article class="card slip" id="runSlip">
+            <p class="slip-brand">pitlane</p>
+            <div class="slip-hero" id="slipHero">—</div>
+            <ul class="slip-rows">
+              <li><span>0–100 km/h</span><b id="slip0100">—</b></li>
+              <li><span>100–200 km/h</span><b id="slip100200">—</b></li>
+              <li><span>0–200 km/h</span><b id="slip0200">—</b></li>
+              <li><span>200–300 km/h</span><b id="slip200300">—</b></li>
+              <li><span>80–120 km/h</span><b id="slip80120">—</b></li>
+              <li><span>100–0 km/h</span><b id="slip1000">—</b></li>
+            </ul>
+          </article>
           <div class="form-row">
             <button type="button" id="btnBrake">Замер торможения 100–0</button>
             <button type="button" id="btnShareRun">Шейр слипа</button>
@@ -281,48 +293,31 @@
         </section>
 
         <section id="view-account" class="view">
-          <h2>Аккаунт</h2>
+          <h2 data-i18n="acc.title">Аккаунт</h2>
+          <label class="lang-field">Language / Язык
+            <select id="langSelect" class="lang-select" aria-label="Language">
+              <option value="ru">Русский</option>
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+              <option value="es">Español</option>
+            </select>
+          </label>
+          <form id="authForm" class="card auth-card" onsubmit="event.preventDefault();">
+            <h3 data-i18n="acc.login">Вход</h3>
+            <p class="muted" data-i18n="acc.hint">Телефон и пароль.</p>
+            <label>телефон <input name="phone" type="tel" required placeholder="+7 900 000-00-00" /></label>
+            <label>пароль <input name="password" type="password" required minlength="6" /></label>
+            <p class="tiny" id="authMsg"></p>
+            <div class="form-row">
+              <button type="submit" id="btnLogin" data-i18n="acc.in">Войти</button>
+              <button type="button" id="btnRegister" data-i18n="acc.reg">Регистрация</button>
+            </div>
+          </form>
           <p class="muted" id="accPhone">не вошли</p>
-          <div class="sheet" style="margin-top:14px">
-            <div class="stat"><label>статус</label><b id="accPlan">—</b></div>
-            <div class="stat"><label>действует до</label><b id="accUntil">—</b></div>
-            <div class="stat"><label>первая оплата</label><b id="accDiscount">−50%</b></div>
-            <div class="stat"><label>Pro</label><b id="accPro">нет</b></div>
-          </div>
-          <div class="grid-2">
-            <article class="card">
-              <h3>Месяц</h3>
-              <p class="price" id="priceMonth">390 ₽</p>
-              <p class="muted">после скидки <span id="priceMonthOff">195 ₽</span></p>
-              <button type="button" data-buy="month">Оформить месяц</button>
-            </article>
-            <article class="card">
-              <h3>Год</h3>
-              <p class="price" id="priceYear">2 990 ₽</p>
-              <p class="muted">после скидки <span id="priceYearOff">1 495 ₽</span></p>
-              <button type="button" data-buy="year">Оформить год</button>
-            </article>
-          </div>
-          <p class="tiny">Платежный шлюз не подключён: кнопка включает Pro в демо на этом устройстве.</p>
-          <button type="button" id="btnOpenAuth">Войти / регистрация</button>
+          <p class="tiny" id="accPlan"></p>
           <button type="button" id="btnLogout">Выйти</button>
         </section>
       </main>
-    </div>
-
-    <div id="auth" class="hidden">
-      <form id="authForm" class="card auth-card" onsubmit="event.preventDefault();">
-        <h2>PITLANE</h2>
-        <p class="muted">Гараж открыт. Замеры в топ — после входа. Регистрация: 7 дней Pro.</p>
-        <label>телефон <input name="phone" type="tel" required placeholder="+7 900 000-00-00" /></label>
-        <label>пароль <input name="password" type="password" required minlength="6" /></label>
-        <p class="tiny" id="authMsg"></p>
-        <div class="form-row">
-          <button type="submit" id="btnLogin">Войти</button>
-          <button type="button" id="btnRegister">Регистрация</button>
-          <button type="button" id="btnGuest">Позже</button>
-        </div>
-      </form>
     </div>
     <script type="importmap">
       {

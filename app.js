@@ -723,6 +723,7 @@ function onGpsPoint(pos) {
   if (run.marks['80'] && run.marks['120'] && !run.saved80120) {
     const s = (run.marks['120'] - run.marks['80']) / 1000;
     setRunText('run80120', `${s.toFixed(2)} с`);
+    setRunText('slip80120', `${s.toFixed(2)}s`);
     run.saved80120 = true;
   }
   if (run.brakeArmed && prev.v >= 100 && sample.v < 100 && !run.saved1000) {
@@ -731,24 +732,30 @@ function onGpsPoint(pos) {
   }
   if (run.brakeArmed && run.brakeT0 && sample.v <= 8 && !run.saved1000) {
     setRunText('run1000', `${((now - run.brakeT0) / 1000).toFixed(2)} с`);
+    setRunText('slip1000', `${((now - run.brakeT0) / 1000).toFixed(2)}s`);
     run.saved1000 = true;
     run.brakeArmed = false;
   }
   if (t100 && !run.saved0100) {
     const sec = (t100 - run.t0) / 1000;
     setRunText('run0100', `${sec.toFixed(2)} с`);
+    setRunText('slip0100', `${sec.toFixed(2)}s`);
+    setRunText('slipHero', `${sec.toFixed(2)}s`);
     run.saved0100 = true;
     publishGps(sec, t100 && t200 ? (t200 - t100) / 1000 : null, t200 && t300 ? (t300 - t200) / 1000 : null);
   }
   if (t100 && t200 && !run.saved100200) {
     const s = (t200 - t100) / 1000;
     setRunText('run100200', `${s.toFixed(2)} с`);
+    setRunText('slip100200', `${s.toFixed(2)}s`);
+    if (t100) setRunText('slip0200', `${((t200 - run.t0) / 1000).toFixed(2)}s`);
     run.saved100200 = true;
     publishGps(null, s, t200 && t300 ? (t300 - t200) / 1000 : null);
   }
   if (t200 && t300 && !run.saved200300) {
     const s = (t300 - t200) / 1000;
     setRunText('run200300', `${s.toFixed(2)} с`);
+    setRunText('slip200300', `${s.toFixed(2)}s`);
     run.saved200300 = true;
     publishGps(null, null, s);
   }
@@ -801,7 +808,8 @@ function needLogin(msg) {
   if (currentUser()) return false;
   const el = document.getElementById('authMsg');
   if (el) el.textContent = msg || 'Чтобы писать в топ, войди или зарегистрируйся';
-  document.getElementById('auth')?.classList.remove('hidden');
+  document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+  document.getElementById('view-account')?.classList.add('active');
   return true;
 }
 
@@ -952,20 +960,14 @@ function fmtDate(ts) {
 
 function refreshAccount() {
   const u = currentUser();
-  const authEl = document.getElementById('auth');
+  document.getElementById('authForm')?.classList.toggle('hidden', !!u);
   if (!u) {
-    document.getElementById('accPhone') && (document.getElementById('accPhone').textContent = 'гость');
-    document.getElementById('accPlan') && (document.getElementById('accPlan').textContent = 'без аккаунта');
-    document.getElementById('accPro') && (document.getElementById('accPro').textContent = 'нет');
+    if (document.getElementById('accPhone')) document.getElementById('accPhone').textContent = 'гость';
+    if (document.getElementById('accPlan')) document.getElementById('accPlan').textContent = '';
     return;
   }
-  authEl?.classList.add('hidden');
-  const now = Date.now();
-  const trialOn = now < u.trialEnds;
-  const paidOn = u.paidUntil && now < u.paidUntil;
-  document.getElementById('accPhone').textContent = '+' + u.phone;
-  document.getElementById('accPlan').textContent = paidOn ? (u.plan === 'year' ? 'год' : 'месяц') : trialOn ? 'триал 7 дней' : 'free';
-  document.getElementById('accUntil').textContent = fmtDate(paidOn ? u.paidUntil : u.trialEnds);
+  if (document.getElementById('accPhone')) document.getElementById('accPhone').textContent = '+' + u.phone;
+  if (document.getElementById('accPlan')) document.getElementById('accPlan').textContent = '';
   document.getElementById('accDiscount').textContent = u.firstPaid ? 'уже использована' : '−50% на первую';
   document.getElementById('accPro').textContent = isPro(u) ? 'да' : 'нет';
   document.getElementById('priceMonth').textContent = (u.firstPaid ? PRICE.month : PRICE.monthOff) + ' ₽';
@@ -1482,3 +1484,47 @@ document.getElementById('topLapForm')?.addEventListener('submit', (e) => {
   renderTops();
   e.target.reset();
 });
+
+const I18N = {
+  ru: {
+    'nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ',
+    'garage.empty':'Гараж пуст','garage.hint':'Добавь свой автомобиль — марка, кузов, год, мотор.','garage.add':'Добавить автомобиль',
+    'run.title':'Замер','run.hint':'Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.','run.start':'Старт замера',
+    'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Телефон и пароль. Регистрация даёт 7 дней Pro.','acc.in':'Войти','acc.reg':'Регистрация'
+  },
+  en: {
+    'nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Top',
+    'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car',
+    'run.title':'Run','run.hint':'Tap start, almost stop, then accelerate. When speed drops the run is saved.','run.start':'Start run',
+    'acc.title':'Account','acc.login':'Sign in','acc.hint':'Phone and password. Sign up gives 7 days of Pro.','acc.in':'Sign in','acc.reg':'Sign up'
+  },
+  zh: {
+    'nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单',
+    'garage.empty':'车库是空的','garage.hint':'添加车辆：品牌、车身、年份、发动机。','garage.add':'添加车辆',
+    'run.title':'加速测试','run.hint':'点开始，先几乎停住再加速。车速下降后成绩会保存。','run.start':'开始测试',
+    'acc.title':'账户','acc.login':'登录','acc.hint':'手机号和密码。注册赠送 7 天 Pro。','acc.in':'登录','acc.reg':'注册'
+  },
+  es: {
+    'nav.box':'Box','nav.dyno':'Ficha','nav.run':'Medición','nav.lap':'Vuelta','nav.top':'Top',
+    'garage.empty':'Garaje vacío','garage.hint':'Añade tu coche: marca, carrocería, año, motor.','garage.add':'Añadir coche',
+    'run.title':'Medición','run.hint':'Pulsa inicio, casi párate y acelera. Al bajar la velocidad se guarda.','run.start':'Iniciar',
+    'acc.title':'Cuenta','acc.login':'Entrar','acc.hint':'Teléfono y contraseña. El registro da 7 días Pro.','acc.in':'Entrar','acc.reg':'Registro'
+  }
+};
+function applyI18n(lang) {
+  const pack = I18N[lang] || I18N.ru;
+  document.querySelectorAll('[data-i18n]').forEach((el) => {
+    const t = pack[el.dataset.i18n];
+    if (t) el.textContent = t;
+  });
+  document.documentElement.lang = lang;
+}
+const langSel = document.getElementById('langSelect');
+if (langSel) {
+  langSel.value = localStorage.getItem('pitlane-lang') || 'ru';
+  applyI18n(langSel.value);
+  langSel.onchange = () => {
+    localStorage.setItem('pitlane-lang', langSel.value);
+    applyI18n(langSel.value);
+  };
+}

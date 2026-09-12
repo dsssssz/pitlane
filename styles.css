@@ -564,3 +564,33 @@ input, select {
   font-weight: 800;
   letter-spacing: .06em;
 }
+.slip { background: #111; }
+.slip-brand { letter-spacing: .2em; text-transform: lowercase; color: #888; font-size: 11px; }
+.slip-hero { font-family: "Barlow Condensed", sans-serif; font-size: 56px; text-align: center; margin: 8px 0 16px; }
+.slip-rows { list-style: none; }
+.slip-rows li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #222; }
+.slip-rows span::before { content: "● "; color: #2ee56a; }
+.lang-field{display:block;margin:12px 0 18px;color:#888;font-size:12px}.lang-select{width:100%;
+  margin-left: auto;
+  margin-right: 8px;
+  background: #16181e;
+  color: #fff;
+  border: 1px solid #2a2a2e;
+  border-radius: 999px;
+  padding: 6px 10px;
+  min-height: 36px;
+}
+.speedo {
+  text-align: center;
+  background: radial-gradient(circle at 50% 40%, #1a1d22, #0a0a0c 72%);
+  border-radius: 28px;
+  padding: 22px 16px 18px;
+}
+.speed-num {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 92px;
+  line-height: .9;
+  letter-spacing: -0.03em;
+}
+.speed-unit { color: #8a8a8a; margin-top: 6px; }
+.run-status { margin: 10px 0 14px; color: #2ee56a; letter-spacing: .08em; text-transform: uppercase; font-size: 12px; }
