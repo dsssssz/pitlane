@@ -56,6 +56,26 @@ const TRACKS = [
 ];
 
 
+
+const TRACK_GEO = {
+  sochi: { lat: 43.405, lon: 39.968 },
+  moscow: { lat: 55.912, lon: 36.600 },
+  igora: { lat: 60.685, lon: 30.140 },
+  kazan: { lat: 55.650, lon: 49.260 },
+  smolensk: { lat: 54.620, lon: 32.280 },
+  nring: { lat: 56.180, lon: 43.520 },
+  adm: { lat: 55.560, lon: 37.980 },
+  grozny: { lat: 43.340, lon: 45.740 },
+  redring: { lat: 56.060, lon: 92.900 },
+  spb: { lat: 59.970, lon: 30.240 },
+  tlt: { lat: 53.530, lon: 49.350 },
+  lipetsk: { lat: 52.560, lon: 39.520 },
+  'auto-msk': { lat: 55.700, lon: 37.400 },
+  neva: { lat: 59.900, lon: 30.400 },
+  ufa: { lat: 54.700, lon: 56.000 },
+  don: { lat: 47.280, lon: 39.700 },
+};
+
 const TRACK_SVG = {
   sochi: 'M28 150 L70 148 C88 146 96 138 108 118 C150 48 210 38 248 72 C268 90 258 118 228 128 C190 140 168 128 150 108 C132 88 108 128 92 148 C80 162 52 168 28 166 Z',
   moscow: 'M30 128 L120 128 C138 128 148 116 162 96 C178 72 210 58 248 70 C278 82 270 118 238 132 C200 150 168 168 120 170 L48 170 C32 170 26 150 30 128 Z',
@@ -97,6 +117,20 @@ function loadState() {
 }
 function save() {
   localStorage.setItem(storeKey, JSON.stringify(state));
+  try {
+    if (typeof authDb === 'undefined' || !authDb?.users) return;
+    const u = authDb.session ? authDb.users[authDb.session] : null;
+    if (!u) return;
+    u.garage = state.garage || [];
+    u.carId = state.carId || null;
+    try {
+      const nick = JSON.parse(localStorage.getItem('pitlane-prof-v1') || '{}').nick;
+      if (nick) u.nick = nick;
+    } catch (_) {}
+    authDb.users[u.phone] = u;
+    localStorage.setItem('pitlane-auth-v1', JSON.stringify(authDb));
+    localStorage.setItem('pitlane-auth-v1:bak', JSON.stringify(authDb));
+  } catch (_) {}
 }
 
 function garageList() {
@@ -154,8 +188,6 @@ function applyCarUI() {
   setTxt('d80120', fmt(m.v80120));
   const hpEl = document.getElementById('dHp');
   if (hpEl) hpEl.textContent = c.hp ? `${c.hp} л.с.` : '—';
-  const hpIn = document.getElementById('dHpIn');
-  if (hpIn && document.activeElement !== hpIn) hpIn.value = c.hp || '';
   setTxt('dNm', `${c.nm} Н·м`);
   setTxt('dKg', `${c.kg} кг`);
   setTxt('dPt', c.kg ? String(Math.round((c.hp / c.kg) * 1000)) : '—');
@@ -913,33 +945,116 @@ async function publishGps(v0100, v100200, v200300) {
   applyCarUI();
 }
 
+
+/* -------- Lap drive: mini navigator -------- */
+const lapDrive = {
+  open: false,
+  timerId: null,
+  weatherAt: 0,
+};
+
+function fmtLapClock(ms) {
+  const sec = Math.max(0, ms) / 1000;
+  const m = Math.floor(sec / 60);
+  const s = (sec % 60).toFixed(1).padStart(4, '0');
+  return `${m}:${s}`;
+}
+
+function openLapDrive() {
+  const el = document.getElementById('lapDrive');
+  if (!el) return;
+  const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  const track = TRACKS.find((t) => t.id === trackId) || TRACKS[0];
+  document.getElementById('lapDriveTrack').textContent = track.name;
+  document.getElementById('lapDriveClock').textContent = '0:00.0';
+  document.getElementById('lapDriveSpeed').textContent = '0';
+  document.getElementById('lapDriveMsg').textContent = 'GPS…';
+  drawTrack(trackId, 'lapDriveMap');
+  el.classList.remove('hidden');
+  el.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('lap-drive-on');
+  lapDrive.open = true;
+  if (lapDrive.timerId) clearInterval(lapDrive.timerId);
+  lapDrive.timerId = setInterval(() => {
+    if (!lapRun.on || !lapRun.t0) return;
+    document.getElementById('lapDriveClock').textContent = fmtLapClock(Date.now() - lapRun.t0);
+  }, 100);
+  fetchLapWeather(trackId);
+}
+
+function closeLapDrive() {
+  const el = document.getElementById('lapDrive');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('lap-drive-on');
+  lapDrive.open = false;
+  if (lapDrive.timerId) { clearInterval(lapDrive.timerId); lapDrive.timerId = null; }
+}
+
+async function fetchLapWeather(trackId) {
+  const geo = TRACK_GEO[trackId];
+  const box = document.getElementById('lapDriveWeather');
+  if (!box) return;
+  if (!geo) { box.textContent = 'погода: нет координат'; return; }
+  if (Date.now() - lapDrive.weatherAt < 5 * 60 * 1000 && box.dataset.ready) return;
+  box.textContent = 'погода…';
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}&current=temperature_2m,wind_speed_10m,weather_code&wind_speed_unit=ms`;
+    const res = await fetch(url);
+    const data = await res.json();
+    const cur = data.current || {};
+    const t = cur.temperature_2m;
+    const w = cur.wind_speed_10m;
+    box.textContent = (t != null ? `${Math.round(t)}°C` : '—') + (w != null ? ` · ветер ${Math.round(w)} м/с` : '');
+    box.dataset.ready = '1';
+    lapDrive.weatherAt = Date.now();
+  } catch (_) {
+    box.textContent = 'погода недоступна';
+  }
+}
+
+
 const lapRun = { on: false, t0: null, moving: false };
-document.getElementById('btnLapStart')?.addEventListener('click', () => {
-  startWatch();
-  lapRun.on = true;
-  lapRun.t0 = Date.now();
-  document.getElementById('lapGpsMsg').textContent = 'круг идёт…';
-});
-document.getElementById('btnLapStop')?.addEventListener('click', async () => {
+
+async function finishLapRun() {
   if (!lapRun.on || !lapRun.t0) return;
   const ms = Date.now() - lapRun.t0;
   lapRun.on = false;
   if (ms < 1500) {
     document.getElementById('lapGpsMsg').textContent = 'слишком коротко';
+    document.getElementById('lapDriveMsg').textContent = 'слишком коротко';
     return;
   }
   const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
   state.laps[trackId] = state.laps[trackId] || [];
   state.laps[trackId].push({ ms, at: Date.now(), gps: true });
   save();
-  const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
+  const who = (profile()?.nick) || currentUser()?.nick || currentUser()?.phone || 'пилот';
   const sec = ms / 1000;
   const m = Math.floor(sec / 60);
   const s = (sec % 60).toFixed(2).padStart(5, '0');
-  await api.addLap(trackId, { name: String(who).slice(-6), car: currentCar().name, t: `${m}:${s}`, gps: true });
+  await api.addLap(trackId, { name: String(who).slice(0, 24), car: currentCar().name, t: `${m}:${s}`, gps: true });
   document.getElementById('lapGpsMsg').textContent = `круг ${m}:${s} в топе`;
+  document.getElementById('lapDriveMsg').textContent = `финиш ${m}:${s}`;
   applyCarUI();
+  closeLapDrive();
+}
+
+document.getElementById('btnLapStart')?.addEventListener('click', () => {
+  startWatch();
+  lapRun.on = true;
+  lapRun.t0 = Date.now();
+  document.getElementById('lapGpsMsg').textContent = 'круг идёт…';
+  openLapDrive();
 });
+document.getElementById('btnLapStop')?.addEventListener('click', () => { void finishLapRun(); });
+document.getElementById('lapDriveFinish')?.addEventListener('click', () => { void finishLapRun(); });
+document.getElementById('lapDriveCancel')?.addEventListener('click', () => {
+  // keep lap running in background, just hide UI
+  closeLapDrive();
+});
+
 
 document.getElementById('btnGps')?.addEventListener('click', startWatch);
 document.getElementById('btnArm')?.addEventListener('click', armRun);
@@ -979,61 +1094,6 @@ window.addEventListener('devicemotion', (e) => {
   setRunText('liveG', g.toFixed(2));
 });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
-
-
-/* -------- PWA: add to home + geo tip -------- */
-(function setupPwaTip() {
-  const tip = document.getElementById('pwaTip');
-  if (!tip) return;
-  const isStandalone = document.documentElement.classList.contains('standalone')
-    || window.navigator.standalone
-    || window.matchMedia('(display-mode: standalone)').matches;
-  if (isStandalone) return;
-  if (localStorage.getItem('pitlane-pwa-tip-v1') === '1') return;
-
-  const ua = navigator.userAgent || '';
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const isAndroid = /Android/i.test(ua);
-  const steps = document.getElementById('pwaTipSteps');
-  const text = document.getElementById('pwaTipText');
-  const installBtn = document.getElementById('pwaInstallBtn');
-
-  if (isIOS) {
-    text.textContent = 'На iPhone так GPS и полный экран работают надёжнее, чем из вкладки Safari.';
-    steps.innerHTML = '<li>Нажми «Поделиться» <span aria-hidden="true">⎙</span></li><li>«На экран «Домой»»</li><li>Открой иконку Pitlane</li>';
-  } else if (isAndroid) {
-    text.textContent = 'Поставь как приложение — удобнее на треке, геолокация стабильнее.';
-    steps.innerHTML = '<li>Меню Chrome ⋮</li><li>«Установить приложение» / «На главный экран»</li><li>Или кнопка ниже, если появится</li>';
-  } else {
-    text.textContent = 'С телефона: добавь на экран Домой. С компа можно оставить во вкладке.';
-    steps.innerHTML = '<li>Открой сайт на телефоне</li><li>Меню браузера → на экран Домой</li>';
-  }
-
-  tip.classList.remove('hidden');
-
-  function dismiss() {
-    localStorage.setItem('pitlane-pwa-tip-v1', '1');
-    tip.classList.add('hidden');
-  }
-  document.getElementById('pwaTipClose')?.addEventListener('click', dismiss);
-  document.getElementById('pwaTipOk')?.addEventListener('click', dismiss);
-
-  let deferred = null;
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferred = e;
-    installBtn?.classList.remove('hidden');
-  });
-  installBtn?.addEventListener('click', async () => {
-    if (!deferred) return;
-    deferred.prompt();
-    try { await deferred.userChoice; } catch (_) {}
-    deferred = null;
-    installBtn.classList.add('hidden');
-    dismiss();
-  });
-})();
-
 renderSlips();
 
 /* -------- auth + subscription (local demo) -------- */
@@ -1061,16 +1121,50 @@ async function hashPass(p) {
 
 function loadAuth() {
   try {
-    return JSON.parse(localStorage.getItem(AUTH_KEY)) || { users: {}, session: null };
-  } catch {
-    return { users: {}, session: null };
+    const raw = localStorage.getItem(AUTH_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        parsed.users = parsed.users || {};
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('auth load', err);
   }
+  return { users: {}, session: null };
 }
 
 let authDb = loadAuth();
 
 function saveAuth() {
-  localStorage.setItem(AUTH_KEY, JSON.stringify(authDb));
+  try {
+    localStorage.setItem(AUTH_KEY, JSON.stringify(authDb));
+    // mirror session id for quick restore if full blob fails later
+    if (authDb.session) localStorage.setItem(AUTH_KEY + ':session', authDb.session);
+    else localStorage.removeItem(AUTH_KEY + ':session');
+    // backup copy
+    localStorage.setItem(AUTH_KEY + ':bak', JSON.stringify(authDb));
+  } catch (err) {
+    console.warn('auth save failed', err);
+    const msg = document.getElementById('authMsg');
+    if (msg) msg.textContent = 'Не удалось сохранить аккаунт на устройстве (память браузера).';
+    throw err;
+  }
+}
+
+function restoreAuthIfNeeded() {
+  authDb = loadAuth();
+  if (!authDb.session) {
+    const sid = localStorage.getItem(AUTH_KEY + ':session');
+    if (sid && authDb.users[sid]) authDb.session = sid;
+  }
+  if ((!authDb.users || !Object.keys(authDb.users).length)) {
+    try {
+      const bak = JSON.parse(localStorage.getItem(AUTH_KEY + ':bak') || 'null');
+      if (bak?.users) authDb = bak;
+    } catch (_) {}
+  }
 }
 
 function currentUser() {
@@ -1088,15 +1182,23 @@ function fmtDate(ts) {
 }
 
 function refreshAccount() {
+  restoreAuthIfNeeded();
   const u = currentUser();
   document.getElementById('authForm')?.classList.toggle('hidden', !!u);
+  const phones = document.querySelectorAll('#accPhone');
   if (!u) {
-    if (document.getElementById('accPhone')) document.getElementById('accPhone').textContent = 'гость';
-    if (document.getElementById('accPlan')) document.getElementById('accPlan').textContent = '';
+    phones.forEach((el) => { el.textContent = 'гость'; });
+    const plan = document.getElementById('accPlan');
+    if (plan) plan.textContent = 'аккаунт хранится на этом устройстве';
     return;
   }
-  if (document.getElementById('accPhone')) document.getElementById('accPhone').textContent = '+' + u.phone;
-  if (document.getElementById('accPlan')) document.getElementById('accPlan').textContent = '';
+  phones.forEach((el) => { el.textContent = '+' + u.phone; });
+  const nickEl = document.getElementById('accNick');
+  if (nickEl && u.nick && !nickEl.value) nickEl.value = u.nick;
+  const plan = document.getElementById('accPlan');
+  if (plan) {
+    plan.textContent = (isPro(u) ? ('Pro · ') : ('trial · ')) + 'сохранено на этом устройстве';
+  }
   const setAcc = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setAcc('accDiscount', u.firstPaid ? 'уже использована' : '−50% на первую');
   setAcc('accPro', isPro(u) ? 'да' : 'нет');
@@ -1108,15 +1210,20 @@ async function registerUser(phone, password) {
   const p = normPhone(phone);
   if (p.length !== 11) throw new Error('Введите номер в формате +7…');
   if (authDb.users[p]) throw new Error('Этот номер уже зарегистрирован');
+  const nick = (document.getElementById('accNick')?.value || '').trim() || ('пилот' + p.slice(-4));
   authDb.users[p] = {
     phone: p,
     pass: await hashPass(password + ':' + p),
+    nick,
     trialEnds: Date.now() + 7 * 24 * 60 * 60 * 1000,
     paidUntil: null,
     plan: 'trial',
     firstPaid: false,
+    garage: state.garage || [],
+    carId: state.carId || null,
   };
   authDb.session = p;
+  saveProf({ ...profile(), nick });
   saveAuth();
 }
 
@@ -1127,6 +1234,13 @@ async function loginUser(phone, password) {
   const h = await hashPass(password + ':' + p);
   if (h !== u.pass) throw new Error('Неверный пароль');
   authDb.session = p;
+  // restore personal garage if stored on account
+  if (Array.isArray(u.garage) && u.garage.length) {
+    state.garage = u.garage;
+    state.carId = u.carId || u.garage[0]?.id || null;
+    save();
+  }
+  if (u.nick) saveProf({ ...profile(), nick: u.nick });
   saveAuth();
 }
 
@@ -1183,6 +1297,7 @@ document.querySelectorAll('[data-buy]').forEach((b) => {
   b.addEventListener('click', () => buyPlan(b.dataset.buy));
 });
 
+restoreAuthIfNeeded();
 refreshAccount();
 
 const gltfLoader = new GLTFLoader();
@@ -1736,12 +1851,6 @@ document.getElementById('accAvatarIn')?.addEventListener('change', (e) => {
   const r = new FileReader();
   r.onload = () => { const p = profile(); p.avatar = r.result; saveProf(p); loadProfUI(); };
   r.readAsDataURL(f);
-});
-document.getElementById('dHpIn')?.addEventListener('change', (e) => {
-  const n = Number(e.target.value);
-  const list = garageList();
-  const car = list.find((c) => c.id === state.carId);
-  if (car && n > 0) { car.hp = n; state.garage = list; save(); applyCarUI(); }
 });
 loadProfUI();
 

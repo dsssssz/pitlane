@@ -40,7 +40,6 @@
         <div class="mark">PIT<span>LANE</span></div>
         <nav>
           <button class="nav-btn active" data-view="garage" title="Гараж"><span>▣</span><i data-i18n="nav.box">Бокс</i></button>
-          <button class="nav-btn" data-view="dyno" title="Динамика"><span>↯</span><i data-i18n="nav.dyno">Паспорт</i></button>
           <button class="nav-btn" data-view="run" title="Замер"><span>▶</span><i data-i18n="nav.run">Замер</i></button>
           <button class="nav-btn" data-view="lap" title="Круг"><span>◷</span><i data-i18n="nav.lap">Круг</i></button>
           <button class="nav-btn" data-view="tops" title="Топ"><span>▲</span><i data-i18n="nav.top">Топ</i></button>
@@ -164,35 +163,33 @@
               <button type="button" data-wheel="grayscale(1) brightness(1.4)" style="background:#eee"></button>
               <button type="button" data-wheel="brightness(0.45)" style="background:#111"></button>
             </div>
-          </div>
-        </section>
 
-        <section id="view-dyno" class="view">
-          <h2 data-i18n="dyno.title">Паспорт динамики</h2>
-          <p class="muted" data-i18n="dyno.hint">Сток / ваш замер. Не для дорог общего пользования.</p>
-          <div class="grid-2">
-            <article class="card">
-              <h3 data-i18n="dyno.acc">Разгон</h3>
-              <table>
-                <tr><td>0–100</td><td id="d0100">—</td></tr>
-                <tr><td>100–200</td><td id="d100200">—</td></tr>
-                <tr><td>200–300</td><td id="d200300">—</td></tr>
-                <tr><td>80–120</td><td id="d80120">—</td></tr>
-              </table>
+            <article class="card box-dyno" id="boxDyno">
+              <h3 data-i18n="dyno.title">Паспорт динамики</h3>
+              <p class="muted tiny">Сток и GPS-замер. Без ручного ввода.</p>
+              <div class="grid-2 box-dyno-grid">
+                <div>
+                  <h4 data-i18n="dyno.acc">Разгон</h4>
+                  <table>
+                    <tr><td>0–100</td><td id="d0100">—</td></tr>
+                    <tr><td>100–200</td><td id="d100200">—</td></tr>
+                    <tr><td>200–300</td><td id="d200300">—</td></tr>
+                    <tr><td>80–120</td><td id="d80120">—</td></tr>
+                  </table>
+                </div>
+                <div>
+                  <h4 data-i18n="dyno.mass">Масса и отдача</h4>
+                  <table>
+                    <tr><td>мощность</td><td id="dHp">—</td></tr>
+                    <tr><td>момент</td><td id="dNm">—</td></tr>
+                    <tr><td>масса</td><td id="dKg">—</td></tr>
+                    <tr><td>л.с./тонна</td><td id="dPt">—</td></tr>
+                  </table>
+                </div>
+              </div>
             </article>
-            <article class="card">
-              <h3 data-i18n="dyno.mass">Масса и отдача</h3>
-              <table>
-                <tr><td>мощность</td><td><input id="dHpIn" type="number" min="50" max="2000" placeholder="л.с." style="width:90px;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:4px 8px"> <span id="dHp">—</span></td></tr>
-                <tr><td>момент</td><td id="dNm">650 Н·м</td></tr>
-                <tr><td>масса</td><td id="dKg">1730 кг</td></tr>
-                <tr><td>л.с./тонна</td><td id="dPt">295</td></tr>
-              </table>
-            </article>
+
           </div>
-          <article class="card">
-            <p class="muted">Свой замер руками больше не вводится. В топ попадает только GPS-заезд с экрана «Замер».</p>
-          </article>
         </section>
 
         <section id="view-run" class="view">
@@ -347,16 +344,17 @@
       </main>
     </div>
 
-    <div id="pwaTip" class="pwa-tip hidden" role="dialog" aria-label="Установка Pitlane">
-      <button type="button" class="pwa-tip-x" id="pwaTipClose" aria-label="Закрыть">×</button>
-      <b>На трек — с экрана Домой</b>
-      <p id="pwaTipText">Добавь Pitlane как приложение: так стабильнее GPS и полноэкранный режим.</p>
-      <ol id="pwaTipSteps" class="pwa-tip-steps"></ol>
-      <p class="pwa-tip-geo">Геолокацию разреши для сайта (или для иконки). Замер лучше на улице, не из бокса.</p>
-      <div class="pwa-tip-actions">
-        <button type="button" id="pwaInstallBtn" class="hidden">Установить</button>
-        <button type="button" id="pwaTipOk">Понятно</button>
+    <div id="lapDrive" class="lap-drive hidden" aria-hidden="true">
+      <div class="lap-drive-left">
+        <p class="lap-drive-track" id="lapDriveTrack">—</p>
+        <div class="lap-drive-clock" id="lapDriveClock">0:00.0</div>
+        <div class="lap-drive-speed"><strong id="lapDriveSpeed">0</strong><span>км/ч</span></div>
+        <div class="lap-drive-weather" id="lapDriveWeather">погода…</div>
+        <p class="tiny" id="lapDriveMsg">GPS</p>
+        <button type="button" class="go-btn" id="lapDriveFinish">Финиш круга</button>
+        <button type="button" id="lapDriveCancel">Свернуть</button>
       </div>
+      <div class="lap-drive-map" id="lapDriveMap"></div>
     </div>
 
     <script type="importmap">
