@@ -719,3 +719,38 @@ input, select {
 }
 .pulse-like.on { color:#e25; }
 .pulse-empty { text-align:center; padding:24px 0; }
+
+
+/* PWA install tip */
+.pwa-tip {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 80;
+  background: #121212;
+  border: 1px solid #2ee56a55;
+  border-radius: 16px;
+  padding: 14px 16px 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.55);
+  color: #eee;
+  font: 500 14px/1.35 Manrope, system-ui, sans-serif;
+}
+.pwa-tip.hidden { display: none; }
+.pwa-tip b { display: block; font: 700 16px/1.2 "Barlow Condensed", sans-serif; letter-spacing: .04em; margin-bottom: 6px; }
+.pwa-tip p { margin: 0 0 8px; opacity: .85; }
+.pwa-tip-geo { font-size: 12px; opacity: .7 !important; }
+.pwa-tip-steps { margin: 0 0 8px 1.1em; padding: 0; opacity: .9; }
+.pwa-tip-steps li { margin: 2px 0; }
+.pwa-tip-x {
+  position: absolute; top: 8px; right: 10px;
+  border: 0; background: transparent; color: #888; font-size: 22px; line-height: 1;
+}
+.pwa-tip-actions { display: flex; gap: 8px; margin-top: 10px; }
+.pwa-tip-actions button {
+  flex: 1; border-radius: 999px; border: 1px solid #333;
+  background: #1a1a1a; color: #fff; padding: 10px 12px;
+  font: 600 13px Manrope, system-ui, sans-serif;
+}
+#pwaInstallBtn { border-color: #2ee56a; color: #2ee56a; }
+.standalone .pwa-tip { display: none !important; }

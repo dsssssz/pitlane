@@ -979,6 +979,61 @@ window.addEventListener('devicemotion', (e) => {
   setRunText('liveG', g.toFixed(2));
 });
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+
+
+/* -------- PWA: add to home + geo tip -------- */
+(function setupPwaTip() {
+  const tip = document.getElementById('pwaTip');
+  if (!tip) return;
+  const isStandalone = document.documentElement.classList.contains('standalone')
+    || window.navigator.standalone
+    || window.matchMedia('(display-mode: standalone)').matches;
+  if (isStandalone) return;
+  if (localStorage.getItem('pitlane-pwa-tip-v1') === '1') return;
+
+  const ua = navigator.userAgent || '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isAndroid = /Android/i.test(ua);
+  const steps = document.getElementById('pwaTipSteps');
+  const text = document.getElementById('pwaTipText');
+  const installBtn = document.getElementById('pwaInstallBtn');
+
+  if (isIOS) {
+    text.textContent = 'На iPhone так GPS и полный экран работают надёжнее, чем из вкладки Safari.';
+    steps.innerHTML = '<li>Нажми «Поделиться» <span aria-hidden="true">⎙</span></li><li>«На экран «Домой»»</li><li>Открой иконку Pitlane</li>';
+  } else if (isAndroid) {
+    text.textContent = 'Поставь как приложение — удобнее на треке, геолокация стабильнее.';
+    steps.innerHTML = '<li>Меню Chrome ⋮</li><li>«Установить приложение» / «На главный экран»</li><li>Или кнопка ниже, если появится</li>';
+  } else {
+    text.textContent = 'С телефона: добавь на экран Домой. С компа можно оставить во вкладке.';
+    steps.innerHTML = '<li>Открой сайт на телефоне</li><li>Меню браузера → на экран Домой</li>';
+  }
+
+  tip.classList.remove('hidden');
+
+  function dismiss() {
+    localStorage.setItem('pitlane-pwa-tip-v1', '1');
+    tip.classList.add('hidden');
+  }
+  document.getElementById('pwaTipClose')?.addEventListener('click', dismiss);
+  document.getElementById('pwaTipOk')?.addEventListener('click', dismiss);
+
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferred = e;
+    installBtn?.classList.remove('hidden');
+  });
+  installBtn?.addEventListener('click', async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    try { await deferred.userChoice; } catch (_) {}
+    deferred = null;
+    installBtn.classList.add('hidden');
+    dismiss();
+  });
+})();
+
 renderSlips();
 
 /* -------- auth + subscription (local demo) -------- */
