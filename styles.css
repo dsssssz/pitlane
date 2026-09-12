@@ -85,10 +85,32 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #app { height: 100%; }
+html { height: 100dvh; }
 body {
   font-family: Manrope, system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
+  padding: 0;
+}
+button {
+  font-family: inherit;
+  border-radius: 14px;
+  min-height: 44px;
+}
+.brand-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 16px 8px;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: #050505;
+}
+.brand-bar b {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 28px;
+  letter-spacing: 0.12em;
 }
 
 #app { display: flex; }
@@ -182,7 +204,14 @@ h2 { font-size: 32px; margin-bottom: 6px; }
 .top-meta strong { font-size: 22px; font-family: "Barlow Condensed", sans-serif; }
 
 .view { display: none; padding: 18px 28px 32px; overflow: auto; }
-.view.active { display: block; }
+.view.active {
+  display: block;
+  animation: tabIn .34s cubic-bezier(.22,.8,.24,1);
+}
+@keyframes tabIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
 
 .stage {
   position: relative;
@@ -420,12 +449,12 @@ input, select {
 
 @media (max-width: 900px) {
   #app { flex-direction: column; }
-  main { padding-bottom: 96px; }
+  main { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
   .rail {
     position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 10px;
+    right: 10px;
+    bottom: calc(6px + env(safe-area-inset-bottom, 0px));
     z-index: 30;
     width: auto;
     flex-direction: row;
@@ -443,8 +472,8 @@ input, select {
     justify-content: space-around;
     align-items: center;
     gap: 0;
-    padding: 6px 8px;
-    border-radius: 28px;
+    padding: 4px 6px;
+    border-radius: 22px;
     background: rgba(28, 28, 30, 0.82);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
@@ -453,7 +482,7 @@ input, select {
     width: auto;
     flex: 1;
     min-width: 0;
-    min-height: 52px;
+    min-height: 46px;
     border: 0;
     background: transparent;
     color: #d0d0d0;
@@ -465,17 +494,7 @@ input, select {
     border-color: transparent;
   }
   .nav-btn i { font-size: 9px; }
-  .profile-fab {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    border: 0;
-    background: rgba(28, 28, 30, 0.82);
-    backdrop-filter: blur(18px);
-    color: #fff;
-    font-size: 20px;
-    flex-shrink: 0;
-  }
+  .profile-fab { display: none !important; }
 }
   .sheet, .grid-2 { grid-template-columns: 1fr 1fr; }
   h1 { font-size: 28px; }
@@ -523,3 +542,13 @@ input, select {
   font-size: 15px;
 }
 .wheel-item.on { color: #fff; font-weight: 700; }
+#btnAddCar {
+  min-height: 52px;
+  padding: 0 28px;
+  border: 0;
+  border-radius: 16px;
+  background: #2ee56a;
+  color: #111;
+  font-weight: 800;
+  letter-spacing: .06em;
+}

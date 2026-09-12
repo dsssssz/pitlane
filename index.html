@@ -40,11 +40,20 @@
           <button class="nav-btn" data-view="lap" title="Круг"><span>◷</span><i>Круг</i></button>
           <button class="nav-btn" data-view="tops" title="Топ"><span>▲</span><i>Топ</i></button>
         </nav>
-        <button type="button" class="profile-fab" data-view="account" title="Профиль">●</button>
+        
         <div class="rail-foot">TRACK ONLY</div>
       </aside>
 
       <main>
+        <div class="brand-bar">
+          <b>PITLANE</b>
+          <button type="button" class="profile-btn" data-view="account" id="btnProfile" title="Профиль" aria-label="Профиль">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
+              <circle cx="12" cy="8" r="3.2"/>
+              <path d="M5.8 19.2c.8-3.1 3.1-4.7 6.2-4.7s5.4 1.6 6.2 4.7"/>
+            </svg>
+          </button>
+        </div>
         <header class="top">
           <div>
             <p class="eyebrow" id="carClass">GT · RWD · 3.0 twin-turbo</p>
@@ -59,7 +68,7 @@
               <span>круг</span>
               <strong id="hdrLap">8:12.4</strong>
             </div>
-            <button type="button" class="profile-btn" data-view="account" id="btnProfile" title="Профиль">●</button>
+            <button type="button" class="profile-btn" data-view="account" title="Профиль" hidden></button>
           </div>
         </header>
 
@@ -183,7 +192,7 @@
 
         <section id="view-run" class="view">
           <h2>GPS-замер</h2>
-          <p class="muted">Скорость с датчиков телефона, как в навигаторе. Только там, где разгон разрешён (трек, закрытая прямая). С телефона точнее, чем с ноутбука.</p>
+          <p class="muted">Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.</p>
           <div class="speedo card">
             <div class="speed-num" id="liveSpeed">0</div>
             <div class="speed-unit">км/ч · точность <span id="gpsAcc">—</span></div>
@@ -218,7 +227,7 @@
 
         <section id="view-lap" class="view">
           <h2>Круг</h2>
-          <p class="muted">Эталон конфигурации и ваши сессии. GPS-логгер — следующий этап.</p>
+          <p class="muted">Выбери трассу барабаном, старт на линии, финиш на той же.</p>
           <div class="grid-2">
             <article class="card">
               <h3>Трасса</h3>

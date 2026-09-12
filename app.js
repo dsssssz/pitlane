@@ -76,7 +76,7 @@ function currentCar() {
 }
 
 function fmt(v, unit = ' с') {
-  return v == null || v === '' ? 'н/д' : `${Number(v).toFixed(2).replace(/\.00$/, '')}${unit}`;
+  return v == null || v === '' ? '—' : `${Number(v).toFixed(2).replace(/\.00$/, '')}${unit}`;
 }
 
 function applyCarUI() {
@@ -90,12 +90,20 @@ function applyCarUI() {
   document.querySelectorAll('#view-garage .scan-row, #view-garage .paint-label, #view-garage .colors').forEach((el) => {
     el.classList.toggle('hidden', empty);
   });
-  if (empty) return;
+  if (empty) {
+    const n = document.getElementById('carName');
+    if (n) n.textContent = 'Pitlane';
+    const h = document.getElementById('hdr0100');
+    if (h) h.textContent = '—';
+    const l = document.getElementById('hdrLap');
+    if (l) l.textContent = '—';
+    return;
+  }
   const c = currentCar();
   const m = state.meas[c.id] || {};
-  const v0100 = m.v0100 ?? c.v0100;
-  const v100200 = m.v100200 ?? c.v100200;
-  const v200300 = m.v200300 ?? c.v200300;
+  const v0100 = m.v0100;
+  const v100200 = m.v100200;
+  const v200300 = m.v200300;
   document.getElementById('carName').textContent = c.name;
   document.getElementById('carClass').textContent = c.cls;
   document.getElementById('hdr0100').textContent = fmt(v0100, 'с');
@@ -117,7 +125,7 @@ function applyCarUI() {
   document.getElementById('d0100').textContent = fmt(v0100);
   document.getElementById('d100200').textContent = fmt(v100200);
   document.getElementById('d200300').textContent = fmt(v200300);
-  document.getElementById('d80120').textContent = fmt(c.v80120);
+  document.getElementById('d80120').textContent = fmt(m.v80120);
   document.getElementById('dHp').textContent = `${c.hp} л.с.`;
   document.getElementById('dNm').textContent = `${c.nm} Н·м`;
   document.getElementById('dKg').textContent = `${c.kg} кг`;
@@ -125,7 +133,7 @@ function applyCarUI() {
   const track = TRACKS.find((t) => t.id === (state.trackId || c.lap.track)) || TRACKS[0];
   const mine = bestLapDisplay(track.id);
   setTxt('sLap', mine || 'нет заезда');
-  document.getElementById('hdrLap').textContent = mine || c.lap.time;
+  document.getElementById('hdrLap').textContent = mine || '—';
   document.getElementById('trackRef').textContent = track.ref;
   document.getElementById('trackMine').textContent = bestLapDisplay(track.id) || '—';
   paintCar(c);
@@ -167,7 +175,9 @@ function renderTracks() {
   const sel = document.getElementById('trackSelect');
   const html = TRACKS.map((t) => `<option value="${t.id}">${t.name}</option>`).join('');
   sel.innerHTML = html;
-  sel.value = state.trackId || currentCar().lap.track;
+  const def = state.trackId && TRACKS.some((t) => t.id === state.trackId) ? state.trackId : TRACKS[0].id;
+  sel.value = def;
+  state.trackId = def;
   sel.onchange = () => {
     state.trackId = sel.value;
     save();
@@ -197,9 +207,11 @@ function mountWheel(selId, wheelId) {
   const sync = () => {
     const mid = box.scrollTop + box.clientHeight / 2;
     let best = items()[0], dist = 1e9;
+    const boxR = box.getBoundingClientRect();
+    const midY = boxR.top + boxR.height / 2;
     items().forEach((el) => {
-      const c = el.offsetTop + el.offsetHeight / 2;
-      const d = Math.abs(c - mid);
+      const r = el.getBoundingClientRect();
+      const d = Math.abs(r.top + r.height / 2 - midY);
       if (d < dist) { dist = d; best = el; }
     });
     items().forEach((el) => el.classList.toggle('on', el === best));
@@ -209,9 +221,16 @@ function mountWheel(selId, wheelId) {
       sel.dispatchEvent(new Event('change'));
     }
   };
-  box.onscroll = () => {
-    sync();
+  box.onclick = (e) => {
+    const it = e.target.closest('.wheel-item[data-val]');
+    if (!it) return;
+    it.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    sel.value = it.dataset.val;
+    hap(14);
+    sel.dispatchEvent(new Event('change'));
+    items().forEach((el) => el.classList.toggle('on', el === it));
   };
+  box.onscroll = () => { requestAnimationFrame(sync); };
   const i = Math.max(0, opts.findIndex((o) => o.value === sel.value));
   box.scrollTop = i * 56;
   items().forEach((el, n) => el.classList.toggle('on', n === i));
@@ -820,8 +839,8 @@ document.getElementById('btnLapStop')?.addEventListener('click', () => {
   if (!lapRun.on || !lapRun.t0) return;
   const ms = Date.now() - lapRun.t0;
   lapRun.on = false;
-  if (ms < 20000) {
-    document.getElementById('lapGpsMsg').textContent = 'короче 20 с — в топ не берём';
+  if (ms < 5000) {
+    document.getElementById('lapGpsMsg').textContent = 'слишком коротко';
     return;
   }
   const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
