@@ -131,10 +131,10 @@ function applyCarUI() {
   const v0100 = m.v0100;
   const v100200 = m.v100200;
   const v200300 = m.v200300;
-  document.getElementById('carName').textContent = c.name;
-  document.getElementById('carClass').textContent = c.cls;
-  document.getElementById('hdr0100').textContent = fmt(v0100, 'с');
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setTxt('carName', c.name);
+  setTxt('carClass', c.cls);
+  setTxt('hdr0100', fmt(v0100, 'с'));
   setTxt('boxName', c.name);
   setTxt('boxTrim', `${c.year} · ${c.trim}`);
   setTxt('boxClass', c.cls);
@@ -148,27 +148,29 @@ function applyCarUI() {
   setTxt('s0100', fmt(v0100));
   setTxt('s100200', fmt(v100200));
   setTxt('s200300', fmt(v200300));
-  document.getElementById('d0100').textContent = fmt(v0100);
-  document.getElementById('d100200').textContent = fmt(v100200);
-  document.getElementById('d200300').textContent = fmt(v200300);
-  document.getElementById('d80120').textContent = fmt(m.v80120);
+  setTxt('d0100', fmt(v0100));
+  setTxt('d100200', fmt(v100200));
+  setTxt('d200300', fmt(v200300));
+  setTxt('d80120', fmt(m.v80120));
   const hpEl = document.getElementById('dHp');
   if (hpEl) hpEl.textContent = c.hp ? `${c.hp} л.с.` : '—';
   const hpIn = document.getElementById('dHpIn');
   if (hpIn && document.activeElement !== hpIn) hpIn.value = c.hp || '';
-  document.getElementById('dNm').textContent = `${c.nm} Н·м`;
-  document.getElementById('dKg').textContent = `${c.kg} кг`;
-  document.getElementById('dPt').textContent = String(Math.round((c.hp / c.kg) * 1000));
+  setTxt('dNm', `${c.nm} Н·м`);
+  setTxt('dKg', `${c.kg} кг`);
+  setTxt('dPt', c.kg ? String(Math.round((c.hp / c.kg) * 1000)) : '—');
   const track = TRACKS.find((t) => t.id === (state.trackId || c.lap.track)) || TRACKS[0];
   const mine = bestLapDisplay(track.id);
   setTxt('sLap', mine || 'нет заезда');
   document.getElementById('hdrLap').textContent = mine || '—';
-  document.getElementById('trackRef').textContent = track.ref;
-  document.getElementById('trackMine').textContent = bestLapDisplay(track.id) || '—';
-  paintCar(c);
-  renderCars();
-  renderLaps();
-  renderTops();
+  const trackRef = document.getElementById('trackRef');
+  if (trackRef) trackRef.textContent = track.ref || '—';
+  const trackMine = document.getElementById('trackMine');
+  if (trackMine) trackMine.textContent = bestLapDisplay(track.id) || '—';
+  try { paintCar(c); } catch (err) { console.warn('paintCar', err); }
+  try { renderCars(); } catch (err) { console.warn('renderCars', err); }
+  try { renderLaps(); } catch (err) { console.warn('renderLaps', err); }
+  try { renderTops(); } catch (err) { console.warn('renderTops', err); }
 }
 
 function bestLapDisplay(trackId) {
@@ -1040,10 +1042,11 @@ function refreshAccount() {
   }
   if (document.getElementById('accPhone')) document.getElementById('accPhone').textContent = '+' + u.phone;
   if (document.getElementById('accPlan')) document.getElementById('accPlan').textContent = '';
-  document.getElementById('accDiscount').textContent = u.firstPaid ? 'уже использована' : '−50% на первую';
-  document.getElementById('accPro').textContent = isPro(u) ? 'да' : 'нет';
-  document.getElementById('priceMonth').textContent = (u.firstPaid ? PRICE.month : PRICE.monthOff) + ' ₽';
-  document.getElementById('priceYear').textContent = (u.firstPaid ? PRICE.year : PRICE.yearOff) + ' ₽';
+  const setAcc = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setAcc('accDiscount', u.firstPaid ? 'уже использована' : '−50% на первую');
+  setAcc('accPro', isPro(u) ? 'да' : 'нет');
+  setAcc('priceMonth', (u.firstPaid ? PRICE.month : PRICE.monthOff) + ' ₽');
+  setAcc('priceYear', (u.firstPaid ? PRICE.year : PRICE.yearOff) + ' ₽');
 }
 
 async function registerUser(phone, password) {
@@ -1439,7 +1442,9 @@ function syncWizard() {
   fillSelect(document.getElementById('wEngine'), spec?.engines || []);
 }
 function openWizard() {
+  document.getElementById('emptyGarage')?.classList.add('hidden');
   document.getElementById('addWizard')?.classList.remove('hidden');
+  document.querySelector('#view-garage .mycar')?.classList.add('hidden');
   fillSelect(document.getElementById('wBrand'), Object.keys(CATALOG));
   syncWizard();
 }
@@ -1449,6 +1454,7 @@ document.getElementById('wBrand')?.addEventListener('change', syncWizard);
 document.getElementById('wModel')?.addEventListener('change', syncWizard);
 document.getElementById('wCancel')?.addEventListener('click', () => {
   document.getElementById('addWizard')?.classList.add('hidden');
+  applyCarUI();
 });
 document.getElementById('wSave')?.addEventListener('click', () => {
   const brand = document.getElementById('wBrand').value;
@@ -1551,9 +1557,16 @@ document.getElementById('scanThresh')?.addEventListener('change', () => {
 document.getElementById('scanReset')?.addEventListener('click', () => {
   const id = state.carId;
   if (state.scans) delete state.scans[id];
+  paint.mb = 'polar-white';
+  save();
+  applyCarUI();
+});
+document.getElementById('btnRemoveCar')?.addEventListener('click', () => {
+  const id = state.carId;
+  if (!id) return;
+  if (state.scans) delete state.scans[id];
   state.garage = garageList().filter((c) => c.id !== id);
   state.carId = state.garage[0]?.id || null;
-  paint.mb = 'polar-white';
   save();
   applyCarUI();
 });
