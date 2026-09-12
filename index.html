@@ -43,6 +43,7 @@
           <button class="nav-btn" data-view="run" title="Замер"><span>▶</span><i data-i18n="nav.run">Замер</i></button>
           <button class="nav-btn" data-view="lap" title="Круг"><span>◷</span><i data-i18n="nav.lap">Круг</i></button>
           <button class="nav-btn" data-view="tops" title="Топ"><span>▲</span><i data-i18n="nav.top">Топ</i></button>
+          <button class="nav-btn" data-view="pulse" title="Paddock"><span>◉</span><i data-i18n="nav.paddock">Paddock</i></button>
         </nav>
         
         <div class="rail-foot">TRACK ONLY</div>
@@ -70,7 +71,7 @@
             </div>
             <div>
               <span>круг</span>
-              <strong id="hdrLap">8:12.4</strong>
+              <strong id="hdrLap">—</strong>
             </div>
             <button type="button" class="profile-btn" data-view="account" title="Профиль" hidden></button>
           </div>
@@ -123,7 +124,7 @@
               <label class="file-btn pill">фото
                 <input id="scanInput" type="file" accept="image/*" capture="environment" hidden />
               </label>
-              <button type="button" id="scanReset">сброс</button>
+              <button type="button" id="scanReset" data-i18n="garage.reset">сброс</button>
             </div>
             <div class="mycar-speed">
               <span id="boxClass">—</span>
@@ -165,22 +166,22 @@
         </section>
 
         <section id="view-dyno" class="view">
-          <h2>Паспорт динамики</h2>
-          <p class="muted">Сток / ваш замер. Не для дорог общего пользования.</p>
+          <h2 data-i18n="dyno.title">Паспорт динамики</h2>
+          <p class="muted" data-i18n="dyno.hint">Сток / ваш замер. Не для дорог общего пользования.</p>
           <div class="grid-2">
             <article class="card">
-              <h3>Разгон</h3>
+              <h3 data-i18n="dyno.acc">Разгон</h3>
               <table>
-                <tr><td>0–100</td><td id="d0100">3.5 с</td></tr>
-                <tr><td>100–200</td><td id="d100200">8.1 с</td></tr>
-                <tr><td>200–300</td><td id="d200300">н/д</td></tr>
-                <tr><td>80–120</td><td id="d80120">2.1 с</td></tr>
+                <tr><td>0–100</td><td id="d0100">—</td></tr>
+                <tr><td>100–200</td><td id="d100200">—</td></tr>
+                <tr><td>200–300</td><td id="d200300">—</td></tr>
+                <tr><td>80–120</td><td id="d80120">—</td></tr>
               </table>
             </article>
             <article class="card">
-              <h3>Масса и отдача</h3>
+              <h3 data-i18n="dyno.mass">Масса и отдача</h3>
               <table>
-                <tr><td>мощность</td><td id="dHp">510 л.с.</td></tr>
+                <tr><td>мощность</td><td><input id="dHpIn" type="number" min="50" max="2000" placeholder="л.с." style="width:90px;background:#111;color:#fff;border:1px solid #333;border-radius:8px;padding:4px 8px"> <span id="dHp">—</span></td></tr>
                 <tr><td>момент</td><td id="dNm">650 Н·м</td></tr>
                 <tr><td>масса</td><td id="dKg">1730 кг</td></tr>
                 <tr><td>л.с./тонна</td><td id="dPt">295</td></tr>
@@ -240,35 +241,34 @@
         </section>
 
         <section id="view-lap" class="view">
-          <h2>Круг</h2>
+          <h2 data-i18n="lap.title">Круг</h2>
           <p class="muted">Выбери трассу барабаном, старт на линии, финиш на той же.</p>
           <div class="grid-2">
             <article class="card">
-              <h3>Трасса</h3>
+              <h3 data-i18n="lap.track">Трасса</h3>
               <select id="trackSelect" class="sr-select"></select>
               <div class="wheel" id="trackWheel"></div>
               <div class="track-map" id="trackMap"></div>
-              <p class="lap-best">эталон <strong id="trackRef">8:12.40</strong></p>
-              <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
+                            <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
             </article>
             <article class="card">
-              <h3>Круг по GPS</h3>
+              <h3 data-i18n="lap.gps">Круг по GPS</h3>
               <p class="muted">Старт на линии, финиш на той же линии. Время идёт только пока есть скорость с датчика.</p>
               <div class="form-row">
-                <button type="button" id="btnLapStart">Старт круга</button>
-                <button type="button" id="btnLapStop">Финиш круга</button>
+                <button type="button" id="btnLapStart" data-i18n="lap.start">Старт круга</button>
+                <button type="button" id="btnLapStop" data-i18n="lap.finish">Финиш круга</button>
               </div>
               <p class="tiny" id="lapGpsMsg">круг не идёт</p>
             </article>
           </div>
           <article class="card">
-            <h3>Сессии</h3>
+            <h3 data-i18n="lap.sess">Сессии</h3>
             <ul id="lapList" class="laps"></ul>
           </article>
         </section>
 
         <section id="view-tops" class="view">
-          <h2>Топы</h2>
+          <h2 data-i18n="top.title">Топы</h2>
           <p class="muted">Прямая — внутри одной модели. Кольцо — выбранный трек. Сейчас локальный «сервер» в браузере.</p>
           <div class="grid-2">
             <article class="card">
@@ -292,8 +292,33 @@
           <div id="carGrid" class="car-grid"></div>
         </section>
 
+        <section id="view-pulse" class="view">
+          <h2 data-i18n="pad.title">Paddock</h2>
+          <p class="muted">Короткие посты про сборки и заезды. Без чужих имён из воздуха — только кто вошёл.</p>
+          <article class="card pulse-compose">
+            <textarea id="pulseText" maxlength="280" rows="3" placeholder="What did you do to the car…" data-i18n-placeholder="pad.ph"></textarea>
+            <div class="pulse-compose-bar">
+              <label class="file-btn pill">фото<input id="pulseImg" type="file" accept="image/*" hidden></label>
+              <span id="pulseCount">0/280</span>
+              <button type="button" id="pulseSend" data-i18n="pad.send">Опубликовать</button>
+            </div>
+            <p class="tiny" id="pulseMsg"></p>
+          </article>
+          <div id="pulseFeed" class="pulse-feed"></div>
+        </section>
+
         <section id="view-account" class="view">
           <h2 data-i18n="acc.title">Аккаунт</h2>
+          <div class="prof-head">
+            <label class="avatar-btn" title="аватар">
+              <img id="accAvatar" src="" alt="" />
+              <input id="accAvatarIn" type="file" accept="image/*" hidden />
+            </label>
+            <div>
+              <input id="accNick" placeholder="nickname" data-i18n-placeholder="acc.nick" maxlength="24" />
+              <p class="muted" id="accPhone">не вошли</p>
+            </div>
+          </div>
           <label class="lang-field">Language / Язык
             <select id="langSelect" class="lang-select" aria-label="Language">
               <option value="ru">Русский</option>

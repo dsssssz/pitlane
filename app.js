@@ -144,7 +144,6 @@ function applyCarUI() {
     const src = (state.scans && state.scans[c.id]) || c.side;
     hero.dataset.orig = src;
     hero.src = src;
-    paint.body = null;
   }
   setTxt('s0100', fmt(v0100));
   setTxt('s100200', fmt(v100200));
@@ -153,7 +152,10 @@ function applyCarUI() {
   document.getElementById('d100200').textContent = fmt(v100200);
   document.getElementById('d200300').textContent = fmt(v200300);
   document.getElementById('d80120').textContent = fmt(m.v80120);
-  document.getElementById('dHp').textContent = `${c.hp} л.с.`;
+  const hpEl = document.getElementById('dHp');
+  if (hpEl) hpEl.textContent = c.hp ? `${c.hp} л.с.` : '—';
+  const hpIn = document.getElementById('dHpIn');
+  if (hpIn && document.activeElement !== hpIn) hpIn.value = c.hp || '';
   document.getElementById('dNm').textContent = `${c.nm} Н·м`;
   document.getElementById('dKg').textContent = `${c.kg} кг`;
   document.getElementById('dPt').textContent = String(Math.round((c.hp / c.kg) * 1000));
@@ -289,12 +291,12 @@ function renderTops() {
   const sEl = document.getElementById('topStraight');
   if (sEl) {
     const rows = api.listStraight(c.id);
-    sEl.innerHTML = rows.map((r, i) => `<li><span>${i + 1}. ${r.name}</span><strong>${Number(r.t).toFixed(2)} с</strong></li>`).join('');
+    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name}</span><strong>${Number(r.t).toFixed(2)} с</strong></li>`).join('') : '<li><span>нет GPS-заездов</span><strong>—</strong></li>';
   }
   const lEl = document.getElementById('topLap');
   if (lEl) {
     const rows = api.listLap(trackId);
-    lEl.innerHTML = rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${r.t}</strong></li>`).join('');
+    lEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${r.t}</strong></li>`).join('') : '<li><span>нет GPS-кругов</span><strong>—</strong></li>';
   }
 }
 
@@ -901,7 +903,7 @@ function publishGps(v0100, v100200, v200300) {
   if (v200300 != null) rec.v200300 = Number(v200300.toFixed(2));
   state.meas[state.carId] = rec;
   save();
-  const who = (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
+  const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
   if (v0100 != null) {
     api.addStraight(currentCar().id, { name: String(who).slice(-6), car: currentCar().name, t: rec.v0100, gps: true });
     pushSlip();
@@ -920,7 +922,7 @@ document.getElementById('btnLapStop')?.addEventListener('click', () => {
   if (!lapRun.on || !lapRun.t0) return;
   const ms = Date.now() - lapRun.t0;
   lapRun.on = false;
-  if (ms < 5000) {
+  if (ms < 1500) {
     document.getElementById('lapGpsMsg').textContent = 'слишком коротко';
     return;
   }
@@ -928,7 +930,7 @@ document.getElementById('btnLapStop')?.addEventListener('click', () => {
   state.laps[trackId] = state.laps[trackId] || [];
   state.laps[trackId].push({ ms, at: Date.now(), gps: true });
   save();
-  const who = (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
+  const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
   const sec = ms / 1000;
   const m = Math.floor(sec / 60);
   const s = (sec % 60).toFixed(2).padStart(5, '0');
@@ -1445,7 +1447,9 @@ document.getElementById('btnAddCar')?.addEventListener('click', openWizard);
 document.getElementById('btnAddCar2')?.addEventListener('click', openWizard);
 document.getElementById('wBrand')?.addEventListener('change', syncWizard);
 document.getElementById('wModel')?.addEventListener('change', syncWizard);
-document.getElementById('wCancel')?.addEventListener('click', () => applyCarUI());
+document.getElementById('wCancel')?.addEventListener('click', () => {
+  document.getElementById('addWizard')?.classList.add('hidden');
+});
 document.getElementById('wSave')?.addEventListener('click', () => {
   const brand = document.getElementById('wBrand').value;
   const model = document.getElementById('wModel').value;
@@ -1460,7 +1464,8 @@ document.getElementById('wSave')?.addEventListener('click', () => {
     cls: engine,
     year,
     trim: engine,
-    side: BODY_IMG[spec.body] || './img/m3.jpg',
+    side: model.includes('C63') ? './img/c63-body-polar-white.jpg' : (BODY_IMG[spec.body] || './img/m3.jpg'),
+    wheels: model.includes('C63') ? './img/c63-wheels.png' : null,
     color: stock?.color || 0x888888,
     v0100: stock?.v0100 ?? null,
     v100200: stock?.v100200 ?? null,
@@ -1544,8 +1549,11 @@ document.getElementById('scanThresh')?.addEventListener('change', () => {
   if (lastScanFile) runScan(lastScanFile);
 });
 document.getElementById('scanReset')?.addEventListener('click', () => {
-  if (!state.scans) return;
-  delete state.scans[currentCar().id];
+  const id = state.carId;
+  if (state.scans) delete state.scans[id];
+  state.garage = garageList().filter((c) => c.id !== id);
+  state.carId = state.garage[0]?.id || null;
+  paint.mb = 'polar-white';
   save();
   applyCarUI();
 });
@@ -1579,35 +1587,55 @@ document.getElementById('topLapForm')?.addEventListener('submit', (e) => {
 
 const I18N = {
   ru: {
-    'nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ',
-    'garage.empty':'Гараж пуст','garage.hint':'Добавь свой автомобиль — марка, кузов, год, мотор.','garage.add':'Добавить автомобиль',
+    'nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Paddock',
+    'garage.empty':'Гараж пуст','garage.hint':'Добавь свой автомобиль — марка, кузов, год, мотор.','garage.add':'Добавить автомобиль','garage.reset':'сброс',
     'run.title':'Замер','run.hint':'Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.','run.start':'Старт замера',
-    'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Телефон и пароль. Регистрация даёт 7 дней Pro.','acc.in':'Войти','acc.reg':'Регистрация'
+    'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
+    'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
+    'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Что сделал с машиной…','pad.empty':'Пока тихо. Напиши первый пост после входа.',
+    'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Телефон и пароль.','acc.in':'Войти','acc.reg':'Регистрация','acc.nick':'ник'
   },
   en: {
-    'nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Top',
-    'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car',
+    'nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock',
+    'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car','garage.reset':'reset',
     'run.title':'Run','run.hint':'Tap start, almost stop, then accelerate. When speed drops the run is saved.','run.start':'Start run',
-    'acc.title':'Account','acc.login':'Sign in','acc.hint':'Phone and password. Sign up gives 7 days of Pro.','acc.in':'Sign in','acc.reg':'Sign up'
+    'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
+    'lap.title':'Lap','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start lap','lap.finish':'Finish lap',
+    'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'What did you do to the car…','pad.empty':'Quiet for now. Sign in and write the first post.',
+    'acc.title':'Account','acc.login':'Sign in','acc.hint':'Phone and password.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
   },
   zh: {
-    'nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单',
-    'garage.empty':'车库是空的','garage.hint':'添加车辆：品牌、车身、年份、发动机。','garage.add':'添加车辆',
+    'nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单','nav.paddock':'Paddock',
+    'garage.empty':'车库是空的','garage.hint':'添加车辆：品牌、车身、年份、发动机。','garage.add':'添加车辆','garage.reset':'重置',
     'run.title':'加速测试','run.hint':'点开始，先几乎停住再加速。车速下降后成绩会保存。','run.start':'开始测试',
-    'acc.title':'账户','acc.login':'登录','acc.hint':'手机号和密码。注册赠送 7 天 Pro。','acc.in':'登录','acc.reg':'注册'
+    'dyno.title':'动态档案','dyno.hint':'加速数据只在你自己测完后出现。','dyno.acc':'加速','dyno.mass':'重量与功率',
+    'lap.title':'圈速','lap.track':'赛道','lap.gps':'GPS圈速','lap.sess':'记录','lap.start':'发车','lap.finish':'完圈',
+    'top.title':'榜单','pad.title':'Paddock','pad.send':'发布','pad.ph':'你对车做了什么…','pad.empty':'还没有帖子。登录后发第一条。',
+    'acc.title':'账户','acc.login':'登录','acc.hint':'手机号和密码。','acc.in':'登录','acc.reg':'注册','acc.nick':'昵称'
   },
   es: {
-    'nav.box':'Box','nav.dyno':'Ficha','nav.run':'Medición','nav.lap':'Vuelta','nav.top':'Top',
-    'garage.empty':'Garaje vacío','garage.hint':'Añade tu coche: marca, carrocería, año, motor.','garage.add':'Añadir coche',
+    'nav.box':'Box','nav.dyno':'Ficha','nav.run':'Medición','nav.lap':'Vuelta','nav.top':'Ranking','nav.paddock':'Paddock',
+    'garage.empty':'Garaje vacío','garage.hint':'Añade tu coche: marca, carrocería, año, motor.','garage.add':'Añadir coche','garage.reset':'reset',
     'run.title':'Medición','run.hint':'Pulsa inicio, casi párate y acelera. Al bajar la velocidad se guarda.','run.start':'Iniciar',
-    'acc.title':'Cuenta','acc.login':'Entrar','acc.hint':'Teléfono y contraseña. El registro da 7 días Pro.','acc.in':'Entrar','acc.reg':'Registro'
+    'dyno.title':'Ficha de dinámica','dyno.hint':'Las cifras de aceleración salen solo tras tu propia medición.','dyno.acc':'Aceleración','dyno.mass':'Masa y potencia',
+    'lap.title':'Vuelta','lap.track':'Circuito','lap.gps':'Vuelta GPS','lap.sess':'Sesiones','lap.start':'Salida','lap.finish':'Meta',
+    'top.title':'Clasificaciones','pad.title':'Paddock','pad.send':'Publicar','pad.ph':'Qué le hiciste al coche…','pad.empty':'Aún no hay posts. Entra y escribe el primero.',
+    'acc.title':'Cuenta','acc.login':'Entrar','acc.hint':'Teléfono y contraseña.','acc.in':'Entrar','acc.reg':'Registro','acc.nick':'nick'
   }
 };
+function t(key) {
+  const lang = localStorage.getItem('pitlane-lang') || 'ru';
+  return (I18N[lang] || I18N.ru)[key] || (I18N.en[key] || key);
+}
 function applyI18n(lang) {
   const pack = I18N[lang] || I18N.ru;
   document.querySelectorAll('[data-i18n]').forEach((el) => {
-    const t = pack[el.dataset.i18n];
-    if (t) el.textContent = t;
+    const v = pack[el.dataset.i18n];
+    if (v) el.textContent = v;
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach((el) => {
+    const v = pack[el.dataset.i18nPlaceholder];
+    if (v) el.setAttribute('placeholder', v);
   });
   document.documentElement.lang = lang;
 }
@@ -1620,3 +1648,121 @@ if (langSel) {
     applyI18n(langSel.value);
   };
 }
+
+function profile() {
+  try { return JSON.parse(localStorage.getItem('pitlane-prof-v1') || '{}'); } catch { return {}; }
+}
+function saveProf(p) { localStorage.setItem('pitlane-prof-v1', JSON.stringify(p)); }
+function loadProfUI() {
+  const p = profile();
+  const nick = document.getElementById('accNick');
+  const img = document.getElementById('accAvatar');
+  if (nick && document.activeElement !== nick) nick.value = p.nick || '';
+  if (img && p.avatar) img.src = p.avatar;
+}
+document.getElementById('accNick')?.addEventListener('change', (e) => {
+  const p = profile(); p.nick = e.target.value.trim(); saveProf(p);
+});
+document.getElementById('accAvatarIn')?.addEventListener('change', (e) => {
+  const f = e.target.files?.[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = () => { const p = profile(); p.avatar = r.result; saveProf(p); loadProfUI(); };
+  r.readAsDataURL(f);
+});
+document.getElementById('dHpIn')?.addEventListener('change', (e) => {
+  const n = Number(e.target.value);
+  const list = garageList();
+  const car = list.find((c) => c.id === state.carId);
+  if (car && n > 0) { car.hp = n; state.garage = list; save(); applyCarUI(); }
+});
+loadProfUI();
+
+function esc(s) {
+  return String(s || '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function pulseWho() {
+  return (profile()?.nick) || currentUser()?.phone || '';
+}
+function renderPulse() {
+  const box = document.getElementById('pulseFeed');
+  if (!box) return;
+  const me = pulseWho();
+  const rows = api.listPulse();
+  if (!rows.length) {
+    box.innerHTML = '<p class="muted pulse-empty">' + t('pad.empty') + '</p>';
+    return;
+  }
+  box.innerHTML = rows.map((p) => {
+    const liked = (p.likes || []).includes(me);
+    const mine = p.who === me && me;
+    return `<article class="pulse-card" data-id="${esc(p.id)}">
+      <header><b>${esc(p.who || 'пилот')}</b><time>${new Date(p.at).toLocaleString('ru-RU', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</time></header>
+      <p>${esc(p.text)}</p>
+      ${p.img ? `<img src="${p.img}" alt="">` : ''}
+      <footer>
+        <button type="button" class="pulse-like${liked ? ' on' : ''}" data-like="${esc(p.id)}">♥ ${(p.likes||[]).length}</button>
+        ${mine ? `<button type="button" class="pulse-del" data-del="${esc(p.id)}">удалить</button>` : ''}
+      </footer>
+    </article>`;
+  }).join('');
+}
+function compressPulseImg(file) {
+  return new Promise((res) => {
+    const im = new Image();
+    im.onload = () => {
+      const s = Math.min(1, 900 / im.width);
+      const c = document.createElement('canvas');
+      c.width = Math.round(im.width * s);
+      c.height = Math.round(im.height * s);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      res(c.toDataURL('image/jpeg', 0.72));
+    };
+    im.onerror = () => res(null);
+    im.src = URL.createObjectURL(file);
+  });
+}
+const pulseText = document.getElementById('pulseText');
+pulseText?.addEventListener('input', () => {
+  const n = pulseText.value.length;
+  const el = document.getElementById('pulseCount');
+  if (el) el.textContent = n + '/280';
+});
+document.getElementById('pulseSend')?.addEventListener('click', async () => {
+  const msg = document.getElementById('pulseMsg');
+  if (needLogin('Чтобы писать в Пэддок, войди.')) return;
+  const text = (pulseText?.value || '').trim();
+  if (text.length < 2) { if (msg) msg.textContent = 'Напиши хотя бы пару слов'; return; }
+  let img = null;
+  const f = document.getElementById('pulseImg')?.files?.[0];
+  if (f) img = await compressPulseImg(f);
+  api.addPulse({
+    id: 'p' + Date.now(),
+    who: pulseWho(),
+    text: text.slice(0, 280),
+    img,
+    at: Date.now(),
+    likes: [],
+    car: currentCar()?.name || '',
+  });
+  if (pulseText) pulseText.value = '';
+  const cnt = document.getElementById('pulseCount');
+  if (cnt) cnt.textContent = '0/280';
+  const inp = document.getElementById('pulseImg');
+  if (inp) inp.value = '';
+  if (msg) msg.textContent = '';
+  renderPulse();
+});
+document.getElementById('pulseFeed')?.addEventListener('click', (e) => {
+  const like = e.target.closest('[data-like]');
+  const del = e.target.closest('[data-del]');
+  if (like) {
+    if (needLogin('Лайк после входа')) return;
+    api.likePulse(like.dataset.like, pulseWho());
+    renderPulse();
+  }
+  if (del) {
+    api.delPulse(del.dataset.del, pulseWho());
+    renderPulse();
+  }
+});
+document.querySelector('[data-view="pulse"]')?.addEventListener('click', renderPulse);
