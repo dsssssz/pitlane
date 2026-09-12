@@ -9,6 +9,9 @@ function hap(ms = 12) {
 document.addEventListener('click', (e) => {
   if (e.target.closest('button')) hap(10);
 }, true);
+if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
+  document.documentElement.classList.add('standalone');
+}
 
 const CARS = [
   { id: 'gt3rs', name: 'Porsche 911 GT3 RS', cls: 'GT · RWD · 4.0 NA', year: 2023, trim: '992 GT3 RS', side: './img/gt3rs.jpg', color: 0xeeeeee, accent: 0x111, v0100: 3.2, v100200: 10.6, v200300: null, v80120: 2.0, hp: 525, nm: 465, kg: 1450, lap: { track: 'nurb-nord', time: '6:49.33' } },
