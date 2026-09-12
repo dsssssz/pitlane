@@ -102,68 +102,66 @@
               <button type="button" id="wCancel">Отмена</button>
             </div>
           </div>
-          <div class="hero-title">
-            <p class="eyebrow">Гараж</p>
-            <h1 id="boxName">Porsche 911 GT3 RS</h1>
-            <p class="hero-chip" id="boxTrim">2023 · 992 GT3 RS</p>
-          </div>
-          <div class="stage">
-            <button type="button" class="slide-btn" id="carPrev">‹</button>
-            <div id="photoStage" class="photo-stage">
-              <img id="heroPhoto" src="./img/gt3rs.jpg" alt="вид сбоку" />
+          <div class="mycar">
+            <div class="stage">
+              <button type="button" class="slide-btn" id="carPrev">‹</button>
+              <div id="photoStage" class="photo-stage">
+                <img id="heroPhoto" src="./img/c63-body-polar-white.jpg" alt="кузов" />
+                <div class="body-gloss" aria-hidden="true"></div>
+                <div class="glass-gloss" aria-hidden="true"></div>
+                <img id="heroWheels" src="./img/c63-wheels.png" alt="" />
+              </div>
+              <button type="button" class="slide-btn" id="carNext">›</button>
+              <canvas id="view3d" class="hidden-3d"></canvas>
             </div>
-            <button type="button" class="slide-btn" id="carNext">›</button>
-            <canvas id="view3d" class="hidden-3d"></canvas>
-          </div>
-          <div class="scan-row">
-            <label class="file-btn">сфотографировать бок
-              <input id="scanInput" type="file" accept="image/*" capture="environment" hidden />
-            </label>
-            <label>порог фона <input id="scanThresh" type="range" min="8" max="70" value="28" /></label>
-            <button type="button" id="scanReset">сброс фото</button>
-          </div>
-          <p class="paint-label">кузов</p>
-          <div class="colors" id="colorBar">
-            <button type="button" data-hex="" style="background:#d8d8d8" class="on" title="сток"></button>
-            <button type="button" data-hex="#c41e3a" style="background:#c41e3a"></button>
-            <button type="button" data-hex="#1f4cff" style="background:#1f4cff"></button>
-            <button type="button" data-hex="#2ee56a" style="background:#2ee56a"></button>
-            <button type="button" data-hex="#111111" style="background:#111"></button>
-            <button type="button" data-hex="#f4f1ea" style="background:#f4f1ea"></button>
-            <button type="button" data-hex="#e6c84a" style="background:#e6c84a"></button>
-            <button type="button" data-hex="#7b2d8e" style="background:#7b2d8e"></button>
-          </div>
-          <p class="paint-label">диски</p>
-          <div class="colors" id="wheelBar">
-            <button type="button" data-wheel="none" class="on" style="background:#333"></button>
-            <button type="button" data-wheel="sepia(0.4) hue-rotate(5deg) saturate(1.8)" style="background:#c9a227"></button>
-            <button type="button" data-wheel="hue-rotate(200deg) saturate(1.6)" style="background:#c41e3a"></button>
-            <button type="button" data-wheel="grayscale(1) brightness(1.4)" style="background:#eee"></button>
-            <button type="button" data-wheel="brightness(0.45)" style="background:#111"></button>
-          </div>
-          <article class="box-card">
-            <div class="box-head">
-              <div class="box-spec" id="boxClass">GT · RWD · 4.0</div>
+            <div class="hero-title">
+              <h1 id="boxName">Pitlane</h1>
+              <p class="hero-chip" id="boxTrim">добавь машину</p>
             </div>
-            <div class="sheet">
-              <div class="stat">
-                <label>год</label>
-                <b id="boxYear">2023</b>
+            <div class="mycar-pills">
+              <button type="button" id="btnAddCar2">＋</button>
+              <label class="file-btn pill">фото
+                <input id="scanInput" type="file" accept="image/*" capture="environment" hidden />
+              </label>
+              <button type="button" id="scanReset">сброс</button>
+            </div>
+            <div class="mycar-speed">
+              <span id="boxClass">—</span>
+              <div>
+                <strong id="boxLive">0</strong>
+                <small>км/ч</small>
               </div>
-              <div class="stat">
-                <label>мой 0–100</label>
-                <b id="s0100">3.5 с</b>
-              </div>
-              <div class="stat">
-                <label>100–200</label>
-                <b id="s100200">8.1 с</b>
-              </div>
-              <div class="stat">
-                <label>мой круг</label>
+              <span id="boxYear">—</span>
+            </div>
+            <div class="mycar-grid">
+              <article>
+                <label>0–100</label>
+                <b id="s0100">—</b>
+              </article>
+              <article>
+                <label>круг</label>
                 <b id="sLap">—</b>
-              </div>
+              </article>
             </div>
-          </article>
+            <p id="s100200" class="hidden">—</p>
+            <input id="scanThresh" type="range" min="8" max="70" value="28" class="hidden" />
+            <div class="colors" id="colorBar">
+              <button type="button" data-paint="polar-white" style="background:#f2f0ea" class="on" title="Polar White"></button>
+              <button type="button" data-paint="obsidian-black" style="background:#161618" title="Obsidian Black"></button>
+              <button type="button" data-paint="graphite-grey" style="background:#4a4e52" title="Graphite Grey"></button>
+              <button type="button" data-paint="selenite-grey" style="background:#6c7072" title="Selenite Grey"></button>
+              <button type="button" data-paint="high-tech-silver" style="background:#c5c8cc" title="High-Tech Silver"></button>
+              <button type="button" data-paint="spectral-blue" style="background:#2b4c7e" title="Spectral Blue"></button>
+              <button type="button" data-paint="patagonia-red" style="background:#8b1e2d" title="Patagonia Red"></button>
+            </div>
+            <div class="colors" id="wheelBar">
+              <button type="button" data-wheel="none" class="on" style="background:#333"></button>
+              <button type="button" data-wheel="sepia(0.4) hue-rotate(5deg) saturate(1.8)" style="background:#c9a227"></button>
+              <button type="button" data-wheel="hue-rotate(200deg) saturate(1.6)" style="background:#c41e3a"></button>
+              <button type="button" data-wheel="grayscale(1) brightness(1.4)" style="background:#eee"></button>
+              <button type="button" data-wheel="brightness(0.45)" style="background:#111"></button>
+            </div>
+          </div>
         </section>
 
         <section id="view-dyno" class="view">
@@ -249,6 +247,7 @@
               <h3>Трасса</h3>
               <select id="trackSelect" class="sr-select"></select>
               <div class="wheel" id="trackWheel"></div>
+              <div class="track-map" id="trackMap"></div>
               <p class="lap-best">эталон <strong id="trackRef">8:12.40</strong></p>
               <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
             </article>
@@ -281,6 +280,7 @@
               <h3>Кольцо · <span id="topTrackName">Moscow Raceway</span></h3>
               <select id="topTrackSelect" class="sr-select"></select>
               <div class="wheel" id="topTrackWheel"></div>
+              <div class="track-map" id="topTrackMap"></div>
               <ol id="topLap" class="laps"></ol>
               <p class="tiny">Только финиш круга с GPS.</p>
             </article>

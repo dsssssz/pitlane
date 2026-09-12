@@ -24,7 +24,7 @@ const CARS = [
   { id: 'sf90', name: 'Ferrari SF90 Stradale', cls: 'Super · AWD · V8 hybrid', year: 2021, trim: 'Stradale', side: './img/sf90.jpg', color: 0xc41e3a, accent: 0x111, v0100: 2.5, v100200: 6.5, v200300: 15.2, v80120: 1.5, hp: 1000, nm: 800, kg: 1570, lap: { track: 'nurb-nord', time: '6:44.00' } },
   { id: '296', name: 'Ferrari 296 GTB', cls: 'Super · RWD · V6 hybrid', year: 2023, trim: 'GTB', side: './img/296.jpg', color: 0xc41e3a, accent: 0x111, v0100: 2.9, v100200: 7.6, v200300: 19.0, v80120: 1.8, hp: 830, nm: 740, kg: 1470, lap: { track: 'nurb-nord', time: '6:49.00' } },
   { id: 'amggt', name: 'Mercedes-AMG GT Black Series', cls: 'GT · RWD · 4.0 V8', year: 2021, trim: 'Black Series', side: './img/amggt.jpg', color: 0x111111, accent: 0x111, v0100: 3.2, v100200: 8.0, v200300: 20.0, v80120: 1.9, hp: 730, nm: 800, kg: 1540, lap: { track: 'nurb-nord', time: '6:43.00' } },
-  { id: 'c63', name: 'Mercedes-AMG C63 S E Performance', cls: 'GT · AWD · 2.0 hybrid', year: 2024, trim: 'W206 S', side: './img/c63.jpg', color: 0x8a1f1a, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: null, v80120: 2.1, hp: 680, nm: 1020, kg: 2111, lap: { track: 'nurb-nord', time: '7:46.00' } },
+  { id: 'c63', name: 'Mercedes-AMG C63 S E Performance', cls: 'GT · AWD · 2.0 hybrid', year: 2024, trim: 'W206 S', side: './img/c63-body-polar-white.jpg', wheels: './img/c63-wheels.png', color: 0x8a1f1a, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: null, v80120: 2.1, hp: 680, nm: 1020, kg: 2111, lap: { track: 'nurb-nord', time: '7:46.00' } },
   { id: 'rs6', name: 'Audi RS6 Avant', cls: 'GT · AWD · 4.0 V8', year: 2023, trim: 'C8 Performance', side: './img/rs6.jpg', color: 0xc5ccd3, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: 22.0, v80120: 2.1, hp: 630, nm: 850, kg: 2090, lap: { track: 'nurb-nord', time: '7:38.00' } },
   { id: 'r8', name: 'Audi R8 V10 Performance', cls: 'Super · AWD · 5.2 V10', year: 2022, trim: 'RWS / Perf.', side: './img/r8.jpg', color: 0x1f4cff, accent: 0x111, v0100: 3.1, v100200: 8.2, v200300: 20.0, v80120: 1.9, hp: 620, nm: 580, kg: 1595, lap: { track: 'nurb-nord', time: '7:07.00' } },
   { id: 'cayman', name: 'Porsche 718 Cayman GT4 RS', cls: 'GT · RWD · 4.0 NA', year: 2022, trim: 'GT4 RS', side: './img/cayman.jpg', color: 0x2ee56a, accent: 0x111, v0100: 3.4, v100200: 10.6, v200300: null, v80120: 2.1, hp: 500, nm: 450, kg: 1415, lap: { track: 'nurb-nord', time: '7:09.00' } },
@@ -37,23 +37,53 @@ const CARS = [
 ];
 
 const TRACKS = [
-  { id: 'sochi', name: 'Сочи Автодром', ref: '1:35.00' },
-  { id: 'moscow', name: 'Moscow Raceway', ref: '1:28.50' },
-  { id: 'igora', name: 'Игора Драйв', ref: '1:36.20' },
-  { id: 'kazan', name: 'Казань Ринг', ref: '1:22.80' },
-  { id: 'smolensk', name: 'Смоленское кольцо', ref: '1:24.00' },
-  { id: 'nring', name: 'NRING Нижний Новгород', ref: '1:21.50' },
-  { id: 'adm', name: 'ADM Raceway Мячково', ref: '1:19.00' },
-  { id: 'grozny', name: 'Fort Grozny Autodrom', ref: '1:18.80' },
-  { id: 'redring', name: 'Красное Кольцо Красноярск', ref: '1:26.00' },
-  { id: 'spb', name: 'Автодром Санкт-Петербург', ref: '1:27.00' },
-  { id: 'tlt', name: 'Тольятти Ринг', ref: '1:23.00' },
-  { id: 'lipetsk', name: 'Липецкий автодром', ref: '1:20.00' },
-  { id: 'auto-msk', name: 'Автодром Москва', ref: '1:25.00' },
-  { id: 'neva', name: 'Нева Ринг', ref: '1:29.00' },
-  { id: 'ufa', name: 'Уфа Ринг', ref: '1:31.00' },
-  { id: 'don', name: 'Донринг Ростов', ref: '1:30.00' },
+  { id: 'sochi', name: 'Сочи Автодром', ref: '1:35.00', km: '5.85', turns: '18' , corners: 'T2 — жёсткое торможение после прямой. T3 — длинный постоянный радиус. Финальная связка — медленные 90°.'},
+  { id: 'moscow', name: 'Moscow Raceway', ref: '1:28.50', km: '3.93', turns: '13' , corners: 'Длинная прямая в последний сектор. Средний сектор рулёжный. Несколько конфигураций срезают связки.'},
+  { id: 'igora', name: 'Игора Драйв', ref: '1:36.20', km: '5.18', turns: '20' , corners: 'Очень длинная С/Ф. Много средних поворотов против часовой. Перепад заметный на спуске.'},
+  { id: 'kazan', name: 'Казань Ринг', ref: '1:22.80', km: '3.48', turns: '12' , corners: 'Каньон: слепые вершины, уклоны до ~10%. Движение против часовой. Длинная прямая ~800 м.'},
+  { id: 'smolensk', name: 'Смоленское кольцо', ref: '1:24.00', km: '3.36', turns: '14' , corners: 'Техничное кольцо, средние радиусы, мало мест для отдыха.'},
+  { id: 'nring', name: 'NRING Нижний Новгород', ref: '1:21.50', km: '3.12', turns: '12' , corners: 'Короткое кольцо, плотная нарезка, мало времени на ошибку.'},
+  { id: 'adm', name: 'ADM Raceway Мячково', ref: '1:19.00', km: '3.25', turns: '16' , corners: 'Мячково: старое кольцо, короткие прямые, много направления.'},
+  { id: 'grozny', name: 'Fort Grozny Autodrom', ref: '1:18.80', km: '3.08', turns: '11' , corners: 'Крепость: относительно короткое GP, понятные зоны торможения.'},
+  { id: 'redring', name: 'Красное Кольцо Красноярск', ref: '1:26.00', km: '2.80', turns: '10' , corners: 'Компактное кольцо, меньше поворотов, акцент на ритм.'},
+  { id: 'spb', name: 'Автодром Санкт-Петербург', ref: '1:27.00' , corners: 'Городской/короткий профиль, тесные связки.'},
+  { id: 'tlt', name: 'Тольятти Ринг', ref: '1:23.00' , corners: 'Кольцо с средней длиной прямых.'},
+  { id: 'lipetsk', name: 'Липецкий автодром', ref: '1:20.00' , corners: 'Короткий автодром, стоп-энд-гоу.'},
+  { id: 'auto-msk', name: 'Автодром Москва', ref: '1:25.00' , corners: 'Городской автодром, смена направления часто.'},
+  { id: 'neva', name: 'Нева Ринг', ref: '1:29.00' , corners: 'Нева: средние дуги, мало ультрамедленных шпилек.'},
+  { id: 'ufa', name: 'Уфа Ринг', ref: '1:31.00' , corners: 'Региональное кольцо, ритм важнее пиковой скорости.'},
+  { id: 'don', name: 'Донринг Ростов', ref: '1:30.00' , corners: 'Донринг: смесь прямых и средних дуг.'},
 ];
+
+
+const TRACK_SVG = {
+  sochi: 'M28 150 L70 148 C88 146 96 138 108 118 C150 48 210 38 248 72 C268 90 258 118 228 128 C190 140 168 128 150 108 C132 88 108 128 92 148 C80 162 52 168 28 166 Z',
+  moscow: 'M30 128 L120 128 C138 128 148 116 162 96 C178 72 210 58 248 70 C278 82 270 118 238 132 C200 150 168 168 120 170 L48 170 C32 170 26 150 30 128 Z',
+  igora: 'M24 92 L210 70 C250 64 278 92 270 128 C262 168 200 182 140 170 C90 160 40 150 28 128 C20 112 20 100 24 92 Z',
+  kazan: 'M50 40 C90 28 160 48 170 90 C180 130 240 150 230 175 C210 198 90 188 60 150 C35 118 28 70 50 40 Z',
+  smolensk: 'M40 70 C80 30 200 28 250 80 C280 120 220 175 120 170 C60 166 30 120 40 70 Z',
+  nring: 'M36 86 C70 36 160 30 210 70 C250 100 255 150 200 168 C130 190 50 160 40 120 C34 104 32 96 36 86 Z',
+  adm: 'M40 100 L80 48 L200 40 L260 88 L250 150 L140 172 L52 148 Z',
+  grozny: 'M70 36 C150 20 250 70 240 130 C230 175 90 185 50 130 C35 100 40 55 70 36 Z',
+  redring: 'M32 140 C36 70 140 28 240 80 C280 110 220 175 100 172 C50 170 30 158 32 140 Z',
+  spb: 'M60 36 L240 48 L268 130 L90 172 L42 100 Z',
+  tlt: 'M40 82 C90 28 240 40 262 100 C250 160 90 172 48 122 C38 104 36 92 40 82 Z',
+  lipetsk: 'M55 48 L238 72 L252 148 L78 168 L38 108 Z',
+  'auto-msk': 'M34 102 C62 36 210 26 272 92 C282 140 148 182 68 154 C38 140 28 118 34 102 Z',
+  neva: 'M42 72 C124 22 262 42 260 112 C254 168 98 176 54 126 C40 106 36 86 42 72 Z',
+  ufa: 'M60 90 C92 40 232 36 256 96 C266 146 148 172 78 146 C54 132 50 110 60 90 Z',
+  don: 'M46 86 C102 26 252 46 256 112 C250 166 108 176 58 130 C40 110 40 96 46 86 Z'
+};
+function drawTrack(id, elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const d = TRACK_SVG[id] || TRACK_SVG.sochi;
+  const tr = TRACKS.find((x) => x.id === id) || {};
+  const meta = [tr.km && (tr.km + ' км'), tr.turns && (tr.turns + ' пов.')].filter(Boolean).join(' · ');
+  el.innerHTML = `<svg viewBox="0 0 300 210" class="track-svg"><path d="${d}" fill="none" stroke="#2ee56a" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg><p>${tr.name || ''}<br><small>${meta}</small></p><p class="track-notes">${tr.corners || ''}</p>`;
+}
+
+
 
 const storeKey = 'pitlane-v1';
 const state = loadState();
@@ -86,13 +116,7 @@ function applyCarUI() {
   const empty = !garageList().length;
   document.getElementById('emptyGarage')?.classList.toggle('hidden', !empty);
   document.getElementById('addWizard')?.classList.add('hidden');
-  const stage = document.querySelector('#view-garage .stage');
-  const title = document.querySelector('#view-garage .hero-title');
-  const card = document.querySelector('#view-garage .box-card');
-  [stage, title, card].forEach((el) => el && el.classList.toggle('hidden', empty));
-  document.querySelectorAll('#view-garage .scan-row, #view-garage .paint-label, #view-garage .colors').forEach((el) => {
-    el.classList.toggle('hidden', empty);
-  });
+  document.querySelector('#view-garage .mycar')?.classList.toggle('hidden', empty);
   if (empty) {
     const n = document.getElementById('carName');
     if (n) n.textContent = 'Pitlane';
@@ -184,6 +208,8 @@ function renderTracks() {
   sel.onchange = () => {
     state.trackId = sel.value;
     save();
+    drawTrack(sel.value, 'trackMap');
+    drawTrack(sel.value, 'topTrackMap');
     applyCarUI();
   };
   const topSel = document.getElementById('topTrackSelect');
@@ -193,11 +219,15 @@ function renderTracks() {
     topSel.onchange = () => {
       state.trackId = topSel.value;
       save();
+      drawTrack(topSel.value, 'trackMap');
+      drawTrack(topSel.value, 'topTrackMap');
       renderTops();
     };
   }
   mountWheel('trackSelect', 'trackWheel');
   mountWheel('topTrackSelect', 'topTrackWheel');
+  drawTrack(sel.value, 'trackMap');
+  drawTrack(sel.value, 'topTrackMap');
 }
 
 function mountWheel(selId, wheelId) {
@@ -566,6 +596,10 @@ function mkStoredDoors(root) {
 }
 
 function paintCar(cfg) {
+  applyPaint();
+  return;
+  /* legacy 3d */
+
   buildCar(cfg);
   moving.doorList = mkStoredDoors(car);
   moving.tHood = 0;
@@ -640,20 +674,47 @@ function haversineM(a, b) {
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
 let lastFix = null;
+let filtV = 0;
+const kf = { v: 0, a: 0, p: 80, r: 20, q: 10, e2: 30, init: false };
 function kmhFromCoords(coords, ts) {
-  if (coords.speed != null && !Number.isNaN(coords.speed) && coords.speed >= 0) {
-    lastFix = { lat: coords.latitude, lon: coords.longitude, t: ts };
-    return Math.max(0, coords.speed * 3.6);
-  }
-  if (coords.latitude == null) return null;
+  const acc = coords.accuracy || 25;
+  if (acc > 45) return kf.init ? kf.v : null;
+  if (coords.latitude == null) return kf.init ? kf.v : null;
   const fix = { lat: coords.latitude, lon: coords.longitude, t: ts };
-  let v = null;
-  if (lastFix && ts > lastFix.t) {
-    const dt = (ts - lastFix.t) / 1000;
-    if (dt > 0.15 && dt < 3) v = (haversineM(lastFix, fix) / dt) * 3.6;
+  let z = null;
+  if (coords.speed != null && Number.isFinite(coords.speed) && coords.speed >= 0) {
+    z = Math.max(0, coords.speed * 3.6);
+  }
+  const dt = lastFix ? Math.max(0.05, Math.min(2, (ts - lastFix.t) / 1000)) : 0.25;
+  if (lastFix) {
+    const hv = (haversineM(lastFix, fix) / dt) * 3.6;
+    if (hv < 360) z = z == null ? hv : z * 0.7 + hv * 0.3;
   }
   lastFix = fix;
-  return v;
+  if (z == null) return kf.init ? kf.v : null;
+  if (!kf.init) {
+    kf.v = z; kf.a = 0; kf.p = 40; kf.r = 12 + acc; kf.q = 10; kf.e2 = 40; kf.init = true; filtV = z;
+    return z;
+  }
+  const qBoost = Math.min(40, Math.abs(kf.a) * 0.35);
+  kf.q = kf.q * 0.9 + (6 + qBoost) * 0.1;
+  kf.v += kf.a * dt;
+  kf.p += kf.q + acc * 0.12;
+  const innov = z - kf.v;
+  const S = kf.p + kf.r;
+  const nis = (innov * innov) / Math.max(1, S);
+  kf.e2 = kf.e2 * 0.88 + S * 0.12;
+  if (nis > 3.5) kf.r = Math.min(260, kf.r * 1.18);
+  else if (nis < 0.35) kf.r = Math.max(5, kf.r * 0.94);
+  else kf.r = Math.max(5, Math.min(220, 0.92 * kf.r + 0.08 * (S + acc * 0.5)));
+  const k = kf.p / (kf.p + kf.r);
+  kf.a = kf.a * 0.55 + (innov / dt) * 0.45;
+  kf.v += k * innov;
+  kf.p *= (1 - k);
+  if (kf.v < 0.5) { kf.v = 0; kf.a = 0; }
+  if (kf.v > 360) kf.v = 360;
+  filtV = kf.v;
+  return kf.v;
 }
 
 function interpolateCross(prev, next, target) {
@@ -678,6 +739,7 @@ function onGpsPoint(pos) {
     return;
   }
   setRunText('liveSpeed', String(Math.round(v)));
+  setRunText('boxLive', String(Math.round(v)));
 
   if (!run.armed) {
     setRunText('runStatus', 'GPS живой. Стоите — жмите «Старт замера»');
@@ -776,8 +838,13 @@ function startWatch() {
   run.watchId = navigator.geolocation.watchPosition(
     onGpsPoint,
     (err) => setRunText('runStatus', err.message || 'Нет доступа к GPS'),
-    { enableHighAccuracy: true, maximumAge: 250, timeout: 15000 }
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 2500 }
   );
+  if (run.pollId) clearInterval(run.pollId);
+  run.pollId = setInterval(() => {
+    navigator.geolocation.getCurrentPosition(onGpsPoint, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 1800 });
+  }, 400);
+  navigator.wakeLock?.request?.('screen').then((l) => { run.wake = l; }).catch(() => {});
   setRunText('runStatus', 'Запрос разрешения на геолокацию…');
 }
 
@@ -790,6 +857,7 @@ function armRun() {
   run.t0 = null;
   run.marks = {};
   run.peak = 0;
+  kf.init = false; kf.v = 0; kf.a = 0; kf.p = 80; lastFix = null;
   run.saved0100 = run.saved100200 = run.saved200300 = run.saved050 = run.saved80120 = run.saved1000 = false;
   run.brakeArmed = false;
   run.brakeT0 = null;
@@ -801,6 +869,8 @@ function armRun() {
 function stopRun() {
   run.armed = false;
   run.launched = false;
+  if (run.pollId) { clearInterval(run.pollId); run.pollId = null; }
+  try { run.wake?.release?.(); } catch (_) {}
   setRunText('runStatus', 'Остановлено. GPS может продолжать показывать скорость');
 }
 
@@ -1205,17 +1275,31 @@ function recolorSrc(src, bodyHex) {
       const [th, ts] = rgbToHsl(tr, tg, tb);
       const data = ctx.getImageData(0, 0, cnv.width, cnv.height);
       const d = data.data;
+      const w = cnv.width, h = cnv.height;
+      const sample = (x, y) => {
+        const j = (y * w + x) * 4;
+        return [d[j], d[j + 1], d[j + 2]];
+      };
+      const corners = [sample(2, 2), sample(w - 3, 2), sample(2, h - 3), sample(w - 3, h - 3)];
+      const br = corners.reduce((s, c) => s + c[0], 0) / 4;
+      const bg = corners.reduce((s, c) => s + c[1], 0) / 4;
+      const bb = corners.reduce((s, c) => s + c[2], 0) / 4;
       for (let i = 0; i < d.length; i += 4) {
         const r = d[i], g = d[i + 1], b = d[i + 2];
         const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-        if (luma < 22) continue;
+        if (luma < 26) continue;
+        const dx = r - br, dy = g - bg, dz = b - bb;
+        if (dx * dx + dy * dy + dz * dz < 48 * 48) continue;
         const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
         const sat = mx === 0 ? 0 : (mx - mn) / mx;
-        if (luma < 48 && sat < 0.18) continue;
-        if (luma > 245) continue;
+        if (sat < 0.16) continue;
+        if (luma > 210 && sat < 0.35) continue;
+        if (b > r + 12 && b > g && luma < 160 && sat < 0.4) continue;
+        const x = (i / 4) % w;
+        const y = Math.floor((i / 4) / w);
+        if (y > h * 0.72 && luma < 70) continue;
         const hsl = rgbToHsl(r, g, b);
-        const keepL = hsl[2];
-        const rgb = hslToRgb(th, Math.max(ts, 0.35), keepL);
+        const rgb = hslToRgb(th, Math.max(ts, 0.35), hsl[2]);
         d[i] = rgb[0]; d[i + 1] = rgb[1]; d[i + 2] = rgb[2];
       }
       ctx.putImageData(data, 0, 0);
@@ -1226,20 +1310,27 @@ function recolorSrc(src, bodyHex) {
 }
 function applyPaint() {
   const photo = document.getElementById('heroPhoto');
+  const wheels = document.getElementById('heroWheels');
+  const car = currentCar();
   if (!photo) return;
   photo.style.filter = 'none';
-  const base = photo.dataset.orig || photo.src;
-  if (!photo.dataset.orig) photo.dataset.orig = photo.src;
-  if (!paint.body) {
-    photo.src = base;
+  if (car && car.wheels) {
+    if (wheels) { wheels.src = car.wheels; wheels.style.display = 'block'; }
+    const slug = paint.mb || 'polar-white';
+    photo.src = './img/c63-body-' + slug + '.jpg';
     return;
   }
+  if (wheels) wheels.style.display = 'none';
+  const base = photo.dataset.orig || photo.src;
+  if (!photo.dataset.orig) photo.dataset.orig = photo.src;
+  if (!paint.body) { photo.src = base; return; }
   recolorSrc(base, paint.body).then((url) => { photo.src = url; });
 }
 document.querySelectorAll('#colorBar button').forEach((b) => {
   b.addEventListener('click', () => {
     document.querySelectorAll('#colorBar button').forEach((x) => x.classList.remove('on'));
     b.classList.add('on');
+    paint.mb = b.dataset.paint || 'polar-white';
     paint.body = b.dataset.hex || null;
     applyPaint();
   });
@@ -1351,6 +1442,7 @@ function openWizard() {
   syncWizard();
 }
 document.getElementById('btnAddCar')?.addEventListener('click', openWizard);
+document.getElementById('btnAddCar2')?.addEventListener('click', openWizard);
 document.getElementById('wBrand')?.addEventListener('change', syncWizard);
 document.getElementById('wModel')?.addEventListener('change', syncWizard);
 document.getElementById('wCancel')?.addEventListener('click', () => applyCarUI());
