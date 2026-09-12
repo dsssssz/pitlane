@@ -1159,10 +1159,60 @@ refreshAccount();
 
 const gltfLoader = new GLTFLoader();
 let glbRoot = null;
+let glbLoading = false;
+const GLB_CATALOG = [
+  { id: 'ferrari', url: './models/ferrari.glb', label: 'ferrari' },
+  { id: 'concept', url: './models/concept.glb', label: 'concept' },
+  { id: 'toycar', url: './models/toycar.glb', label: 'toycar' },
+  { id: 'moto', url: './models/moto.glb', label: 'moto' },
+  { id: 'truck', url: './models/truck.glb', label: 'truck' },
+];
+/** rough map catalog car id → bundled glb (placeholders until real body scans) */
+const CAR_GLB = {
+  sf90: './models/ferrari.glb',
+  '296': './models/ferrari.glb',
+  huracan: './models/concept.glb',
+  svj: './models/concept.glb',
+  gt3rs: './models/ferrari.glb',
+  turboS: './models/ferrari.glb',
+  cayman: './models/toycar.glb',
+  m3: './models/toycar.glb',
+  m4csl: './models/toycar.glb',
+  m5: './models/toycar.glb',
+  c63: './models/toycar.glb',
+  amggt: './models/concept.glb',
+  gtr: './models/concept.glb',
+  r8: './models/ferrari.glb',
+  rs6: './models/truck.glb',
+  teslap: './models/concept.glb',
+};
+
+function setGlbStatus(text) {
+  const el = document.getElementById('glbStatus');
+  if (el) el.textContent = text;
+}
+
+function disposeObject3D(root) {
+  root.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose?.();
+    const mats = obj.material;
+    if (!mats) return;
+    const list = Array.isArray(mats) ? mats : [mats];
+    list.forEach((m) => {
+      m.map?.dispose?.();
+      m.normalMap?.dispose?.();
+      m.roughnessMap?.dispose?.();
+      m.metalnessMap?.dispose?.();
+      m.envMap?.dispose?.();
+      m.dispose?.();
+    });
+  });
+}
 
 function clearGlb() {
   if (glbRoot) {
     scene.remove(glbRoot);
+    disposeObject3D(glbRoot);
     glbRoot = null;
   }
   car.visible = true;
@@ -1171,20 +1221,106 @@ function clearGlb() {
 function fitGlb(obj) {
   clearGlb();
   glbRoot = obj;
+  glbRoot.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+      if (o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach((m) => {
+          if (m && 'envMapIntensity' in m) m.envMapIntensity = 0.85;
+          if (m && m.metalness == null && m.isMeshStandardMaterial) m.metalness = 0.35;
+        });
+      }
+    }
+  });
+  // normalize to ~4.2 unit length, sit on floor ring
+  glbRoot.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(glbRoot);
-  const size = box.getSize(new THREE.Vector3()).length();
-  glbRoot.scale.setScalar(4.4 / Math.max(size, 0.01));
+  const size = new THREE.Vector3();
+  const center = new THREE.Vector3();
+  box.getSize(size);
+  box.getCenter(center);
+  const longest = Math.max(size.x, size.y, size.z, 0.01);
+  const scale = 4.2 / longest;
+  glbRoot.scale.setScalar(scale);
+  glbRoot.updateMatrixWorld(true);
   box.setFromObject(glbRoot);
-  const mid = box.getCenter(new THREE.Vector3());
-  glbRoot.position.sub(mid);
-  glbRoot.position.y += 0.22;
-  glbRoot.rotation.y = Math.PI * 0.22;
+  box.getCenter(center);
+  const minY = box.min.y;
+  glbRoot.position.x -= center.x;
+  glbRoot.position.z -= center.z;
+  glbRoot.position.y -= minY;
+  glbRoot.rotation.y = Math.PI * 0.18;
   scene.add(glbRoot);
   car.visible = false;
+  controls.target.set(0, 0.55, 0);
+  camera.position.set(3.6, 1.55, 4.2);
+  controls.update();
+}
+
+function preferGlbForCar(carId) {
+  return CAR_GLB[carId] || './models/ferrari.glb';
+}
+
+function setModelBarActive(url) {
+  document.querySelectorAll('.model-bar button').forEach((b) => {
+    const u = b.dataset.glb || '';
+    b.classList.toggle('on', u === (url || ''));
+  });
+}
+
+function enable3dView(on) {
+  const canvas3d = document.getElementById('view3d');
+  const photos = document.getElementById('photoStage');
+  const stage = document.querySelector('#view-garage .stage');
+  if (!canvas3d) return;
+  canvas3d.classList.toggle('hidden-3d', !on);
+  photos?.classList.toggle('hidden', on);
+  stage?.classList.toggle('is-3d', on);
+  const t = document.getElementById('btnToggle3d');
+  if (t) t.textContent = on ? 'Фото' : '3D';
+  if (on) onResize();
+}
+
+function loadGlb(url, label) {
+  if (!url) {
+    clearGlb();
+    paintCar(currentCar());
+    setModelBarActive('');
+    setGlbStatus('процедурный бокс');
+    return;
+  }
+  if (glbLoading) return;
+  glbLoading = true;
+  setGlbStatus('загрузка ' + (label || url.split('/').pop()) + '…');
+  enable3dView(true);
+  gltfLoader.load(
+    url,
+    (gltf) => {
+      fitGlb(gltf.scene);
+      setModelBarActive(url);
+      state.glbUrl = url;
+      save();
+      glbLoading = false;
+      setGlbStatus((label || url.split('/').pop()) + ' · крути пальцем');
+    },
+    (ev) => {
+      if (ev.total) setGlbStatus(`загрузка ${Math.round((ev.loaded / ev.total) * 100)}%`);
+    },
+    (err) => {
+      glbLoading = false;
+      console.warn('glb fail', url, err);
+      setGlbStatus('не удалось загрузить модель');
+      clearGlb();
+      paintCar(currentCar());
+    }
+  );
 }
 
 function loadDefaultGlb() {
-  gltfLoader.load('./models/sportscar.glb', (gltf) => fitGlb(gltf.scene));
+  const url = state.glbUrl || preferGlbForCar(currentCar()?.id);
+  loadGlb(url, url.split('/').pop());
 }
 
 document.getElementById('liveryInput')?.addEventListener('change', async (e) => {
@@ -1215,12 +1351,14 @@ document.getElementById('glbInput')?.addEventListener('change', (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   const url = URL.createObjectURL(file);
-  gltfLoader.load(url, (gltf) => fitGlb(gltf.scene));
+  loadGlb(url, file.name);
 });
 
 document.getElementById('btnResetModel')?.addEventListener('click', () => {
   state.customLivery = null;
-  gltfLoader.load('./models/ferrari.glb', (gltf) => fitGlb(gltf.scene));
+  state.glbUrl = null;
+  save();
+  loadGlb(preferGlbForCar(currentCar()?.id));
 });
 
 document.querySelectorAll('[data-photo]').forEach((b) => {
@@ -1229,29 +1367,31 @@ document.querySelectorAll('[data-photo]').forEach((b) => {
     if (img) img.src = b.dataset.photo;
   });
 });
+
 document.getElementById('btnToggle3d')?.addEventListener('click', () => {
   const canvas3d = document.getElementById('view3d');
-  const photos = document.getElementById('photoStage');
-  const on = canvas3d.classList.contains('hidden-3d');
-  canvas3d.classList.toggle('hidden-3d', !on);
-  photos?.classList.toggle('hidden', on);
-  const t = document.getElementById('btnToggle3d');
-  if (t) t.textContent = on ? 'Фото' : 'Включить 3D';
+  const on = canvas3d?.classList.contains('hidden-3d');
   if (on) {
-    onResize();
-    gltfLoader.load('./models/ferrari.glb', (gltf) => fitGlb(gltf.scene));
+    enable3dView(true);
+    if (!glbRoot) loadDefaultGlb();
+    else setGlbStatus('3D · крути пальцем');
+  } else {
+    enable3dView(false);
+    setGlbStatus('3D выкл · фото');
   }
 });
 
 document.querySelectorAll('.model-bar button').forEach((b) => {
   b.addEventListener('click', () => {
-    const url = b.dataset.glb;
+    const url = b.dataset.glb || '';
     if (!url) {
-      clearGlb();
-      paintCar(currentCar());
+      state.glbUrl = null;
+      save();
+      enable3dView(true);
+      loadGlb('');
       return;
     }
-    gltfLoader.load(url, (gltf) => fitGlb(gltf.scene));
+    loadGlb(url, b.textContent.trim());
   });
 });
 

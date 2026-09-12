@@ -125,7 +125,20 @@
                 <input id="scanInput" type="file" accept="image/*" capture="environment" hidden />
               </label>
               <button type="button" id="scanReset" data-i18n="garage.reset">сброс</button>
+              <button type="button" id="btnToggle3d" class="pill">3D</button>
+              <label class="file-btn pill">GLB
+                <input id="glbInput" type="file" accept=".glb,.gltf,model/gltf-binary" hidden />
+              </label>
             </div>
+            <div class="model-bar" id="modelBar" aria-label="3D модели">
+              <button type="button" data-glb="" title="Процедурная">box</button>
+              <button type="button" data-glb="./models/ferrari.glb" class="on">ferrari</button>
+              <button type="button" data-glb="./models/concept.glb">concept</button>
+              <button type="button" data-glb="./models/toycar.glb">toycar</button>
+              <button type="button" data-glb="./models/moto.glb">moto</button>
+              <button type="button" data-glb="./models/truck.glb">truck</button>
+            </div>
+            <p class="tiny" id="glbStatus">3D выкл · фото</p>
             <div class="mycar-speed">
               <span id="boxClass">—</span>
               <div>
