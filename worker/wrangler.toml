@@ -1,0 +1,13 @@
+name = "pitlane-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+# Create KV: wrangler kv namespace create PITLANE
+# then put the id here:
+# [[kv_namespaces]]
+# binding = "PITLANE"
+# id = "YOUR_KV_ID"
+
+[vars]
+# optional comma-separated extra origins
+# EXTRA_ORIGINS = "http://127.0.0.1:5174"
