@@ -3,6 +3,13 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { api } from './api.js';
 
+function hap(ms = 12) {
+  try { navigator.vibrate?.(ms); } catch (_) {}
+}
+document.addEventListener('click', (e) => {
+  if (e.target.closest('button')) hap(10);
+}, true);
+
 const CARS = [
   { id: 'gt3rs', name: 'Porsche 911 GT3 RS', cls: 'GT · RWD · 4.0 NA', year: 2023, trim: '992 GT3 RS', side: './img/gt3rs.jpg', color: 0xeeeeee, accent: 0x111, v0100: 3.2, v100200: 10.6, v200300: null, v80120: 2.0, hp: 525, nm: 465, kg: 1450, lap: { track: 'nurb-nord', time: '6:49.33' } },
   { id: 'm3', name: 'BMW M3 Competition', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G80 Competition', side: './img/m3.jpg', color: 0x8a1f1a, accent: 0x111, v0100: 3.5, v100200: 8.1, v200300: null, v80120: 2.1, hp: 510, nm: 650, kg: 1730, lap: { track: 'nurb-nord', time: '8:12.40' } },
@@ -176,6 +183,38 @@ function renderTracks() {
       renderTops();
     };
   }
+  mountWheel('trackSelect', 'trackWheel');
+  mountWheel('topTrackSelect', 'topTrackWheel');
+}
+
+function mountWheel(selId, wheelId) {
+  const sel = document.getElementById(selId);
+  const box = document.getElementById(wheelId);
+  if (!sel || !box) return;
+  const opts = [...sel.options];
+  box.innerHTML = '<div class="wheel-item"></div>' + opts.map((o) => `<div class="wheel-item" data-val="${o.value}">${o.text}</div>`).join('') + '<div class="wheel-item"></div>';
+  const items = () => [...box.querySelectorAll('.wheel-item[data-val]')];
+  const sync = () => {
+    const mid = box.scrollTop + box.clientHeight / 2;
+    let best = items()[0], dist = 1e9;
+    items().forEach((el) => {
+      const c = el.offsetTop + el.offsetHeight / 2;
+      const d = Math.abs(c - mid);
+      if (d < dist) { dist = d; best = el; }
+    });
+    items().forEach((el) => el.classList.toggle('on', el === best));
+    if (best && sel.value !== best.dataset.val) {
+      sel.value = best.dataset.val;
+      hap(14);
+      sel.dispatchEvent(new Event('change'));
+    }
+  };
+  box.onscroll = () => {
+    sync();
+  };
+  const i = Math.max(0, opts.findIndex((o) => o.value === sel.value));
+  box.scrollTop = i * 56;
+  items().forEach((el, n) => el.classList.toggle('on', n === i));
 }
 
 function renderLaps() {
@@ -207,12 +246,15 @@ function renderTops() {
   }
 }
 
-document.querySelectorAll('.nav-btn').forEach((btn) => {
+document.querySelectorAll('[data-view]').forEach((btn) => {
   btn.onclick = () => {
+    const id = btn.dataset.view;
+    if (!id || !document.getElementById('view-' + id)) return;
+    try { navigator.vibrate?.(10); } catch (_) {}
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+    if (btn.classList.contains('nav-btn')) btn.classList.add('active');
+    document.getElementById('view-' + id).classList.add('active');
     onResize();
   };
 });
@@ -548,7 +590,7 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
-setTimeout(() => document.getElementById('intro')?.classList.add('done'), 2400);
+setTimeout(() => document.getElementById('intro')?.classList.add('done'), 4200);
 document.getElementById('intro')?.addEventListener('click', () => {
   document.getElementById('intro')?.classList.add('done');
 });
@@ -688,7 +730,12 @@ function onGpsPoint(pos) {
     run.saved200300 = true;
     publishGps(null, null, s);
   }
+  run.peak = Math.max(run.peak || 0, v);
   setRunText('runStatus', `Разгон: ${Math.round(v)} км/ч`);
+  if (run.launched && run.peak >= 70 && v < run.peak - 12 && v < prev.v) {
+    stopRun();
+    setRunText('runStatus', 'Скорость упала — замер записан');
+  }
 }
 
 function startWatch() {
@@ -706,12 +753,14 @@ function startWatch() {
 }
 
 function armRun() {
+  hap([18, 40, 18]);
   startWatch();
   run.armed = true;
   run.launched = false;
   run.samples = [];
   run.t0 = null;
   run.marks = {};
+  run.peak = 0;
   run.saved0100 = run.saved100200 = run.saved200300 = run.saved050 = run.saved80120 = run.saved1000 = false;
   run.brakeArmed = false;
   run.brakeT0 = null;
