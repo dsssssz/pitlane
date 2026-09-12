@@ -1,0 +1,1413 @@
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { api } from './api.js';
+
+const CARS = [
+  { id: 'gt3rs', name: 'Porsche 911 GT3 RS', cls: 'GT · RWD · 4.0 NA', year: 2023, trim: '992 GT3 RS', side: './img/gt3rs.jpg', color: 0xeeeeee, accent: 0x111, v0100: 3.2, v100200: 10.6, v200300: null, v80120: 2.0, hp: 525, nm: 465, kg: 1450, lap: { track: 'nurb-nord', time: '6:49.33' } },
+  { id: 'm3', name: 'BMW M3 Competition', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G80 Competition', side: './img/m3.jpg', color: 0x8a1f1a, accent: 0x111, v0100: 3.5, v100200: 8.1, v200300: null, v80120: 2.1, hp: 510, nm: 650, kg: 1730, lap: { track: 'nurb-nord', time: '8:12.40' } },
+  { id: 'm5', name: 'BMW M5 Competition', cls: 'GT · AWD · 4.4 V8', year: 2022, trim: 'F90 Competition', side: './img/m5.jpg', color: 0xb9bcc0, accent: 0x111, v0100: 3.3, v100200: 8.0, v200300: 21.0, v80120: 2.0, hp: 625, nm: 750, kg: 1890, lap: { track: 'nurb-nord', time: '7:38.00' } },
+  { id: 'm4csl', name: 'BMW M4 CSL', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G82 CSL', side: './img/m4csl.jpg', color: 0x8a1f1a, accent: 0x111, v0100: 3.7, v100200: 8.5, v200300: null, v80120: 2.2, hp: 550, nm: 650, kg: 1625, lap: { track: 'nurb-nord', time: '7:20.00' } },
+  { id: 'gtr', name: 'Nissan GT-R Nismo', cls: 'GT · AWD · 3.8 twin-turbo', year: 2022, trim: 'R35 Nismo', side: './img/gtr.jpg', color: 0xc5ccd3, accent: 0x111, v0100: 2.7, v100200: 7.2, v200300: 16.8, v80120: 1.7, hp: 600, nm: 652, kg: 1720, lap: { track: 'nurb-nord', time: '7:08.68' } },
+  { id: 'huracan', name: 'Lamborghini Huracán STO', cls: 'Super · RWD · 5.2 V10', year: 2021, trim: 'STO', side: './img/huracan.jpg', color: 0x1f4cff, accent: 0x111, v0100: 3.0, v100200: 8.0, v200300: 18.4, v80120: 1.8, hp: 640, nm: 565, kg: 1339, lap: { track: 'nurb-nord', time: '6:52.01' } },
+  { id: 'svj', name: 'Lamborghini Aventador SVJ', cls: 'Super · AWD · 6.5 V12', year: 2019, trim: 'SVJ', side: './img/svj.jpg', color: 0x1a6b3c, accent: 0x111, v0100: 2.8, v100200: 7.1, v200300: 16.7, v80120: 1.7, hp: 770, nm: 720, kg: 1525, lap: { track: 'nurb-nord', time: '6:44.97' } },
+  { id: 'sf90', name: 'Ferrari SF90 Stradale', cls: 'Super · AWD · V8 hybrid', year: 2021, trim: 'Stradale', side: './img/sf90.jpg', color: 0xc41e3a, accent: 0x111, v0100: 2.5, v100200: 6.5, v200300: 15.2, v80120: 1.5, hp: 1000, nm: 800, kg: 1570, lap: { track: 'nurb-nord', time: '6:44.00' } },
+  { id: '296', name: 'Ferrari 296 GTB', cls: 'Super · RWD · V6 hybrid', year: 2023, trim: 'GTB', side: './img/296.jpg', color: 0xc41e3a, accent: 0x111, v0100: 2.9, v100200: 7.6, v200300: 19.0, v80120: 1.8, hp: 830, nm: 740, kg: 1470, lap: { track: 'nurb-nord', time: '6:49.00' } },
+  { id: 'amggt', name: 'Mercedes-AMG GT Black Series', cls: 'GT · RWD · 4.0 V8', year: 2021, trim: 'Black Series', side: './img/amggt.jpg', color: 0x111111, accent: 0x111, v0100: 3.2, v100200: 8.0, v200300: 20.0, v80120: 1.9, hp: 730, nm: 800, kg: 1540, lap: { track: 'nurb-nord', time: '6:43.00' } },
+  { id: 'c63', name: 'Mercedes-AMG C63 S E Performance', cls: 'GT · AWD · 2.0 hybrid', year: 2024, trim: 'W206 S', side: './img/c63.jpg', color: 0x8a1f1a, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: null, v80120: 2.1, hp: 680, nm: 1020, kg: 2111, lap: { track: 'nurb-nord', time: '7:46.00' } },
+  { id: 'rs6', name: 'Audi RS6 Avant', cls: 'GT · AWD · 4.0 V8', year: 2023, trim: 'C8 Performance', side: './img/rs6.jpg', color: 0xc5ccd3, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: 22.0, v80120: 2.1, hp: 630, nm: 850, kg: 2090, lap: { track: 'nurb-nord', time: '7:38.00' } },
+  { id: 'r8', name: 'Audi R8 V10 Performance', cls: 'Super · AWD · 5.2 V10', year: 2022, trim: 'RWS / Perf.', side: './img/r8.jpg', color: 0x1f4cff, accent: 0x111, v0100: 3.1, v100200: 8.2, v200300: 20.0, v80120: 1.9, hp: 620, nm: 580, kg: 1595, lap: { track: 'nurb-nord', time: '7:07.00' } },
+  { id: 'cayman', name: 'Porsche 718 Cayman GT4 RS', cls: 'GT · RWD · 4.0 NA', year: 2022, trim: 'GT4 RS', side: './img/cayman.jpg', color: 0x2ee56a, accent: 0x111, v0100: 3.4, v100200: 10.6, v200300: null, v80120: 2.1, hp: 500, nm: 450, kg: 1415, lap: { track: 'nurb-nord', time: '7:09.00' } },
+  { id: 'turboS', name: 'Porsche 911 Turbo S', cls: 'GT · AWD · 3.8 twin-turbo', year: 2023, trim: '992 Turbo S', side: './img/turboS.jpg', color: 0x111111, accent: 0x111, v0100: 2.6, v100200: 7.4, v200300: 18.8, v80120: 1.6, hp: 650, nm: 800, kg: 1640, lap: { track: 'nurb-nord', time: '7:12.00' } },
+  { id: 'supra', name: 'Toyota GR Supra', cls: 'GT · RWD · 3.0 turbo', year: 2023, trim: 'A90 3.0', side: './img/supra.jpg', color: 0xc41e3a, accent: 0x111, v0100: 4.1, v100200: 11.0, v200300: null, v80120: 2.6, hp: 387, nm: 500, kg: 1520, lap: { track: 'nurb-nord', time: '7:52.00' } },
+  { id: 'golf', name: 'Volkswagen Golf R', cls: 'Hot hatch · AWD · 2.0 turbo', year: 2022, trim: 'Mk8 R', side: './img/m3.svg', color: 0x1f4cff, accent: 0x111, v0100: 4.6, v100200: 13.5, v200300: null, v80120: 3.1, hp: 320, nm: 420, kg: 1550, lap: { track: 'nurb-nord', time: '8:01.00' } },
+  { id: 'civic', name: 'Honda Civic Type R', cls: 'Hot hatch · FWD · 2.0 turbo', year: 2023, trim: 'FL5', side: './img/m3.svg', color: 0xc41e3a, accent: 0x111, v0100: 5.4, v100200: 14.8, v200300: null, v80120: 3.4, hp: 330, nm: 420, kg: 1429, lap: { track: 'nurb-nord', time: '7:50.00' } },
+  { id: 'mustang', name: 'Ford Mustang Dark Horse', cls: 'GT · RWD · 5.0 V8', year: 2024, trim: 'S650 Dark Horse', side: './img/mustang.jpg', color: 0x111111, accent: 0x111, v0100: 4.1, v100200: 11.2, v200300: null, v80120: 2.6, hp: 500, nm: 567, kg: 1768, lap: { track: 'nurb-nord', time: '7:43.00' } },
+  { id: 'teslap', name: 'Tesla Model S Plaid', cls: 'EV · AWD · tri-motor', year: 2023, trim: 'Plaid', side: './img/teslap.jpg', color: 0xc5ccd3, accent: 0x111, v0100: 2.1, v100200: 6.0, v200300: 15.0, v80120: 1.3, hp: 1020, nm: 1420, kg: 2162, lap: { track: 'nurb-nord', time: '7:25.00' } },
+];
+
+const TRACKS = [
+  { id: 'sochi', name: 'Сочи Автодром', ref: '1:35.00' },
+  { id: 'moscow', name: 'Moscow Raceway', ref: '1:28.50' },
+  { id: 'igora', name: 'Игора Драйв', ref: '1:36.20' },
+  { id: 'kazan', name: 'Казань Ринг', ref: '1:22.80' },
+  { id: 'smolensk', name: 'Смоленское кольцо', ref: '1:24.00' },
+  { id: 'nring', name: 'NRING Нижний Новгород', ref: '1:21.50' },
+  { id: 'adm', name: 'ADM Raceway Мячково', ref: '1:19.00' },
+  { id: 'grozny', name: 'Fort Grozny Autodrom', ref: '1:18.80' },
+  { id: 'redring', name: 'Красное Кольцо Красноярск', ref: '1:26.00' },
+  { id: 'spb', name: 'Автодром Санкт-Петербург', ref: '1:27.00' },
+  { id: 'tlt', name: 'Тольятти Ринг', ref: '1:23.00' },
+  { id: 'lipetsk', name: 'Липецкий автодром', ref: '1:20.00' },
+  { id: 'auto-msk', name: 'Автодром Москва', ref: '1:25.00' },
+  { id: 'neva', name: 'Нева Ринг', ref: '1:29.00' },
+  { id: 'ufa', name: 'Уфа Ринг', ref: '1:31.00' },
+  { id: 'don', name: 'Донринг Ростов', ref: '1:30.00' },
+];
+
+const storeKey = 'pitlane-v1';
+const state = loadState();
+
+function loadState() {
+  try {
+    return JSON.parse(localStorage.getItem(storeKey)) || { carId: null, garage: [], meas: {}, laps: {}, scans: {} };
+  } catch {
+    return { carId: 'm3', meas: {}, laps: {} };
+  }
+}
+function save() {
+  localStorage.setItem(storeKey, JSON.stringify(state));
+}
+
+function garageList() {
+  return state.garage || [];
+}
+function currentCar() {
+  const mine = garageList().find((c) => c.id === state.carId);
+  if (mine) return mine;
+  return CARS.find((c) => c.id === state.carId) || garageList()[0] || CARS[0];
+}
+
+function fmt(v, unit = ' с') {
+  return v == null || v === '' ? 'н/д' : `${Number(v).toFixed(2).replace(/\.00$/, '')}${unit}`;
+}
+
+function applyCarUI() {
+  const empty = !garageList().length;
+  document.getElementById('emptyGarage')?.classList.toggle('hidden', !empty);
+  document.getElementById('addWizard')?.classList.add('hidden');
+  const stage = document.querySelector('#view-garage .stage');
+  const title = document.querySelector('#view-garage .hero-title');
+  const card = document.querySelector('#view-garage .box-card');
+  [stage, title, card].forEach((el) => el && el.classList.toggle('hidden', empty));
+  document.querySelectorAll('#view-garage .scan-row, #view-garage .paint-label, #view-garage .colors').forEach((el) => {
+    el.classList.toggle('hidden', empty);
+  });
+  if (empty) return;
+  const c = currentCar();
+  const m = state.meas[c.id] || {};
+  const v0100 = m.v0100 ?? c.v0100;
+  const v100200 = m.v100200 ?? c.v100200;
+  const v200300 = m.v200300 ?? c.v200300;
+  document.getElementById('carName').textContent = c.name;
+  document.getElementById('carClass').textContent = c.cls;
+  document.getElementById('hdr0100').textContent = fmt(v0100, 'с');
+  const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+  setTxt('boxName', c.name);
+  setTxt('boxTrim', `${c.year} · ${c.trim}`);
+  setTxt('boxClass', c.cls);
+  setTxt('boxYear', String(c.year));
+  const hero = document.getElementById('heroPhoto');
+  if (hero) {
+    const src = (state.scans && state.scans[c.id]) || c.side;
+    hero.dataset.orig = src;
+    hero.src = src;
+    paint.body = null;
+  }
+  setTxt('s0100', fmt(v0100));
+  setTxt('s100200', fmt(v100200));
+  setTxt('s200300', fmt(v200300));
+  document.getElementById('d0100').textContent = fmt(v0100);
+  document.getElementById('d100200').textContent = fmt(v100200);
+  document.getElementById('d200300').textContent = fmt(v200300);
+  document.getElementById('d80120').textContent = fmt(c.v80120);
+  document.getElementById('dHp').textContent = `${c.hp} л.с.`;
+  document.getElementById('dNm').textContent = `${c.nm} Н·м`;
+  document.getElementById('dKg').textContent = `${c.kg} кг`;
+  document.getElementById('dPt').textContent = String(Math.round((c.hp / c.kg) * 1000));
+  const track = TRACKS.find((t) => t.id === (state.trackId || c.lap.track)) || TRACKS[0];
+  const mine = bestLapDisplay(track.id);
+  setTxt('sLap', mine || 'нет заезда');
+  document.getElementById('hdrLap').textContent = mine || c.lap.time;
+  document.getElementById('trackRef').textContent = track.ref;
+  document.getElementById('trackMine').textContent = bestLapDisplay(track.id) || '—';
+  paintCar(c);
+  renderCars();
+  renderLaps();
+  renderTops();
+}
+
+function bestLapDisplay(trackId) {
+  const list = state.laps[trackId] || [];
+  if (!list.length) return null;
+  const min = Math.min(...list.map((x) => x.ms));
+  return formatMs(min);
+}
+
+function formatMs(ms) {
+  const m = Math.floor(ms / 60000);
+  const s = (ms % 60000) / 1000;
+  return `${m}:${s.toFixed(2).padStart(5, '0')}`;
+}
+
+function renderCars() {
+  const grid = document.getElementById('carGrid');
+  grid.innerHTML = '';
+  CARS.forEach((c) => {
+    const b = document.createElement('button');
+    b.className = 'car-card' + (c.id === state.carId ? ' active' : '');
+    b.innerHTML = `<strong>${c.name}</strong><br><small>${c.cls}</small><br><small>0–100 ${fmt(c.v0100)}</small>`;
+    b.onclick = () => {
+      state.carId = c.id;
+      save();
+      applyCarUI();
+    };
+    grid.appendChild(b);
+  });
+}
+
+function renderTracks() {
+  const sel = document.getElementById('trackSelect');
+  const html = TRACKS.map((t) => `<option value="${t.id}">${t.name}</option>`).join('');
+  sel.innerHTML = html;
+  sel.value = state.trackId || currentCar().lap.track;
+  sel.onchange = () => {
+    state.trackId = sel.value;
+    save();
+    applyCarUI();
+  };
+  const topSel = document.getElementById('topTrackSelect');
+  if (topSel) {
+    topSel.innerHTML = html;
+    topSel.value = sel.value;
+    topSel.onchange = () => {
+      state.trackId = topSel.value;
+      save();
+      renderTops();
+    };
+  }
+}
+
+function renderLaps() {
+  const trackId = document.getElementById('trackSelect').value || currentCar().lap.track;
+  const ul = document.getElementById('lapList');
+  const list = (state.laps[trackId] || []).slice().sort((a, b) => a.ms - b.ms);
+  ul.innerHTML = list.length
+    ? list.map((l, i) => `<li><span>${i === 0 ? 'PB' : '#' + (i + 1)}</span><strong>${formatMs(l.ms)}</strong></li>`).join('')
+    : '<li><span>пока пусто</span><strong>—</strong></li>';
+}
+
+function renderTops() {
+  const c = currentCar();
+  const trackId = document.getElementById('topTrackSelect')?.value || state.trackId || c.lap.track;
+  const nameEl = document.getElementById('topCarName');
+  const trackNameEl = document.getElementById('topTrackName');
+  if (nameEl) nameEl.textContent = c.name;
+  const track = TRACKS.find((t) => t.id === trackId);
+  if (trackNameEl && track) trackNameEl.textContent = track.name;
+  const sEl = document.getElementById('topStraight');
+  if (sEl) {
+    const rows = api.listStraight(c.id);
+    sEl.innerHTML = rows.map((r, i) => `<li><span>${i + 1}. ${r.name}</span><strong>${Number(r.t).toFixed(2)} с</strong></li>`).join('');
+  }
+  const lEl = document.getElementById('topLap');
+  if (lEl) {
+    const rows = api.listLap(trackId);
+    lEl.innerHTML = rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${r.t}</strong></li>`).join('');
+  }
+}
+
+document.querySelectorAll('.nav-btn').forEach((btn) => {
+  btn.onclick = () => {
+    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-' + btn.dataset.view).classList.add('active');
+    onResize();
+  };
+});
+
+if (document.getElementById('dynoForm')) document.getElementById('dynoForm').onsubmit = (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const rec = state.meas[state.carId] || {};
+  for (const k of ['v0100', 'v100200', 'v200300']) {
+    const n = parseFloat(String(fd.get(k) || ''));
+    if (!Number.isNaN(n)) rec[k] = n;
+  }
+  state.meas[state.carId] = rec;
+  save();
+  document.getElementById('dynoMsg').textContent = 'Замер сохранён на этом устройстве.';
+  applyCarUI();
+};
+
+if (document.getElementById('lapForm')) document.getElementById('lapForm').onsubmit = (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const min = Number(fd.get('min') || 0);
+  const sec = Number(fd.get('sec') || 0);
+  const ms = Math.round(min * 60000 + sec * 1000);
+  const trackId = document.getElementById('trackSelect').value;
+  state.laps[trackId] = state.laps[trackId] || [];
+  state.laps[trackId].push({ ms, at: Date.now() });
+  save();
+  applyCarUI();
+};
+
+/* ---------------- 3D ---------------- */
+const canvas = document.getElementById('view3d');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 80);
+camera.position.set(5.4, 2.2, 5.8);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.49;
+controls.minDistance = 4;
+controls.maxDistance = 12;
+controls.target.set(0, 0.6, 0);
+
+scene.add(new THREE.HemisphereLight(0xe8eef8, 0x1a1a1a, 0.55));
+const key = new THREE.SpotLight(0xfff3dd, 3.4, 22, Math.PI / 5, 0.35);
+key.position.set(3.2, 7.2, 3.4);
+key.castShadow = true;
+key.shadow.mapSize.set(1024, 1024);
+scene.add(key);
+scene.add(key.target);
+const fill = new THREE.SpotLight(0xcfe4ff, 1.6, 18, Math.PI / 4, 0.5);
+fill.position.set(-4.5, 5.5, -2.2);
+scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 1.15);
+rim.position.set(-2.5, 4.5, 6);
+scene.add(rim);
+const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff6e0 });
+function ceilingLamp(x, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.35), lampMat);
+  m.position.set(x, 3.15, z);
+  scene.add(m);
+}
+ceilingLamp(-1.4, 1.2);
+ceilingLamp(1.4, 1.2);
+ceilingLamp(-1.4, -1.2);
+ceilingLamp(1.4, -1.2);
+
+const floor = new THREE.Mesh(
+  new THREE.CircleGeometry(7, 72),
+  new THREE.MeshStandardMaterial({ color: 0x1a1d24, metalness: 0.72, roughness: 0.22 })
+);
+floor.rotation.x = -Math.PI / 2;
+floor.receiveShadow = true;
+scene.add(floor);
+
+const ring = new THREE.Mesh(
+  new THREE.RingGeometry(3.15, 3.28, 80),
+  new THREE.MeshBasicMaterial({ color: 0x2ee56a, side: THREE.DoubleSide })
+);
+ring.rotation.x = -Math.PI / 2;
+ring.position.y = 0.01;
+scene.add(ring);
+
+const car = new THREE.Group();
+scene.add(car);
+const moving = {};
+
+function canvasTex(draw, size = 512) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  draw(c.getContext('2d'), size);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  return t;
+}
+
+function texLivery(hex) {
+  if (state.customLivery) {
+    const t = new THREE.CanvasTexture(state.customLivery);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    return t;
+  }
+  const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255;
+  return canvasTex((ctx, s) => {
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fillRect(0, 0, s, s);
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.fillRect(s * 0.46, 0, s * 0.08, s);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0, 0, s, s * 0.12);
+    ctx.fillRect(0, s * 0.88, s, s * 0.12);
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    for (let i = 0; i < 18; i++) ctx.fillRect(0, (i / 18) * s, s, 2);
+  });
+}
+
+function texCarbon() {
+  return canvasTex((ctx, s) => {
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(0, 0, s, s);
+    for (let y = 0; y < s; y += 8) {
+      for (let x = 0; x < s; x += 8) {
+        ctx.fillStyle = ((x + y) / 8) % 2 ? '#2a2a2a' : '#111';
+        ctx.fillRect(x, y, 8, 8);
+      }
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(0, 0, s, s);
+  }, 256);
+}
+
+function texTire() {
+  return canvasTex((ctx, s) => {
+    ctx.fillStyle = '#0c0c0c';
+    ctx.fillRect(0, 0, s, s);
+    ctx.strokeStyle = '#3a3a3a';
+    ctx.lineWidth = 6;
+    for (let i = 0; i < 24; i++) {
+      ctx.beginPath();
+      ctx.moveTo(s / 2, s / 2);
+      const a = (i / 24) * Math.PI * 2;
+      ctx.lineTo(s / 2 + Math.cos(a) * s, s / 2 + Math.sin(a) * s);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 10;
+    ctx.beginPath();
+    ctx.arc(s / 2, s / 2, s * 0.38, 0, Math.PI * 2);
+    ctx.stroke();
+  }, 256);
+}
+
+function texRim() {
+  return canvasTex((ctx, s) => {
+    ctx.fillStyle = '#d8d8d8';
+    ctx.fillRect(0, 0, s, s);
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.arc(s / 2, s / 2, s * 0.46, 0, Math.PI * 2);
+    ctx.stroke();
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(s / 2, s / 2);
+      ctx.lineTo(s / 2 + Math.cos(a) * s * 0.45, s / 2 + Math.sin(a) * s * 0.45);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#2ee56a';
+    ctx.beginPath();
+    ctx.arc(s / 2, s / 2, s * 0.12, 0, Math.PI * 2);
+    ctx.fill();
+  }, 256);
+}
+
+function mat(color, extra = {}) {
+  return new THREE.MeshStandardMaterial({ color, metalness: 0.72, roughness: 0.28, ...extra });
+}
+
+function wheel(wide = false) {
+  const g = new THREE.Group();
+  const r = wide ? 0.42 : 0.37;
+  const tire = new THREE.Mesh(
+    new THREE.TorusGeometry(r, wide ? 0.15 : 0.12, 16, 32),
+    mat(0xffffff, { map: texTire(), roughness: 0.86, metalness: 0.08 })
+  );
+  tire.rotation.y = Math.PI / 2;
+  const disc = new THREE.Mesh(
+    new THREE.CylinderGeometry(r * 0.52, r * 0.52, 0.11, 28),
+    mat(0x1a1a1a, { map: texRim(), metalness: 0.85, roughness: 0.28 })
+  );
+  disc.rotation.z = Math.PI / 2;
+  const cal = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.22), mat(0xc9a227, { metalness: 0.6, roughness: 0.35 }));
+  cal.position.set(0, 0.12, 0);
+  g.add(tire, disc, cal);
+  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+
+function addMesh(geo, material, x, y, z, parent = car) {
+  const m = new THREE.Mesh(geo, material);
+  m.position.set(x, y, z);
+  m.castShadow = true;
+  m.receiveShadow = true;
+  parent.add(m);
+  return m;
+}
+
+function buildCar(cfg) {
+  while (car.children.length) car.remove(car.children[0]);
+  const body = state.customLivery
+    ? mat(0xffffff, { map: texLivery(cfg.color), metalness: 0.62, roughness: 0.2 })
+    : mat(cfg.color, { metalness: 0.88, roughness: 0.16 });
+  const dark = mat(0x141414, { metalness: 0.4, roughness: 0.42 });
+  const glassMat = new THREE.MeshStandardMaterial({ color: 0x0b0d10, transparent: true, opacity: 0.38, metalness: 1, roughness: 0.05 });
+  const leather = mat(0x171717, { roughness: 0.72, metalness: 0.06 });
+  const silver = mat(0xd0d0d0, { metalness: 0.92, roughness: 0.22 });
+
+  addMesh(new THREE.BoxGeometry(2.35, 0.36, 1.48), body, 0.08, 0.56, 0);
+  addMesh(new THREE.BoxGeometry(0.62, 0.2, 1.36), body, 1.28, 0.48, 0);
+  addMesh(new THREE.BoxGeometry(0.82, 0.24, 0.18), body, -0.7, 0.5, 0.78);
+  addMesh(new THREE.BoxGeometry(0.82, 0.24, 0.18), body, -0.7, 0.5, -0.78);
+  addMesh(new THREE.BoxGeometry(1.05, 0.38, 1.18), dark, 0.08, 0.9, 0);
+  addMesh(new THREE.BoxGeometry(0.92, 0.26, 1.04), glassMat, 0.12, 1.06, 0);
+
+  addMesh(new THREE.BoxGeometry(0.36, 0.26, 0.34), leather, 0.02, 0.7, 0.26);
+  addMesh(new THREE.BoxGeometry(0.36, 0.26, 0.34), leather, 0.02, 0.7, -0.26);
+  addMesh(new THREE.BoxGeometry(0.32, 0.07, 0.96), dark, 0.36, 0.76, 0);
+  const helm = addMesh(new THREE.TorusGeometry(0.13, 0.022, 8, 18), mat(0x111, { roughness: 0.55 }), 0.4, 0.84, 0.2);
+  helm.rotation.y = 0.45;
+
+  const hoodPivot = new THREE.Group();
+  hoodPivot.position.set(0.52, 0.74, 0);
+  car.add(hoodPivot);
+  addMesh(new THREE.BoxGeometry(1.02, 0.07, 1.34), body, 0.5, 0.04, 0, hoodPivot);
+  addMesh(new THREE.BoxGeometry(0.28, 0.05, 0.42), dark, 0.72, 0.08, 0.28, hoodPivot);
+  addMesh(new THREE.BoxGeometry(0.28, 0.05, 0.42), dark, 0.72, 0.08, -0.28, hoodPivot);
+
+  const trunkPivot = new THREE.Group();
+  trunkPivot.position.set(-1.02, 0.74, 0);
+  car.add(trunkPivot);
+  addMesh(new THREE.BoxGeometry(0.58, 0.07, 1.32), body, -0.26, 0.03, 0, trunkPivot);
+
+  const mkDoor = (side) => {
+    const pivot = new THREE.Group();
+    pivot.userData.door = true;
+    pivot.position.set(0.16, 0.62, 0.74 * side);
+    car.add(pivot);
+    addMesh(new THREE.BoxGeometry(0.86, 0.34, 0.06), body, 0.1, 0, 0, pivot);
+    addMesh(new THREE.BoxGeometry(0.32, 0.12, 0.03), glassMat, 0.12, 0.12, 0.01 * side, pivot);
+    return pivot;
+  };
+  mkDoor(1);
+  mkDoor(-1);
+
+  addMesh(new THREE.BoxGeometry(0.2, 0.045, 1.48), dark, -1.2, 1.2, 0);
+  addMesh(new THREE.BoxGeometry(0.05, 0.4, 0.05), dark, -1.16, 1.0, 0.5);
+  addMesh(new THREE.BoxGeometry(0.05, 0.4, 0.05), dark, -1.16, 1.0, -0.5);
+  addMesh(new THREE.BoxGeometry(0.24, 0.14, 0.05), dark, -1.2, 1.26, 0.76);
+  addMesh(new THREE.BoxGeometry(0.24, 0.14, 0.05), dark, -1.2, 1.26, -0.76);
+  addMesh(new THREE.BoxGeometry(0.62, 0.06, 0.035), silver, -0.12, 0.6, 0.76);
+
+  const wfl = wheel(false); wfl.position.set(0.86, 0.35, 0.74);
+  const wfr = wheel(false); wfr.position.set(0.86, 0.35, -0.74);
+  const wrl = wheel(true); wrl.position.set(-0.78, 0.37, 0.76);
+  const wrr = wheel(true); wrr.position.set(-0.78, 0.37, -0.76);
+  car.add(wfl, wfr, wrl, wrr);
+
+  moving.hood = hoodPivot;
+  moving.trunk = trunkPivot;
+}
+
+function mkStoredDoors(root) {
+  return root.children.filter((ch) => ch.userData && ch.userData.door);
+}
+
+function paintCar(cfg) {
+  buildCar(cfg);
+  moving.doorList = mkStoredDoors(car);
+  moving.tHood = 0;
+  moving.tTrunk = 0;
+  moving.tDoors = 0;
+}
+
+document.querySelectorAll('.hotspots button').forEach((b) => {
+  b.onclick = () => {
+    const p = b.dataset.part;
+    if (p === 'hood') moving.tHood = moving.tHood > 0.5 ? 0 : 1;
+    if (p === 'trunk') moving.tTrunk = moving.tTrunk > 0.5 ? 0 : 1;
+    if (p === 'doors') moving.tDoors = moving.tDoors > 0.5 ? 0 : 1;
+    if (p === 'reset') moving.tHood = moving.tTrunk = moving.tDoors = 0;
+  };
+});
+
+function lerpAngle(obj, axis, target, dt) {
+  const cur = obj.rotation[axis];
+  obj.rotation[axis] = cur + (target - cur) * Math.min(1, dt * 6);
+}
+
+function onResize() {
+  const w = canvas.clientWidth || canvas.parentElement.clientWidth;
+  const h = canvas.clientHeight || canvas.parentElement.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / Math.max(h, 1);
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', onResize);
+
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (moving.hood) lerpAngle(moving.hood, 'z', -moving.tHood * 1.05, dt);
+  if (moving.trunk) lerpAngle(moving.trunk, 'z', moving.tTrunk * 1.05, dt);
+  (moving.doorList || []).forEach((d) => {
+    const dir = Math.sign(d.position.z) || 1;
+    lerpAngle(d, 'y', dir * moving.tDoors * 1.1, dt);
+  });
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+
+setTimeout(() => document.getElementById('intro')?.classList.add('done'), 2400);
+document.getElementById('intro')?.addEventListener('click', () => {
+  document.getElementById('intro')?.classList.add('done');
+});
+
+renderTracks();
+applyCarUI();
+onResize();
+requestAnimationFrame(tick);
+
+/* -------- GPS acceleration run -------- */
+const run = {
+  watchId: null,
+  armed: false,
+  launched: false,
+  samples: [],
+  t0: null,
+  marks: {},
+};
+
+function haversineM(a, b) {
+  const R = 6371000;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLon = (b.lon - a.lon) * Math.PI / 180;
+  const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
+}
+let lastFix = null;
+function kmhFromCoords(coords, ts) {
+  if (coords.speed != null && !Number.isNaN(coords.speed) && coords.speed >= 0) {
+    lastFix = { lat: coords.latitude, lon: coords.longitude, t: ts };
+    return Math.max(0, coords.speed * 3.6);
+  }
+  if (coords.latitude == null) return null;
+  const fix = { lat: coords.latitude, lon: coords.longitude, t: ts };
+  let v = null;
+  if (lastFix && ts > lastFix.t) {
+    const dt = (ts - lastFix.t) / 1000;
+    if (dt > 0.15 && dt < 3) v = (haversineM(lastFix, fix) / dt) * 3.6;
+  }
+  lastFix = fix;
+  return v;
+}
+
+function interpolateCross(prev, next, target) {
+  if (prev.v >= target) return prev.t;
+  if (next.v < target) return null;
+  const k = (target - prev.v) / Math.max(0.01, next.v - prev.v);
+  return prev.t + (next.t - prev.t) * k;
+}
+
+function setRunText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function onGpsPoint(pos) {
+  const now = pos.timestamp || Date.now();
+  const v = kmhFromCoords(pos.coords, now);
+  const acc = pos.coords.accuracy;
+  setRunText('gpsAcc', acc ? `${Math.round(acc)} м` : '—');
+  if (v == null) {
+    setRunText('runStatus', 'GPS есть, но скорость не отдаёт. Выйдите на улицу / откройте с телефона.');
+    return;
+  }
+  setRunText('liveSpeed', String(Math.round(v)));
+
+  if (!run.armed) {
+    setRunText('runStatus', 'GPS живой. Стоите — жмите «Старт замера»');
+    return;
+  }
+
+  const sample = { t: now, v };
+  const prev = run.samples[run.samples.length - 1];
+  run.samples.push(sample);
+
+  if (!run.launched) {
+    if (v < 8) {
+      run.t0 = now;
+      setRunText('runFrom', 'ожидание старта');
+      setRunText('runStatus', 'Замер вооружён. Трогайтесь');
+    } else if (run.t0 && v >= 8) {
+      run.launched = true;
+      setRunText('runFrom', 'пошли');
+      setRunText('runStatus', 'Идёт разгон…');
+    } else {
+      setRunText('runStatus', 'Для чистого 0–100 почти остановитесь (< 8 км/ч)');
+    }
+    return;
+  }
+
+  if (!prev) return;
+  for (const gate of [50, 80, 100, 120, 200, 300]) {
+    const key = String(gate);
+    if (run.marks[key] != null) continue;
+    if (prev.v < gate && sample.v >= gate) {
+      const tCross = interpolateCross(prev, sample, gate);
+      run.marks[key] = tCross;
+    }
+  }
+
+  const t100 = run.marks['100'];
+  const t200 = run.marks['200'];
+  const t300 = run.marks['300'];
+  if (run.marks['50'] && !run.saved050) {
+    setRunText('run050', `${((run.marks['50'] - run.t0) / 1000).toFixed(2)} с`);
+    run.saved050 = true;
+  }
+  if (run.marks['80'] && run.marks['120'] && !run.saved80120) {
+    const s = (run.marks['120'] - run.marks['80']) / 1000;
+    setRunText('run80120', `${s.toFixed(2)} с`);
+    run.saved80120 = true;
+  }
+  if (run.brakeArmed && prev.v >= 100 && sample.v < 100 && !run.saved1000) {
+    const t = interpolateCross({ t: sample.t, v: sample.v }, prev, 100);
+    run.brakeT0 = run.brakeT0 || t;
+  }
+  if (run.brakeArmed && run.brakeT0 && sample.v <= 8 && !run.saved1000) {
+    setRunText('run1000', `${((now - run.brakeT0) / 1000).toFixed(2)} с`);
+    run.saved1000 = true;
+    run.brakeArmed = false;
+  }
+  if (t100 && !run.saved0100) {
+    const sec = (t100 - run.t0) / 1000;
+    setRunText('run0100', `${sec.toFixed(2)} с`);
+    run.saved0100 = true;
+    publishGps(sec, t100 && t200 ? (t200 - t100) / 1000 : null, t200 && t300 ? (t300 - t200) / 1000 : null);
+  }
+  if (t100 && t200 && !run.saved100200) {
+    const s = (t200 - t100) / 1000;
+    setRunText('run100200', `${s.toFixed(2)} с`);
+    run.saved100200 = true;
+    publishGps(null, s, t200 && t300 ? (t300 - t200) / 1000 : null);
+  }
+  if (t200 && t300 && !run.saved200300) {
+    const s = (t300 - t200) / 1000;
+    setRunText('run200300', `${s.toFixed(2)} с`);
+    run.saved200300 = true;
+    publishGps(null, null, s);
+  }
+  setRunText('runStatus', `Разгон: ${Math.round(v)} км/ч`);
+}
+
+function startWatch() {
+  if (!navigator.geolocation) {
+    setRunText('runStatus', 'В этом браузере нет Geolocation');
+    return;
+  }
+  if (run.watchId != null) return;
+  run.watchId = navigator.geolocation.watchPosition(
+    onGpsPoint,
+    (err) => setRunText('runStatus', err.message || 'Нет доступа к GPS'),
+    { enableHighAccuracy: true, maximumAge: 250, timeout: 15000 }
+  );
+  setRunText('runStatus', 'Запрос разрешения на геолокацию…');
+}
+
+function armRun() {
+  startWatch();
+  run.armed = true;
+  run.launched = false;
+  run.samples = [];
+  run.t0 = null;
+  run.marks = {};
+  run.saved0100 = run.saved100200 = run.saved200300 = run.saved050 = run.saved80120 = run.saved1000 = false;
+  run.brakeArmed = false;
+  run.brakeT0 = null;
+  ['run050', 'run0100', 'run100200', 'run80120', 'run200300', 'run1000'].forEach((id) => setRunText(id, '—'));
+  setRunText('runFrom', 'вооружён');
+  setRunText('runStatus', 'Вооружён. Почти остановитесь и газуйте');
+}
+
+function stopRun() {
+  run.armed = false;
+  run.launched = false;
+  setRunText('runStatus', 'Остановлено. GPS может продолжать показывать скорость');
+}
+
+function needLogin(msg) {
+  if (currentUser()) return false;
+  const el = document.getElementById('authMsg');
+  if (el) el.textContent = msg || 'Чтобы писать в топ, войди или зарегистрируйся';
+  document.getElementById('auth')?.classList.remove('hidden');
+  return true;
+}
+
+function publishGps(v0100, v100200, v200300) {
+  if (needLogin('GPS-замер сохранён на устройстве. В топ — после входа.')) {
+    const rec0 = state.meas[state.carId] || {};
+    if (v0100 != null) rec0.v0100 = Number(v0100.toFixed(2));
+    if (v100200 != null) rec0.v100200 = Number(v100200.toFixed(2));
+    if (v200300 != null) rec0.v200300 = Number(v200300.toFixed(2));
+    state.meas[state.carId] = rec0;
+    save();
+    applyCarUI();
+    if (v0100 != null) pushSlip();
+    return;
+  }
+  const rec = state.meas[state.carId] || {};
+  if (v0100 != null) rec.v0100 = Number(v0100.toFixed(2));
+  if (v100200 != null) rec.v100200 = Number(v100200.toFixed(2));
+  if (v200300 != null) rec.v200300 = Number(v200300.toFixed(2));
+  state.meas[state.carId] = rec;
+  save();
+  const who = (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
+  if (v0100 != null) {
+    api.addStraight(currentCar().id, { name: String(who).slice(-6), car: currentCar().name, t: rec.v0100, gps: true });
+    pushSlip();
+  }
+  applyCarUI();
+}
+
+const lapRun = { on: false, t0: null, moving: false };
+document.getElementById('btnLapStart')?.addEventListener('click', () => {
+  startWatch();
+  lapRun.on = true;
+  lapRun.t0 = Date.now();
+  document.getElementById('lapGpsMsg').textContent = 'круг идёт…';
+});
+document.getElementById('btnLapStop')?.addEventListener('click', () => {
+  if (!lapRun.on || !lapRun.t0) return;
+  const ms = Date.now() - lapRun.t0;
+  lapRun.on = false;
+  if (ms < 20000) {
+    document.getElementById('lapGpsMsg').textContent = 'короче 20 с — в топ не берём';
+    return;
+  }
+  const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  state.laps[trackId] = state.laps[trackId] || [];
+  state.laps[trackId].push({ ms, at: Date.now(), gps: true });
+  save();
+  const who = (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
+  const sec = ms / 1000;
+  const m = Math.floor(sec / 60);
+  const s = (sec % 60).toFixed(2).padStart(5, '0');
+  api.addLap(trackId, { name: String(who).slice(-6), car: currentCar().name, t: `${m}:${s}`, gps: true });
+  document.getElementById('lapGpsMsg').textContent = `круг ${m}:${s} в топе`;
+  applyCarUI();
+});
+
+document.getElementById('btnGps')?.addEventListener('click', startWatch);
+document.getElementById('btnArm')?.addEventListener('click', armRun);
+document.getElementById('btnStop')?.addEventListener('click', stopRun);
+function pushSlip() {
+  const rec = state.meas[state.carId] || {};
+  state.slips = state.slips || [];
+  state.slips.unshift({ car: currentCar().name, v0100: rec.v0100, v100200: rec.v100200, at: Date.now() });
+  state.slips = state.slips.slice(0, 20);
+  save();
+  renderSlips();
+}
+function renderSlips() {
+  const el = document.getElementById('runHistory');
+  if (!el) return;
+  el.innerHTML = (state.slips || []).map((s) => `<li>${s.car} · 0–100 ${s.v0100 ?? '—'} · 100–200 ${s.v100200 ?? '—'}</li>`).join('') || '<li>пусто</li>';
+}
+document.getElementById('btnBrake')?.addEventListener('click', () => {
+  startWatch();
+  run.brakeArmed = true;
+  run.saved1000 = false;
+  run.brakeT0 = null;
+  setRunText('run1000', 'ждём 100+');
+  setRunText('runStatus', 'Торможение: выше 100, потом до 8 км/ч');
+});
+document.getElementById('btnShareRun')?.addEventListener('click', async () => {
+  const t = `PITLANE\n${currentCar().name}\n0–100 ${document.getElementById('run0100')?.textContent}\n100–200 ${document.getElementById('run100200')?.textContent}`;
+  try {
+    if (navigator.share) await navigator.share({ text: t });
+    else await navigator.clipboard.writeText(t);
+  } catch (_) {}
+});
+window.addEventListener('devicemotion', (e) => {
+  const a = e.accelerationIncludingGravity;
+  if (!a) return;
+  const g = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2) / 9.81;
+  setRunText('liveG', g.toFixed(2));
+});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+renderSlips();
+
+/* -------- auth + subscription (local demo) -------- */
+const AUTH_KEY = 'pitlane-auth-v1';
+const PRICE = { month: 390, year: 2990, monthOff: 195, yearOff: 1495 };
+
+function normPhone(s) {
+  const d = String(s || '').replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('8')) return '7' + d.slice(1);
+  if (d.length === 10) return '7' + d;
+  return d;
+}
+
+async function hashPass(p) {
+  try {
+    if (crypto?.subtle?.digest) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (_) {}
+  let h = 2166136261;
+  for (let i = 0; i < p.length; i++) h = Math.imul(h ^ p.charCodeAt(i), 16777619);
+  return 'x' + (h >>> 0).toString(16);
+}
+
+function loadAuth() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_KEY)) || { users: {}, session: null };
+  } catch {
+    return { users: {}, session: null };
+  }
+}
+
+let authDb = loadAuth();
+
+function saveAuth() {
+  localStorage.setItem(AUTH_KEY, JSON.stringify(authDb));
+}
+
+function currentUser() {
+  return authDb.session ? authDb.users[authDb.session] : null;
+}
+
+function isPro(user = currentUser()) {
+  if (!user) return false;
+  const now = Date.now();
+  return now < user.trialEnds || (user.paidUntil && now < user.paidUntil);
+}
+
+function fmtDate(ts) {
+  return new Date(ts).toLocaleDateString('ru-RU');
+}
+
+function refreshAccount() {
+  const u = currentUser();
+  const authEl = document.getElementById('auth');
+  if (!u) {
+    document.getElementById('accPhone') && (document.getElementById('accPhone').textContent = 'гость');
+    document.getElementById('accPlan') && (document.getElementById('accPlan').textContent = 'без аккаунта');
+    document.getElementById('accPro') && (document.getElementById('accPro').textContent = 'нет');
+    return;
+  }
+  authEl?.classList.add('hidden');
+  const now = Date.now();
+  const trialOn = now < u.trialEnds;
+  const paidOn = u.paidUntil && now < u.paidUntil;
+  document.getElementById('accPhone').textContent = '+' + u.phone;
+  document.getElementById('accPlan').textContent = paidOn ? (u.plan === 'year' ? 'год' : 'месяц') : trialOn ? 'триал 7 дней' : 'free';
+  document.getElementById('accUntil').textContent = fmtDate(paidOn ? u.paidUntil : u.trialEnds);
+  document.getElementById('accDiscount').textContent = u.firstPaid ? 'уже использована' : '−50% на первую';
+  document.getElementById('accPro').textContent = isPro(u) ? 'да' : 'нет';
+  document.getElementById('priceMonth').textContent = (u.firstPaid ? PRICE.month : PRICE.monthOff) + ' ₽';
+  document.getElementById('priceYear').textContent = (u.firstPaid ? PRICE.year : PRICE.yearOff) + ' ₽';
+}
+
+async function registerUser(phone, password) {
+  const p = normPhone(phone);
+  if (p.length !== 11) throw new Error('Введите номер в формате +7…');
+  if (authDb.users[p]) throw new Error('Этот номер уже зарегистрирован');
+  authDb.users[p] = {
+    phone: p,
+    pass: await hashPass(password + ':' + p),
+    trialEnds: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    paidUntil: null,
+    plan: 'trial',
+    firstPaid: false,
+  };
+  authDb.session = p;
+  saveAuth();
+}
+
+async function loginUser(phone, password) {
+  const p = normPhone(phone);
+  const u = authDb.users[p];
+  if (!u) throw new Error('Сначала регистрация');
+  const h = await hashPass(password + ':' + p);
+  if (h !== u.pass) throw new Error('Неверный пароль');
+  authDb.session = p;
+  saveAuth();
+}
+
+function buyPlan(kind) {
+  const u = currentUser();
+  if (!u) return;
+  const days = kind === 'year' ? 365 : 30;
+  const price = u.firstPaid ? PRICE[kind] : PRICE[kind + 'Off'];
+  u.plan = kind;
+  u.firstPaid = true;
+  u.paidUntil = Date.now() + days * 24 * 60 * 60 * 1000;
+  saveAuth();
+  alert('Демо: Pro на ' + days + ' дн. К оплате было ' + price + ' ₽. Касса не подключена.');
+  refreshAccount();
+}
+
+document.getElementById('authForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  try {
+    await loginUser(fd.get('phone'), fd.get('password'));
+    document.getElementById('authMsg').textContent = '';
+    refreshAccount();
+  } catch (err) {
+    document.getElementById('authMsg').textContent = err.message;
+  }
+});
+
+document.getElementById('btnRegister')?.addEventListener('click', async () => {
+  const form = document.getElementById('authForm');
+  const fd = new FormData(form);
+  try {
+    await registerUser(fd.get('phone'), fd.get('password'));
+    document.getElementById('authMsg').textContent = '';
+    refreshAccount();
+  } catch (err) {
+    document.getElementById('authMsg').textContent = err.message;
+  }
+});
+
+document.getElementById('btnLogout')?.addEventListener('click', () => {
+  authDb.session = null;
+  saveAuth();
+  refreshAccount();
+});
+document.getElementById('btnGuest')?.addEventListener('click', () => {
+  document.getElementById('auth')?.classList.add('hidden');
+});
+document.getElementById('btnOpenAuth')?.addEventListener('click', () => {
+  document.getElementById('auth')?.classList.remove('hidden');
+});
+
+document.querySelectorAll('[data-buy]').forEach((b) => {
+  b.addEventListener('click', () => buyPlan(b.dataset.buy));
+});
+
+refreshAccount();
+
+const gltfLoader = new GLTFLoader();
+let glbRoot = null;
+
+function clearGlb() {
+  if (glbRoot) {
+    scene.remove(glbRoot);
+    glbRoot = null;
+  }
+  car.visible = true;
+}
+
+function fitGlb(obj) {
+  clearGlb();
+  glbRoot = obj;
+  const box = new THREE.Box3().setFromObject(glbRoot);
+  const size = box.getSize(new THREE.Vector3()).length();
+  glbRoot.scale.setScalar(4.4 / Math.max(size, 0.01));
+  box.setFromObject(glbRoot);
+  const mid = box.getCenter(new THREE.Vector3());
+  glbRoot.position.sub(mid);
+  glbRoot.position.y += 0.22;
+  glbRoot.rotation.y = Math.PI * 0.22;
+  scene.add(glbRoot);
+  car.visible = false;
+}
+
+function loadDefaultGlb() {
+  gltfLoader.load('./models/sportscar.glb', (gltf) => fitGlb(gltf.scene));
+}
+
+document.getElementById('liveryInput')?.addEventListener('change', async (e) => {
+  const files = [...(e.target.files || [])].slice(0, 3);
+  if (!files.length) return;
+  const hero = document.getElementById('heroPhoto');
+  if (hero) hero.src = URL.createObjectURL(files[0]);
+  const cnv = document.createElement('canvas');
+  cnv.width = cnv.height = 1024;
+  const ctx = cnv.getContext('2d');
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, 1024, 1024);
+  for (let i = 0; i < files.length; i++) {
+    const img = await new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = rej;
+      im.src = URL.createObjectURL(files[i]);
+    });
+    const w = 1024 / files.length;
+    ctx.drawImage(img, i * w, 0, w, 1024);
+  }
+  state.customLivery = cnv;
+  paintCar(currentCar());
+});
+
+document.getElementById('glbInput')?.addEventListener('change', (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  gltfLoader.load(url, (gltf) => fitGlb(gltf.scene));
+});
+
+document.getElementById('btnResetModel')?.addEventListener('click', () => {
+  state.customLivery = null;
+  gltfLoader.load('./models/ferrari.glb', (gltf) => fitGlb(gltf.scene));
+});
+
+document.querySelectorAll('[data-photo]').forEach((b) => {
+  b.addEventListener('click', () => {
+    const img = document.getElementById('heroPhoto');
+    if (img) img.src = b.dataset.photo;
+  });
+});
+document.getElementById('btnToggle3d')?.addEventListener('click', () => {
+  const canvas3d = document.getElementById('view3d');
+  const photos = document.getElementById('photoStage');
+  const on = canvas3d.classList.contains('hidden-3d');
+  canvas3d.classList.toggle('hidden-3d', !on);
+  photos?.classList.toggle('hidden', on);
+  const t = document.getElementById('btnToggle3d');
+  if (t) t.textContent = on ? 'Фото' : 'Включить 3D';
+  if (on) {
+    onResize();
+    gltfLoader.load('./models/ferrari.glb', (gltf) => fitGlb(gltf.scene));
+  }
+});
+
+document.querySelectorAll('.model-bar button').forEach((b) => {
+  b.addEventListener('click', () => {
+    const url = b.dataset.glb;
+    if (!url) {
+      clearGlb();
+      paintCar(currentCar());
+      return;
+    }
+    gltfLoader.load(url, (gltf) => fitGlb(gltf.scene));
+  });
+});
+
+const paint = { body: null, wheel: null };
+function hexToRgb(hex) {
+  const h = hex.replace('#', '');
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function rgbToHsl(r, g, b) {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let h = 0, s = 0, l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  return [h, s, l];
+}
+function hslToRgb(h, s, l) {
+  const hue = (p, q, t) => {
+    if (t < 0) t += 1;
+    if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  let r, g, b;
+  if (!s) r = g = b = l;
+  else {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue(p, q, h + 1 / 3);
+    g = hue(p, q, h);
+    b = hue(p, q, h - 1 / 3);
+  }
+  return [r * 255, g * 255, b * 255];
+}
+function recolorSrc(src, bodyHex) {
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => {
+      const cnv = document.createElement('canvas');
+      cnv.width = im.width;
+      cnv.height = im.height;
+      const ctx = cnv.getContext('2d');
+      ctx.drawImage(im, 0, 0);
+      if (!bodyHex) return resolve(src);
+      const [tr, tg, tb] = hexToRgb(bodyHex);
+      const [th, ts] = rgbToHsl(tr, tg, tb);
+      const data = ctx.getImageData(0, 0, cnv.width, cnv.height);
+      const d = data.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], g = d[i + 1], b = d[i + 2];
+        const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        if (luma < 22) continue;
+        const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+        const sat = mx === 0 ? 0 : (mx - mn) / mx;
+        if (luma < 48 && sat < 0.18) continue;
+        if (luma > 245) continue;
+        const hsl = rgbToHsl(r, g, b);
+        const keepL = hsl[2];
+        const rgb = hslToRgb(th, Math.max(ts, 0.35), keepL);
+        d[i] = rgb[0]; d[i + 1] = rgb[1]; d[i + 2] = rgb[2];
+      }
+      ctx.putImageData(data, 0, 0);
+      resolve(cnv.toDataURL('image/jpeg', 0.88));
+    };
+    im.src = src;
+  });
+}
+function applyPaint() {
+  const photo = document.getElementById('heroPhoto');
+  if (!photo) return;
+  photo.style.filter = 'none';
+  const base = photo.dataset.orig || photo.src;
+  if (!photo.dataset.orig) photo.dataset.orig = photo.src;
+  if (!paint.body) {
+    photo.src = base;
+    return;
+  }
+  recolorSrc(base, paint.body).then((url) => { photo.src = url; });
+}
+document.querySelectorAll('#colorBar button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#colorBar button').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on');
+    paint.body = b.dataset.hex || null;
+    applyPaint();
+  });
+});
+document.querySelectorAll('#wheelBar button').forEach((b) => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('#wheelBar button').forEach((x) => x.classList.remove('on'));
+    b.classList.add('on');
+  });
+});
+function shiftCar(dir) {
+  const list = garageList().length ? garageList() : CARS;
+  const i = Math.max(0, list.findIndex((c) => c.id === state.carId));
+  state.carId = list[(i + dir + list.length) % list.length].id;
+  save();
+  paint.body = 'none';
+  paint.wheel = 'none';
+  document.querySelectorAll('#colorBar button, #wheelBar button').forEach((x) => x.classList.remove('on'));
+  document.querySelector('#colorBar button')?.classList.add('on');
+  document.querySelector('#wheelBar button')?.classList.add('on');
+  applyCarUI();
+}
+document.getElementById('carPrev')?.addEventListener('click', () => shiftCar(-1));
+document.getElementById('carNext')?.addEventListener('click', () => shiftCar(1));
+
+const BODY_IMG = {
+  sedan: './img/m3.jpg',
+  coupe: './img/m4csl.jpg',
+  wagon: './img/rs6.jpg',
+  suv: './img/m5.jpg',
+  gt: './img/gt3rs.jpg',
+  super: './img/huracan.jpg',
+};
+const CATALOG = {
+  BMW: {
+    '3 Series': { years: [2019, 2020, 2021, 2022, 2023, 2024, 2025], engines: ['2.0 184 л.с.', '2.0 245 л.с.', 'M340i 374 л.с.'], body: 'sedan' },
+    'M3 Competition': { years: [2021, 2022, 2023, 2024], engines: ['3.0 510 л.с.', '3.0 xDrive 510 л.с.'], body: 'sedan' },
+    '4 Series Coupe': { years: [2021, 2022, 2023, 2024], engines: ['2.0 245 л.с.', 'M440i 374 л.с.'], body: 'coupe' },
+    'M4 Competition': { years: [2021, 2022, 2023, 2024], engines: ['3.0 510 л.с.'], body: 'coupe' },
+    'M4 CSL': { years: [2023], engines: ['3.0 550 л.с.'], body: 'coupe' },
+    '5 Series': { years: [2018, 2019, 2020, 2021, 2022, 2023, 2024], engines: ['2.0 190 л.с.', '540i 333 л.с.'], body: 'sedan' },
+    'M5 Competition': { years: [2021, 2022, 2023], engines: ['4.4 V8 625 л.с.'], body: 'sedan' },
+    '7 Series': { years: [2020, 2021, 2022, 2023, 2024], engines: ['3.0 340 л.с.', '4.4 V8 530 л.с.'], body: 'sedan' },
+    '8 Series Coupe': { years: [2020, 2021, 2022, 2023], engines: ['3.0 340 л.с.', '4.4 530 л.с.'], body: 'coupe' },
+    'M8 Competition': { years: [2020, 2021, 2022, 2023], engines: ['4.4 V8 625 л.с.'], body: 'coupe' },
+    'X3 M': { years: [2020, 2021, 2022, 2023], engines: ['3.0 510 л.с.'], body: 'suv' },
+    'X5 M': { years: [2020, 2021, 2022, 2023, 2024], engines: ['4.4 V8 625 л.с.'], body: 'suv' },
+    'X6 M': { years: [2019, 2020, 2021, 2022, 2023, 2024], engines: ['4.4 V8 575 л.с.', '4.4 V8 625 л.с.'], body: 'suv' },
+    'X7': { years: [2020, 2021, 2022, 2023, 2024], engines: ['3.0 340 л.с.', '4.4 530 л.с.'], body: 'suv' },
+  },
+  Porsche: {
+    '911 Carrera': { years: [2020, 2021, 2022, 2023, 2024], engines: ['3.0 385 л.с.', '3.0 450 л.с. S'], body: 'gt' },
+    '911 GT3 RS': { years: [2022, 2023, 2024], engines: ['4.0 NA 525 л.с.'], body: 'gt' },
+    '911 Turbo S': { years: [2021, 2022, 2023, 2024], engines: ['3.8 650 л.с.'], body: 'gt' },
+    '718 Cayman GT4 RS': { years: [2022, 2023, 2024], engines: ['4.0 500 л.с.'], body: 'gt' },
+    'Cayenne Turbo': { years: [2020, 2021, 2022, 2023], engines: ['4.0 V8 550 л.с.'], body: 'suv' },
+    'Panamera Turbo S': { years: [2021, 2022, 2023], engines: ['4.0 V8 630 л.с.'], body: 'sedan' },
+  },
+  Lamborghini: {
+    'Huracán STO': { years: [2021, 2022, 2023], engines: ['5.2 V10 640 л.с.'] },
+    'Aventador SVJ': { years: [2019, 2020, 2021], engines: ['6.5 V12 770 л.с.'] },
+  },
+  Ferrari: {
+    'SF90 Stradale': { years: [2020, 2021, 2022, 2023], engines: ['V8 hybrid 1000 л.с.'] },
+    '296 GTB': { years: [2022, 2023, 2024], engines: ['V6 hybrid 830 л.с.'] },
+  },
+  Mercedes: {
+    'C-Class': { years: [2019, 2020, 2021, 2022, 2023, 2024], engines: ['2.0 204 л.с.', 'C43 408 л.с.'], body: 'sedan' },
+    'C63 S E Performance': { years: [2023, 2024, 2025], engines: ['2.0 hybrid 680 л.с.'], body: 'sedan' },
+    'E-Class': { years: [2018, 2019, 2020, 2021, 2022, 2023], engines: ['2.0 197 л.с.', 'E53 435 л.с.'], body: 'sedan' },
+    'S-Class': { years: [2021, 2022, 2023, 2024], engines: ['3.0 367 л.с.', 'S63 612 л.с.'], body: 'sedan' },
+    'AMG GT Coupe': { years: [2019, 2020, 2021, 2022], engines: ['4.0 V8 476 л.с.', '4.0 585 л.с.'], body: 'coupe' },
+    'AMG GT Black Series': { years: [2021, 2022], engines: ['4.0 V8 730 л.с.'], body: 'coupe' },
+    'GLE 63': { years: [2021, 2022, 2023], engines: ['4.0 V8 612 л.с.'], body: 'suv' },
+    'G63': { years: [2020, 2021, 2022, 2023, 2024], engines: ['4.0 V8 585 л.с.'], body: 'suv' },
+  },
+  Audi: {
+    'A4': { years: [2019, 2020, 2021, 2022, 2023], engines: ['2.0 190 л.с.', '2.0 249 л.с.'], body: 'sedan' },
+    'A6': { years: [2019, 2020, 2021, 2022, 2023], engines: ['2.0 245 л.с.', '3.0 340 л.с.'], body: 'sedan' },
+    'RS6 Avant': { years: [2021, 2022, 2023, 2024], engines: ['4.0 V8 600 л.с.', '4.0 630 л.с.'], body: 'wagon' },
+    'RS7': { years: [2021, 2022, 2023], engines: ['4.0 V8 600 л.с.'], body: 'sedan' },
+    'Q8': { years: [2020, 2021, 2022, 2023], engines: ['3.0 340 л.с.', 'RS Q8 600 л.с.'], body: 'suv' },
+    'R8 V10 Performance': { years: [2020, 2021, 2022, 2023], engines: ['5.2 V10 620 л.с.'], body: 'super' },
+  },
+  Nissan: { 'GT-R Nismo': { years: [2020, 2021, 2022, 2023], engines: ['3.8 twin-turbo 600 л.с.'] } },
+  Toyota: { 'GR Supra': { years: [2020, 2021, 2022, 2023, 2024], engines: ['3.0 turbo 340 л.с.', '3.0 turbo 387 л.с.'] } },
+  Ford: { 'Mustang Dark Horse': { years: [2024, 2025], engines: ['5.0 V8 500 л.с.'] } },
+  Tesla: { 'Model S Plaid': { years: [2021, 2022, 2023, 2024], engines: ['tri-motor ~1020 л.с.'] } },
+  Volkswagen: { 'Golf R': { years: [2021, 2022, 2023, 2024], engines: ['2.0 turbo 320 л.с.'] } },
+  Honda: { 'Civic Type R': { years: [2023, 2024, 2025], engines: ['2.0 turbo 330 л.с.'] } },
+};
+
+function fillSelect(el, items) {
+  if (!el) return;
+  el.innerHTML = items.map((v) => `<option value="${v}">${v}</option>`).join('');
+}
+function syncWizard() {
+  const brand = document.getElementById('wBrand')?.value;
+  const models = brand ? Object.keys(CATALOG[brand] || {}) : [];
+  fillSelect(document.getElementById('wModel'), models);
+  const model = document.getElementById('wModel')?.value;
+  const spec = brand && model ? CATALOG[brand][model] : null;
+  fillSelect(document.getElementById('wYear'), (spec?.years || []).map(String));
+  fillSelect(document.getElementById('wEngine'), spec?.engines || []);
+}
+function openWizard() {
+  document.getElementById('addWizard')?.classList.remove('hidden');
+  fillSelect(document.getElementById('wBrand'), Object.keys(CATALOG));
+  syncWizard();
+}
+document.getElementById('btnAddCar')?.addEventListener('click', openWizard);
+document.getElementById('wBrand')?.addEventListener('change', syncWizard);
+document.getElementById('wModel')?.addEventListener('change', syncWizard);
+document.getElementById('wCancel')?.addEventListener('click', () => applyCarUI());
+document.getElementById('wSave')?.addEventListener('click', () => {
+  const brand = document.getElementById('wBrand').value;
+  const model = document.getElementById('wModel').value;
+  const year = Number(document.getElementById('wYear').value);
+  const engine = document.getElementById('wEngine').value;
+  const spec = CATALOG[brand]?.[model] || {};
+  const stock = CARS.find((c) => c.name === `${brand} ${model}` || c.name.endsWith(model));
+  const hp = parseInt((engine.match(/(\d{3,4})\s*л/) || [])[1] || stock?.hp || 0, 10);
+  const car = {
+    id: 'mine-' + Date.now(),
+    name: `${brand} ${model}`,
+    cls: engine,
+    year,
+    trim: engine,
+    side: BODY_IMG[spec.body] || './img/m3.jpg',
+    color: stock?.color || 0x888888,
+    v0100: stock?.v0100 ?? null,
+    v100200: stock?.v100200 ?? null,
+    v200300: stock?.v200300 ?? null,
+    v80120: stock?.v80120 ?? null,
+    hp: hp || stock?.hp || 0,
+    nm: stock?.nm || 0,
+    kg: stock?.kg || 0,
+    lap: stock?.lap || { track: 'moscow', time: '—' },
+  };
+  state.garage = garageList();
+  state.garage.push(car);
+  state.carId = car.id;
+  save();
+  applyCarUI();
+});
+
+function shiftGarage(dir) {
+  const list = garageList();
+  if (!list.length) return;
+  const i = Math.max(0, list.findIndex((c) => c.id === state.carId));
+  state.carId = list[(i + dir + list.length) % list.length].id;
+  save();
+  applyCarUI();
+}
+
+function studioCut(img, thresh) {
+  const maxW = 1100;
+  const scale = Math.min(1, maxW / img.width);
+  const w = Math.round(img.width * scale);
+  const h = Math.round(img.height * scale);
+  const cnv = document.createElement('canvas');
+  cnv.width = w;
+  cnv.height = h;
+  const ctx = cnv.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h);
+  const d = data.data;
+  const corners = [
+    [2, 2], [w - 3, 2], [2, h - 3], [w - 3, h - 3],
+    [w >> 1, 2], [2, h >> 1],
+  ];
+  let br = 0, bg = 0, bb = 0;
+  corners.forEach(([x, y]) => {
+    const i = (y * w + x) * 4;
+    br += d[i]; bg += d[i + 1]; bb += d[i + 2];
+  });
+  br /= corners.length; bg /= corners.length; bb /= corners.length;
+  const cut = thresh * 2.4;
+  for (let i = 0; i < d.length; i += 4) {
+    const dist = Math.abs(d[i] - br) + Math.abs(d[i + 1] - bg) + Math.abs(d[i + 2] - bb);
+    if (dist < cut) {
+      d[i] = 5; d[i + 1] = 5; d[i + 2] = 5;
+    }
+  }
+  ctx.putImageData(data, 0, 0);
+  return cnv.toDataURL('image/jpeg', 0.82);
+}
+
+let lastScanFile = null;
+async function runScan(file) {
+  if (!file) return;
+  lastScanFile = file;
+  const img = await new Promise((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = rej;
+    im.src = URL.createObjectURL(file);
+  });
+  const thresh = Number(document.getElementById('scanThresh')?.value || 28);
+  state.scans = state.scans || {};
+  state.scans[currentCar().id] = studioCut(img, thresh);
+  save();
+  applyCarUI();
+}
+document.getElementById('scanInput')?.addEventListener('change', (e) => {
+  const f = e.target.files?.[0];
+  if (f) runScan(f);
+});
+document.getElementById('scanThresh')?.addEventListener('change', () => {
+  if (lastScanFile) runScan(lastScanFile);
+});
+document.getElementById('scanReset')?.addEventListener('click', () => {
+  if (!state.scans) return;
+  delete state.scans[currentCar().id];
+  save();
+  applyCarUI();
+});
+
+document.getElementById('topStraightForm')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  api.addStraight(currentCar().id, {
+    name: String(fd.get('name')),
+    car: currentCar().name,
+    t: Number(fd.get('t')),
+  });
+  renderTops();
+  e.target.reset();
+});
+
+document.getElementById('topLapForm')?.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const min = Number(fd.get('min') || 0);
+  const sec = Number(fd.get('sec') || 0);
+  const trackId = document.getElementById('topTrackSelect').value;
+  api.addLap(trackId, {
+    name: String(fd.get('name')),
+    car: currentCar().name,
+    t: `${min}:${sec.toFixed(2).padStart(5, '0')}`,
+  });
+  renderTops();
+  e.target.reset();
+});

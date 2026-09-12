@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#050505" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="description" content="Pitlane — гараж, замеры и круги для трека" />
+    <title>Pitlane — гараж и телеметрия</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div id="intro">
+      <div class="intro-track">
+        <div class="intro-line"></div>
+        <svg class="intro-car-svg" viewBox="0 0 720 200" aria-hidden="true">
+          <g fill="#f4f4f4">
+            <path d="M86 132h28l16-18 38-6 22-28 86-8 118-2 52 6 40 22 48 8 22 4v-26l38-8 18 8v22l36 8 12 18H86z"/>
+            <circle cx="188" cy="148" r="28"/>
+            <circle cx="188" cy="148" r="12" fill="#111"/>
+            <circle cx="528" cy="148" r="30"/>
+            <circle cx="528" cy="148" r="13" fill="#111"/>
+            <path d="M560 86h54l12 22H572z"/>
+          </g>
+        </svg>
+      </div>
+      <div class="intro-logo">PITLANE</div>
+      <p class="intro-skip">нажмите, чтобы пропустить</p>
+    </div>
+    <div id="app">
+      <aside class="rail">
+        <div class="mark">PIT<span>LANE</span></div>
+        <nav>
+          <button class="nav-btn active" data-view="garage" title="Гараж"><span>▣</span><i>Бокс</i></button>
+          <button class="nav-btn" data-view="dyno" title="Динамика"><span>↯</span><i>Паспорт</i></button>
+          <button class="nav-btn" data-view="run" title="Замер"><span>▶</span><i>Замер</i></button>
+          <button class="nav-btn" data-view="lap" title="Круг"><span>◷</span><i>Круг</i></button>
+          <button class="nav-btn" data-view="tops" title="Топ"><span>▲</span><i>Топ</i></button>
+          <button class="nav-btn" data-view="cars" title="Парк"><span>☰</span><i>Парк</i></button>
+          <button class="nav-btn" data-view="account" title="Аккаунт"><span>●</span><i>Профиль</i></button>
+        </nav>
+        <div class="rail-foot">TRACK ONLY</div>
+      </aside>
+
+      <main>
+        <header class="top">
+          <div>
+            <p class="eyebrow" id="carClass">GT · RWD · 3.0 twin-turbo</p>
+            <h1 id="carName">M3 Competition</h1>
+          </div>
+          <div class="top-meta">
+            <div>
+              <span>0–100</span>
+              <strong id="hdr0100">3.5с</strong>
+            </div>
+            <div>
+              <span>круг</span>
+              <strong id="hdrLap">8:12.4</strong>
+            </div>
+          </div>
+        </header>
+
+        <section id="view-garage" class="view active garage-hero">
+          <div id="emptyGarage" class="empty-garage">
+            <div class="ghost-car" aria-hidden="true"></div>
+            <h2>Гараж пуст</h2>
+            <p class="muted">Добавь свой автомобиль — марка, кузов, год, мотор.</p>
+            <button type="button" id="btnAddCar">Добавить автомобиль</button>
+          </div>
+          <div id="addWizard" class="add-wizard hidden">
+            <h2>Новый автомобиль</h2>
+            <label>марка
+              <select id="wBrand"></select>
+            </label>
+            <label>модель / кузов
+              <select id="wModel"></select>
+            </label>
+            <label>год
+              <select id="wYear"></select>
+            </label>
+            <label>мотор
+              <select id="wEngine"></select>
+            </label>
+            <div class="form-row">
+              <button type="button" id="wSave">В гараж</button>
+              <button type="button" id="wCancel">Отмена</button>
+            </div>
+          </div>
+          <div class="hero-title">
+            <p class="eyebrow">Гараж</p>
+            <h1 id="boxName">Porsche 911 GT3 RS</h1>
+            <p class="hero-chip" id="boxTrim">2023 · 992 GT3 RS</p>
+          </div>
+          <div class="stage">
+            <button type="button" class="slide-btn" id="carPrev">‹</button>
+            <div id="photoStage" class="photo-stage">
+              <img id="heroPhoto" src="./img/gt3rs.jpg" alt="вид сбоку" />
+            </div>
+            <button type="button" class="slide-btn" id="carNext">›</button>
+            <canvas id="view3d" class="hidden-3d"></canvas>
+          </div>
+          <div class="scan-row">
+            <label class="file-btn">сфотографировать бок
+              <input id="scanInput" type="file" accept="image/*" capture="environment" hidden />
+            </label>
+            <label>порог фона <input id="scanThresh" type="range" min="8" max="70" value="28" /></label>
+            <button type="button" id="scanReset">сброс фото</button>
+          </div>
+          <p class="paint-label">кузов</p>
+          <div class="colors" id="colorBar">
+            <button type="button" data-hex="" style="background:#d8d8d8" class="on" title="сток"></button>
+            <button type="button" data-hex="#c41e3a" style="background:#c41e3a"></button>
+            <button type="button" data-hex="#1f4cff" style="background:#1f4cff"></button>
+            <button type="button" data-hex="#2ee56a" style="background:#2ee56a"></button>
+            <button type="button" data-hex="#111111" style="background:#111"></button>
+            <button type="button" data-hex="#f4f1ea" style="background:#f4f1ea"></button>
+            <button type="button" data-hex="#e6c84a" style="background:#e6c84a"></button>
+            <button type="button" data-hex="#7b2d8e" style="background:#7b2d8e"></button>
+          </div>
+          <p class="paint-label">диски</p>
+          <div class="colors" id="wheelBar">
+            <button type="button" data-wheel="none" class="on" style="background:#333"></button>
+            <button type="button" data-wheel="sepia(0.4) hue-rotate(5deg) saturate(1.8)" style="background:#c9a227"></button>
+            <button type="button" data-wheel="hue-rotate(200deg) saturate(1.6)" style="background:#c41e3a"></button>
+            <button type="button" data-wheel="grayscale(1) brightness(1.4)" style="background:#eee"></button>
+            <button type="button" data-wheel="brightness(0.45)" style="background:#111"></button>
+          </div>
+          <article class="box-card">
+            <div class="box-head">
+              <div class="box-spec" id="boxClass">GT · RWD · 4.0</div>
+            </div>
+            <div class="sheet">
+              <div class="stat">
+                <label>год</label>
+                <b id="boxYear">2023</b>
+              </div>
+              <div class="stat">
+                <label>мой 0–100</label>
+                <b id="s0100">3.5 с</b>
+              </div>
+              <div class="stat">
+                <label>100–200</label>
+                <b id="s100200">8.1 с</b>
+              </div>
+              <div class="stat">
+                <label>мой круг</label>
+                <b id="sLap">—</b>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section id="view-dyno" class="view">
+          <h2>Паспорт динамики</h2>
+          <p class="muted">Сток / ваш замер. Не для дорог общего пользования.</p>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Разгон</h3>
+              <table>
+                <tr><td>0–100</td><td id="d0100">3.5 с</td></tr>
+                <tr><td>100–200</td><td id="d100200">8.1 с</td></tr>
+                <tr><td>200–300</td><td id="d200300">н/д</td></tr>
+                <tr><td>80–120</td><td id="d80120">2.1 с</td></tr>
+              </table>
+            </article>
+            <article class="card">
+              <h3>Масса и отдача</h3>
+              <table>
+                <tr><td>мощность</td><td id="dHp">510 л.с.</td></tr>
+                <tr><td>момент</td><td id="dNm">650 Н·м</td></tr>
+                <tr><td>масса</td><td id="dKg">1730 кг</td></tr>
+                <tr><td>л.с./тонна</td><td id="dPt">295</td></tr>
+              </table>
+            </article>
+          </div>
+          <article class="card">
+            <p class="muted">Свой замер руками больше не вводится. В топ попадает только GPS-заезд с экрана «Замер».</p>
+          </article>
+        </section>
+
+        <section id="view-run" class="view">
+          <h2>GPS-замер</h2>
+          <p class="muted">Скорость с датчиков телефона, как в навигаторе. Только там, где разгон разрешён (трек, закрытая прямая). С телефона точнее, чем с ноутбука.</p>
+          <div class="speedo card">
+            <div class="speed-num" id="liveSpeed">0</div>
+            <div class="speed-unit">км/ч · точность <span id="gpsAcc">—</span></div>
+            <div class="run-status" id="runStatus">ожидание GPS</div>
+            <div class="form-row">
+              <button type="button" id="btnGps">Включить GPS</button>
+              <button type="button" id="btnArm">Старт замера</button>
+              <button type="button" id="btnStop">Стоп</button>
+            </div>
+          </div>
+          <div class="sheet">
+            <div class="stat"><label>старт от</label><b id="runFrom">—</b></div>
+            <div class="stat"><label>0–50</label><b id="run050">—</b></div>
+            <div class="stat"><label>0–100</label><b id="run0100">—</b></div>
+            <div class="stat"><label>100–200</label><b id="run100200">—</b></div>
+            <div class="stat"><label>80–120</label><b id="run80120">—</b></div>
+            <div class="stat"><label>200–300</label><b id="run200300">—</b></div>
+            <div class="stat"><label>100–0</label><b id="run1000">—</b></div>
+            <div class="stat"><label>G</label><b id="liveG">—</b></div>
+          </div>
+          <div class="form-row">
+            <button type="button" id="btnBrake">Замер торможения 100–0</button>
+            <button type="button" id="btnShareRun">Шейр слипа</button>
+          </div>
+          <article class="card">
+            <h3>Слипы</h3>
+            <ol id="runHistory" class="laps"></ol>
+          </article>
+          <article class="card">
+            <h3>Как это считает</h3>
+            <p class="muted">После «Старт» ждёт скорость ниже 8 км/ч, затем фиксирует момент пересечения 100 / 200 / 300. Между точками — линейная интерполяция, потому что телефон отдаёт точку раз в 0.3–1 с. Это не Racelogic: погрешность на 0–100 часто 0.2–0.8 с.</p>
+          </article>
+        </section>
+
+        <section id="view-lap" class="view">
+          <h2>Круг</h2>
+          <p class="muted">Эталон конфигурации и ваши сессии. GPS-логгер — следующий этап.</p>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Трасса</h3>
+              <select id="trackSelect"></select>
+              <p class="lap-best">эталон <strong id="trackRef">8:12.40</strong></p>
+              <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
+            </article>
+            <article class="card">
+              <h3>Круг по GPS</h3>
+              <p class="muted">Старт на линии, финиш на той же линии. Время идёт только пока есть скорость с датчика.</p>
+              <div class="form-row">
+                <button type="button" id="btnLapStart">Старт круга</button>
+                <button type="button" id="btnLapStop">Финиш круга</button>
+              </div>
+              <p class="tiny" id="lapGpsMsg">круг не идёт</p>
+            </article>
+          </div>
+          <article class="card">
+            <h3>Сессии</h3>
+            <ul id="lapList" class="laps"></ul>
+          </article>
+        </section>
+
+        <section id="view-tops" class="view">
+          <h2>Топы</h2>
+          <p class="muted">Прямая — внутри одной модели. Кольцо — выбранный трек. Сейчас локальный «сервер» в браузере.</p>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Прямая 0–100 · <span id="topCarName">GT RS</span></h3>
+              <ol id="topStraight" class="laps"></ol>
+              <p class="tiny">Только с GPS. Ручной ввод выключен.</p>
+            </article>
+            <article class="card">
+              <h3>Кольцо · <span id="topTrackName">Moscow Raceway</span></h3>
+              <select id="topTrackSelect"></select>
+              <ol id="topLap" class="laps"></ol>
+              <p class="tiny">Только финиш круга с GPS.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="view-cars" class="view">
+          <h2>Парк</h2>
+          <div id="carGrid" class="car-grid"></div>
+        </section>
+
+        <section id="view-account" class="view">
+          <h2>Аккаунт</h2>
+          <p class="muted" id="accPhone">не вошли</p>
+          <div class="sheet" style="margin-top:14px">
+            <div class="stat"><label>статус</label><b id="accPlan">—</b></div>
+            <div class="stat"><label>действует до</label><b id="accUntil">—</b></div>
+            <div class="stat"><label>первая оплата</label><b id="accDiscount">−50%</b></div>
+            <div class="stat"><label>Pro</label><b id="accPro">нет</b></div>
+          </div>
+          <div class="grid-2">
+            <article class="card">
+              <h3>Месяц</h3>
+              <p class="price" id="priceMonth">390 ₽</p>
+              <p class="muted">после скидки <span id="priceMonthOff">195 ₽</span></p>
+              <button type="button" data-buy="month">Оформить месяц</button>
+            </article>
+            <article class="card">
+              <h3>Год</h3>
+              <p class="price" id="priceYear">2 990 ₽</p>
+              <p class="muted">после скидки <span id="priceYearOff">1 495 ₽</span></p>
+              <button type="button" data-buy="year">Оформить год</button>
+            </article>
+          </div>
+          <p class="tiny">Платежный шлюз не подключён: кнопка включает Pro в демо на этом устройстве.</p>
+          <button type="button" id="btnOpenAuth">Войти / регистрация</button>
+          <button type="button" id="btnLogout">Выйти</button>
+        </section>
+      </main>
+    </div>
+
+    <div id="auth" class="hidden">
+      <form id="authForm" class="card auth-card" onsubmit="event.preventDefault();">
+        <h2>PITLANE</h2>
+        <p class="muted">Гараж открыт. Замеры в топ — после входа. Регистрация: 7 дней Pro.</p>
+        <label>телефон <input name="phone" type="tel" required placeholder="+7 900 000-00-00" /></label>
+        <label>пароль <input name="password" type="password" required minlength="6" /></label>
+        <p class="tiny" id="authMsg"></p>
+        <div class="form-row">
+          <button type="submit" id="btnLogin">Войти</button>
+          <button type="button" id="btnRegister">Регистрация</button>
+          <button type="button" id="btnGuest">Позже</button>
+        </div>
+      </form>
+    </div>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.168.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.168.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
