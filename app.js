@@ -313,10 +313,6 @@ document.querySelectorAll('[data-view]').forEach((btn) => {
   };
 });
 
-if (document.getElementById('dynoForm')) document.getElementById('dynoForm').onsubmit = (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const rec = state.meas[state.carId] || {};
   for (const k of ['v0100', 'v100200', 'v200300']) {
     const n = parseFloat(String(fd.get(k) || ''));
     if (!Number.isNaN(n)) rec[k] = n;
@@ -327,18 +323,6 @@ if (document.getElementById('dynoForm')) document.getElementById('dynoForm').ons
   applyCarUI();
 };
 
-if (document.getElementById('lapForm')) document.getElementById('lapForm').onsubmit = (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const min = Number(fd.get('min') || 0);
-  const sec = Number(fd.get('sec') || 0);
-  const ms = Math.round(min * 60000 + sec * 1000);
-  const trackId = document.getElementById('trackSelect').value;
-  state.laps[trackId] = state.laps[trackId] || [];
-  state.laps[trackId].push({ ms, at: Date.now() });
-  save();
-  applyCarUI();
-};
 
 /* ---------------- 3D ---------------- */
 const canvas = document.getElementById('view3d');
@@ -742,6 +726,19 @@ function onGpsPoint(pos) {
   }
   setRunText('liveSpeed', String(Math.round(v)));
   setRunText('boxLive', String(Math.round(v)));
+  if (lapRun?.on) {
+    const nowTs = pos.timestamp || Date.now();
+    if (v >= 5) {
+      if (lapRun.lastTick != null) lapRun.movingMs += Math.max(0, nowTs - lapRun.lastTick);
+      lapRun.lastTick = nowTs;
+      const sec = lapRun.movingMs / 1000;
+      const m = Math.floor(sec / 60);
+      const ss = (sec % 60).toFixed(1).padStart(4, '0');
+      setRunText('lapGpsMsg', `круг ${m}:${ss} (на ходу)`);
+    } else {
+      lapRun.lastTick = null;
+    }
+  }
 
   if (!run.armed) {
     setRunText('runStatus', 'GPS живой. Стоите — жмите «Старт замера»');
@@ -791,7 +788,10 @@ function onGpsPoint(pos) {
     run.saved80120 = true;
   }
   if (run.brakeArmed && prev.v >= 100 && sample.v < 100 && !run.saved1000) {
-    const t = interpolateCross({ t: sample.t, v: sample.v }, prev, 100);
+    // crossing 100 downward: interpolate between earlier (prev) and later (sample)
+    const span = Math.max(0.01, prev.v - sample.v);
+    const k = (prev.v - 100) / span;
+    const t = prev.t + (sample.t - prev.t) * k;
     run.brakeT0 = run.brakeT0 || t;
   }
   if (run.brakeArmed && run.brakeT0 && sample.v <= 8 && !run.saved1000) {
@@ -872,8 +872,12 @@ function stopRun() {
   run.armed = false;
   run.launched = false;
   if (run.pollId) { clearInterval(run.pollId); run.pollId = null; }
+  if (run.watchId != null) {
+    try { navigator.geolocation.clearWatch(run.watchId); } catch (_) {}
+    run.watchId = null;
+  }
   try { run.wake?.release?.(); } catch (_) {}
-  setRunText('runStatus', 'Остановлено. GPS может продолжать показывать скорость');
+  setRunText('runStatus', 'Остановлено');
 }
 
 function needLogin(msg) {
@@ -885,61 +889,76 @@ function needLogin(msg) {
   return true;
 }
 
+
+function displayWho() {
+  const nick = profile()?.nick;
+  if (nick) return String(nick).slice(0, 24);
+  const u = currentUser();
+  if (u?.phone) return '+' + String(u.phone).slice(-10);
+  return 'пилот';
+}
 function publishGps(v0100, v100200, v200300) {
-  if (needLogin('GPS-замер сохранён на устройстве. В топ — после входа.')) {
-    const rec0 = state.meas[state.carId] || {};
+  const carKey = state.carId || currentCar()?.id;
+  if (!carKey) return;
+  if (!currentUser()) {
+    const rec0 = state.meas[carKey] || {};
     if (v0100 != null) rec0.v0100 = Number(v0100.toFixed(2));
     if (v100200 != null) rec0.v100200 = Number(v100200.toFixed(2));
     if (v200300 != null) rec0.v200300 = Number(v200300.toFixed(2));
-    state.meas[state.carId] = rec0;
+    state.meas[carKey] = rec0;
     save();
     applyCarUI();
     if (v0100 != null) pushSlip();
+    setRunText('runStatus', 'Замер на устройстве. В топ — после входа');
     return;
   }
-  const rec = state.meas[state.carId] || {};
+  const rec = state.meas[carKey] || {};
   if (v0100 != null) rec.v0100 = Number(v0100.toFixed(2));
   if (v100200 != null) rec.v100200 = Number(v100200.toFixed(2));
   if (v200300 != null) rec.v200300 = Number(v200300.toFixed(2));
-  state.meas[state.carId] = rec;
+  state.meas[carKey] = rec;
   save();
-  const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
+  const who = displayWho();
   if (v0100 != null) {
-    api.addStraight(currentCar().id, { name: String(who).slice(-6), car: currentCar().name, t: rec.v0100, gps: true });
+    api.addStraight(currentCar().id, { name: who, car: currentCar().name, t: rec.v0100, gps: true });
     pushSlip();
   }
   applyCarUI();
 }
 
-const lapRun = { on: false, t0: null, moving: false };
+const lapRun = { on: false, t0: null, movingMs: 0, lastTick: null };
+
 document.getElementById('btnLapStart')?.addEventListener('click', () => {
   startWatch();
   lapRun.on = true;
   lapRun.t0 = Date.now();
-  document.getElementById('lapGpsMsg').textContent = 'круг идёт…';
+  lapRun.movingMs = 0;
+  lapRun.lastTick = null;
+  document.getElementById('lapGpsMsg').textContent = 'круг идёт… время только на ходу';
 });
+
 document.getElementById('btnLapStop')?.addEventListener('click', () => {
   if (!lapRun.on || !lapRun.t0) return;
-  const ms = Date.now() - lapRun.t0;
   lapRun.on = false;
-  if (ms < 1500) {
-    document.getElementById('lapGpsMsg').textContent = 'слишком коротко';
+  lapRun.lastTick = null;
+  const movingMs = lapRun.movingMs;
+  if (movingMs < 1500) {
+    document.getElementById('lapGpsMsg').textContent = 'слишком коротко (нужно движение по GPS)';
     return;
   }
   const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
   state.laps[trackId] = state.laps[trackId] || [];
-  state.laps[trackId].push({ ms, at: Date.now(), gps: true });
+  state.laps[trackId].push({ ms: movingMs, at: Date.now(), gps: true });
   save();
-  const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
-  const sec = ms / 1000;
+  const who = displayWho();
+  const sec = movingMs / 1000;
   const m = Math.floor(sec / 60);
-  const s = (sec % 60).toFixed(2).padStart(5, '0');
-  api.addLap(trackId, { name: String(who).slice(-6), car: currentCar().name, t: `${m}:${s}`, gps: true });
-  document.getElementById('lapGpsMsg').textContent = `круг ${m}:${s} в топе`;
+  const ss = (sec % 60).toFixed(2).padStart(5, '0');
+  api.addLap(trackId, { name: who, car: currentCar().name, t: `${m}:${ss}`, gps: true });
+  document.getElementById('lapGpsMsg').textContent = `круг ${m}:${ss} в топе (время на ходу)`;
   applyCarUI();
 });
 
-document.getElementById('btnGps')?.addEventListener('click', startWatch);
 document.getElementById('btnArm')?.addEventListener('click', armRun);
 document.getElementById('btnStop')?.addEventListener('click', stopRun);
 function pushSlip() {
@@ -1033,17 +1052,28 @@ function fmtDate(ts) {
 function refreshAccount() {
   const u = currentUser();
   document.getElementById('authForm')?.classList.toggle('hidden', !!u);
+  const phones = document.querySelectorAll('#accPhone');
   if (!u) {
-    if (document.getElementById('accPhone')) document.getElementById('accPhone').textContent = 'гость';
-    if (document.getElementById('accPlan')) document.getElementById('accPlan').textContent = '';
+    phones.forEach((el) => { el.textContent = 'гость'; });
+    const plan = document.getElementById('accPlan');
+    if (plan) plan.textContent = '';
     return;
   }
-  if (document.getElementById('accPhone')) document.getElementById('accPhone').textContent = '+' + u.phone;
-  if (document.getElementById('accPlan')) document.getElementById('accPlan').textContent = '';
-  document.getElementById('accDiscount').textContent = u.firstPaid ? 'уже использована' : '−50% на первую';
-  document.getElementById('accPro').textContent = isPro(u) ? 'да' : 'нет';
-  document.getElementById('priceMonth').textContent = (u.firstPaid ? PRICE.month : PRICE.monthOff) + ' ₽';
-  document.getElementById('priceYear').textContent = (u.firstPaid ? PRICE.year : PRICE.yearOff) + ' ₽';
+  phones.forEach((el) => { el.textContent = '+' + u.phone; });
+  const plan = document.getElementById('accPlan');
+  if (plan) {
+    plan.textContent = isPro(u)
+      ? (`Pro до ` + fmtDate(u.paidUntil || u.trialEnds))
+      : ('trial до ' + fmtDate(u.trialEnds));
+  }
+  const disc = document.getElementById('accDiscount');
+  if (disc) disc.textContent = u.firstPaid ? 'уже использована' : '−50% на первую';
+  const pro = document.getElementById('accPro');
+  if (pro) pro.textContent = isPro(u) ? 'да' : 'нет';
+  const pm = document.getElementById('priceMonth');
+  if (pm) pm.textContent = (u.firstPaid ? PRICE.month : PRICE.monthOff) + ' ₽';
+  const py = document.getElementById('priceYear');
+  if (py) py.textContent = (u.firstPaid ? PRICE.year : PRICE.yearOff) + ' ₽';
 }
 
 async function registerUser(phone, password) {

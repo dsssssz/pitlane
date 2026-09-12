@@ -202,6 +202,7 @@
             <div class="run-status" id="runStatus">ожидание GPS</div>
             <div class="form-row">
               <button type="button" class="go-btn" id="btnArm" data-i18n="run.start">Старт замера</button>
+              <button type="button" id="btnStop">Стоп GPS</button>
             </div>
           </div>
           <div class="sheet">
@@ -253,7 +254,7 @@
             </article>
             <article class="card">
               <h3 data-i18n="lap.gps">Круг по GPS</h3>
-              <p class="muted">Старт на линии, финиш на той же линии. Время идёт только пока есть скорость с датчика.</p>
+              <p class="muted">Секундомер по GPS-скорости: время копится только на ходу (≥5 км/ч). Линия старт/финиш — следующий этап.</p>
               <div class="form-row">
                 <button type="button" id="btnLapStart" data-i18n="lap.start">Старт круга</button>
                 <button type="button" id="btnLapStop" data-i18n="lap.finish">Финиш круга</button>
@@ -338,8 +339,15 @@
               <button type="button" id="btnRegister" data-i18n="acc.reg">Регистрация</button>
             </div>
           </form>
-          <p class="muted" id="accPhone">не вошли</p>
-          <p class="tiny" id="accPlan"></p>
+          <article class="card" id="accMeta">
+            <p class="tiny">тариф: <span id="accPlan">—</span></p>
+            <p class="tiny">Pro: <span id="accPro">—</span> · скидка: <span id="accDiscount">—</span></p>
+            <p class="tiny">месяц <span id="priceMonth">—</span> · год <span id="priceYear">—</span></p>
+            <div class="form-row">
+              <button type="button" data-buy="month">Pro месяц</button>
+              <button type="button" data-buy="year">Pro год</button>
+            </div>
+          </article>
           <button type="button" id="btnLogout">Выйти</button>
         </section>
       </main>
