@@ -170,7 +170,7 @@ function applyCarUI() {
   try { paintCar(c); } catch (err) { console.warn('paintCar', err); }
   try { renderCars(); } catch (err) { console.warn('renderCars', err); }
   try { renderLaps(); } catch (err) { console.warn('renderLaps', err); }
-  try { renderTops(); } catch (err) { console.warn('renderTops', err); }
+  try { void renderTops(); } catch (err) { console.warn('renderTops', err); }
 }
 
 function bestLapDisplay(trackId) {
@@ -225,7 +225,7 @@ function renderTracks() {
       save();
       drawTrack(topSel.value, 'trackMap');
       drawTrack(topSel.value, 'topTrackMap');
-      renderTops();
+      void renderTops();
     };
   }
   mountWheel('trackSelect', 'trackWheel');
@@ -282,7 +282,7 @@ function renderLaps() {
     : '<li><span>пока пусто</span><strong>—</strong></li>';
 }
 
-function renderTops() {
+async function renderTops() {
   const c = currentCar();
   const trackId = document.getElementById('topTrackSelect')?.value || state.trackId || c.lap.track;
   const nameEl = document.getElementById('topCarName');
@@ -292,12 +292,12 @@ function renderTops() {
   if (trackNameEl && track) trackNameEl.textContent = track.name;
   const sEl = document.getElementById('topStraight');
   if (sEl) {
-    const rows = api.listStraight(c.id);
-    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name}</span><strong>${Number(r.t).toFixed(2)} с</strong></li>`).join('') : '<li><span>нет GPS-заездов</span><strong>—</strong></li>';
+    const rows = await api.listStraight(c.id);
+    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${Number(r.t).toFixed(2)} с</strong></li>`).join('') : '<li><span>нет GPS-заездов</span><strong>—</strong></li>';
   }
   const lEl = document.getElementById('topLap');
   if (lEl) {
-    const rows = api.listLap(trackId);
+    const rows = await api.listLap(trackId);
     lEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${r.t}</strong></li>`).join('') : '<li><span>нет GPS-кругов</span><strong>—</strong></li>';
   }
 }
@@ -808,7 +808,7 @@ function onGpsPoint(pos) {
     setRunText('slip0100', `${sec.toFixed(2)}s`);
     setRunText('slipHero', `${sec.toFixed(2)}s`);
     run.saved0100 = true;
-    publishGps(sec, t100 && t200 ? (t200 - t100) / 1000 : null, t200 && t300 ? (t300 - t200) / 1000 : null);
+    void publishGps(sec, t100 && t200 ? (t200 - t100) / 1000 : null, t200 && t300 ? (t300 - t200) / 1000 : null);
   }
   if (t100 && t200 && !run.saved100200) {
     const s = (t200 - t100) / 1000;
@@ -816,14 +816,14 @@ function onGpsPoint(pos) {
     setRunText('slip100200', `${s.toFixed(2)}s`);
     if (t100) setRunText('slip0200', `${((t200 - run.t0) / 1000).toFixed(2)}s`);
     run.saved100200 = true;
-    publishGps(null, s, t200 && t300 ? (t300 - t200) / 1000 : null);
+    void publishGps(null, s, t200 && t300 ? (t300 - t200) / 1000 : null);
   }
   if (t200 && t300 && !run.saved200300) {
     const s = (t300 - t200) / 1000;
     setRunText('run200300', `${s.toFixed(2)} с`);
     setRunText('slip200300', `${s.toFixed(2)}s`);
     run.saved200300 = true;
-    publishGps(null, null, s);
+    void publishGps(null, null, s);
   }
   run.peak = Math.max(run.peak || 0, v);
   setRunText('runStatus', `Разгон: ${Math.round(v)} км/ч`);
@@ -887,7 +887,7 @@ function needLogin(msg) {
   return true;
 }
 
-function publishGps(v0100, v100200, v200300) {
+async function publishGps(v0100, v100200, v200300) {
   if (needLogin('GPS-замер сохранён на устройстве. В топ — после входа.')) {
     const rec0 = state.meas[state.carId] || {};
     if (v0100 != null) rec0.v0100 = Number(v0100.toFixed(2));
@@ -907,7 +907,7 @@ function publishGps(v0100, v100200, v200300) {
   save();
   const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
   if (v0100 != null) {
-    api.addStraight(currentCar().id, { name: String(who).slice(-6), car: currentCar().name, t: rec.v0100, gps: true });
+    await api.addStraight(currentCar().id, { name: String(who).slice(-6), car: currentCar().name, t: rec.v0100, gps: true });
     pushSlip();
   }
   applyCarUI();
@@ -920,7 +920,7 @@ document.getElementById('btnLapStart')?.addEventListener('click', () => {
   lapRun.t0 = Date.now();
   document.getElementById('lapGpsMsg').textContent = 'круг идёт…';
 });
-document.getElementById('btnLapStop')?.addEventListener('click', () => {
+document.getElementById('btnLapStop')?.addEventListener('click', async () => {
   if (!lapRun.on || !lapRun.t0) return;
   const ms = Date.now() - lapRun.t0;
   lapRun.on = false;
@@ -936,7 +936,7 @@ document.getElementById('btnLapStop')?.addEventListener('click', () => {
   const sec = ms / 1000;
   const m = Math.floor(sec / 60);
   const s = (sec % 60).toFixed(2).padStart(5, '0');
-  api.addLap(trackId, { name: String(who).slice(-6), car: currentCar().name, t: `${m}:${s}`, gps: true });
+  await api.addLap(trackId, { name: String(who).slice(-6), car: currentCar().name, t: `${m}:${s}`, gps: true });
   document.getElementById('lapGpsMsg').textContent = `круг ${m}:${s} в топе`;
   applyCarUI();
 });
@@ -1571,30 +1571,30 @@ document.getElementById('btnRemoveCar')?.addEventListener('click', () => {
   applyCarUI();
 });
 
-document.getElementById('topStraightForm')?.addEventListener('submit', (e) => {
+document.getElementById('topStraightForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
-  api.addStraight(currentCar().id, {
+  await api.addStraight(currentCar().id, {
     name: String(fd.get('name')),
     car: currentCar().name,
     t: Number(fd.get('t')),
   });
-  renderTops();
+  void renderTops();
   e.target.reset();
 });
 
-document.getElementById('topLapForm')?.addEventListener('submit', (e) => {
+document.getElementById('topLapForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const fd = new FormData(e.target);
   const min = Number(fd.get('min') || 0);
   const sec = Number(fd.get('sec') || 0);
   const trackId = document.getElementById('topTrackSelect').value;
-  api.addLap(trackId, {
+  await api.addLap(trackId, {
     name: String(fd.get('name')),
     car: currentCar().name,
     t: `${min}:${sec.toFixed(2).padStart(5, '0')}`,
   });
-  renderTops();
+  void renderTops();
   e.target.reset();
 });
 
@@ -1696,28 +1696,22 @@ function esc(s) {
 function pulseWho() {
   return (profile()?.nick) || currentUser()?.phone || '';
 }
-function renderPulse() {
-  const box = document.getElementById('pulseFeed');
-  if (!box) return;
-  const me = pulseWho();
-  const rows = api.listPulse();
-  if (!rows.length) {
-    box.innerHTML = '<p class="muted pulse-empty">' + t('pad.empty') + '</p>';
-    return;
-  }
-  box.innerHTML = rows.map((p) => {
-    const liked = (p.likes || []).includes(me);
-    const mine = p.who === me && me;
-    return `<article class="pulse-card" data-id="${esc(p.id)}">
-      <header><b>${esc(p.who || 'пилот')}</b><time>${new Date(p.at).toLocaleString('ru-RU', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' })}</time></header>
-      <p>${esc(p.text)}</p>
+async function renderPulse() {
+  const feed = document.getElementById('pulseFeed');
+  if (!feed) return;
+  const rows = await api.listPulse();
+  feed.innerHTML = rows.map((p) => {
+    const likes = (p.likes || []).length;
+    return `<article class="pulse-card" data-id="${p.id}">
+      <header><b>${p.who || 'пилот'}</b><span>${new Date(p.at).toLocaleString('ru-RU')}</span></header>
+      <p>${(p.text || '').replace(/[<>]/g, '')}</p>
       ${p.img ? `<img src="${p.img}" alt="">` : ''}
-      <footer>
-        <button type="button" class="pulse-like${liked ? ' on' : ''}" data-like="${esc(p.id)}">♥ ${(p.likes||[]).length}</button>
-        ${mine ? `<button type="button" class="pulse-del" data-del="${esc(p.id)}">удалить</button>` : ''}
-      </footer>
+      <div class="pulse-actions">
+        <button type="button" data-like="${p.id}">♥ ${likes}</button>
+        <button type="button" data-del="${p.id}">удалить</button>
+      </div>
     </article>`;
-  }).join('');
+  }).join('') || '<p class="muted">пока тихо</p>';
 }
 function compressPulseImg(file) {
   return new Promise((res) => {
@@ -1748,7 +1742,7 @@ document.getElementById('pulseSend')?.addEventListener('click', async () => {
   let img = null;
   const f = document.getElementById('pulseImg')?.files?.[0];
   if (f) img = await compressPulseImg(f);
-  api.addPulse({
+  await api.addPulse({
     id: 'p' + Date.now(),
     who: pulseWho(),
     text: text.slice(0, 280),
@@ -1763,19 +1757,19 @@ document.getElementById('pulseSend')?.addEventListener('click', async () => {
   const inp = document.getElementById('pulseImg');
   if (inp) inp.value = '';
   if (msg) msg.textContent = '';
-  renderPulse();
+  void renderPulse();
 });
-document.getElementById('pulseFeed')?.addEventListener('click', (e) => {
+document.getElementById('pulseFeed')?.addEventListener('click', async (e) => {
   const like = e.target.closest('[data-like]');
   const del = e.target.closest('[data-del]');
   if (like) {
     if (needLogin('Лайк после входа')) return;
-    api.likePulse(like.dataset.like, pulseWho());
-    renderPulse();
+    await api.likePulse(like.dataset.like, pulseWho());
+    void renderPulse();
   }
   if (del) {
-    api.delPulse(del.dataset.del, pulseWho());
-    renderPulse();
+    await api.delPulse(del.dataset.del, pulseWho());
+    void renderPulse();
   }
 });
 document.querySelector('[data-view="pulse"]')?.addEventListener('click', renderPulse);

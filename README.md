@@ -17,3 +17,18 @@ python3 -m http.server 5174
 - Парк: M3, 911 GT3, GT-R Nismo, Huracán STO
 
 Замеры с телефона и настоящие GLB-кузова — следующий этап.
+
+
+## Общий API (соревновательные топы)
+
+Фронт читает meta[name=pitlane-api]. Пусто = localStorage. URL Worker = общие топы/круги/paddock.
+
+### Деплой Cloudflare Worker
+
+cd worker && npx wrangler login && npx wrangler kv namespace create PITLANE
+# вставь id в wrangler.toml [[kv_namespaces]] binding = PITLANE
+npx wrangler deploy
+
+В index.html: <meta name="pitlane-api" content="https://pitlane-api.SUBDOMAIN.workers.dev" />
+Проверка: GET /health
+В топ только gps:true.
