@@ -1681,14 +1681,24 @@ function renderTrackDays() {
 document.getElementById('btnLapStart')?.addEventListener('click', () => { openLapDrivePreview(); });
 document.getElementById('btnLapArmedStart')?.addEventListener('click', () => { armLapRun(); });
 document.getElementById('btnLapStop')?.addEventListener('click', () => {
-  if (lapRun.active) endLapSession('сессия завершена');
-  else setLapMsg('сессия не идёт');
+  if (lapRun.active && lapRun.phase === 'running') {
+    void completeLapRun('manual');
+    setLapMsg('финиш вручную — не в топ');
+  } else if (lapRun.active) {
+    endLapSession('сессия завершена');
+  } else {
+    setLapMsg('круг не идёт');
+  }
 });
 document.getElementById('btnMapOverview')?.addEventListener('click', () => { setLapMapMode('overview'); });
 document.getElementById('btnMapNav')?.addEventListener('click', () => { setLapMapMode('nav'); });
 document.getElementById('lapDriveFinish')?.addEventListener('click', () => {
   if (lapRun.active && lapRun.phase === 'running') void completeLapRun('manual');
   else if (lapRun.active) endLapSession('сессия завершена');
+});
+document.getElementById('lapDriveEnd')?.addEventListener('click', () => {
+  if (lapRun.active) endLapSession('сессия завершена');
+  closeLapDrive();
 });
 document.getElementById('lapDriveCancel')?.addEventListener('click', () => {
   closeLapDrive();

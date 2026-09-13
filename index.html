@@ -260,16 +260,16 @@
               <select id="trackSelect" class="sr-select"></select>
               <div class="wheel" id="trackWheel"></div>
               <div class="track-map" id="trackMap"></div>
-                            <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
+              <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
+              <div class="lap-track-actions">
+                <button type="button" id="btnLapStart" class="lap-start-hero" data-i18n="lap.start">Старт круга</button>
+                <button type="button" id="btnLapStop" class="lap-finish-btn" data-i18n="lap.finish">Финиш круга</button>
+              </div>
+              <p class="tiny" id="lapGpsMsg">сессия не идёт</p>
             </article>
             <article class="card">
               <h3 data-i18n="lap.gps">Круг по GPS</h3>
-              <p class="muted">«Открыть заезд» — карта, погода, время. Внутри красная «Старт» — вооружение круга. С/Ф стартует/финиширует. Ручной сброс не в топ.</p>
-              <div class="form-row">
-                <button type="button" id="btnLapStart" data-i18n="lap.start">Открыть заезд</button>
-                <button type="button" id="btnLapStop" data-i18n="lap.finish">Конец сессии</button>
-              </div>
-              <p class="tiny" id="lapGpsMsg">сессия не идёт</p>
+              <p class="muted">Старт открывает HUD (карта, погода). Красная «Старт» внутри — вооружение. С/Ф на трассе стартует и финиширует честно. Ручной финиш не в топ.</p>
             </article>
           </div>
           <article class="card">
@@ -410,6 +410,7 @@
         <button type="button" id="btnLapArmedStart" class="lap-start-orb" aria-label="Старт">Старт</button>
         <div class="lap-drive-actions">
           <button type="button" id="lapDriveFinish">Сброс круга</button>
+          <button type="button" id="lapDriveEnd">Конец</button>
           <button type="button" class="primary" id="lapDriveCancel">Свернуть</button>
         </div>
       </div>
