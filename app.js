@@ -94,13 +94,19 @@ const TRACK_SVG = {
   ufa: 'M60 90 C92 40 232 36 256 96 C266 146 148 172 78 146 C54 132 50 110 60 90 Z',
   don: 'M46 86 C102 26 252 46 256 112 C250 166 108 176 58 130 C40 110 40 96 46 86 Z'
 };
-function drawTrack(id, elId) {
+function drawTrack(id, elId, opts) {
   const el = document.getElementById(elId);
   if (!el) return;
+  const compact = !!(opts && opts.compact);
   const d = TRACK_SVG[id] || TRACK_SVG.sochi;
   const tr = TRACKS.find((x) => x.id === id) || {};
   const meta = [tr.km && (tr.km + ' км'), tr.turns && (tr.turns + ' пов.')].filter(Boolean).join(' · ');
-  el.innerHTML = `<svg viewBox="0 0 300 210" class="track-svg"><path d="${d}" fill="none" stroke="#2ee56a" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg><p>${tr.name || ''}<br><small>${meta}</small></p><p class="track-notes">${tr.corners || ''}</p>`;
+  const svg = `<svg viewBox="0 0 300 210" class="track-svg" preserveAspectRatio="xMidYMid meet"><path d="${d}" fill="none" stroke="#2ee56a" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  if (compact) {
+    el.innerHTML = `<div class="lap-map-inner">${svg}<p class="lap-map-cap">${tr.name || ''}<br><small>${meta}</small></p></div>`;
+    return;
+  }
+  el.innerHTML = `${svg}<p>${tr.name || ''}<br><small>${meta}</small></p><p class="track-notes">${tr.corners || ''}</p>`;
 }
 
 
@@ -1153,7 +1159,7 @@ function openLapDrive() {
   setLapHud('lapDriveSlip', 'слип ~—°');
   updateSessionHud();
   setLapMsg('GPS… подъезжайте к линии С/Ф');
-  drawTrack(trackId, 'lapDriveMap');
+  drawTrack(trackId, 'lapDriveMap', { compact: true });
   el.classList.remove('hidden');
   el.setAttribute('aria-hidden', 'false');
   document.body.classList.add('lap-drive-on');

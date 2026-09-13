@@ -699,39 +699,118 @@ input, select {
   gap: 0;
   background: #050505;
   color: #eee;
+  overflow: hidden;
+  height: 100dvh;
+  max-height: 100dvh;
+  box-sizing: border-box;
 }
 .lap-drive.hidden { display: none; }
 .lap-drive-left {
-  padding: calc(12px + env(safe-area-inset-top, 0px)) 14px 16px;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 12px calc(10px + env(safe-area-inset-bottom, 0px));
   border-right: 1px solid #1c1c1c;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  min-height: 0;
+  overflow: auto;
   background: linear-gradient(180deg, #0c0c0c, #050505);
 }
-.lap-drive-track { margin: 0; font: 700 14px/1.2 "Barlow Condensed", sans-serif; letter-spacing: .04em; opacity: .8; text-transform: uppercase; }
-.lap-drive-clock { font: 800 42px/1 "Barlow Condensed", sans-serif; letter-spacing: .02em; color: #2ee56a; }
-.lap-drive-speed strong { font: 800 48px/1 "Barlow Condensed", sans-serif; }
+.lap-drive-track { margin: 0; font: 700 13px/1.2 "Barlow Condensed", sans-serif; letter-spacing: .04em; opacity: .8; text-transform: uppercase; }
+.lap-drive-clock { font: 800 40px/1 "Barlow Condensed", sans-serif; letter-spacing: .02em; color: #2ee56a; }
+.lap-drive-speed strong { font: 800 44px/1 "Barlow Condensed", sans-serif; }
 .lap-drive-speed span { margin-left: 6px; opacity: .6; font-size: 14px; }
-.lap-drive-weather { font-size: 13px; opacity: .75; min-height: 1.2em; }
+.lap-drive-weather { font-size: 12px; opacity: .75; min-height: 1.1em; }
+.lap-drive-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+.lap-drive-actions .go-btn,
+.lap-drive-actions button {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 13px;
+  padding: 10px 8px;
+}
 .lap-drive-map {
-  padding: 12px;
+  padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
-.lap-drive-map .track-svg { width: min(90vw, 520px); height: auto; }
-.lap-drive-map p { text-align: center; }
-.lap-drive-left .go-btn { margin-top: auto; }
+.lap-map-inner {
+  width: 100%;
+  max-width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.lap-drive-map .track-svg {
+  width: min(100%, 520px);
+  max-height: min(58vh, 360px);
+  height: auto;
+  flex: 0 1 auto;
+}
+.lap-map-cap {
+  margin: 0;
+  padding: 0 10px;
+  text-align: center;
+  max-width: 100%;
+  box-sizing: border-box;
+  font: 700 15px/1.25 "Barlow Condensed", sans-serif;
+}
+.lap-map-cap small {
+  display: inline-block;
+  max-width: 100%;
+  font-weight: 500;
+  opacity: .7;
+  word-break: break-word;
+}
+.lap-drive-map p { text-align: center; max-width: 100%; }
 body.lap-drive-on #app { visibility: hidden; }
 
 @media (max-width: 720px) {
-  .lap-drive { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .lap-drive-left { border-right: 0; border-bottom: 1px solid #1c1c1c; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-  .lap-drive-clock { font-size: 34px; }
-  .lap-drive-speed strong { font-size: 34px; }
-  .lap-drive-left .go-btn, #lapDriveCancel { margin-top: 0; flex: 1; }
-  .lap-drive-map { min-height: 45vh; }
+  .lap-drive {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .lap-drive-left {
+    border-right: 0;
+    border-bottom: 1px solid #1c1c1c;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+    max-height: 46dvh;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .lap-drive-track { width: 100%; }
+  .lap-drive-clock { font-size: 32px; }
+  .lap-drive-speed strong { font-size: 30px; }
+  .lap-drive-session,
+  .lap-drive-meta,
+  .lap-drive-sectors { width: 100%; }
+  .lap-drive-actions { width: 100%; margin-top: 4px; }
+  .lap-drive-actions .go-btn,
+  .lap-drive-actions button { flex: 1 1 30%; }
+  .lap-drive-map {
+    min-height: 0;
+    padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+  .lap-drive-map .track-svg {
+    max-height: min(38dvh, 260px);
+    width: min(100%, 360px);
+  }
 }
 
 
