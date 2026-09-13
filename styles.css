@@ -275,23 +275,25 @@ h2 { font-size: 32px; margin-bottom: 6px; }
 .empty-garage { text-align: center; padding: 24px 16px 8px; }
 .empty-sil-stage {
   width: min(92%, 520px);
-  height: min(30vh, 240px);
+  height: min(32vh, 260px);
   margin: 4px auto 18px;
-  border-radius: 16px;
-  background: transparent;
+  border-radius: 18px;
+  background: #fff;
   display: grid;
   place-items: center;
   overflow: hidden;
+  border: 1px solid #e8e8ea;
 }
 .empty-sil {
-  width: 88%;
-  height: 88%;
+  width: 92%;
+  height: 92%;
   object-fit: contain;
-  opacity: .9;
+  opacity: 1;
 }
 .empty-sil-dotted {
   filter: none;
   animation: none;
+  image-rendering: auto;
 }
 .ghost-car { display: none; }
 .add-wizard {
@@ -1077,3 +1079,24 @@ body.run-drive-on #app { visibility: hidden; }
 }
 .run-drive-actions { display: flex; gap: 10px; }
 .run-drive-actions .go-btn { flex: 1; }
+
+/* empty-dotted-ref */
+.empty-sil-stage {
+  width: min(92%, 520px);
+  height: min(32vh, 260px);
+  margin: 4px auto 18px;
+  border-radius: 18px;
+  background: #fff !important;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #e8e8ea;
+}
+.empty-sil, .empty-sil-dotted {
+  width: 94%;
+  height: 94%;
+  object-fit: contain;
+  opacity: 1 !important;
+  filter: none !important;
+  animation: none !important;
+}
