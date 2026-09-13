@@ -1,7 +1,7 @@
 /** Shared API: remote Worker when configured, else localStorage fallback. */
 const API_KEY = 'pitlane-api-v1';
 
-function apiBase() {
+export function apiBase() {
   try {
     const meta = document.querySelector('meta[name="pitlane-api"]');
     const fromMeta = meta?.content?.trim();

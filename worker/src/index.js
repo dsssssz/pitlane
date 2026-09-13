@@ -181,7 +181,49 @@ export default {
         const who = pilot.name || pilot.id || 'пилот';
         const rows = await readList(env.PITLANE, 'pulse');
         const p = rows.find((x) => x.id === id);
-        if (!p) return json({ error: 'not found' }, 404, headers);
+        if (!p) 
+      // POST /auth/otp  { phone }  — stores OTP in KV (demo echoes code until SMS provider bound)
+      if (req.method === 'POST' && path === '/auth/otp') {
+        const body = await req.json().catch(() => null);
+        const phone = String(body?.phone || '').replace(/\D/g, '');
+        if (phone.length < 10) return json({ error: 'bad phone' }, 400, headers);
+        const code = String(Math.floor(1000 + Math.random() * 9000));
+        await env.PITLANE.put('otp:' + phone, JSON.stringify({ code, exp: Date.now() + 10 * 60 * 1000 }), { expirationTtl: 600 });
+        const demo = String(env.SMS_DEMO || '1') !== '0';
+        return json({ ok: true, demoCode: demo ? code : null }, 200, headers);
+      }
+      if (req.method === 'POST' && path === '/auth/verify') {
+        const body = await req.json().catch(() => null);
+        const phone = String(body?.phone || '').replace(/\D/g, '');
+        const code = String(body?.code || '').trim();
+        const raw = await env.PITLANE.get('otp:' + phone);
+        if (!raw) return json({ ok: false, error: 'no otp' }, 400, headers);
+        let otp;
+        try { otp = JSON.parse(raw); } catch { return json({ ok: false }, 400, headers); }
+        if (Date.now() > otp.exp) return json({ ok: false, error: 'expired' }, 400, headers);
+        if (code !== String(otp.code)) return json({ ok: false, error: 'bad code' }, 400, headers);
+        await env.PITLANE.delete('otp:' + phone);
+        const ukey = 'user:' + phone;
+        let user = null;
+        const uraw = await env.PITLANE.get(ukey);
+        if (uraw) {
+          try { user = JSON.parse(uraw); } catch { user = null; }
+        }
+        if (!user) {
+          user = {
+            phone,
+            nick: 'пилот' + phone.slice(-4),
+            createdAt: Date.now(),
+            trialEnds: Date.now() + 7 * 24 * 60 * 60 * 1000,
+            plan: 'trial',
+          };
+        }
+        user.lastLogin = Date.now();
+        await env.PITLANE.put(ukey, JSON.stringify(user));
+        return json({ ok: true, user }, 200, headers);
+      }
+
+      return json({ error: 'not found' }, 404, headers);
         p.likes = p.likes || [];
         const i = p.likes.indexOf(who);
         if (i >= 0) p.likes.splice(i, 1);

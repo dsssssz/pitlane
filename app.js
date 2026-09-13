@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { api } from './api.js';
+import { api, apiBase, isRemoteApi } from './api.js';
 
 function hap(ms = 12) {
   try { navigator.vibrate?.(ms); } catch (_) {}
@@ -1140,6 +1140,7 @@ const lapDrive = {
   open: false,
   timerId: null,
   weatherAt: 0,
+  weatherTimer: null,
   mapMode: 'overview',
 };
 
@@ -1232,6 +1233,30 @@ function updateLapCarOnMap() {
   }
 }
 
+
+function openLapDrivePreview() {
+  const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  if (!TRACK_GEO[trackId]) {
+    setLapMsg('у трассы нет координат С/Ф');
+    return;
+  }
+  lapRun.trackId = trackId;
+  if (!lapRun.active) {
+    lapRun.phase = 'idle';
+  }
+  openLapDrive();
+  startWatch();
+  const orb = document.getElementById('btnLapArmedStart');
+  orb?.classList.remove('on');
+  document.getElementById('lapDrive')?.classList.remove('armed');
+  setLapMsg('карта и погода · жми красный Старт');
+  void fetchLapWeather(trackId, true);
+  if (lapDrive.weatherTimer) clearInterval(lapDrive.weatherTimer);
+  lapDrive.weatherTimer = setInterval(() => {
+    if (lapDrive.open) void fetchLapWeather(lapRun.trackId || trackId, true);
+  }, 60 * 1000);
+}
+
 function openLapDrive() {
   const el = document.getElementById('lapDrive');
   if (!el) return;
@@ -1259,7 +1284,7 @@ function openLapDrive() {
     if (!lapRun.active || lapRun.phase !== 'running' || !lapRun.t0) return;
     document.getElementById('lapDriveClock').textContent = fmtLapClock(Date.now() - lapRun.t0);
   }, 100);
-  fetchLapWeather(trackId);
+  void fetchLapWeather(trackId, true);
 }
 
 function closeLapDrive() {
@@ -1268,20 +1293,24 @@ function closeLapDrive() {
   el.classList.add('hidden');
   el.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('lap-drive-on');
+  el.classList.remove('armed');
   lapDrive.open = false;
   if (lapDrive.timerId) { clearInterval(lapDrive.timerId); lapDrive.timerId = null; }
+  if (lapDrive.weatherTimer) { clearInterval(lapDrive.weatherTimer); lapDrive.weatherTimer = null; }
 }
 
-async function fetchLapWeather(trackId) {
+async function fetchLapWeather(trackId, force) {
   const geo = TRACK_GEO[trackId];
   const box = document.getElementById('lapDriveWeather');
   if (!box) return;
   if (!geo) { box.textContent = 'погода: нет координат'; return; }
-  if (Date.now() - lapDrive.weatherAt < 5 * 60 * 1000 && box.dataset.ready) return;
-  box.textContent = 'погода…';
+  // always refresh when force or older than 45s
+  if (!force && Date.now() - (lapDrive.weatherAt || 0) < 45 * 1000 && box.dataset.ready) return;
+  const prev = box.textContent;
+  if (!box.dataset.ready) box.textContent = 'погода…';
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}&current=temperature_2m,wind_speed_10m,weather_code&wind_speed_unit=ms`;
-    const res = await fetch(url);
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${geo.lat}&longitude=${geo.lon}&current=temperature_2m,wind_speed_10m,weather_code&timezone=auto&wind_speed_unit=ms&_=${Date.now()}`;
+    const res = await fetch(url, { cache: 'no-store' });
     const data = await res.json();
     const cur = data.current || {};
     const t = cur.temperature_2m;
@@ -1290,7 +1319,8 @@ async function fetchLapWeather(trackId) {
     box.dataset.ready = '1';
     lapDrive.weatherAt = Date.now();
   } catch (_) {
-    box.textContent = 'погода недоступна';
+    if (!box.dataset.ready) box.textContent = 'погода недоступна';
+    else box.textContent = prev;
   }
 }
 
@@ -1361,7 +1391,7 @@ function resetLapRunSoft() {
 function armLapRun() {
   hap([18, 40, 18]);
   startWatch();
-  const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  const trackId = document.getElementById('trackSelect')?.value || lapRun.trackId || TRACKS[0].id;
   if (!TRACK_GEO[trackId]) {
     setLapMsg('у трассы нет координат С/Ф');
     return;
@@ -1376,9 +1406,12 @@ function armLapRun() {
   lapSession.laps = [];
   lapSession.bestMs = null;
   lapSession.bestValid = false;
-  openLapDrive();
+  if (!lapDrive.open) openLapDrive();
   updateSessionHud();
+  document.getElementById('lapDrive')?.classList.add('armed');
+  document.getElementById('btnLapArmedStart')?.classList.add('on');
   setLapMsg('track-day: пересеките С/Ф — старт сессии');
+  void fetchLapWeather(trackId, true);
 }
 
 function endLapSession(reason) {
@@ -1645,7 +1678,8 @@ function renderTrackDays() {
     : '<li><span>сессий пока нет</span><strong>—</strong></li>';
 }
 
-document.getElementById('btnLapStart')?.addEventListener('click', () => { armLapRun(); });
+document.getElementById('btnLapStart')?.addEventListener('click', () => { openLapDrivePreview(); });
+document.getElementById('btnLapArmedStart')?.addEventListener('click', () => { armLapRun(); });
 document.getElementById('btnLapStop')?.addEventListener('click', () => {
   if (lapRun.active) endLapSession('сессия завершена');
   else setLapMsg('сессия не идёт');
@@ -1696,9 +1730,12 @@ window.addEventListener('devicemotion', (e) => {
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 renderSlips();
 
-/* -------- auth + subscription (local demo) -------- */
-const AUTH_KEY = 'pitlane-auth-v1';
+/* -------- auth: SMS OTP + durable account store -------- */
 const PRICE = { month: 390, year: 2990, monthOff: 195, yearOff: 1495 };
+const AUTH_KEY = 'pitlane-auth-v2';
+const AUTH_KEY_LEGACY = 'pitlane-auth-v1';
+const IDB_NAME = 'pitlane-auth';
+const IDB_STORE = 'kv';
 
 function normPhone(s) {
   const d = String(s || '').replace(/\D/g, '');
@@ -1707,181 +1744,304 @@ function normPhone(s) {
   return d;
 }
 
-async function hashPass(p) {
+function loadAuthSync() {
   try {
-    if (crypto?.subtle?.digest) {
-      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
-      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
-    }
-  } catch (_) {}
-  let h = 2166136261;
-  for (let i = 0; i < p.length; i++) h = Math.imul(h ^ p.charCodeAt(i), 16777619);
-  return 'x' + (h >>> 0).toString(16);
-}
-
-function loadAuth() {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
+    let raw = localStorage.getItem(AUTH_KEY);
+    if (!raw) raw = localStorage.getItem(AUTH_KEY_LEGACY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object') {
         parsed.users = parsed.users || {};
+        parsed.otps = parsed.otps || {};
         return parsed;
       }
     }
   } catch (err) {
     console.warn('auth load', err);
   }
-  return { users: {}, session: null };
+  try {
+    const bak = JSON.parse(localStorage.getItem(AUTH_KEY + ':bak') || localStorage.getItem(AUTH_KEY_LEGACY + ':bak') || 'null');
+    if (bak?.users) {
+      bak.otps = bak.otps || {};
+      return bak;
+    }
+  } catch (_) {}
+  return { users: {}, otps: {}, session: null };
 }
 
-let authDb = loadAuth();
+let authDb = loadAuthSync();
+
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(IDB_STORE)) db.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function idbSet(key, val) {
+  try {
+    const db = await idbOpen();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(val, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+    db.close();
+  } catch (err) {
+    console.warn('idb set', err);
+  }
+}
+
+async function idbGet(key) {
+  try {
+    const db = await idbOpen();
+    const val = await new Promise((resolve, reject) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const req = tx.objectStore(IDB_STORE).get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    db.close();
+    return val;
+  } catch (_) {
+    return null;
+  }
+}
 
 function saveAuth() {
   try {
     localStorage.setItem(AUTH_KEY, JSON.stringify(authDb));
-    // mirror session id for quick restore if full blob fails later
+    localStorage.setItem(AUTH_KEY + ':bak', JSON.stringify(authDb));
     if (authDb.session) localStorage.setItem(AUTH_KEY + ':session', authDb.session);
     else localStorage.removeItem(AUTH_KEY + ':session');
-    // backup copy
-    localStorage.setItem(AUTH_KEY + ':bak', JSON.stringify(authDb));
+    // also mirror legacy key so old code paths reading v1 still see session
+    localStorage.setItem(AUTH_KEY_LEGACY, JSON.stringify(authDb));
+    localStorage.setItem(AUTH_KEY_LEGACY + ':bak', JSON.stringify(authDb));
   } catch (err) {
     console.warn('auth save failed', err);
     const msg = document.getElementById('authMsg');
-    if (msg) msg.textContent = 'Не удалось сохранить аккаунт на устройстве (память браузера).';
-    throw err;
+    if (msg) msg.textContent = 'Не удалось сохранить аккаунт на устройстве';
   }
+  void idbSet('authDb', authDb);
 }
 
-function restoreAuthIfNeeded() {
-  authDb = loadAuth();
+async function restoreAuthIfNeeded() {
+  const fromIdb = await idbGet('authDb');
+  if (fromIdb?.users && Object.keys(fromIdb.users).length >= Object.keys(authDb.users || {}).length) {
+    authDb = fromIdb;
+    authDb.otps = authDb.otps || {};
+  }
   if (!authDb.session) {
-    const sid = localStorage.getItem(AUTH_KEY + ':session');
+    const sid = localStorage.getItem(AUTH_KEY + ':session') || localStorage.getItem(AUTH_KEY_LEGACY + ':session');
     if (sid && authDb.users[sid]) authDb.session = sid;
   }
-  if ((!authDb.users || !Object.keys(authDb.users).length)) {
-    try {
-      const bak = JSON.parse(localStorage.getItem(AUTH_KEY + ':bak') || 'null');
-      if (bak?.users) authDb = bak;
-    } catch (_) {}
-  }
+  saveAuth();
+  refreshAccount();
 }
 
 function currentUser() {
   return authDb.session ? authDb.users[authDb.session] : null;
 }
 
-function isPro(user = currentUser()) {
-  if (!user) return false;
-  const now = Date.now();
-  return now < user.trialEnds || (user.paidUntil && now < user.paidUntil);
-}
-
-function fmtDate(ts) {
-  return new Date(ts).toLocaleDateString('ru-RU');
+function isPro(u) {
+  if (!u) return false;
+  if (u.paidUntil && u.paidUntil > Date.now()) return true;
+  if (u.trialEnds && u.trialEnds > Date.now()) return true;
+  return false;
 }
 
 function refreshAccount() {
-  restoreAuthIfNeeded();
   const u = currentUser();
   document.getElementById('authForm')?.classList.toggle('hidden', !!u);
   const phones = document.querySelectorAll('#accPhone');
   if (!u) {
     phones.forEach((el) => { el.textContent = 'гость'; });
     const plan = document.getElementById('accPlan');
-    if (plan) plan.textContent = 'аккаунт хранится на этом устройстве';
+    if (plan) plan.textContent = '';
     return;
   }
-  phones.forEach((el) => { el.textContent = '+' + u.phone; });
-  const nickEl = document.getElementById('accNick');
-  if (nickEl && u.nick && !nickEl.value) nickEl.value = u.nick;
+  phones.forEach((el) => { el.textContent = '+' + u.phone + (u.nick ? (' · ' + u.nick) : ''); });
   const plan = document.getElementById('accPlan');
   if (plan) {
-    plan.textContent = (isPro(u) ? ('Pro · ') : ('trial · ')) + 'сохранено на этом устройстве';
+    plan.textContent = (isPro(u) ? ('Pro · ') : ('trial · ')) + 'аккаунт сохранён';
   }
   const setAcc = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setAcc('accDiscount', u.firstPaid ? 'уже использована' : '−50% на первую');
   setAcc('accPro', isPro(u) ? 'да' : 'нет');
   setAcc('priceMonth', (u.firstPaid ? PRICE.month : PRICE.monthOff) + ' ₽');
   setAcc('priceYear', (u.firstPaid ? PRICE.year : PRICE.yearOff) + ' ₽');
+  const nickEl = document.getElementById('accNick');
+  if (nickEl && u.nick) nickEl.value = u.nick;
 }
 
-async function registerUser(phone, password) {
+function genOtp() {
+  return String(Math.floor(1000 + Math.random() * 9000));
+}
+
+async function requestSmsCode(phone) {
   const p = normPhone(phone);
-  if (p.length !== 11) throw new Error('Введите номер в формате +7…');
-  if (authDb.users[p]) throw new Error('Этот номер уже зарегистрирован');
-  const nick = (document.getElementById('accNick')?.value || '').trim() || ('пилот' + p.slice(-4));
-  authDb.users[p] = {
-    phone: p,
-    pass: await hashPass(password + ':' + p),
-    nick,
-    trialEnds: Date.now() + 7 * 24 * 60 * 60 * 1000,
-    paidUntil: null,
-    plan: 'trial',
-    firstPaid: false,
-    garage: state.garage || [],
-    carId: state.carId || null,
-  };
-  authDb.session = p;
-  saveProf({ ...profile(), nick });
+  if (p.length !== 11 || !p.startsWith('7')) throw new Error('Введите номер в формате +7…');
+  const code = genOtp();
+  const exp = Date.now() + 10 * 60 * 1000;
+  authDb.otps[p] = { code, exp, tries: 0 };
   saveAuth();
+
+  // Try remote Worker if configured
+  try {
+    if (isRemoteApi()) {
+      const res = await fetch(apiBase() + '/auth/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: p }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        // production: no code in body; demo worker may echo
+        if (data?.demoCode) {
+          return { phone: p, demoCode: String(data.demoCode) };
+        }
+        return { phone: p, demoCode: null };
+      }
+    }
+  } catch (_) {}
+
+  // No SMS gateway yet — show demo code so flow works; accounts still persist
+  return { phone: p, demoCode: code };
 }
 
-async function loginUser(phone, password) {
+async function verifySmsCode(phone, code, nick) {
   const p = normPhone(phone);
-  const u = authDb.users[p];
-  if (!u) throw new Error('Сначала регистрация');
-  const h = await hashPass(password + ':' + p);
-  if (h !== u.pass) throw new Error('Неверный пароль');
+  const otp = authDb.otps[p];
+  const c = String(code || '').trim();
+  if (!otp) throw new Error('Сначала запроси код');
+  if (Date.now() > otp.exp) throw new Error('Код истёк — запроси новый');
+  otp.tries = (otp.tries || 0) + 1;
+  if (otp.tries > 8) throw new Error('Слишком много попыток');
+
+  let ok = c === String(otp.code);
+  // remote verify if available
+  try {
+    if (!ok && isRemoteApi()) {
+      const res = await fetch(apiBase() + '/auth/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: p, code: c }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        ok = !!data?.ok;
+        if (data?.user) {
+          authDb.users[p] = { ...authDb.users[p], ...data.user, phone: p };
+        }
+      }
+    }
+  } catch (_) {}
+
+  if (!ok) {
+    saveAuth();
+    throw new Error('Неверный код');
+  }
+
+  delete authDb.otps[p];
+  const existing = authDb.users[p];
+  const n = (nick || '').trim() || existing?.nick || ('пилот' + p.slice(-4));
+  if (existing) {
+    existing.nick = n;
+    existing.lastLogin = Date.now();
+    if (Array.isArray(state.garage) && state.garage.length) {
+      existing.garage = state.garage;
+      existing.carId = state.carId || null;
+    }
+  } else {
+    authDb.users[p] = {
+      phone: p,
+      nick: n,
+      createdAt: Date.now(),
+      lastLogin: Date.now(),
+      trialEnds: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      paidUntil: null,
+      plan: 'trial',
+      firstPaid: false,
+      garage: state.garage || [],
+      carId: state.carId || null,
+    };
+  }
   authDb.session = p;
-  // restore personal garage if stored on account
-  if (Array.isArray(u.garage) && u.garage.length) {
+  saveProf({ ...profile(), nick: n });
+  // restore garage from account if local empty
+  const u = authDb.users[p];
+  if ((!state.garage || !state.garage.length) && Array.isArray(u.garage) && u.garage.length) {
     state.garage = u.garage;
     state.carId = u.carId || u.garage[0]?.id || null;
     save();
+  } else if (state.garage?.length) {
+    u.garage = state.garage;
+    u.carId = state.carId || null;
   }
-  if (u.nick) saveProf({ ...profile(), nick: u.nick });
   saveAuth();
+  return u;
 }
 
-function buyPlan(kind) {
-  const u = currentUser();
-  if (!u) return;
-  const days = kind === 'year' ? 365 : 30;
-  const price = u.firstPaid ? PRICE[kind] : PRICE[kind + 'Off'];
-  u.plan = kind;
-  u.firstPaid = true;
-  u.paidUntil = Date.now() + days * 24 * 60 * 60 * 1000;
-  saveAuth();
-  alert('Демо: Pro на ' + days + ' дн. К оплате было ' + price + ' ₽. Касса не подключена.');
-  refreshAccount();
+function showAuthStep(step) {
+  document.getElementById('authStepPhone')?.classList.toggle('hidden', step !== 'phone');
+  document.getElementById('authStepCode')?.classList.toggle('hidden', step !== 'code');
 }
 
-document.getElementById('authForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
+document.getElementById('btnSendSms')?.addEventListener('click', async () => {
+  const phone = document.getElementById('authPhone')?.value;
+  const nick = document.getElementById('authNick')?.value;
+  const msg = document.getElementById('authMsg');
   try {
-    await loginUser(fd.get('phone'), fd.get('password'));
-    document.getElementById('authMsg').textContent = '';
-    refreshAccount();
+    const r = await requestSmsCode(phone);
+    document.getElementById('authPhoneShow').textContent = '+' + r.phone;
+    showAuthStep('code');
+    if (r.demoCode) {
+      msg.textContent = '';
+      const m2 = document.getElementById('authMsg2');
+      if (m2) m2.textContent = 'SMS-шлюз ещё не подключён — демо-код: ' + r.demoCode;
+    } else {
+      if (msg) msg.textContent = '';
+      const m2 = document.getElementById('authMsg2');
+      if (m2) m2.textContent = 'Код отправлен SMS';
+    }
   } catch (err) {
-    document.getElementById('authMsg').textContent = err.message;
+    if (msg) msg.textContent = err.message;
   }
 });
 
-document.getElementById('btnRegister')?.addEventListener('click', async () => {
-  const form = document.getElementById('authForm');
-  const fd = new FormData(form);
+document.getElementById('btnVerifySms')?.addEventListener('click', async () => {
+  const phone = document.getElementById('authPhone')?.value;
+  const nick = document.getElementById('authNick')?.value;
+  const code = document.getElementById('authCode')?.value;
+  const m2 = document.getElementById('authMsg2');
   try {
-    await registerUser(fd.get('phone'), fd.get('password'));
-    document.getElementById('authMsg').textContent = '';
+    await verifySmsCode(phone, code, nick);
+    if (m2) m2.textContent = '';
+    showAuthStep('phone');
     refreshAccount();
+    applyCarUI();
   } catch (err) {
-    document.getElementById('authMsg').textContent = err.message;
+    if (m2) m2.textContent = err.message;
   }
+});
+
+document.getElementById('btnSmsBack')?.addEventListener('click', () => {
+  showAuthStep('phone');
 });
 
 document.getElementById('btnLogout')?.addEventListener('click', () => {
+  // persist garage onto account before logout
+  const u = currentUser();
+  if (u) {
+    u.garage = state.garage || [];
+    u.carId = state.carId || null;
+  }
   authDb.session = null;
   saveAuth();
   refreshAccount();
@@ -1891,13 +2051,32 @@ document.getElementById('btnGuest')?.addEventListener('click', () => {
 });
 document.getElementById('btnOpenAuth')?.addEventListener('click', () => {
   document.getElementById('auth')?.classList.remove('hidden');
+  showAuthStep('phone');
 });
+
+// persist garage into account on save hook
+const _saveOrig = typeof save === 'function' ? save : null;
+// monkey via wrap after - actually patch syncGarageToAccount calls
+
+function syncGarageToAccount() {
+  const u = currentUser();
+  if (!u) return;
+  u.garage = state.garage || [];
+  u.carId = state.carId || null;
+  const nickEl = document.getElementById('accNick');
+  if (nickEl?.value?.trim()) {
+    u.nick = nickEl.value.trim();
+    saveProf({ ...profile(), nick: u.nick });
+  }
+  saveAuth();
+}
+
 
 document.querySelectorAll('[data-buy]').forEach((b) => {
   b.addEventListener('click', () => buyPlan(b.dataset.buy));
 });
 
-restoreAuthIfNeeded();
+void restoreAuthIfNeeded();
 refreshAccount();
 
 const gltfLoader = new GLTFLoader();
@@ -2538,7 +2717,7 @@ const I18N = {
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Что сделал с машиной…','pad.empty':'Пока тихо. Напиши первый пост после входа.',
-    'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Телефон и пароль.','acc.in':'Войти','acc.reg':'Регистрация','acc.nick':'ник'
+    'acc.title':'Аккаунт','acc.login':'Вход по SMS','acc.hint':'Телефон → код. Аккаунт сохраняется.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
     'nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock',

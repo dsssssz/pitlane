@@ -1198,3 +1198,28 @@ body.run-drive-on #app { visibility: hidden; }
 .track-line {
   filter: drop-shadow(0 0 4px rgba(46,229,106,.35));
 }
+
+
+.lap-start-orb {
+  width: 72px;
+  height: 72px;
+  margin: 6px auto;
+  border-radius: 999px;
+  border: 2px solid #e23b3b;
+  background: rgba(226, 59, 59, 0.08);
+  color: #ff6b6b;
+  font: 800 15px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.lap-start-orb:active { transform: scale(.96); }
+.lap-start-orb.on {
+  background: rgba(46, 229, 106, 0.12);
+  border-color: #2ee56a;
+  color: #2ee56a;
+}
+.lap-drive.armed .lap-start-orb { opacity: .45; pointer-events: none; }
+.auth-card .go-btn { width: 100%; margin-top: 8px; }
