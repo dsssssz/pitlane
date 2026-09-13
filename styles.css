@@ -466,7 +466,6 @@ input, select {
 
 @media (max-width: 900px) {
   #app { flex-direction: column; }
-}
   .sheet, .grid-2 { grid-template-columns: 1fr 1fr; }
   h1 { font-size: 28px; }
   .view { padding: 12px; }
