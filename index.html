@@ -105,13 +105,16 @@
 
         <section id="view-garage" class="view active garage-hero">
           <div id="emptyGarage" class="empty-garage">
-            <div class="ghost-car" aria-hidden="true"></div>
+            <div class="empty-sil-stage" aria-hidden="true">
+              <img id="emptySil" class="empty-sil" src="./img/sil/gt-wing.svg" alt="" />
+            </div>
             <h2 data-i18n="garage.empty">Гараж пуст</h2>
-            <p class="muted" data-i18n="garage.hint">Добавь свой автомобиль — марка, кузов, год, мотор.</p>
+            <p class="muted" data-i18n="garage.hint">Добавь свой автомобиль — марка, кузов, год, мотор. Силуэт уже ждёт в боксе.</p>
             <button type="button" id="btnAddCar" data-i18n="garage.add">Добавить автомобиль</button>
           </div>
           <div id="addWizard" class="add-wizard hidden">
             <h2>Новый автомобиль</h2>
+            <div class="wiz-sil-wrap"><img id="wSil" class="wiz-sil" src="./img/sil/sedan.svg" alt="" /></div>
             <label>марка
               <select id="wBrand"></select>
             </label>

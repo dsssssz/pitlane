@@ -273,14 +273,30 @@ h2 { font-size: 32px; margin-bottom: 6px; }
 }
 .model-bar button { font: 600 11px Manrope, sans-serif; }
 .empty-garage { text-align: center; padding: 24px 16px 8px; }
-.ghost-car {
-  width: min(78%, 420px);
-  height: 118px;
-  margin: 8px auto 16px;
-  border: 2px dashed #3a3a40;
-  border-radius: 70px 96px 22px 42px;
-  opacity: .55;
+.empty-sil-stage {
+  width: min(92%, 520px);
+  height: min(28vh, 220px);
+  margin: 4px auto 18px;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse at 50% 78%, rgba(255,255,255,.05), transparent 55%),
+    linear-gradient(180deg, #151820 0%, #0a0b0e 75%);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
 }
+.empty-sil {
+  width: 88%;
+  height: 88%;
+  object-fit: contain;
+  filter: drop-shadow(0 16px 12px rgba(0,0,0,.5));
+  animation: emptySilPulse 5.5s ease-in-out infinite;
+}
+@keyframes emptySilPulse {
+  0%, 100% { opacity: .92; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-4px); }
+}
+.ghost-car { display: none; }
 .add-wizard {
   position: fixed;
   inset: 0;
@@ -418,13 +434,26 @@ input, select {
   margin-top: 14px;
 }
 .car-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
   text-align: left;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 16px;
+  padding: 12px;
   color: inherit;
   cursor: pointer;
+}
+.car-card img {
+  width: 100%;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: linear-gradient(180deg, #151820, #0a0b0e);
+  padding: 6px 8px;
+  box-sizing: border-box;
 }
 .car-card.active { border-color: var(--gold); }
 .car-card small { color: var(--muted); }
@@ -964,3 +993,19 @@ body.lap-drive-on #app { visibility: hidden; }
   color: #c5ccd3;
 }
 .lap-drive-session #lapDriveBest { color: #2ee56a; }
+
+.wiz-sil-wrap {
+  width: min(100%, 420px);
+  height: 140px;
+  margin: 0 auto 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #151820, #0a0b0e);
+  display: grid;
+  place-items: center;
+}
+.wiz-sil {
+  max-width: 90%;
+  max-height: 120px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 10px rgba(0,0,0,.45));
+}
