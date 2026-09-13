@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 320" role="img" aria-label="muscle">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f2f4f8"/>
+      <stop offset="55%" stop-color="#d8dde6"/>
+      <stop offset="100%" stop-color="#8b93a3"/>
+    </linearGradient>
+    <linearGradient id="sh" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#000" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="400" cy="292" rx="250" ry="16" fill="#000" opacity=".35"/>
+  <path d="M55 245 C100 235 150 210 210 185 C280 155 360 140 450 145 C530 150 600 170 650 200 C680 220 710 235 740 245 L770 252 L765 262 L710 255 C680 278 630 292 575 292 C530 292 500 276 485 255 L290 255 C270 277 230 292 180 292 C125 292 90 275 70 255 Z" fill="url(#g)" stroke="#1a1d24" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="180" cy="255" r="36" fill="#111" stroke="#333" stroke-width="6"/><circle cx="180" cy="255" r="14" fill="#666"/>
+  <circle cx="575" cy="255" r="36" fill="#111" stroke="#333" stroke-width="6"/><circle cx="575" cy="255" r="14" fill="#666"/>
+  <path d="M300 155 C380 138 500 142 600 175 L585 208 C510 182 400 175 320 185 Z" fill="#0d1118" opacity=".78"/>
+</svg>

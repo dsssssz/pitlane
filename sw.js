@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v8';
+const CACHE = 'pitlane-v9';
 const CORE = ['./', './index.html', './styles.css', './app.js', './api.js', './manifest.json'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
