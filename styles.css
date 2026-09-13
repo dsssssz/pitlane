@@ -933,3 +933,23 @@ body.lap-drive-on #app { visibility: hidden; }
 }
 .photo-stage.has-sil #heroWheels,
 .photo-stage.has-sil .glass-gloss { display: none !important; }
+
+
+.lap-drive-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  font: 600 13px/1.2 "Barlow Condensed", sans-serif;
+  letter-spacing: .03em;
+  opacity: .85;
+}
+.lap-drive-sectors {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  font: 700 14px/1.2 "Barlow Condensed", sans-serif;
+  color: #9ae6b4;
+}
+.lap-drive-warn:empty { display: none; }
+.lap-drive-warn { color: #f6c177; margin: 0; }
+.laps em.tiny { display: block; opacity: .55; font-style: normal; font-weight: 400; }

@@ -313,14 +313,7 @@ function mountWheel(selId, wheelId) {
   items().forEach((el, n) => el.classList.toggle('on', n === i));
 }
 
-function renderLaps() {
-  const trackId = document.getElementById('trackSelect').value || currentCar().lap.track;
-  const ul = document.getElementById('lapList');
-  const list = (state.laps[trackId] || []).slice().sort((a, b) => a.ms - b.ms);
-  ul.innerHTML = list.length
-    ? list.map((l, i) => `<li><span>${i === 0 ? 'PB' : '#' + (i + 1)}</span><strong>${formatMs(l.ms)}</strong></li>`).join('')
-    : '<li><span>пока пусто</span><strong>—</strong></li>';
-}
+/* renderLaps defined with lap GPS block */
 
 async function renderTops() {
   const c = currentCar();
@@ -807,6 +800,7 @@ function onGpsPoint(pos) {
   }
   setRunText('liveSpeed', String(Math.round(v)));
   setRunText('boxLive', String(Math.round(v)));
+  if (lapRun.active) onLapGps(pos, v);
 
   if (!run.armed) {
     setRunText('runStatus', 'GPS живой. Стоите — жмите «Старт замера»');
@@ -977,12 +971,17 @@ async function publishGps(v0100, v100200, v200300) {
 }
 
 
-/* -------- Lap drive: mini navigator -------- */
+/* -------- Lap drive: honest GPS gate + sectors -------- */
 const lapDrive = {
   open: false,
   timerId: null,
   weatherAt: 0,
 };
+
+const LAP_GATE_R = 48; // м — зона линии С/Ф вокруг TRACK_GEO
+const LAP_MAX_JUMP_MS = 95; // м за один тик — выше = телепорт
+const LAP_MAX_KMH = 340;
+const LAP_MAX_ACC = 42; // м, хуже — точка слабая
 
 function fmtLapClock(ms) {
   const sec = Math.max(0, ms) / 1000;
@@ -991,15 +990,59 @@ function fmtLapClock(ms) {
   return `${m}:${s}`;
 }
 
+function fmtLapTime(ms) {
+  const sec = Math.max(0, ms) / 1000;
+  const m = Math.floor(sec / 60);
+  const s = (sec % 60).toFixed(2).padStart(5, '0');
+  return `${m}:${s}`;
+}
+
+function bearingDeg(a, b) {
+  const φ1 = a.lat * Math.PI / 180;
+  const φ2 = b.lat * Math.PI / 180;
+  const Δλ = (b.lon - a.lon) * Math.PI / 180;
+  const y = Math.sin(Δλ) * Math.cos(φ2);
+  const x = Math.cos(φ1) * Math.sin(φ2) - Math.sin(φ1) * Math.cos(φ2) * Math.cos(Δλ);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+
+function angDiff(a, b) {
+  let d = ((b - a + 540) % 360) - 180;
+  return d;
+}
+
+function trackLenM(trackId) {
+  const tr = TRACKS.find((t) => t.id === trackId);
+  const km = parseFloat(tr?.km);
+  return Number.isFinite(km) && km > 0 ? km * 1000 : 3500;
+}
+
+function setLapMsg(text) {
+  const a = document.getElementById('lapGpsMsg');
+  const b = document.getElementById('lapDriveMsg');
+  if (a) a.textContent = text;
+  if (b) b.textContent = text;
+}
+
+function setLapHud(part, text) {
+  const el = document.getElementById(part);
+  if (el) el.textContent = text;
+}
+
 function openLapDrive() {
   const el = document.getElementById('lapDrive');
   if (!el) return;
-  const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  const trackId = lapRun.trackId || document.getElementById('trackSelect')?.value || TRACKS[0].id;
   const track = TRACKS.find((t) => t.id === trackId) || TRACKS[0];
   document.getElementById('lapDriveTrack').textContent = track.name;
   document.getElementById('lapDriveClock').textContent = '0:00.0';
   document.getElementById('lapDriveSpeed').textContent = '0';
-  document.getElementById('lapDriveMsg').textContent = 'GPS…';
+  setLapHud('lapDriveDist', '0 м');
+  setLapHud('lapDriveS1', 'S1 —');
+  setLapHud('lapDriveS2', 'S2 —');
+  setLapHud('lapDriveS3', 'S3 —');
+  setLapHud('lapDriveSlip', 'слип ~—°');
+  setLapMsg('GPS… подъезжайте к линии С/Ф');
   drawTrack(trackId, 'lapDriveMap');
   el.classList.remove('hidden');
   el.setAttribute('aria-hidden', 'false');
@@ -1007,7 +1050,7 @@ function openLapDrive() {
   lapDrive.open = true;
   if (lapDrive.timerId) clearInterval(lapDrive.timerId);
   lapDrive.timerId = setInterval(() => {
-    if (!lapRun.on || !lapRun.t0) return;
+    if (!lapRun.active || lapRun.phase !== 'running' || !lapRun.t0) return;
     document.getElementById('lapDriveClock').textContent = fmtLapClock(Date.now() - lapRun.t0);
   }, 100);
   fetchLapWeather(trackId);
@@ -1045,44 +1088,263 @@ async function fetchLapWeather(trackId) {
   }
 }
 
+/** active lap session */
+const lapRun = {
+  active: false,
+  phase: 'idle', // idle | armed | running
+  trackId: null,
+  t0: null,
+  dist: 0,
+  last: null, // {lat,lon,t,v,inGate}
+  leftGate: false,
+  flags: [],
+  bad: 0,
+  samples: 0,
+  sectorMs: [null, null, null],
+  sectorHit: [false, false, false],
+  slipPeak: 0,
+  slipSum: 0,
+  slipN: 0,
+};
 
-const lapRun = { on: false, t0: null, moving: false };
+function resetLapRunSoft() {
+  lapRun.phase = 'idle';
+  lapRun.t0 = null;
+  lapRun.dist = 0;
+  lapRun.last = null;
+  lapRun.leftGate = false;
+  lapRun.flags = [];
+  lapRun.bad = 0;
+  lapRun.samples = 0;
+  lapRun.sectorMs = [null, null, null];
+  lapRun.sectorHit = [false, false, false];
+  lapRun.slipPeak = 0;
+  lapRun.slipSum = 0;
+  lapRun.slipN = 0;
+}
 
-async function finishLapRun() {
-  if (!lapRun.on || !lapRun.t0) return;
-  const ms = Date.now() - lapRun.t0;
-  lapRun.on = false;
-  if (ms < 1500) {
-    document.getElementById('lapGpsMsg').textContent = 'слишком коротко';
-    document.getElementById('lapDriveMsg').textContent = 'слишком коротко';
+function armLapRun() {
+  hap([18, 40, 18]);
+  startWatch();
+  const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  if (!TRACK_GEO[trackId]) {
+    setLapMsg('у трассы нет координат С/Ф');
     return;
   }
-  const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
-  state.laps[trackId] = state.laps[trackId] || [];
-  state.laps[trackId].push({ ms, at: Date.now(), gps: true });
-  save();
-  const who = (profile()?.nick) || currentUser()?.nick || currentUser()?.phone || 'пилот';
-  const sec = ms / 1000;
-  const m = Math.floor(sec / 60);
-  const s = (sec % 60).toFixed(2).padStart(5, '0');
-  await api.addLap(trackId, { name: String(who).slice(0, 24), car: currentCar().name, t: `${m}:${s}`, gps: true });
-  document.getElementById('lapGpsMsg').textContent = `круг ${m}:${s} в топе`;
-  document.getElementById('lapDriveMsg').textContent = `финиш ${m}:${s}`;
-  applyCarUI();
+  resetLapRunSoft();
+  lapRun.active = true;
+  lapRun.phase = 'armed';
+  lapRun.trackId = trackId;
+  openLapDrive();
+  setLapMsg('вооружён: пересеките зону С/Ф на ходу');
+}
+
+function abortLapRun(reason) {
+  lapRun.active = false;
+  resetLapRunSoft();
+  setLapMsg(reason || 'круг сброшен');
   closeLapDrive();
 }
 
-document.getElementById('btnLapStart')?.addEventListener('click', () => {
-  startWatch();
-  lapRun.on = true;
-  lapRun.t0 = Date.now();
-  document.getElementById('lapGpsMsg').textContent = 'круг идёт…';
-  openLapDrive();
+function lapValidEnough(ms) {
+  const need = trackLenM(lapRun.trackId) * 0.52;
+  const minT = Math.max(35000, trackLenM(lapRun.trackId) / 55 * 1000); // ~55 м/с верхняя оценка полного круга
+  const maxT = trackLenM(lapRun.trackId) / 8 * 1000; // ~30 км/ч средний минимум
+  if (lapRun.dist < need) return { ok: false, why: `мало дистанции (${Math.round(lapRun.dist)}/${Math.round(need)} м)` };
+  if (ms < minT) return { ok: false, why: 'слишком быстро для длины трассы' };
+  if (ms > maxT) return { ok: false, why: 'слишком долго — похоже на паузу' };
+  if (lapRun.bad > Math.max(8, lapRun.samples * 0.18)) return { ok: false, why: 'много плохих GPS-точек' };
+  if (lapRun.flags.includes('teleport')) return { ok: false, why: 'телепорт GPS' };
+  return { ok: true, why: '' };
+}
+
+async function completeLapRun(how) {
+  // how: 'gate' | 'manual'
+  if (!lapRun.active || lapRun.phase !== 'running' || !lapRun.t0) return;
+  const ms = Date.now() - lapRun.t0;
+  const trackId = lapRun.trackId;
+  const check = lapValidEnough(ms);
+  const valid = how === 'gate' && check.ok;
+  const tStr = fmtLapTime(ms);
+  const slipAvg = lapRun.slipN ? lapRun.slipSum / lapRun.slipN : 0;
+  const rec = {
+    ms,
+    at: Date.now(),
+    gps: true,
+    valid,
+    how,
+    dist: Math.round(lapRun.dist),
+    sectors: lapRun.sectorMs.slice(),
+    slipAvg: Math.round(slipAvg * 10) / 10,
+    slipPeak: Math.round(lapRun.slipPeak * 10) / 10,
+    flags: lapRun.flags.slice(0, 8),
+    why: valid ? '' : (how === 'manual' ? 'ручной финиш — не в топ' : check.why),
+  };
+  state.laps[trackId] = state.laps[trackId] || [];
+  state.laps[trackId].push(rec);
+  save();
+
+  if (valid) {
+    const who = (profile()?.nick) || currentUser()?.nick || currentUser()?.phone || 'пилот';
+    await api.addLap(trackId, {
+      name: String(who).slice(0, 24),
+      car: currentCar().name,
+      t: tStr,
+      gps: true,
+      valid: true,
+      dist: rec.dist,
+      slipAvg: rec.slipAvg,
+    });
+    setLapMsg(`чистый круг ${tStr} · в топе`);
+  } else {
+    setLapMsg(`круг ${tStr} · не в топ: ${rec.why}`);
+  }
+
+  lapRun.active = false;
+  resetLapRunSoft();
+  applyCarUI();
+  renderLaps();
+  setTimeout(() => closeLapDrive(), 1600);
+}
+
+function onLapGps(pos, vKmh) {
+  if (!lapRun.active || lapRun.phase === 'idle') return;
+  const c = pos.coords;
+  const acc = c.accuracy || 99;
+  const now = pos.timestamp || Date.now();
+  const pt = { lat: c.latitude, lon: c.longitude, t: now, v: vKmh, acc };
+  const gate = TRACK_GEO[lapRun.trackId];
+  if (!gate || pt.lat == null) return;
+
+  lapRun.samples += 1;
+  const dGate = haversineM(pt, gate);
+  const inGate = dGate <= LAP_GATE_R;
+
+  // anti-cheat filters
+  let reject = false;
+  if (acc > LAP_MAX_ACC) {
+    lapRun.bad += 1;
+    if (!lapRun.flags.includes('acc')) lapRun.flags.push('acc');
+    setLapHud('lapDriveWarn', `GPS ±${Math.round(acc)} м`);
+    reject = true;
+  } else {
+    setLapHud('lapDriveWarn', '');
+  }
+  if (vKmh != null && vKmh > LAP_MAX_KMH) {
+    lapRun.bad += 2;
+    if (!lapRun.flags.includes('speed')) lapRun.flags.push('speed');
+    reject = true;
+  }
+  if (lapRun.last) {
+    const dt = Math.max(0.05, (now - lapRun.last.t) / 1000);
+    const jump = haversineM(lapRun.last, pt);
+    if (jump > LAP_MAX_JUMP_MS && jump / dt > 55) { // >198 км/ч мгновенно между точками + большой скачок
+      lapRun.bad += 3;
+      if (!lapRun.flags.includes('teleport')) lapRun.flags.push('teleport');
+      reject = true;
+    }
+    if (!reject && jump < 120) {
+      lapRun.dist += jump;
+      // slip / lateral proxy: course vs device heading
+      if (jump > 2.5 && vKmh > 25) {
+        const course = bearingDeg(lapRun.last, pt);
+        let slip = null;
+        if (c.heading != null && Number.isFinite(c.heading)) {
+          slip = Math.abs(angDiff(course, c.heading));
+        } else if (lapRun.last.course != null) {
+          // yaw rate proxy from course change
+          slip = Math.min(45, Math.abs(angDiff(lapRun.last.course, course)) / Math.max(0.2, dt) * 0.15);
+        }
+        pt.course = course;
+        if (slip != null) {
+          lapRun.slipPeak = Math.max(lapRun.slipPeak, slip);
+          lapRun.slipSum += slip;
+          lapRun.slipN += 1;
+          setLapHud('lapDriveSlip', `слип ~${slip.toFixed(0)}° (оценка)`);
+        }
+      }
+    }
+  }
+
+  document.getElementById('lapDriveSpeed').textContent = String(Math.round(vKmh || 0));
+  setLapHud('lapDriveDist', `${Math.round(lapRun.dist)} м`);
+
+  // sectors by distance along lap
+  if (lapRun.phase === 'running' && lapRun.t0) {
+    const len = trackLenM(lapRun.trackId);
+    const elapsed = now - lapRun.t0;
+    const cuts = [len / 3, (2 * len) / 3, len];
+    for (let i = 0; i < 3; i++) {
+      if (!lapRun.sectorHit[i] && lapRun.dist >= cuts[i] * 0.92) {
+        lapRun.sectorHit[i] = true;
+        lapRun.sectorMs[i] = elapsed;
+        const label = i === 0 ? 'lapDriveS1' : i === 1 ? 'lapDriveS2' : 'lapDriveS3';
+        setLapHud(label, `S${i + 1} ${fmtLapClock(elapsed)}`);
+      }
+    }
+  }
+
+  if (reject) {
+    lapRun.last = { ...pt, inGate };
+    return;
+  }
+
+  const moved = (vKmh || 0) >= 12;
+
+  if (lapRun.phase === 'armed') {
+    // start on entering gate zone while moving
+    if (moved && inGate && (!lapRun.last || !lapRun.last.inGate)) {
+      lapRun.phase = 'running';
+      lapRun.t0 = now;
+      lapRun.dist = 0;
+      lapRun.leftGate = false;
+      setLapMsg('старт! полный круг до той же зоны');
+      hap([30, 20, 30]);
+    } else if (!inGate) {
+      setLapMsg(`вооружён · до С/Ф ~${Math.round(dGate)} м`);
+    } else {
+      setLapMsg('на зоне С/Ф — трогайтесь через линию');
+    }
+  } else if (lapRun.phase === 'running') {
+    if (!inGate && dGate > LAP_GATE_R * 1.25) lapRun.leftGate = true;
+    const need = trackLenM(lapRun.trackId) * 0.52;
+    const minT = 25000;
+    if (lapRun.leftGate && inGate && moved && (!lapRun.last || !lapRun.last.inGate)
+        && lapRun.dist >= need * 0.85 && (now - lapRun.t0) >= minT) {
+      void completeLapRun('gate');
+      return;
+    }
+    const left = Math.max(0, need - lapRun.dist);
+    if (!lapRun.leftGate) setLapMsg('уйдите с зоны С/Ф, потом полный круг');
+    else setLapMsg(`круг · ещё ~${Math.round(left)} м до финиша`);
+  }
+
+  lapRun.last = { ...pt, inGate };
+}
+
+function renderLaps() {
+  const trackId = document.getElementById('trackSelect').value || currentCar().lap.track;
+  const ul = document.getElementById('lapList');
+  const list = (state.laps[trackId] || []).slice().sort((a, b) => a.ms - b.ms);
+  ul.innerHTML = list.length
+    ? list.map((l, i) => {
+        const tag = l.valid === false ? '∅' : (i === 0 ? 'PB' : '#' + (i + 1));
+        const note = l.valid === false ? ` · ${l.why || 'не в топ'}` : (l.gps ? ' · GPS' : '');
+        return `<li><span>${tag}</span><strong>${formatMs(l.ms)}</strong><em class="tiny">${note}</em></li>`;
+      }).join('')
+    : '<li><span>пока пусто</span><strong>—</strong></li>';
+}
+
+document.getElementById('btnLapStart')?.addEventListener('click', () => { armLapRun(); });
+document.getElementById('btnLapStop')?.addEventListener('click', () => {
+  if (lapRun.active && lapRun.phase === 'running') void completeLapRun('manual');
+  else abortLapRun('остановлено');
 });
-document.getElementById('btnLapStop')?.addEventListener('click', () => { void finishLapRun(); });
-document.getElementById('lapDriveFinish')?.addEventListener('click', () => { void finishLapRun(); });
+document.getElementById('lapDriveFinish')?.addEventListener('click', () => {
+  if (lapRun.active && lapRun.phase === 'running') void completeLapRun('manual');
+  else abortLapRun('сброс');
+});
 document.getElementById('lapDriveCancel')?.addEventListener('click', () => {
-  // keep lap running in background, just hide UI
   closeLapDrive();
 });
 

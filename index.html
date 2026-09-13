@@ -281,10 +281,10 @@
             </article>
             <article class="card">
               <h3 data-i18n="lap.gps">Круг по GPS</h3>
-              <p class="muted">Старт на линии, финиш на той же линии. Время идёт только пока есть скорость с датчика.</p>
+              <p class="muted">Вооружись → пересеки зону С/Ф на ходу → полный круг → снова С/Ф. Ручной финиш не попадает в топ. Телепорты и плохой GPS режутся.</p>
               <div class="form-row">
-                <button type="button" id="btnLapStart" data-i18n="lap.start">Старт круга</button>
-                <button type="button" id="btnLapStop" data-i18n="lap.finish">Финиш круга</button>
+                <button type="button" id="btnLapStart" data-i18n="lap.start">Вооружить круг</button>
+                <button type="button" id="btnLapStop" data-i18n="lap.finish">Сброс / ручной</button>
               </div>
               <p class="tiny" id="lapGpsMsg">круг не идёт</p>
             </article>
@@ -378,9 +378,19 @@
         <p class="lap-drive-track" id="lapDriveTrack">—</p>
         <div class="lap-drive-clock" id="lapDriveClock">0:00.0</div>
         <div class="lap-drive-speed"><strong id="lapDriveSpeed">0</strong><span>км/ч</span></div>
+        <div class="lap-drive-meta">
+          <span id="lapDriveDist">0 м</span>
+          <span id="lapDriveSlip">слип ~—°</span>
+        </div>
+        <div class="lap-drive-sectors">
+          <span id="lapDriveS1">S1 —</span>
+          <span id="lapDriveS2">S2 —</span>
+          <span id="lapDriveS3">S3 —</span>
+        </div>
         <div class="lap-drive-weather" id="lapDriveWeather">погода…</div>
+        <p class="tiny lap-drive-warn" id="lapDriveWarn"></p>
         <p class="tiny" id="lapDriveMsg">GPS</p>
-        <button type="button" class="go-btn" id="lapDriveFinish">Финиш круга</button>
+        <button type="button" class="go-btn" id="lapDriveFinish">Ручной финиш (не в топ)</button>
         <button type="button" id="lapDriveCancel">Свернуть</button>
       </div>
       <div class="lap-drive-map" id="lapDriveMap"></div>
