@@ -38,12 +38,38 @@
     <div id="app">
       <aside class="rail">
         <div class="mark">PIT<span>LANE</span></div>
-        <nav>
-          <button class="nav-btn active" data-view="garage" title="Гараж"><span>▣</span><i data-i18n="nav.box">Бокс</i></button>
-          <button class="nav-btn" data-view="run" title="Замер"><span>▶</span><i data-i18n="nav.run">Замер</i></button>
-          <button class="nav-btn" data-view="lap" title="Круг"><span>◷</span><i data-i18n="nav.lap">Круг</i></button>
-          <button class="nav-btn" data-view="tops" title="Топ"><span>▲</span><i data-i18n="nav.top">Топ</i></button>
-          <button class="nav-btn" data-view="pulse" title="Paddock"><span>◉</span><i data-i18n="nav.paddock">Paddock</i></button>
+        <nav class="tabbar" id="tabbar">
+          <div class="tab-pill" id="tabPill" aria-hidden="true"></div>
+          <button class="nav-btn active" data-view="garage" title="Гараж">
+            <span class="nav-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico ico-box"><path class="ico-body" d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5z"/><path class="ico-door" d="M10 20v-6h4v6"/></svg>
+            </span>
+            <i data-i18n="nav.box">Бокс</i>
+          </button>
+          <button class="nav-btn" data-view="run" title="Замер">
+            <span class="nav-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico ico-run"><circle class="ico-dial" cx="12" cy="13" r="7"/><path class="ico-needle" d="M12 13L16.5 9"/><circle cx="12" cy="13" r="1.4"/></svg>
+            </span>
+            <i data-i18n="nav.run">Замер</i>
+          </button>
+          <button class="nav-btn" data-view="lap" title="Круг">
+            <span class="nav-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico ico-lap"><path class="ico-track" d="M7 7c4-3 10-2 12 3s-1 10-6 11-10-3-9-8 4-7 8-7"/><circle class="ico-car" cx="17" cy="9" r="1.6"/></svg>
+            </span>
+            <i data-i18n="nav.lap">Круг</i>
+          </button>
+          <button class="nav-btn" data-view="tops" title="Топ">
+            <span class="nav-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico ico-top"><path class="ico-bar1" d="M5 19V11h3v8z"/><path class="ico-bar2" d="M10.5 19V6h3v13z"/><path class="ico-bar3" d="M16 19v-5h3v5z"/><path class="ico-flag" d="M12 6l4-2v4l-4 2z"/></svg>
+            </span>
+            <i data-i18n="nav.top">Топ</i>
+          </button>
+          <button class="nav-btn" data-view="pulse" title="Paddock">
+            <span class="nav-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico ico-pad"><circle class="ico-ring" cx="12" cy="12" r="7"/><circle class="ico-core" cx="12" cy="12" r="2.4"/></svg>
+            </span>
+            <i data-i18n="nav.paddock">Paddock</i>
+          </button>
         </nav>
         
         <div class="rail-foot">TRACK ONLY</div>

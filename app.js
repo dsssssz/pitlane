@@ -334,18 +334,41 @@ async function renderTops() {
   }
 }
 
+function syncTabPill(activeBtn) {
+  const pill = document.getElementById('tabPill');
+  const bar = document.getElementById('tabbar');
+  if (!pill || !bar || !activeBtn || !activeBtn.classList.contains('nav-btn')) return;
+  const br = bar.getBoundingClientRect();
+  const r = activeBtn.getBoundingClientRect();
+  const left = r.left - br.left;
+  pill.style.width = r.width + 'px';
+  pill.style.transform = `translateX(${left}px)`;
+}
+
+function activateNavBtn(btn) {
+  document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+  if (!btn?.classList.contains('nav-btn')) return;
+  // restart CSS animations
+  btn.classList.remove('active');
+  void btn.offsetWidth;
+  btn.classList.add('active');
+  syncTabPill(btn);
+}
+
 document.querySelectorAll('[data-view]').forEach((btn) => {
   btn.onclick = () => {
     const id = btn.dataset.view;
     if (!id || !document.getElementById('view-' + id)) return;
     try { navigator.vibrate?.(10); } catch (_) {}
-    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
-    if (btn.classList.contains('nav-btn')) btn.classList.add('active');
+    const nav = btn.classList.contains('nav-btn') ? btn : document.querySelector(`.nav-btn[data-view="${id}"]`);
+    activateNavBtn(nav);
     document.getElementById('view-' + id).classList.add('active');
     onResize();
   };
 });
+window.addEventListener('resize', () => syncTabPill(document.querySelector('.nav-btn.active')));
+requestAnimationFrame(() => syncTabPill(document.querySelector('.nav-btn.active')));
 
 if (document.getElementById('dynoForm')) document.getElementById('dynoForm').onsubmit = (e) => {
   e.preventDefault();
