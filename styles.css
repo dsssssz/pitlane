@@ -1085,18 +1085,20 @@ body.run-drive-on #app { visibility: hidden; }
   width: min(92%, 520px);
   height: min(32vh, 260px);
   margin: 4px auto 18px;
-  border-radius: 18px;
-  background: #fff !important;
+  border-radius: 16px;
+  background:
+    radial-gradient(ellipse at 50% 78%, rgba(255,255,255,.04), transparent 55%),
+    linear-gradient(180deg, #151820 0%, #0a0b0e 75%) !important;
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: 1px solid #e8e8ea;
+  border: none !important;
 }
 .empty-sil, .empty-sil-dotted {
-  width: 94%;
-  height: 94%;
+  width: 90%;
+  height: 90%;
   object-fit: contain;
   opacity: 1 !important;
-  filter: none !important;
+  filter: drop-shadow(0 16px 12px rgba(0,0,0,.45)) !important;
   animation: none !important;
 }
