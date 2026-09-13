@@ -1042,6 +1042,7 @@ function openLapDrive() {
   setLapHud('lapDriveS2', 'S2 —');
   setLapHud('lapDriveS3', 'S3 —');
   setLapHud('lapDriveSlip', 'слип ~—°');
+  updateSessionHud();
   setLapMsg('GPS… подъезжайте к линии С/Ф');
   drawTrack(trackId, 'lapDriveMap');
   el.classList.remove('hidden');
@@ -1088,14 +1089,14 @@ async function fetchLapWeather(trackId) {
   }
 }
 
-/** active lap session */
+/** active lap session (track-day: flying laps) */
 const lapRun = {
   active: false,
   phase: 'idle', // idle | armed | running
   trackId: null,
   t0: null,
   dist: 0,
-  last: null, // {lat,lon,t,v,inGate}
+  last: null,
   leftGate: false,
   flags: [],
   bad: 0,
@@ -1107,11 +1108,28 @@ const lapRun = {
   slipN: 0,
 };
 
-function resetLapRunSoft() {
-  lapRun.phase = 'idle';
-  lapRun.t0 = null;
+const lapSession = {
+  on: false,
+  trackId: null,
+  startedAt: 0,
+  laps: [], // recorded this outing
+  bestMs: null,
+  bestValid: false,
+};
+
+function updateSessionHud() {
+  const n = lapSession.laps.length;
+  setLapHud('lapDriveLapN', `круг ${n + 1}`);
+  setLapHud('lapDriveLast', n ? `посл. ${fmtLapTime(lapSession.laps[n - 1].ms)}` : 'посл. —');
+  if (lapSession.bestMs != null) {
+    setLapHud('lapDriveBest', `лучший ${fmtLapTime(lapSession.bestMs)}`);
+  } else {
+    setLapHud('lapDriveBest', 'лучший —');
+  }
+}
+
+function resetLapCounters() {
   lapRun.dist = 0;
-  lapRun.last = null;
   lapRun.leftGate = false;
   lapRun.flags = [];
   lapRun.bad = 0;
@@ -1121,6 +1139,18 @@ function resetLapRunSoft() {
   lapRun.slipPeak = 0;
   lapRun.slipSum = 0;
   lapRun.slipN = 0;
+  setLapHud('lapDriveDist', '0 м');
+  setLapHud('lapDriveS1', 'S1 —');
+  setLapHud('lapDriveS2', 'S2 —');
+  setLapHud('lapDriveS3', 'S3 —');
+  setLapHud('lapDriveSlip', 'слип ~—°');
+}
+
+function resetLapRunSoft() {
+  lapRun.phase = 'idle';
+  lapRun.t0 = null;
+  lapRun.last = null;
+  resetLapCounters();
 }
 
 function armLapRun() {
@@ -1135,21 +1165,55 @@ function armLapRun() {
   lapRun.active = true;
   lapRun.phase = 'armed';
   lapRun.trackId = trackId;
+  lapSession.on = true;
+  lapSession.trackId = trackId;
+  lapSession.startedAt = Date.now();
+  lapSession.laps = [];
+  lapSession.bestMs = null;
+  lapSession.bestValid = false;
   openLapDrive();
-  setLapMsg('вооружён: пересеките зону С/Ф на ходу');
+  updateSessionHud();
+  setLapMsg('track-day: пересеките С/Ф — старт сессии');
+}
+
+function endLapSession(reason) {
+  const n = lapSession.laps.length;
+  const best = lapSession.bestMs != null ? fmtLapTime(lapSession.bestMs) : '—';
+  const validN = lapSession.laps.filter((l) => l.valid).length;
+  if (n) {
+    state.trackDays = state.trackDays || [];
+    state.trackDays.unshift({
+      trackId: lapSession.trackId,
+      at: lapSession.startedAt,
+      n,
+      validN,
+      bestMs: lapSession.bestMs,
+      laps: lapSession.laps.slice(),
+    });
+    state.trackDays = state.trackDays.slice(0, 30);
+    save();
+  }
+  lapRun.active = false;
+  resetLapRunSoft();
+  lapSession.on = false;
+  const msg = n
+    ? `сессия: ${n} круг.${validN ? ` чистых ${validN}` : ''} · лучший ${best}`
+    : (reason || 'сессия пустая');
+  setLapMsg(msg);
+  applyCarUI();
+  renderLaps();
+  renderTrackDays();
+  setTimeout(() => closeLapDrive(), n ? 2200 : 400);
 }
 
 function abortLapRun(reason) {
-  lapRun.active = false;
-  resetLapRunSoft();
-  setLapMsg(reason || 'круг сброшен');
-  closeLapDrive();
+  endLapSession(reason || 'сессия сброшена');
 }
 
 function lapValidEnough(ms) {
   const need = trackLenM(lapRun.trackId) * 0.52;
-  const minT = Math.max(35000, trackLenM(lapRun.trackId) / 55 * 1000); // ~55 м/с верхняя оценка полного круга
-  const maxT = trackLenM(lapRun.trackId) / 8 * 1000; // ~30 км/ч средний минимум
+  const minT = Math.max(35000, trackLenM(lapRun.trackId) / 55 * 1000);
+  const maxT = trackLenM(lapRun.trackId) / 8 * 1000;
   if (lapRun.dist < need) return { ok: false, why: `мало дистанции (${Math.round(lapRun.dist)}/${Math.round(need)} м)` };
   if (ms < minT) return { ok: false, why: 'слишком быстро для длины трассы' };
   if (ms > maxT) return { ok: false, why: 'слишком долго — похоже на паузу' };
@@ -1158,10 +1222,11 @@ function lapValidEnough(ms) {
   return { ok: true, why: '' };
 }
 
-async function completeLapRun(how) {
-  // how: 'gate' | 'manual'
+async function completeLapRun(how, atTs) {
+  // how: 'gate' | 'manual' — gate continues session (flying), manual ends current as invalid and keeps session
   if (!lapRun.active || lapRun.phase !== 'running' || !lapRun.t0) return;
-  const ms = Date.now() - lapRun.t0;
+  const finishAt = atTs || Date.now();
+  const ms = finishAt - lapRun.t0;
   const trackId = lapRun.trackId;
   const check = lapValidEnough(ms);
   const valid = how === 'gate' && check.ok;
@@ -1169,7 +1234,7 @@ async function completeLapRun(how) {
   const slipAvg = lapRun.slipN ? lapRun.slipSum / lapRun.slipN : 0;
   const rec = {
     ms,
-    at: Date.now(),
+    at: finishAt,
     gps: true,
     valid,
     how,
@@ -1178,11 +1243,18 @@ async function completeLapRun(how) {
     slipAvg: Math.round(slipAvg * 10) / 10,
     slipPeak: Math.round(lapRun.slipPeak * 10) / 10,
     flags: lapRun.flags.slice(0, 8),
-    why: valid ? '' : (how === 'manual' ? 'ручной финиш — не в топ' : check.why),
+    session: true,
+    why: valid ? '' : (how === 'manual' ? 'ручной — не в топ' : check.why),
   };
   state.laps[trackId] = state.laps[trackId] || [];
   state.laps[trackId].push(rec);
   save();
+
+  lapSession.laps.push(rec);
+  if (valid && (lapSession.bestMs == null || ms < lapSession.bestMs)) {
+    lapSession.bestMs = ms;
+    lapSession.bestValid = true;
+  }
 
   if (valid) {
     const who = (profile()?.nick) || currentUser()?.nick || currentUser()?.phone || 'пилот';
@@ -1194,17 +1266,37 @@ async function completeLapRun(how) {
       valid: true,
       dist: rec.dist,
       slipAvg: rec.slipAvg,
+      trackDay: true,
     });
-    setLapMsg(`чистый круг ${tStr} · в топе`);
-  } else {
-    setLapMsg(`круг ${tStr} · не в топ: ${rec.why}`);
   }
 
-  lapRun.active = false;
-  resetLapRunSoft();
+  updateSessionHud();
   applyCarUI();
   renderLaps();
-  setTimeout(() => closeLapDrive(), 1600);
+
+  if (how === 'gate') {
+    // flying finish = next lap start
+    const n = lapSession.laps.length;
+    const best = lapSession.bestMs != null ? fmtLapTime(lapSession.bestMs) : '—';
+    setLapMsg(valid
+      ? `круг ${n} ${tStr} ✓ · лучший ${best} · следующий`
+      : `круг ${n} ${tStr} ∅ ${rec.why} · следующий`);
+    hap(valid ? [40, 30, 40] : [12, 40, 12]);
+    lapRun.phase = 'running';
+    lapRun.t0 = finishAt;
+    resetLapCounters();
+    // still in gate — must leave before next finish
+    if (lapRun.last) lapRun.last.inGate = true;
+    lapRun.leftGate = false;
+    return;
+  }
+
+  // manual: drop this lap from competitive flow, keep session armed for next gate start
+  setLapMsg(`круг сброшен вручную · жду С/Ф для круга ${lapSession.laps.length + 1}`);
+  lapRun.phase = 'armed';
+  lapRun.t0 = null;
+  resetLapCounters();
+  updateSessionHud();
 }
 
 function onLapGps(pos, vKmh) {
@@ -1220,7 +1312,6 @@ function onLapGps(pos, vKmh) {
   const dGate = haversineM(pt, gate);
   const inGate = dGate <= LAP_GATE_R;
 
-  // anti-cheat filters
   let reject = false;
   if (acc > LAP_MAX_ACC) {
     lapRun.bad += 1;
@@ -1238,21 +1329,19 @@ function onLapGps(pos, vKmh) {
   if (lapRun.last) {
     const dt = Math.max(0.05, (now - lapRun.last.t) / 1000);
     const jump = haversineM(lapRun.last, pt);
-    if (jump > LAP_MAX_JUMP_MS && jump / dt > 55) { // >198 км/ч мгновенно между точками + большой скачок
+    if (jump > LAP_MAX_JUMP_MS && jump / dt > 55) {
       lapRun.bad += 3;
       if (!lapRun.flags.includes('teleport')) lapRun.flags.push('teleport');
       reject = true;
     }
     if (!reject && jump < 120) {
       lapRun.dist += jump;
-      // slip / lateral proxy: course vs device heading
       if (jump > 2.5 && vKmh > 25) {
         const course = bearingDeg(lapRun.last, pt);
         let slip = null;
         if (c.heading != null && Number.isFinite(c.heading)) {
           slip = Math.abs(angDiff(course, c.heading));
         } else if (lapRun.last.course != null) {
-          // yaw rate proxy from course change
           slip = Math.min(45, Math.abs(angDiff(lapRun.last.course, course)) / Math.max(0.2, dt) * 0.15);
         }
         pt.course = course;
@@ -1269,7 +1358,6 @@ function onLapGps(pos, vKmh) {
   document.getElementById('lapDriveSpeed').textContent = String(Math.round(vKmh || 0));
   setLapHud('lapDriveDist', `${Math.round(lapRun.dist)} м`);
 
-  // sectors by distance along lap
   if (lapRun.phase === 'running' && lapRun.t0) {
     const len = trackLenM(lapRun.trackId);
     const elapsed = now - lapRun.t0;
@@ -1292,18 +1380,17 @@ function onLapGps(pos, vKmh) {
   const moved = (vKmh || 0) >= 12;
 
   if (lapRun.phase === 'armed') {
-    // start on entering gate zone while moving
     if (moved && inGate && (!lapRun.last || !lapRun.last.inGate)) {
       lapRun.phase = 'running';
       lapRun.t0 = now;
-      lapRun.dist = 0;
+      resetLapCounters();
       lapRun.leftGate = false;
-      setLapMsg('старт! полный круг до той же зоны');
+      setLapMsg(`старт круга ${lapSession.laps.length + 1}!`);
       hap([30, 20, 30]);
     } else if (!inGate) {
-      setLapMsg(`вооружён · до С/Ф ~${Math.round(dGate)} м`);
+      setLapMsg(`сессия · до С/Ф ~${Math.round(dGate)} м`);
     } else {
-      setLapMsg('на зоне С/Ф — трогайтесь через линию');
+      setLapMsg('на зоне С/Ф — через линию на ходу');
     }
   } else if (lapRun.phase === 'running') {
     if (!inGate && dGate > LAP_GATE_R * 1.25) lapRun.leftGate = true;
@@ -1311,20 +1398,23 @@ function onLapGps(pos, vKmh) {
     const minT = 25000;
     if (lapRun.leftGate && inGate && moved && (!lapRun.last || !lapRun.last.inGate)
         && lapRun.dist >= need * 0.85 && (now - lapRun.t0) >= minT) {
-      void completeLapRun('gate');
+      void completeLapRun('gate', now);
+      lapRun.last = { ...pt, inGate: true };
       return;
     }
     const left = Math.max(0, need - lapRun.dist);
-    if (!lapRun.leftGate) setLapMsg('уйдите с зоны С/Ф, потом полный круг');
-    else setLapMsg(`круг · ещё ~${Math.round(left)} м до финиша`);
+    const n = lapSession.laps.length + 1;
+    if (!lapRun.leftGate) setLapMsg(`круг ${n}: уйдите с С/Ф`);
+    else setLapMsg(`круг ${n}: ещё ~${Math.round(left)} м`);
   }
 
   lapRun.last = { ...pt, inGate };
 }
 
 function renderLaps() {
-  const trackId = document.getElementById('trackSelect').value || currentCar().lap.track;
+  const trackId = document.getElementById('trackSelect')?.value || currentCar().lap.track;
   const ul = document.getElementById('lapList');
+  if (!ul) return;
   const list = (state.laps[trackId] || []).slice().sort((a, b) => a.ms - b.ms);
   ul.innerHTML = list.length
     ? list.map((l, i) => {
@@ -1335,18 +1425,36 @@ function renderLaps() {
     : '<li><span>пока пусто</span><strong>—</strong></li>';
 }
 
+function renderTrackDays() {
+  const el = document.getElementById('trackDayList');
+  if (!el) return;
+  const rows = state.trackDays || [];
+  el.innerHTML = rows.length
+    ? rows.slice(0, 12).map((s) => {
+        const tr = TRACKS.find((t) => t.id === s.trackId);
+        const best = s.bestMs != null ? formatMs(s.bestMs) : '—';
+        const when = new Date(s.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        return `<li><span>${tr?.name || s.trackId} · ${s.n} кр.</span><strong>${best}</strong><em class="tiny">${when} · чистых ${s.validN || 0}</em></li>`;
+      }).join('')
+    : '<li><span>сессий пока нет</span><strong>—</strong></li>';
+}
+
 document.getElementById('btnLapStart')?.addEventListener('click', () => { armLapRun(); });
 document.getElementById('btnLapStop')?.addEventListener('click', () => {
-  if (lapRun.active && lapRun.phase === 'running') void completeLapRun('manual');
-  else abortLapRun('остановлено');
+  if (lapRun.active) endLapSession('сессия завершена');
+  else setLapMsg('сессия не идёт');
 });
 document.getElementById('lapDriveFinish')?.addEventListener('click', () => {
   if (lapRun.active && lapRun.phase === 'running') void completeLapRun('manual');
-  else abortLapRun('сброс');
+  else if (lapRun.active) endLapSession('сессия завершена');
+});
+document.getElementById('lapDriveEnd')?.addEventListener('click', () => {
+  if (lapRun.active) endLapSession('сессия завершена');
 });
 document.getElementById('lapDriveCancel')?.addEventListener('click', () => {
   closeLapDrive();
 });
+
 
 
 document.getElementById('btnGps')?.addEventListener('click', startWatch);

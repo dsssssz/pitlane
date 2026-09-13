@@ -281,16 +281,20 @@
             </article>
             <article class="card">
               <h3 data-i18n="lap.gps">Круг по GPS</h3>
-              <p class="muted">Вооружись → пересеки зону С/Ф на ходу → полный круг → снова С/Ф. Ручной финиш не попадает в топ. Телепорты и плохой GPS режутся.</p>
+              <p class="muted">Track-day: вооружись → С/Ф стартует круг → каждый следующий С/Ф = финиш и сразу новый круг. Лучший сессии на экране. «Конец сессии» — выход. Ручной круг не в топ.</p>
               <div class="form-row">
-                <button type="button" id="btnLapStart" data-i18n="lap.start">Вооружить круг</button>
-                <button type="button" id="btnLapStop" data-i18n="lap.finish">Сброс / ручной</button>
+                <button type="button" id="btnLapStart" data-i18n="lap.start">Старт сессии</button>
+                <button type="button" id="btnLapStop" data-i18n="lap.finish">Конец сессии</button>
               </div>
-              <p class="tiny" id="lapGpsMsg">круг не идёт</p>
+              <p class="tiny" id="lapGpsMsg">сессия не идёт</p>
             </article>
           </div>
           <article class="card">
-            <h3 data-i18n="lap.sess">Сессии</h3>
+            <h3>Track-day</h3>
+            <ul id="trackDayList" class="laps"></ul>
+          </article>
+          <article class="card">
+            <h3 data-i18n="lap.sess">Все круги</h3>
             <ul id="lapList" class="laps"></ul>
           </article>
         </section>
@@ -377,6 +381,11 @@
       <div class="lap-drive-left">
         <p class="lap-drive-track" id="lapDriveTrack">—</p>
         <div class="lap-drive-clock" id="lapDriveClock">0:00.0</div>
+        <div class="lap-drive-session">
+          <span id="lapDriveLapN">круг 1</span>
+          <span id="lapDriveLast">посл. —</span>
+          <span id="lapDriveBest">лучший —</span>
+        </div>
         <div class="lap-drive-speed"><strong id="lapDriveSpeed">0</strong><span>км/ч</span></div>
         <div class="lap-drive-meta">
           <span id="lapDriveDist">0 м</span>
@@ -390,7 +399,8 @@
         <div class="lap-drive-weather" id="lapDriveWeather">погода…</div>
         <p class="tiny lap-drive-warn" id="lapDriveWarn"></p>
         <p class="tiny" id="lapDriveMsg">GPS</p>
-        <button type="button" class="go-btn" id="lapDriveFinish">Ручной финиш (не в топ)</button>
+        <button type="button" class="go-btn" id="lapDriveFinish">Сбросить круг (не в топ)</button>
+        <button type="button" id="lapDriveEnd">Конец сессии</button>
         <button type="button" id="lapDriveCancel">Свернуть</button>
       </div>
       <div class="lap-drive-map" id="lapDriveMap"></div>

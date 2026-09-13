@@ -953,3 +953,14 @@ body.lap-drive-on #app { visibility: hidden; }
 .lap-drive-warn:empty { display: none; }
 .lap-drive-warn { color: #f6c177; margin: 0; }
 .laps em.tiny { display: block; opacity: .55; font-style: normal; font-weight: 400; }
+
+.lap-drive-session {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font: 700 13px/1.2 "Barlow Condensed", sans-serif;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #c5ccd3;
+}
+.lap-drive-session #lapDriveBest { color: #2ee56a; }
