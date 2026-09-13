@@ -1161,3 +1161,40 @@ body.run-drive-on #app { visibility: hidden; }
   filter: none !important;
   animation: none !important;
 }
+
+
+.lap-map-modes {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+.lap-map-modes button {
+  flex: 1;
+  font: 700 12px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 8px 6px;
+  border-radius: 10px;
+  border: 1px solid #2a2f3a;
+  background: #12151c;
+  color: #c5ccd3;
+}
+.lap-map-modes button.on {
+  border-color: #2ee56a;
+  color: #2ee56a;
+  background: #122018;
+}
+.sf-mark text { paint-order: stroke; stroke: #050505; stroke-width: 3px; }
+.lap-car-mark { transition: transform .2s linear; }
+.lap-drive.mode-nav .lap-map-cap { opacity: .55; font-size: 13px; }
+.lap-drive.mode-nav .lap-drive-left {
+  /* in nav: emphasize speed + clock */
+}
+.lap-drive.mode-nav .lap-drive-clock { font-size: clamp(36px, 10vw, 52px); }
+.lap-drive.mode-nav .lap-drive-speed strong { font-size: clamp(40px, 12vw, 64px); color: #fff; }
+.lap-drive.mode-nav .lap-drive-map .track-svg {
+  max-height: min(48dvh, 340px);
+}
+.track-line {
+  filter: drop-shadow(0 0 4px rgba(46,229,106,.35));
+}

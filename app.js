@@ -77,36 +77,85 @@ const TRACK_GEO = {
 };
 
 const TRACK_SVG = {
-  sochi: 'M28 150 L70 148 C88 146 96 138 108 118 C150 48 210 38 248 72 C268 90 258 118 228 128 C190 140 168 128 150 108 C132 88 108 128 92 148 C80 162 52 168 28 166 Z',
-  moscow: 'M30 128 L120 128 C138 128 148 116 162 96 C178 72 210 58 248 70 C278 82 270 118 238 132 C200 150 168 168 120 170 L48 170 C32 170 26 150 30 128 Z',
-  igora: 'M24 92 L210 70 C250 64 278 92 270 128 C262 168 200 182 140 170 C90 160 40 150 28 128 C20 112 20 100 24 92 Z',
-  kazan: 'M50 40 C90 28 160 48 170 90 C180 130 240 150 230 175 C210 198 90 188 60 150 C35 118 28 70 50 40 Z',
-  smolensk: 'M40 70 C80 30 200 28 250 80 C280 120 220 175 120 170 C60 166 30 120 40 70 Z',
-  nring: 'M36 86 C70 36 160 30 210 70 C250 100 255 150 200 168 C130 190 50 160 40 120 C34 104 32 96 36 86 Z',
-  adm: 'M40 100 L80 48 L200 40 L260 88 L250 150 L140 172 L52 148 Z',
-  grozny: 'M70 36 C150 20 250 70 240 130 C230 175 90 185 50 130 C35 100 40 55 70 36 Z',
-  redring: 'M32 140 C36 70 140 28 240 80 C280 110 220 175 100 172 C50 170 30 158 32 140 Z',
-  spb: 'M60 36 L240 48 L268 130 L90 172 L42 100 Z',
-  tlt: 'M40 82 C90 28 240 40 262 100 C250 160 90 172 48 122 C38 104 36 92 40 82 Z',
-  lipetsk: 'M55 48 L238 72 L252 148 L78 168 L38 108 Z',
-  'auto-msk': 'M34 102 C62 36 210 26 272 92 C282 140 148 182 68 154 C38 140 28 118 34 102 Z',
-  neva: 'M42 72 C124 22 262 42 260 112 C254 168 98 176 54 126 C40 106 36 86 42 72 Z',
-  ufa: 'M60 90 C92 40 232 36 256 96 C266 146 148 172 78 146 C54 132 50 110 60 90 Z',
-  don: 'M46 86 C102 26 252 46 256 112 C250 166 108 176 58 130 C40 110 40 96 46 86 Z'
+  sochi: 'M260.37 78.48 L244.49 96.31 L240.92 98.98 L236.03 101.71 L230.64 103.82 L222.94 105.56 L202.57 109.51 L172.35 115.42 L140.03 121.66 L137.93 121.5 L137.16 121.05 L136.67 119.59 L135.83 117.54 L134.5 116.03 L119.87 105.67 L114.63 102.88 L108.12 100.99 L100.29 100.49 L92.66 101.6 L86.22 104.05 L81.18 107.45 L78.11 110.8 L75.65 114.86 L74.74 119.26 L75.17 124.17 L76.92 128.34 L86.01 142.05 L86.22 143.61 L85.38 144.84 L83.29 145.95 L34.94 166.85 L33.46 167.29 L31.16 167.35 L29.48 166.63 L28.36 165.56 L16.39 146.12 L15.27 142.83 L15.0 140.16 L15.34 137.21 L18.43 125.89 L18.98 124.95 L20.18 124.5 L21.71 124.17 L61.1 119.88 L62.08 119.59 L62.99 119.04 L63.69 118.32 L66.14 111.24 L66.35 110.18 L66.49 108.85 L66.28 107.68 L54.04 82.65 L54.04 81.65 L54.53 80.76 L55.44 79.87 L56.76 79.2 L69.08 75.58 L74.74 74.63 L80.06 73.91 L87.34 73.52 L93.77 73.57 L101.13 74.13 L108.05 75.08 L120.23 76.53 L126.73 77.75 L133.39 79.48 L140.58 81.6 L165.35 89.79 L172.15 91.52 L178.29 92.46 L185.15 92.91 L192.22 92.69 L198.8 91.79 L208.87 89.67 L210.77 90.01 L211.53 90.9 L214.68 98.71 L216.16 99.82 L218.67 100.49 L221.39 100.37 L225.32 99.71 L229.73 98.09 L233.64 95.53 L236.87 92.24 L243.99 84.77 L244.35 83.88 L244.21 83.16 L242.88 82.38 L236.37 78.87 L235.18 77.64 L234.76 75.91 L235.53 74.35 L245.88 62.71 L255.12 51.73 L262.54 43.43 L264.22 42.65 L266.31 43.09 L282.9 48.44 L284.43 49.12 L285.0 50.11 L284.57 51.23 L260.37 78.48 Z',
+  moscow: 'M42 168 L210 168 C228 168 242 158 252 140 C268 112 278 78 268 58 C256 36 220 28 188 42 C168 52 158 72 142 88 C122 108 92 118 62 118 L38 118 C28 118 24 130 28 142 L36 160 C38 166 40 168 42 168 Z',
+  igora: 'M36 120 L70 52 C88 28 140 22 190 34 C240 48 278 78 274 118 C270 158 230 178 170 182 C110 186 48 166 36 140 C32 130 32 124 36 120 Z',
+  kazan: 'M78 36 C120 18 170 28 196 58 C220 86 250 108 262 140 C272 168 248 188 210 186 C160 182 120 170 88 148 C52 120 42 78 58 52 C64 42 70 38 78 36 Z',
+  smolensk: 'M48 120 C58 60 120 28 180 32 C240 36 278 78 270 120 C262 168 200 188 130 180 C80 174 42 150 48 120 Z',
+  nring: 'M50 100 C70 40 150 28 210 55 C255 78 270 130 230 160 C180 198 70 180 48 130 C42 116 44 108 50 100 Z',
+  adm: 'M40 110 L78 48 L160 36 L240 50 L275 100 L255 160 L170 185 L70 165 Z',
+  grozny: 'M70 42 C140 18 250 50 265 110 C275 155 210 185 130 180 C70 176 40 130 48 90 C52 70 58 52 70 42 Z',
+  redring: 'M40 140 C48 70 140 30 230 55 C280 75 270 150 180 170 C100 188 36 170 40 140 Z',
+  spb: 'M55 40 L235 48 L270 120 L210 175 L55 165 L35 100 Z',
+  tlt: 'M45 95 C90 35 230 40 265 95 C280 140 210 175 110 170 C55 166 38 130 45 95 Z',
+  lipetsk: 'M55 50 L235 65 L260 145 L90 170 L40 105 Z',
+  'auto-msk': 'M40 105 C70 40 200 28 265 85 C280 130 170 180 80 155 C45 142 32 122 40 105 Z',
+  neva: 'M48 80 C120 30 255 45 268 110 C275 160 120 180 55 130 C42 115 40 95 48 80 Z',
+  ufa: 'M65 95 C100 40 230 38 260 95 C275 145 160 175 80 150 C55 138 52 115 65 95 Z',
+  don: 'M50 90 C110 30 250 48 265 110 C272 160 120 180 55 130 C42 115 42 100 50 90 Z'
 };
+
+function ensurePathProbe() {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  let host = document.getElementById('_pathProbe');
+  if (!host) {
+    host = document.createElementNS(svgNS, 'svg');
+    host.id = '_pathProbe';
+    host.setAttribute('width', '0');
+    host.setAttribute('height', '0');
+    host.style.cssText = 'position:absolute;left:-9999px;opacity:0;pointer-events:none';
+    document.body.appendChild(host);
+  }
+  return host;
+}
+
+function pointOnTrack(d, progress) {
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const host = ensurePathProbe();
+  let path = host.querySelector('path');
+  if (!path || path.getAttribute('d') !== d) {
+    host.innerHTML = '';
+    path = document.createElementNS(svgNS, 'path');
+    path.setAttribute('d', d);
+    host.appendChild(path);
+  }
+  const len = path.getTotalLength() || 1;
+  const t = Math.max(0, Math.min(1, progress));
+  const p = path.getPointAtLength(t * len);
+  const p2 = path.getPointAtLength(Math.min(1, t + 0.01) * len);
+  const ang = Math.atan2(p2.y - p.y, p2.x - p.x) * 180 / Math.PI;
+  return { x: p.x, y: p.y, ang, len };
+}
+
+
 function drawTrack(id, elId, opts) {
   const el = document.getElementById(elId);
   if (!el) return;
   const compact = !!(opts && opts.compact);
+  const live = !!(opts && opts.live);
   const d = TRACK_SVG[id] || TRACK_SVG.sochi;
   const tr = TRACKS.find((x) => x.id === id) || {};
   const meta = [tr.km && (tr.km + ' км'), tr.turns && (tr.turns + ' пов.')].filter(Boolean).join(' · ');
-  const svg = `<svg viewBox="0 0 300 210" class="track-svg" preserveAspectRatio="xMidYMid meet"><path d="${d}" fill="none" stroke="#2ee56a" stroke-width="6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
-  if (compact) {
-    el.innerHTML = `<div class="lap-map-inner">${svg}<p class="lap-map-cap">${tr.name || ''}<br><small>${meta}</small></p></div>`;
+  const sf = pointOnTrack(d, 0);
+  const sfMark = '<g class="sf-mark" transform="translate(' + sf.x + ',' + sf.y + ')">'
+    + '<line x1="-10" y1="-14" x2="-10" y2="14" stroke="#fff" stroke-width="2"/>'
+    + '<rect x="-10" y="-14" width="8" height="8" fill="#111"/><rect x="-2" y="-14" width="8" height="8" fill="#eee"/>'
+    + '<rect x="-10" y="-6" width="8" height="8" fill="#eee"/><rect x="-2" y="-6" width="8" height="8" fill="#111"/>'
+    + '<text x="14" y="4" fill="#2ee56a" font-size="11" font-family="Barlow Condensed,sans-serif" font-weight="700">С/Ф</text>'
+    + '</g>';
+  const car = live
+    ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)"><polygon points="0,-9 7,8 -7,8" fill="#2ee56a" stroke="#0a0b0e" stroke-width="1.5"/></g>'
+    : '';
+  const svgInner = '<g class="track-scene"><path class="track-line" d="' + d + '" fill="none" stroke="#2ee56a" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>'
+    + sfMark + car + '</g>';
+  const svg = '<svg viewBox="0 0 300 210" class="track-svg" ' + (live ? 'id="lapTrackSvg" ' : '')
+    + 'preserveAspectRatio="xMidYMid meet">' + svgInner + '</svg>';
+  if (compact || live) {
+    el.innerHTML = '<div class="lap-map-inner' + (live ? ' lap-map-live' : '') + '">' + svg
+      + '<p class="lap-map-cap">' + (tr.name || '') + '<br><small>' + meta + '</small></p></div>';
     return;
   }
-  el.innerHTML = `${svg}<p>${tr.name || ''}<br><small>${meta}</small></p><p class="track-notes">${tr.corners || ''}</p>`;
+  el.innerHTML = svg + '<p>' + (tr.name || '') + '<br><small>' + meta + '</small></p><p class="track-notes">' + (tr.corners || '') + '</p>';
 }
 
 
@@ -1091,6 +1140,7 @@ const lapDrive = {
   open: false,
   timerId: null,
   weatherAt: 0,
+  mapMode: 'overview',
 };
 
 const LAP_GATE_R = 48; // м — зона линии С/Ф вокруг TRACK_GEO
@@ -1144,6 +1194,44 @@ function setLapHud(part, text) {
   if (el) el.textContent = text;
 }
 
+
+function setLapMapMode(mode) {
+  lapDrive.mapMode = mode === 'nav' ? 'nav' : 'overview';
+  const root = document.getElementById('lapDrive');
+  root?.classList.toggle('mode-nav', lapDrive.mapMode === 'nav');
+  root?.classList.toggle('mode-overview', lapDrive.mapMode === 'overview');
+  document.getElementById('btnMapOverview')?.classList.toggle('on', lapDrive.mapMode === 'overview');
+  document.getElementById('btnMapNav')?.classList.toggle('on', lapDrive.mapMode === 'nav');
+  updateLapCarOnMap();
+}
+
+function lapProgress01() {
+  if (!lapRun.active || !lapRun.trackId) return 0;
+  const need = trackLenM(lapRun.trackId);
+  if (lapRun.phase === 'armed') return 0;
+  return Math.max(0, Math.min(0.999, (lapRun.dist || 0) / Math.max(1, need)));
+}
+
+function updateLapCarOnMap() {
+  const trackId = lapRun.trackId || document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  const d = TRACK_SVG[trackId] || TRACK_SVG.sochi;
+  const prog = lapProgress01();
+  const p = pointOnTrack(d, prog);
+  const mark = document.getElementById('lapCarMark');
+  const svg = document.getElementById('lapTrackSvg');
+  if (mark) mark.setAttribute('transform', 'translate(' + p.x + ',' + p.y + ') rotate(' + (p.ang + 90) + ')');
+  const scene = svg && svg.querySelector('.track-scene');
+  if (!scene) return;
+  if (lapDrive.mapMode === 'nav') {
+    const cx = 150, cy = 120;
+    const rot = -(p.ang + 90);
+    const scale = 2.1;
+    scene.setAttribute('transform', 'translate(' + cx + ',' + cy + ') scale(' + scale + ') rotate(' + rot + ') translate(' + (-p.x) + ',' + (-p.y) + ')');
+  } else {
+    scene.setAttribute('transform', '');
+  }
+}
+
 function openLapDrive() {
   const el = document.getElementById('lapDrive');
   if (!el) return;
@@ -1159,7 +1247,9 @@ function openLapDrive() {
   setLapHud('lapDriveSlip', 'слип ~—°');
   updateSessionHud();
   setLapMsg('GPS… подъезжайте к линии С/Ф');
-  drawTrack(trackId, 'lapDriveMap', { compact: true });
+  drawTrack(trackId, 'lapDriveMap', { compact: true, live: true });
+  setLapMapMode(lapDrive.mapMode || 'overview');
+  updateLapCarOnMap();
   el.classList.remove('hidden');
   el.setAttribute('aria-hidden', 'false');
   document.body.classList.add('lap-drive-on');
@@ -1472,6 +1562,7 @@ function onLapGps(pos, vKmh) {
 
   document.getElementById('lapDriveSpeed').textContent = String(Math.round(vKmh || 0));
   setLapHud('lapDriveDist', `${Math.round(lapRun.dist)} м`);
+  if (lapDrive.open) updateLapCarOnMap();
 
   if (lapRun.phase === 'running' && lapRun.t0) {
     const len = trackLenM(lapRun.trackId);
