@@ -795,6 +795,46 @@ function setRunText(id, text) {
   if (el) el.textContent = text;
 }
 
+function openRunDrive() {
+  const el = document.getElementById('runDrive');
+  if (!el) return;
+  el.classList.remove('hidden');
+  el.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('run-drive-on');
+  const marks = document.getElementById('runDriveMarks');
+  if (marks) marks.innerHTML = '';
+  setRunText('runDriveMsg', 'почти стой (< 8 км/ч), потом газ');
+  setRunText('runDriveDist', '0 м');
+  setRunText('runDriveSpeed', document.getElementById('liveSpeed')?.textContent || '0');
+}
+
+function closeRunDrive() {
+  const el = document.getElementById('runDrive');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('run-drive-on');
+}
+
+function revealRunMark(key, label, value) {
+  if (run.revealed?.[key]) return;
+  run.revealed = run.revealed || {};
+  run.revealed[key] = true;
+  const ul = document.getElementById('runDriveMarks');
+  if (!ul) return;
+  const li = document.createElement('li');
+  li.className = 'run-mark-in';
+  li.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+  ul.appendChild(li);
+  hap([10, 30, 10]);
+  try { ul.scrollTop = ul.scrollHeight; } catch (_) {}
+}
+
+function fmtRunSec(sec) {
+  return `${Number(sec).toFixed(2)} с`;
+}
+
+
 function onGpsPoint(pos) {
   const now = pos.timestamp || Date.now();
   const v = kmhFromCoords(pos.coords, now);
@@ -806,10 +846,11 @@ function onGpsPoint(pos) {
   }
   setRunText('liveSpeed', String(Math.round(v)));
   setRunText('boxLive', String(Math.round(v)));
+  if (document.body.classList.contains('run-drive-on')) setRunText('runDriveSpeed', String(Math.round(v)));
   if (lapRun.active) onLapGps(pos, v);
 
   if (!run.armed) {
-    setRunText('runStatus', 'GPS живой. Стоите — жмите «Старт замера»');
+    setRunText('runStatus', 'GPS живой. Стоите — жмите «Старт»');
     return;
   }
 
@@ -821,78 +862,133 @@ function onGpsPoint(pos) {
     if (v < 8) {
       run.t0 = now;
       setRunText('runFrom', 'ожидание старта');
-      setRunText('runStatus', 'Замер вооружён. Трогайтесь');
+      setRunText('runStatus', 'Вооружён. Трогайтесь');
+      setRunText('runDriveMsg', 'вооружён — газ');
     } else if (run.t0 && v >= 8) {
       run.launched = true;
       setRunText('runFrom', 'пошли');
       setRunText('runStatus', 'Идёт разгон…');
+      setRunText('runDriveMsg', 'поехали!');
+      run.dist = 0; run.prevDist = 0; run.lastPos = null;
     } else {
       setRunText('runStatus', 'Для чистого 0–100 почти остановитесь (< 8 км/ч)');
     }
     return;
   }
 
+  // distance from launch (drag traps)
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+  if (lat != null && lon != null) {
+    const here = { lat, lon };
+    if (run.lastPos) {
+      const step = haversineM(run.lastPos, here);
+      if (step < 80) run.dist = (run.dist || 0) + step;
+    }
+    run.lastPos = here;
+    setRunText('runDriveDist', `${Math.round(run.dist || 0)} м`);
+  }
+
   if (!prev) return;
-  for (const gate of [50, 80, 100, 120, 200, 300]) {
+  for (const gate of [50, 60, 80, 100, 120, 200, 300]) {
     const key = String(gate);
     if (run.marks[key] != null) continue;
     if (prev.v < gate && sample.v >= gate) {
-      const tCross = interpolateCross(prev, sample, gate);
-      run.marks[key] = tCross;
+      run.marks[key] = interpolateCross(prev, sample, gate);
     }
   }
 
+  // distance traps: 60 ft, 1/8 mi, 1/4 mi
+  const DIST_TRAPS = [
+    { key: 'd60ft', m: 18.288, label: '60 ft' },
+    { key: 'd18', m: 201.168, label: '⅛ мили' },
+    { key: 'd14', m: 402.336, label: '¼ мили' },
+  ];
+  for (const tr of DIST_TRAPS) {
+    if (run.marks[tr.key] != null) continue;
+    const prevD = run.prevDist || 0;
+    const curD = run.dist || 0;
+    if (prevD < tr.m && curD >= tr.m && run.t0) {
+      const k = (tr.m - prevD) / Math.max(0.01, curD - prevD);
+      const tCross = (run.lastT || now) + ((now - (run.lastT || now)) * k);
+      // better: interpolate by time of samples
+      run.marks[tr.key] = prev.t + (sample.t - prev.t) * k;
+    }
+  }
+  run.prevDist = run.dist || 0;
+  run.lastT = now;
+
+  const t60 = run.marks['60'];
   const t100 = run.marks['100'];
   const t200 = run.marks['200'];
   const t300 = run.marks['300'];
   if (run.marks['50'] && !run.saved050) {
-    setRunText('run050', `${((run.marks['50'] - run.t0) / 1000).toFixed(2)} с`);
+    const sec = (run.marks['50'] - run.t0) / 1000;
+    setRunText('run050', fmtRunSec(sec));
+    revealRunMark('050', '0–50', fmtRunSec(sec));
     run.saved050 = true;
+  }
+  if (t60 && !run.saved060) {
+    const sec = (t60 - run.t0) / 1000;
+    revealRunMark('060', '0–60', fmtRunSec(sec));
+    run.saved060 = true;
+  }
+  if (run.marks['d60ft'] && !run.saved60ft) {
+    const sec = (run.marks['d60ft'] - run.t0) / 1000;
+    revealRunMark('60ft', '60 ft', fmtRunSec(sec));
+    run.saved60ft = true;
   }
   if (run.marks['80'] && run.marks['120'] && !run.saved80120) {
     const s = (run.marks['120'] - run.marks['80']) / 1000;
-    setRunText('run80120', `${s.toFixed(2)} с`);
+    setRunText('run80120', fmtRunSec(s));
     setRunText('slip80120', `${s.toFixed(2)}s`);
+    revealRunMark('80120', '80–120', fmtRunSec(s));
     run.saved80120 = true;
-  }
-  if (run.brakeArmed && prev.v >= 100 && sample.v < 100 && !run.saved1000) {
-    const t = interpolateCross({ t: sample.t, v: sample.v }, prev, 100);
-    run.brakeT0 = run.brakeT0 || t;
-  }
-  if (run.brakeArmed && run.brakeT0 && sample.v <= 8 && !run.saved1000) {
-    setRunText('run1000', `${((now - run.brakeT0) / 1000).toFixed(2)} с`);
-    setRunText('slip1000', `${((now - run.brakeT0) / 1000).toFixed(2)}s`);
-    run.saved1000 = true;
-    run.brakeArmed = false;
   }
   if (t100 && !run.saved0100) {
     const sec = (t100 - run.t0) / 1000;
-    setRunText('run0100', `${sec.toFixed(2)} с`);
+    setRunText('run0100', fmtRunSec(sec));
     setRunText('slip0100', `${sec.toFixed(2)}s`);
     setRunText('slipHero', `${sec.toFixed(2)}s`);
+    revealRunMark('0100', '0–100', fmtRunSec(sec));
     run.saved0100 = true;
     void publishGps(sec, t100 && t200 ? (t200 - t100) / 1000 : null, t200 && t300 ? (t300 - t200) / 1000 : null);
   }
+  if (run.marks['d18'] && !run.saved18) {
+    const sec = (run.marks['d18'] - run.t0) / 1000;
+    revealRunMark('18', '⅛ мили', fmtRunSec(sec));
+    run.saved18 = true;
+  }
   if (t100 && t200 && !run.saved100200) {
     const s = (t200 - t100) / 1000;
-    setRunText('run100200', `${s.toFixed(2)} с`);
+    setRunText('run100200', fmtRunSec(s));
     setRunText('slip100200', `${s.toFixed(2)}s`);
     if (t100) setRunText('slip0200', `${((t200 - run.t0) / 1000).toFixed(2)}s`);
+    revealRunMark('100200', '100–200', fmtRunSec(s));
+    revealRunMark('0200', '0–200', fmtRunSec((t200 - run.t0) / 1000));
     run.saved100200 = true;
     void publishGps(null, s, t200 && t300 ? (t300 - t200) / 1000 : null);
   }
+  if (run.marks['d14'] && !run.saved14) {
+    const sec = (run.marks['d14'] - run.t0) / 1000;
+    revealRunMark('14', '¼ мили', fmtRunSec(sec));
+    run.saved14 = true;
+  }
   if (t200 && t300 && !run.saved200300) {
     const s = (t300 - t200) / 1000;
-    setRunText('run200300', `${s.toFixed(2)} с`);
+    setRunText('run200300', fmtRunSec(s));
     setRunText('slip200300', `${s.toFixed(2)}s`);
+    revealRunMark('200300', '200–300', fmtRunSec(s));
     run.saved200300 = true;
     void publishGps(null, null, s);
   }
   run.peak = Math.max(run.peak || 0, v);
   setRunText('runStatus', `Разгон: ${Math.round(v)} км/ч`);
+  setRunText('runDriveMsg', `разгон · ${Math.round(v)} км/ч`);
   if (run.launched && run.peak >= 70 && v < run.peak - 12 && v < prev.v) {
     stopRun();
     setRunText('runStatus', 'Скорость упала — замер записан');
+    setRunText('runDriveMsg', 'готово — скорость упала');
   }
 }
 
@@ -923,22 +1019,29 @@ function armRun() {
   run.samples = [];
   run.t0 = null;
   run.marks = {};
+  run.revealed = {};
   run.peak = 0;
+  run.dist = 0;
+  run.prevDist = 0;
+  run.lastPos = null;
   kf.init = false; kf.v = 0; kf.a = 0; kf.p = 80; lastFix = null;
-  run.saved0100 = run.saved100200 = run.saved200300 = run.saved050 = run.saved80120 = run.saved1000 = false;
+  run.saved0100 = run.saved100200 = run.saved200300 = run.saved050 = run.saved060 = run.saved80120 = run.saved1000 = false;
+  run.saved60ft = run.saved18 = run.saved14 = false;
   run.brakeArmed = false;
   run.brakeT0 = null;
   ['run050', 'run0100', 'run100200', 'run80120', 'run200300', 'run1000'].forEach((id) => setRunText(id, '—'));
   setRunText('runFrom', 'вооружён');
   setRunText('runStatus', 'Вооружён. Почти остановитесь и газуйте');
+  openRunDrive();
 }
 
 function stopRun() {
   run.armed = false;
   run.launched = false;
-  if (run.pollId) { clearInterval(run.pollId); run.pollId = null; }
+  // keep GPS watch for live speed on idle card
   try { run.wake?.release?.(); } catch (_) {}
-  setRunText('runStatus', 'Остановлено. GPS может продолжать показывать скорость');
+  setRunText('runStatus', 'Готово. Можно снова Старт');
+  setRunText('runDriveMsg', 'замер записан · закрой или новый Старт');
 }
 
 function needLogin(msg) {
@@ -1466,6 +1569,7 @@ document.getElementById('lapDriveCancel')?.addEventListener('click', () => {
 document.getElementById('btnGps')?.addEventListener('click', startWatch);
 document.getElementById('btnArm')?.addEventListener('click', armRun);
 document.getElementById('btnStop')?.addEventListener('click', stopRun);
+document.getElementById('runDriveStop')?.addEventListener('click', () => { stopRun(); closeRunDrive(); });
 function pushSlip() {
   const rec = state.meas[state.carId] || {};
   state.slips = state.slips || [];
@@ -1479,14 +1583,6 @@ function renderSlips() {
   if (!el) return;
   el.innerHTML = (state.slips || []).map((s) => `<li>${s.car} · 0–100 ${s.v0100 ?? '—'} · 100–200 ${s.v100200 ?? '—'}</li>`).join('') || '<li>пусто</li>';
 }
-document.getElementById('btnBrake')?.addEventListener('click', () => {
-  startWatch();
-  run.brakeArmed = true;
-  run.saved1000 = false;
-  run.brakeT0 = null;
-  setRunText('run1000', 'ждём 100+');
-  setRunText('runStatus', 'Торможение: выше 100, потом до 8 км/ч');
-});
 document.getElementById('btnShareRun')?.addEventListener('click', async () => {
   const t = `PITLANE\n${currentCar().name}\n0–100 ${document.getElementById('run0100')?.textContent}\n100–200 ${document.getElementById('run100200')?.textContent}`;
   try {
@@ -2341,7 +2437,7 @@ const I18N = {
   ru: {
     'nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Paddock',
     'garage.empty':'Гараж пуст','garage.hint':'Добавь свой автомобиль — марка, кузов, год, мотор.','garage.add':'Добавить автомобиль','garage.reset':'сброс',
-    'run.title':'Замер','run.hint':'Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.','run.start':'Старт замера',
+    'run.title':'Замер','run.hint':'Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Что сделал с машиной…','pad.empty':'Пока тихо. Напиши первый пост после входа.',
@@ -2350,7 +2446,7 @@ const I18N = {
   en: {
     'nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock',
     'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car','garage.reset':'reset',
-    'run.title':'Run','run.hint':'Tap start, almost stop, then accelerate. When speed drops the run is saved.','run.start':'Start run',
+    'run.title':'Run','run.hint':'Tap start, almost stop, then accelerate. When speed drops the run is saved.','run.start':'Start',
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
     'lap.title':'Lap','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start lap','lap.finish':'Finish lap',
     'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'What did you do to the car…','pad.empty':'Quiet for now. Sign in and write the first post.',

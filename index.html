@@ -226,48 +226,28 @@
 
         <section id="view-run" class="view">
           <h2 data-i18n="run.title">Замер</h2>
-          <p class="muted" data-i18n="run.hint">Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.</p>
-          <div class="speedo card">
+          <p class="muted" data-i18n="run.hint">Старт → почти стой → газуй. Спидометр на весь экран, времена появляются снизу по ходу.</p>
+          <div class="speedo card" id="runIdleCard">
             <div class="speed-num" id="liveSpeed">0</div>
-            <div class="speed-unit">км/ч · точность <span id="gpsAcc">—</span></div>
+            <div class="speed-unit">км/ч · GPS <span id="gpsAcc">—</span></div>
             <div class="run-status" id="runStatus">ожидание GPS</div>
             <div class="form-row">
-              <button type="button" class="go-btn" id="btnArm" data-i18n="run.start">Старт замера</button>
+              <button type="button" class="go-btn" id="btnArm" data-i18n="run.start">Старт</button>
             </div>
           </div>
-          <div class="sheet">
-            <div class="stat"><label>старт от</label><b id="runFrom">—</b></div>
-            <div class="stat"><label>0–50</label><b id="run050">—</b></div>
-            <div class="stat"><label>0–100</label><b id="run0100">—</b></div>
-            <div class="stat"><label>100–200</label><b id="run100200">—</b></div>
-            <div class="stat"><label>80–120</label><b id="run80120">—</b></div>
-            <div class="stat"><label>200–300</label><b id="run200300">—</b></div>
-            <div class="stat"><label>100–0</label><b id="run1000">—</b></div>
-            <div class="stat"><label>G</label><b id="liveG">—</b></div>
+          <!-- hidden legacy ids for slip/publish compatibility -->
+          <div class="sr-only" aria-hidden="true">
+            <b id="runFrom">—</b><b id="run050">—</b><b id="run0100">—</b><b id="run100200">—</b>
+            <b id="run80120">—</b><b id="run200300">—</b><b id="run1000">—</b><b id="liveG">—</b>
+            <b id="slipHero">—</b><b id="slip0100">—</b><b id="slip100200">—</b>
+            <b id="slip0200">—</b><b id="slip200300">—</b><b id="slip80120">—</b><b id="slip1000">—</b>
           </div>
-          <article class="card slip" id="runSlip">
-            <p class="slip-brand">pitlane</p>
-            <div class="slip-hero" id="slipHero">—</div>
-            <ul class="slip-rows">
-              <li><span>0–100 km/h</span><b id="slip0100">—</b></li>
-              <li><span>100–200 km/h</span><b id="slip100200">—</b></li>
-              <li><span>0–200 km/h</span><b id="slip0200">—</b></li>
-              <li><span>200–300 km/h</span><b id="slip200300">—</b></li>
-              <li><span>80–120 km/h</span><b id="slip80120">—</b></li>
-              <li><span>100–0 km/h</span><b id="slip1000">—</b></li>
-            </ul>
-          </article>
-          <div class="form-row">
-            <button type="button" id="btnBrake">Замер торможения 100–0</button>
+          <div class="form-row run-secondary">
             <button type="button" id="btnShareRun">Шейр слипа</button>
           </div>
           <article class="card">
             <h3>Слипы</h3>
             <ol id="runHistory" class="laps"></ol>
-          </article>
-          <article class="card">
-            <h3>Как это считает</h3>
-            <p class="muted">После «Старт» ждёт скорость ниже 8 км/ч, затем фиксирует момент пересечения 100 / 200 / 300. Между точками — линейная интерполяция, потому что телефон отдаёт точку раз в 0.3–1 с. Это не Racelogic: погрешность на 0–100 часто 0.2–0.8 с.</p>
           </article>
         </section>
 
@@ -378,6 +358,19 @@
           <button type="button" id="btnLogout">Выйти</button>
         </section>
       </main>
+    </div>
+
+    <div id="runDrive" class="run-drive hidden" aria-hidden="true">
+      <div class="run-drive-top">
+        <p class="run-drive-label">ЗАМЕР</p>
+        <div class="run-drive-speed"><strong id="runDriveSpeed">0</strong><span>км/ч</span></div>
+        <p class="tiny" id="runDriveMsg">GPS…</p>
+        <p class="tiny" id="runDriveDist">0 м</p>
+      </div>
+      <ul id="runDriveMarks" class="run-drive-marks"></ul>
+      <div class="run-drive-actions">
+        <button type="button" class="go-btn" id="runDriveStop">Стоп</button>
+      </div>
     </div>
 
     <div id="lapDrive" class="lap-drive hidden" aria-hidden="true">

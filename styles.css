@@ -1006,3 +1006,74 @@ body.lap-drive-on #app { visibility: hidden; }
   object-fit: contain;
   filter: drop-shadow(0 12px 10px rgba(0,0,0,.45));
 }
+
+
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0,0,0,0);
+  border: 0;
+}
+.run-secondary { margin-top: 12px; }
+
+.run-drive {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #050608;
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  padding: max(16px, env(safe-area-inset-top)) 18px max(18px, env(safe-area-inset-bottom));
+  gap: 12px;
+}
+.run-drive.hidden { display: none; }
+body.run-drive-on #app { visibility: hidden; }
+.run-drive-top { text-align: center; padding-top: 8vh; }
+.run-drive-label {
+  margin: 0;
+  font: 700 13px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .18em;
+  opacity: .55;
+}
+.run-drive-speed strong {
+  font: 800 clamp(72px, 28vw, 140px)/.9 "Barlow Condensed", sans-serif;
+  letter-spacing: -.03em;
+  color: #fff;
+}
+.run-drive-speed span {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 18px;
+  opacity: .55;
+  vertical-align: 18%;
+}
+.run-drive-marks {
+  list-style: none;
+  margin: 0;
+  padding: 0 4px 8px;
+  max-height: 38vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.run-drive-marks li {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: #12151c;
+  border: 1px solid #1e2330;
+  font: 700 16px/1.1 "Barlow Condensed", sans-serif;
+  letter-spacing: .04em;
+}
+.run-drive-marks li strong { color: #2ee56a; font-size: 22px; }
+.run-mark-in { animation: runMarkIn .35s ease-out; }
+@keyframes runMarkIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+.run-drive-actions { display: flex; gap: 10px; }
+.run-drive-actions .go-btn { flex: 1; }
