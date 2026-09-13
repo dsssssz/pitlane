@@ -721,17 +721,27 @@ input, select {
 .lap-drive-speed span { margin-left: 6px; opacity: .6; font-size: 14px; }
 .lap-drive-weather { font-size: 12px; opacity: .75; min-height: 1.1em; }
 .lap-drive-actions {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
   margin-top: auto;
+  width: 100%;
 }
-.lap-drive-actions .go-btn,
 .lap-drive-actions button {
-  flex: 1 1 auto;
   min-width: 0;
-  font-size: 13px;
-  padding: 10px 8px;
+  font: 700 13px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  padding: 12px 10px;
+  border-radius: 12px;
+  border: 1px solid #2a3140;
+  background: #12151c;
+  color: #d7dde5;
+}
+.lap-drive-actions button.primary {
+  border-color: #2ee56a;
+  background: rgba(46,229,106,.12);
+  color: #2ee56a;
 }
 .lap-drive-map {
   padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
@@ -795,14 +805,14 @@ body.lap-drive-on #app { visibility: hidden; }
     -webkit-overflow-scrolling: touch;
   }
   .lap-drive-track { width: 100%; }
-  .lap-drive-clock { font-size: 32px; }
-  .lap-drive-speed strong { font-size: 30px; }
+  .lap-drive-clock { font-size: 34px; }
+  .lap-drive-speed strong { font-size: 32px; }
   .lap-drive-session,
   .lap-drive-meta,
   .lap-drive-sectors { width: 100%; }
-  .lap-drive-actions { width: 100%; margin-top: 4px; }
-  .lap-drive-actions .go-btn,
-  .lap-drive-actions button { flex: 1 1 30%; }
+  .lap-drive-actions { width: 100%; margin-top: 6px; }
+  .lap-map-modes { width: 100%; }
+  .lap-start-orb { margin-left: auto; margin-right: auto; }
   .lap-drive-map {
     min-height: 0;
     padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 0px));
@@ -1165,24 +1175,28 @@ body.run-drive-on #app { visibility: hidden; }
 
 .lap-map-modes {
   display: flex;
-  gap: 8px;
   width: 100%;
+  padding: 3px;
+  gap: 0;
+  border-radius: 12px;
+  background: #0a0c10;
+  border: 1px solid #1e2430;
 }
 .lap-map-modes button {
   flex: 1;
   font: 700 12px/1 "Barlow Condensed", sans-serif;
   letter-spacing: .06em;
   text-transform: uppercase;
-  padding: 8px 6px;
-  border-radius: 10px;
-  border: 1px solid #2a2f3a;
-  background: #12151c;
-  color: #c5ccd3;
+  padding: 9px 6px;
+  border-radius: 9px;
+  border: 0;
+  background: transparent;
+  color: #8b93a0;
 }
 .lap-map-modes button.on {
-  border-color: #2ee56a;
-  color: #2ee56a;
-  background: #122018;
+  color: #0a0b0e;
+  background: #2ee56a;
+  box-shadow: 0 0 0 1px rgba(46,229,106,.25);
 }
 .sf-mark text { paint-order: stroke; stroke: #050505; stroke-width: 3px; }
 .lap-car-mark { transition: transform .2s linear; }
@@ -1201,19 +1215,20 @@ body.run-drive-on #app { visibility: hidden; }
 
 
 .lap-start-orb {
-  width: 72px;
-  height: 72px;
-  margin: 6px auto;
+  width: 68px;
+  height: 68px;
+  margin: 4px auto 2px;
   border-radius: 999px;
-  border: 2px solid #e23b3b;
-  background: rgba(226, 59, 59, 0.08);
+  border: 2.5px solid #ff3b3b;
+  background: radial-gradient(circle at 40% 35%, rgba(255,80,80,.22), rgba(226,59,59,.06) 55%, transparent 70%);
   color: #ff6b6b;
-  font: 800 15px/1 "Barlow Condensed", sans-serif;
-  letter-spacing: .08em;
+  font: 800 14px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .1em;
   text-transform: uppercase;
   display: grid;
   place-items: center;
   flex-shrink: 0;
+  box-shadow: 0 0 18px rgba(226,59,59,.18);
 }
 .lap-start-orb:active { transform: scale(.96); }
 .lap-start-orb.on {
@@ -1223,3 +1238,19 @@ body.run-drive-on #app { visibility: hidden; }
 }
 .lap-drive.armed .lap-start-orb { opacity: .45; pointer-events: none; }
 .auth-card .go-btn { width: 100%; margin-top: 8px; }
+
+.lap-drive-weather {
+  width: 100%;
+  font-size: 11px;
+  opacity: .7;
+  letter-spacing: .02em;
+}
+#lapDriveMsg.tiny {
+  width: 100%;
+  margin: 0;
+  opacity: .55;
+  font-size: 11px;
+}
+.lap-drive-session {
+  opacity: .9;
+}

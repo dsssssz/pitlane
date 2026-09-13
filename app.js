@@ -1249,7 +1249,7 @@ function openLapDrivePreview() {
   const orb = document.getElementById('btnLapArmedStart');
   orb?.classList.remove('on');
   document.getElementById('lapDrive')?.classList.remove('armed');
-  setLapMsg('карта и погода · жми красный Старт');
+  setLapMsg('жми Старт у линии С/Ф');
   void fetchLapWeather(trackId, true);
   if (lapDrive.weatherTimer) clearInterval(lapDrive.weatherTimer);
   lapDrive.weatherTimer = setInterval(() => {
@@ -1684,12 +1684,11 @@ document.getElementById('btnLapStop')?.addEventListener('click', () => {
   if (lapRun.active) endLapSession('сессия завершена');
   else setLapMsg('сессия не идёт');
 });
+document.getElementById('btnMapOverview')?.addEventListener('click', () => { setLapMapMode('overview'); });
+document.getElementById('btnMapNav')?.addEventListener('click', () => { setLapMapMode('nav'); });
 document.getElementById('lapDriveFinish')?.addEventListener('click', () => {
   if (lapRun.active && lapRun.phase === 'running') void completeLapRun('manual');
   else if (lapRun.active) endLapSession('сессия завершена');
-});
-document.getElementById('lapDriveEnd')?.addEventListener('click', () => {
-  if (lapRun.active) endLapSession('сессия завершена');
 });
 document.getElementById('lapDriveCancel')?.addEventListener('click', () => {
   closeLapDrive();
