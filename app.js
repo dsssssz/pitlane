@@ -174,11 +174,16 @@ function applyCarUI() {
   setTxt('boxClass', c.cls);
   setTxt('boxYear', String(c.year));
   const hero = document.getElementById('heroPhoto');
+  const stage = document.getElementById('photoStage');
+  const wheels = document.getElementById('heroWheels');
+  const scanSrc = state.scans && state.scans[c.id];
   if (hero) {
-    const src = (state.scans && state.scans[c.id]) || c.side;
+    const src = scanSrc || c.side;
     hero.dataset.orig = src;
     hero.src = src;
   }
+  stage?.classList.toggle('has-cutout', !!scanSrc);
+  if (wheels) wheels.classList.toggle('hidden', !!scanSrc);
   setTxt('s0100', fmt(v0100));
   setTxt('s100200', fmt(v100200));
   setTxt('s200300', fmt(v200300));
@@ -1691,61 +1696,203 @@ function shiftGarage(dir) {
   applyCarUI();
 }
 
+function setScanStatus(text) {
+  const el = document.getElementById('scanStatus');
+  if (el) el.textContent = text || '';
+}
+
+function colorDist(r1, g1, b1, r2, g2, b2) {
+  const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
+  return Math.sqrt(dr * dr + dg * dg + db * db);
+}
+
+/** Flood-fill background from borders → transparent PNG, auto-crop, soft edges. */
 function studioCut(img, thresh) {
-  const maxW = 1100;
-  const scale = Math.min(1, maxW / img.width);
-  const w = Math.round(img.width * scale);
-  const h = Math.round(img.height * scale);
-  const cnv = document.createElement('canvas');
-  cnv.width = w;
-  cnv.height = h;
-  const ctx = cnv.getContext('2d');
-  ctx.drawImage(img, 0, 0, w, h);
-  const data = ctx.getImageData(0, 0, w, h);
-  const d = data.data;
-  const corners = [
-    [2, 2], [w - 3, 2], [2, h - 3], [w - 3, h - 3],
-    [w >> 1, 2], [2, h >> 1],
-  ];
-  let br = 0, bg = 0, bb = 0;
-  corners.forEach(([x, y]) => {
+  const maxW = 1280;
+  const scale = Math.min(1, maxW / Math.max(img.width, 1));
+  const w = Math.max(2, Math.round(img.width * scale));
+  const h = Math.max(2, Math.round(img.height * scale));
+  const src = document.createElement('canvas');
+  src.width = w; src.height = h;
+  const sctx = src.getContext('2d', { willReadFrequently: true });
+  sctx.drawImage(img, 0, 0, w, h);
+  const image = sctx.getImageData(0, 0, w, h);
+  const d = image.data;
+  const n = w * h;
+  const bgMask = new Uint8Array(n); // 1 = background
+
+  // median-ish background from border samples
+  const samples = [];
+  const pushPx = (x, y) => {
     const i = (y * w + x) * 4;
-    br += d[i]; bg += d[i + 1]; bb += d[i + 2];
-  });
-  br /= corners.length; bg /= corners.length; bb /= corners.length;
-  const cut = thresh * 2.4;
-  for (let i = 0; i < d.length; i += 4) {
-    const dist = Math.abs(d[i] - br) + Math.abs(d[i + 1] - bg) + Math.abs(d[i + 2] - bb);
-    if (dist < cut) {
-      d[i] = 5; d[i + 1] = 5; d[i + 2] = 5;
+    samples.push([d[i], d[i + 1], d[i + 2]]);
+  };
+  for (let x = 0; x < w; x += Math.max(1, (w / 40) | 0)) {
+    pushPx(x, 0); pushPx(x, h - 1);
+  }
+  for (let y = 0; y < h; y += Math.max(1, (h / 40) | 0)) {
+    pushPx(0, y); pushPx(w - 1, y);
+  }
+  samples.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
+  const mid = samples[samples.length >> 1] || [20, 20, 20];
+  const br = mid[0], bg = mid[1], bb = mid[2];
+  const tol = 8 + thresh * 1.35;
+
+  const nearBg = (idx) => {
+    const i = idx * 4;
+    return colorDist(d[i], d[i + 1], d[i + 2], br, bg, bb) <= tol;
+  };
+
+  // flood from borders
+  const stack = [];
+  const tryPush = (x, y) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const idx = y * w + x;
+    if (bgMask[idx]) return;
+    if (!nearBg(idx)) return;
+    bgMask[idx] = 1;
+    stack.push(idx);
+  };
+  for (let x = 0; x < w; x++) { tryPush(x, 0); tryPush(x, h - 1); }
+  for (let y = 0; y < h; y++) { tryPush(0, y); tryPush(w - 1, y); }
+  while (stack.length) {
+    const idx = stack.pop();
+    const x = idx % w;
+    const y = (idx / w) | 0;
+    tryPush(x + 1, y); tryPush(x - 1, y); tryPush(x, y + 1); tryPush(x, y - 1);
+  }
+
+  // dilate background once to eat fringe
+  const dil = bgMask.slice();
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const idx = y * w + x;
+      if (bgMask[idx]) continue;
+      if (bgMask[idx - 1] || bgMask[idx + 1] || bgMask[idx - w] || bgMask[idx + w]) {
+        if (nearBg(idx)) dil[idx] = 1;
+      }
     }
   }
-  ctx.putImageData(data, 0, 0);
-  return cnv.toDataURL('image/jpeg', 0.82);
+
+  // alpha + feather
+  for (let idx = 0; idx < n; idx++) {
+    const i = idx * 4;
+    if (dil[idx]) {
+      d[i + 3] = 0;
+      continue;
+    }
+    // edge soft: count bg neighbors
+    const x = idx % w;
+    const y = (idx / w) | 0;
+    let bgN = 0;
+    for (let oy = -2; oy <= 2; oy++) {
+      for (let ox = -2; ox <= 2; ox++) {
+        const nx = x + ox, ny = y + oy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) { bgN++; continue; }
+        if (dil[ny * w + nx]) bgN++;
+      }
+    }
+    if (bgN > 0) {
+      const a = Math.max(0, 255 - bgN * 12);
+      d[i + 3] = a;
+    } else {
+      d[i + 3] = 255;
+    }
+  }
+  sctx.putImageData(image, 0, 0);
+
+  // bbox of opaque pixels
+  let minX = w, minY = h, maxX = 0, maxY = 0, solid = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const a = d[(y * w + x) * 4 + 3];
+      if (a > 24) {
+        solid++;
+        if (x < minX) minX = x;
+        if (y < minY) minY = y;
+        if (x > maxX) maxX = x;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (solid < n * 0.02) {
+    // failed cut — return original contained jpeg
+    return src.toDataURL('image/jpeg', 0.88);
+  }
+  const pad = Math.round(Math.max(w, h) * 0.03);
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(w - 1, maxX + pad);
+  maxY = Math.min(h - 1, maxY + pad);
+  const cw = maxX - minX + 1;
+  const ch = maxY - minY + 1;
+
+  // plate canvas: car + soft shadow under
+  const outW = cw;
+  const outH = Math.round(ch * 1.12);
+  const out = document.createElement('canvas');
+  out.width = outW;
+  out.height = outH;
+  const octx = out.getContext('2d');
+  // shadow ellipse
+  octx.save();
+  octx.translate(outW / 2, outH * 0.92);
+  octx.scale(1, 0.28);
+  const grd = octx.createRadialGradient(0, 0, 4, 0, 0, outW * 0.42);
+  grd.addColorStop(0, 'rgba(0,0,0,0.55)');
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  octx.fillStyle = grd;
+  octx.beginPath();
+  octx.arc(0, 0, outW * 0.42, 0, Math.PI * 2);
+  octx.fill();
+  octx.restore();
+  // car body
+  octx.drawImage(src, minX, minY, cw, ch, 0, Math.round(outH * 0.02), cw, ch);
+  return out.toDataURL('image/png');
 }
 
 let lastScanFile = null;
 async function runScan(file) {
   if (!file) return;
+  if (!garageList().length) {
+    setScanStatus('Сначала добавь автомобиль в гараж');
+    openWizard();
+    return;
+  }
   lastScanFile = file;
-  const img = await new Promise((res, rej) => {
-    const im = new Image();
-    im.onload = () => res(im);
-    im.onerror = rej;
-    im.src = URL.createObjectURL(file);
-  });
-  const thresh = Number(document.getElementById('scanThresh')?.value || 28);
-  state.scans = state.scans || {};
-  state.scans[currentCar().id] = studioCut(img, thresh);
-  save();
-  applyCarUI();
+  const carId = state.carId || garageList()[0].id;
+  state.carId = carId;
+  setScanStatus('Вырезаю кузов…');
+  document.getElementById('photoStage')?.classList.add('scanning');
+  await new Promise((r) => requestAnimationFrame(() => r()));
+  try {
+    const img = await new Promise((res, rej) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = rej;
+      im.src = URL.createObjectURL(file);
+    });
+    const thresh = Number(document.getElementById('scanThresh')?.value || 30);
+    const cut = studioCut(img, thresh);
+    state.scans = state.scans || {};
+    state.scans[carId] = cut;
+    save();
+    applyCarUI();
+    document.getElementById('photoStage')?.classList.add('has-cutout');
+    setScanStatus('Кузов на стенде. Ползунок — если фон съел машину или остался.');
+  } catch (err) {
+    console.warn(err);
+    setScanStatus('Не удалось обработать фото');
+  } finally {
+    document.getElementById('photoStage')?.classList.remove('scanning');
+  }
 }
 document.getElementById('scanInput')?.addEventListener('change', (e) => {
   const f = e.target.files?.[0];
-  if (f) runScan(f);
+  if (f) void runScan(f);
 });
 document.getElementById('scanThresh')?.addEventListener('change', () => {
-  if (lastScanFile) runScan(lastScanFile);
+  if (lastScanFile) void runScan(lastScanFile);
 });
 document.getElementById('scanReset')?.addEventListener('click', () => {
   const id = state.carId;

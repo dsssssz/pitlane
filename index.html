@@ -153,6 +153,10 @@
               <button type="button" id="scanReset" title="Сбросить фото">фото↺</button>
               <button type="button" id="btnRemoveCar" title="Убрать из гаража">✕</button>
             </div>
+            <p class="tiny" id="scanStatus"></p>
+            <label class="scan-thresh-lab tiny" id="scanThreshLab">чувствительность выреза
+              <input id="scanThresh" type="range" min="12" max="55" value="30" />
+            </label>
             <div class="mycar-speed">
               <span id="boxClass">—</span>
               <div>
@@ -172,8 +176,7 @@
               </article>
             </div>
             <p id="s100200" class="hidden">—</p>
-            <input id="scanThresh" type="range" min="8" max="70" value="28" class="hidden" />
-            <div class="colors" id="colorBar">
+                        <div class="colors" id="colorBar">
               <button type="button" data-paint="polar-white" style="background:#f2f0ea" class="on" title="Polar White"></button>
               <button type="button" data-paint="obsidian-black" style="background:#161618" title="Obsidian Black"></button>
               <button type="button" data-paint="graphite-grey" style="background:#4a4e52" title="Graphite Grey"></button>

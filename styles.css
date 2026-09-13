@@ -885,3 +885,37 @@ body.lap-drive-on #app { visibility: hidden; }
   .nav-btn:active { transform: scale(.92); }
   .profile-fab { display: none !important; }
 }
+
+
+/* Cutout garage stand */
+.scan-thresh-lab {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 16px 0;
+  opacity: .75;
+}
+.scan-thresh-lab input { width: 100%; }
+#scanStatus { text-align: center; min-height: 1.2em; margin: 6px 12px 0; color: #9a9a9a; }
+.photo-stage.scanning { outline: 1px dashed #2ee56a55; }
+.photo-stage.scanning::before {
+  content: "обработка…";
+  position: absolute; inset: 0; z-index: 5;
+  display: grid; place-items: center;
+  background: rgba(0,0,0,.35);
+  color: #2ee56a; font: 700 14px Manrope, sans-serif; letter-spacing: .06em;
+}
+.photo-stage.has-cutout {
+  background:
+    radial-gradient(ellipse at 50% 78%, rgba(46,229,106,.07), transparent 55%),
+    linear-gradient(180deg, #14161c 0%, #0a0b0e 70%);
+  border-radius: 16px;
+}
+.photo-stage.has-cutout #heroPhoto {
+  filter: contrast(1.04) saturate(1.05) drop-shadow(0 22px 18px rgba(0,0,0,.55));
+  padding: 4% 6% 10%;
+  box-sizing: border-box;
+}
+.photo-stage.has-cutout #heroWheels,
+.photo-stage.has-cutout .glass-gloss { display: none !important; }
+.photo-stage.has-cutout .body-gloss { opacity: .35; }
