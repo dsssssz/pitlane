@@ -146,34 +146,14 @@ function fmt(v, unit = ' с') {
   return v == null || v === '' ? '—' : `${Number(v).toFixed(2).replace(/\.00$/, '')}${unit}`;
 }
 
-const EMPTY_SILS = [
-  './img/sil/gt-wing.svg', './img/sil/sedan.svg', './img/sil/coupe.svg',
-  './img/sil/super.svg', './img/sil/wagon.svg', './img/sil/muscle.svg',
-  './img/sil/hatch.svg', './img/sil/ev.svg', './img/sil/suv.svg',
-];
-let emptySilTimer = null;
-function cycleEmptySil() {
-  const img = document.getElementById('emptySil');
-  if (!img) return;
-  const i = (Number(img.dataset.i || 0) + 1) % EMPTY_SILS.length;
-  img.dataset.i = String(i);
-  img.src = EMPTY_SILS[i];
-}
-function startEmptySilCycle() {
-  if (emptySilTimer) return;
-  emptySilTimer = setInterval(cycleEmptySil, 2800);
-}
-function stopEmptySilCycle() {
-  if (emptySilTimer) { clearInterval(emptySilTimer); emptySilTimer = null; }
-}
-
 function applyCarUI() {
   const empty = !garageList().length;
   document.getElementById('emptyGarage')?.classList.toggle('hidden', !empty);
   document.getElementById('addWizard')?.classList.add('hidden');
   document.querySelector('#view-garage .mycar')?.classList.toggle('hidden', empty);
   if (empty) {
-    startEmptySilCycle();
+    const sil = document.getElementById('emptySil');
+    if (sil) sil.src = './img/sil/empty-dotted.svg';
     const n = document.getElementById('carName');
     if (n) n.textContent = 'Pitlane';
     const h = document.getElementById('hdr0100');
@@ -183,7 +163,6 @@ function applyCarUI() {
     try { renderCars(); } catch (err) { console.warn('renderCars', err); }
     return;
   }
-  stopEmptySilCycle();
   const c = currentCar();
   const m = state.meas[c.id] || {};
   const v0100 = m.v0100;
