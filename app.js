@@ -153,7 +153,7 @@ function applyCarUI() {
   document.querySelector('#view-garage .mycar')?.classList.toggle('hidden', empty);
   if (empty) {
     const sil = document.getElementById('emptySil');
-    if (sil) sil.src = './img/sil/empty-dotted.png';
+    if (sil) sil.src = './img/sil/empty-car.png';
     const n = document.getElementById('carName');
     if (n) n.textContent = 'Pitlane';
     const h = document.getElementById('hdr0100');

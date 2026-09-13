@@ -273,28 +273,6 @@ h2 { font-size: 32px; margin-bottom: 6px; }
 }
 .model-bar button { font: 600 11px Manrope, sans-serif; }
 .empty-garage { text-align: center; padding: 24px 16px 8px; }
-.empty-sil-stage {
-  width: min(92%, 520px);
-  height: min(32vh, 260px);
-  margin: 4px auto 18px;
-  border-radius: 18px;
-  background: #fff;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border: 1px solid #e8e8ea;
-}
-.empty-sil {
-  width: 92%;
-  height: 92%;
-  object-fit: contain;
-  opacity: 1;
-}
-.empty-sil-dotted {
-  filter: none;
-  animation: none;
-  image-rendering: auto;
-}
 .ghost-car { display: none; }
 .add-wizard {
   position: fixed;
@@ -1080,25 +1058,27 @@ body.run-drive-on #app { visibility: hidden; }
 .run-drive-actions { display: flex; gap: 10px; }
 .run-drive-actions .go-btn { flex: 1; }
 
-/* empty-dotted-ref */
-.empty-sil-stage {
-  width: min(92%, 520px);
-  height: min(32vh, 260px);
-  margin: 4px auto 18px;
+/* empty-car-exact */
+#emptyGarage .empty-sil-stage {
+  width: min(92%, 560px);
+  aspect-ratio: 2 / 1;
+  height: auto !important;
+  margin: 8px auto 18px;
   border-radius: 16px;
   background:
     radial-gradient(ellipse at 50% 78%, rgba(255,255,255,.04), transparent 55%),
-    linear-gradient(180deg, #151820 0%, #0a0b0e 75%) !important;
+    linear-gradient(180deg, #151820 0%, #0a0b0e 75%);
+  border: none;
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: none !important;
 }
-.empty-sil, .empty-sil-dotted {
-  width: 90%;
-  height: 90%;
-  object-fit: contain;
-  opacity: 1 !important;
-  filter: drop-shadow(0 16px 12px rgba(0,0,0,.45)) !important;
+#emptyGarage .empty-sil,
+#emptyGarage .empty-sil-dotted {
+  width: 92%;
+  height: auto !important;
+  max-height: 92%;
+  object-fit: contain !important;
+  filter: none !important;
   animation: none !important;
 }
