@@ -712,7 +712,7 @@ input, select {
   flex-direction: column;
   gap: 8px;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   background: linear-gradient(180deg, #0c0c0c, #050505);
 }
 .lap-drive-track { margin: 0; font: 700 13px/1.2 "Barlow Condensed", sans-serif; letter-spacing: .04em; opacity: .8; text-transform: uppercase; }
@@ -792,35 +792,89 @@ body.lap-drive-on #app { visibility: hidden; }
   .lap-drive {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0, 1fr);
+    overflow: hidden;
   }
   .lap-drive-left {
     border-right: 0;
     border-bottom: 1px solid #1c1c1c;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 10px;
-    max-height: 46dvh;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 3px;
+    max-height: none;
+    overflow: hidden; /* no scroll — всё видно */
+    padding: calc(6px + env(safe-area-inset-top, 0px)) 10px 8px;
   }
-  .lap-drive-track { width: 100%; }
-  .lap-drive-clock { font-size: 34px; }
-  .lap-drive-speed strong { font-size: 32px; }
+  .lap-drive-track {
+    width: 100%;
+    font-size: 11px;
+    opacity: .7;
+    line-height: 1.1;
+  }
+  .lap-drive-hud-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+  }
+  .lap-drive-clock { font-size: 28px; line-height: 1; }
+  .lap-drive-speed { margin: 0; }
+  .lap-drive-speed strong { font-size: 28px; }
+  .lap-drive-speed span { font-size: 11px; }
   .lap-drive-session,
   .lap-drive-meta,
-  .lap-drive-sectors { width: 100%; }
-  .lap-drive-actions { width: 100%; margin-top: 6px; }
-  .lap-map-modes { width: 100%; }
-  .lap-start-orb { margin-left: auto; margin-right: auto; }
+  .lap-drive-sectors {
+    width: 100%;
+    font-size: 11px;
+    gap: 8px;
+    margin: 0;
+  }
+  .lap-drive-weather,
+  #lapDriveMsg.tiny {
+    font-size: 10px;
+    min-height: 0;
+    line-height: 1.2;
+  }
+  .lap-drive-warn { font-size: 10px; }
+  .lap-map-modes {
+    width: 100%;
+    padding: 2px;
+    flex-shrink: 0;
+  }
+  .lap-map-modes button {
+    padding: 7px 4px;
+    font-size: 11px;
+  }
+  .lap-start-orb {
+    width: 52px;
+    height: 52px;
+    margin: 2px auto;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .lap-drive-actions {
+    width: 100%;
+    margin-top: 2px;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .lap-drive-actions button {
+    padding: 10px 4px;
+    font-size: 11px;
+  }
   .lap-drive-map {
     min-height: 0;
-    padding: 6px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+    padding: 4px 8px calc(6px + env(safe-area-inset-bottom, 0px));
   }
   .lap-drive-map .track-svg {
-    max-height: min(38dvh, 260px);
+    max-height: min(42dvh, 280px);
     width: min(100%, 360px);
   }
+  .lap-map-cap {
+    font-size: 13px;
+  }
+  .lap-map-cap small { font-size: 11px; }
 }
 
 
