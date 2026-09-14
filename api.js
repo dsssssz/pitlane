@@ -62,18 +62,23 @@ function saveDb(d) {
   localStorage.setItem(API_KEY, JSON.stringify(d));
 }
 function seed() {
-  const d = { topsStraight: {}, topsLap: {}, pulse: [] };
+  const d = { topsStraight: {}, topsLap: {}, pulse: [], shares: {} };
   saveDb(d);
   return d;
 }
 
+/** GPS + valid: missing valid counts as true (legacy); false drops */
+function isValidGpsRow(r) {
+  return !!(r && r.gps && r.valid !== false);
+}
+
 function localListStraight(carId) {
   const d = db();
-  return (d.topsStraight[carId] || []).filter((r) => r.gps).slice().sort((a, b) => a.t - b.t);
+  return (d.topsStraight[carId] || []).filter(isValidGpsRow).slice().sort((a, b) => a.t - b.t);
 }
 function localListLap(trackId) {
   const d = db();
-  return (d.topsLap[trackId] || []).filter((r) => r.gps).slice();
+  return (d.topsLap[trackId] || []).filter(isValidGpsRow).slice();
 }
 function localListPulse() {
   const d = db();
@@ -81,38 +86,64 @@ function localListPulse() {
   return d.pulse.slice().sort((a, b) => b.at - a.at);
 }
 
+function localCreateShare(payload) {
+  const d = db();
+  d.shares = d.shares || {};
+  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  d.shares[id] = { payload, at: Date.now() };
+  // prune old local shares (~keep 50)
+  const keys = Object.keys(d.shares);
+  if (keys.length > 50) {
+    keys
+      .sort((a, b) => (d.shares[a].at || 0) - (d.shares[b].at || 0))
+      .slice(0, keys.length - 50)
+      .forEach((k) => delete d.shares[k]);
+  }
+  saveDb(d);
+  return { id };
+}
+
+function localGetShare(id) {
+  const d = db();
+  const row = (d.shares || {})[id];
+  return row ? row.payload : null;
+}
+
 export const api = {
   async listStraight(carId) {
     const remoteRows = await remote('/tops/straight/' + encodeURIComponent(carId));
-    if (Array.isArray(remoteRows)) return remoteRows.filter((r) => r.gps).slice().sort((a, b) => a.t - b.t);
+    if (Array.isArray(remoteRows)) return remoteRows.filter(isValidGpsRow).slice().sort((a, b) => a.t - b.t);
     return localListStraight(carId);
   },
   async listLap(trackId) {
     const remoteRows = await remote('/tops/lap/' + encodeURIComponent(trackId));
-    if (Array.isArray(remoteRows)) return remoteRows.filter((r) => r.gps).slice();
+    if (Array.isArray(remoteRows)) return remoteRows.filter(isValidGpsRow).slice();
     return localListLap(trackId);
   },
   async addStraight(carId, row) {
+    const body = { ...row, gps: true, valid: row.valid !== false };
     const remoteRows = await remote('/tops/straight/' + encodeURIComponent(carId), {
       method: 'POST',
-      body: JSON.stringify(row),
+      body: JSON.stringify(body),
     });
     if (Array.isArray(remoteRows)) return remoteRows;
     const d = db();
     d.topsStraight[carId] = d.topsStraight[carId] || [];
-    d.topsStraight[carId].push(row);
+    d.topsStraight[carId].push(body);
     saveDb(d);
     return localListStraight(carId);
   },
   async addLap(trackId, row) {
+    // gate laps always carry valid:true going forward
+    const body = { ...row, gps: true, valid: row.valid !== false };
     const remoteRows = await remote('/tops/lap/' + encodeURIComponent(trackId), {
       method: 'POST',
-      body: JSON.stringify(row),
+      body: JSON.stringify(body),
     });
     if (Array.isArray(remoteRows)) return remoteRows;
     const d = db();
     d.topsLap[trackId] = d.topsLap[trackId] || [];
-    d.topsLap[trackId].push(row);
+    d.topsLap[trackId].push(body);
     saveDb(d);
     return localListLap(trackId);
   },
@@ -157,6 +188,21 @@ export const api = {
     d.pulse = (d.pulse || []).filter((x) => !(x.id === id && x.who === who));
     saveDb(d);
     return localListPulse();
+  },
+  /** POST /share → {id}; falls back to localStorage */
+  async createShare(payload) {
+    const remoteRes = await remote('/share', {
+      method: 'POST',
+      body: JSON.stringify({ payload }),
+    });
+    if (remoteRes && remoteRes.id) return remoteRes;
+    return localCreateShare(payload);
+  },
+  /** GET /share/:id */
+  async getShare(id) {
+    const remoteRes = await remote('/share/' + encodeURIComponent(id));
+    if (remoteRes && !remoteRes.error) return remoteRes;
+    return localGetShare(id);
   },
 };
 

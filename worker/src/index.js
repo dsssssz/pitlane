@@ -1,6 +1,7 @@
 /**
  * Pitlane shared tops API — Cloudflare Worker + KV
  * Bindings: PITLANE (KV namespace)
+ * Optional env: SMS_DEMO (default 1), TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, EXTRA_ORIGINS
  */
 const DEFAULT_ORIGINS = [
   'https://dsssssz.github.io',
@@ -9,6 +10,8 @@ const DEFAULT_ORIGINS = [
   'http://localhost:5500',
   'http://127.0.0.1:5500',
 ];
+
+const SHARE_TTL = 30 * 24 * 60 * 60; // 30 days
 
 function corsHeaders(req, env) {
   const origin = req.headers.get('Origin') || '';
@@ -55,6 +58,11 @@ function pilotFrom(req) {
   return { id, name };
 }
 
+/** GPS rows: missing valid → keep (legacy); explicit false → drop */
+function isValidGpsRow(r) {
+  return !!(r && r.gps && r.valid !== false);
+}
+
 function sanitizeStraight(body, pilot) {
   const t = Number(body?.t);
   if (!Number.isFinite(t) || t <= 0 || t > 60) return null;
@@ -66,6 +74,7 @@ function sanitizeStraight(body, pilot) {
     car,
     t: Math.round(t * 1000) / 1000,
     gps: true,
+    valid: true,
     pilotId: pilot.id || null,
     at: Date.now(),
   };
@@ -82,8 +91,11 @@ function sanitizeLap(body, pilot) {
     car,
     t,
     gps: true,
+    valid: true,
     pilotId: pilot.id || null,
     at: Date.now(),
+    dist: body.dist != null ? Number(body.dist) : undefined,
+    slipAvg: body.slipAvg != null ? Number(body.slipAvg) : undefined,
   };
 }
 
@@ -98,6 +110,36 @@ function sanitizePulse(body, pilot) {
     at: Date.now(),
     likes: [],
   };
+}
+
+function shareId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+async function sendTwilioSms(env, phone, code) {
+  const sid = env.TWILIO_SID;
+  const token = env.TWILIO_TOKEN;
+  const from = env.TWILIO_FROM;
+  if (!sid || !token || !from) return false;
+  const to = phone.startsWith('+') ? phone : '+' + phone;
+  const body = new URLSearchParams({
+    To: to,
+    From: from,
+    Body: `Pitlane код: ${code}`,
+  });
+  const auth = btoa(`${sid}:${token}`);
+  const res = await fetch(
+    `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: 'Basic ' + auth,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body,
+    }
+  );
+  return res.ok;
 }
 
 export default {
@@ -118,12 +160,102 @@ export default {
         return json({ ok: true, service: 'pitlane-api' }, 200, headers);
       }
 
-      // GET /tops/straight/:carId
-      let m = path.match(/^\/tops\/straight\/([^/]+)$/);
+      // —— Auth OTP ——
+      if (req.method === 'POST' && path === '/auth/otp') {
+        const body = await req.json().catch(() => null);
+        const phone = String(body?.phone || '').replace(/\D/g, '');
+        if (phone.length < 10) return json({ error: 'bad phone' }, 400, headers);
+        const code = String(Math.floor(1000 + Math.random() * 9000));
+        await env.PITLANE.put(
+          'otp:' + phone,
+          JSON.stringify({ code, exp: Date.now() + 10 * 60 * 1000 }),
+          { expirationTtl: 600 }
+        );
+        let sent = false;
+        try {
+          sent = await sendTwilioSms(env, phone, code);
+        } catch (_) {
+          sent = false;
+        }
+        const demo = String(env.SMS_DEMO || '1') !== '0';
+        return json(
+          { ok: true, sent, demoCode: demo && !sent ? code : demo ? code : null },
+          200,
+          headers
+        );
+      }
+
+      if (req.method === 'POST' && path === '/auth/verify') {
+        const body = await req.json().catch(() => null);
+        const phone = String(body?.phone || '').replace(/\D/g, '');
+        const code = String(body?.code || '').trim();
+        const raw = await env.PITLANE.get('otp:' + phone);
+        if (!raw) return json({ ok: false, error: 'no otp' }, 400, headers);
+        let otp;
+        try {
+          otp = JSON.parse(raw);
+        } catch {
+          return json({ ok: false }, 400, headers);
+        }
+        if (Date.now() > otp.exp) return json({ ok: false, error: 'expired' }, 400, headers);
+        if (code !== String(otp.code)) return json({ ok: false, error: 'bad code' }, 400, headers);
+        await env.PITLANE.delete('otp:' + phone);
+        const ukey = 'user:' + phone;
+        let user = null;
+        const uraw = await env.PITLANE.get(ukey);
+        if (uraw) {
+          try {
+            user = JSON.parse(uraw);
+          } catch {
+            user = null;
+          }
+        }
+        if (!user) {
+          user = {
+            phone,
+            nick: 'пилот' + phone.slice(-4),
+            createdAt: Date.now(),
+            trialEnds: Date.now() + 7 * 24 * 60 * 60 * 1000,
+            plan: 'trial',
+          };
+        }
+        user.lastLogin = Date.now();
+        await env.PITLANE.put(ukey, JSON.stringify(user));
+        return json({ ok: true, user }, 200, headers);
+      }
+
+      // —— Share cards ——
+      if (req.method === 'POST' && path === '/share') {
+        const body = await req.json().catch(() => null);
+        const payload = body?.payload ?? body;
+        if (!payload || typeof payload !== 'object') {
+          return json({ error: 'invalid payload' }, 400, headers);
+        }
+        const id = shareId();
+        await env.PITLANE.put('share:' + id, JSON.stringify(payload), {
+          expirationTtl: SHARE_TTL,
+        });
+        return json({ id }, 200, headers);
+      }
+
+      let m = path.match(/^\/share\/([^/]+)$/);
+      if (req.method === 'GET' && m) {
+        const id = decodeURIComponent(m[1]);
+        const raw = await env.PITLANE.get('share:' + id);
+        if (!raw) return json({ error: 'not found' }, 404, headers);
+        try {
+          return json(JSON.parse(raw), 200, headers);
+        } catch {
+          return json({ error: 'corrupt' }, 500, headers);
+        }
+      }
+
+      // —— Tops straight ——
+      m = path.match(/^\/tops\/straight\/([^/]+)$/);
       if (req.method === 'GET' && m) {
         const carId = decodeURIComponent(m[1]);
         const rows = (await readList(env.PITLANE, `straight:${carId}`))
-          .filter((r) => r && r.gps)
+          .filter(isValidGpsRow)
           .sort((a, b) => a.t - b.t);
         return json(rows, 200, headers);
       }
@@ -137,13 +269,14 @@ export default {
         rows.push(row);
         rows.sort((a, b) => a.t - b.t);
         await writeList(env.PITLANE, key, rows);
-        return json(rows.filter((r) => r.gps), 200, headers);
+        return json(rows.filter(isValidGpsRow), 200, headers);
       }
 
+      // —— Tops lap ——
       m = path.match(/^\/tops\/lap\/([^/]+)$/);
       if (req.method === 'GET' && m) {
         const trackId = decodeURIComponent(m[1]);
-        const rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter((r) => r && r.gps);
+        const rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter(isValidGpsRow);
         return json(rows, 200, headers);
       }
       if (req.method === 'POST' && m) {
@@ -155,9 +288,10 @@ export default {
         const rows = await readList(env.PITLANE, key);
         rows.push(row);
         await writeList(env.PITLANE, key, rows);
-        return json(rows.filter((r) => r.gps), 200, headers);
+        return json(rows.filter(isValidGpsRow), 200, headers);
       }
 
+      // —— Pulse ——
       if (path === '/pulse') {
         if (req.method === 'GET') {
           const rows = await readList(env.PITLANE, 'pulse');
@@ -181,49 +315,7 @@ export default {
         const who = pilot.name || pilot.id || 'пилот';
         const rows = await readList(env.PITLANE, 'pulse');
         const p = rows.find((x) => x.id === id);
-        if (!p) 
-      // POST /auth/otp  { phone }  — stores OTP in KV (demo echoes code until SMS provider bound)
-      if (req.method === 'POST' && path === '/auth/otp') {
-        const body = await req.json().catch(() => null);
-        const phone = String(body?.phone || '').replace(/\D/g, '');
-        if (phone.length < 10) return json({ error: 'bad phone' }, 400, headers);
-        const code = String(Math.floor(1000 + Math.random() * 9000));
-        await env.PITLANE.put('otp:' + phone, JSON.stringify({ code, exp: Date.now() + 10 * 60 * 1000 }), { expirationTtl: 600 });
-        const demo = String(env.SMS_DEMO || '1') !== '0';
-        return json({ ok: true, demoCode: demo ? code : null }, 200, headers);
-      }
-      if (req.method === 'POST' && path === '/auth/verify') {
-        const body = await req.json().catch(() => null);
-        const phone = String(body?.phone || '').replace(/\D/g, '');
-        const code = String(body?.code || '').trim();
-        const raw = await env.PITLANE.get('otp:' + phone);
-        if (!raw) return json({ ok: false, error: 'no otp' }, 400, headers);
-        let otp;
-        try { otp = JSON.parse(raw); } catch { return json({ ok: false }, 400, headers); }
-        if (Date.now() > otp.exp) return json({ ok: false, error: 'expired' }, 400, headers);
-        if (code !== String(otp.code)) return json({ ok: false, error: 'bad code' }, 400, headers);
-        await env.PITLANE.delete('otp:' + phone);
-        const ukey = 'user:' + phone;
-        let user = null;
-        const uraw = await env.PITLANE.get(ukey);
-        if (uraw) {
-          try { user = JSON.parse(uraw); } catch { user = null; }
-        }
-        if (!user) {
-          user = {
-            phone,
-            nick: 'пилот' + phone.slice(-4),
-            createdAt: Date.now(),
-            trialEnds: Date.now() + 7 * 24 * 60 * 60 * 1000,
-            plan: 'trial',
-          };
-        }
-        user.lastLogin = Date.now();
-        await env.PITLANE.put(ukey, JSON.stringify(user));
-        return json({ ok: true, user }, 200, headers);
-      }
-
-      return json({ error: 'not found' }, 404, headers);
+        if (!p) return json({ error: 'not found' }, 404, headers);
         p.likes = p.likes || [];
         const i = p.likes.indexOf(who);
         if (i >= 0) p.likes.splice(i, 1);
@@ -234,9 +326,6 @@ export default {
       }
 
       m = path.match(/^\/pulse\/([^/]+)$/);
-      if (req.method === 'POST' && path.endsWith('/del')) {
-        /* unused */
-      }
       if (req.method === 'DELETE' && m) {
         const id = decodeURIComponent(m[1]);
         const who = pilot.name || pilot.id || '';

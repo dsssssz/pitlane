@@ -1303,3 +1303,195 @@ body.run-drive-on #app { visibility: hidden; }
   margin-top: auto;
   width: 100%;
 }
+
+/* —— Scale pack: tops filters —— */
+.tops-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+}
+.tops-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tops-model {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11px;
+  opacity: .85;
+}
+.tops-model select {
+  min-width: 160px;
+  background: #12151c;
+  border: 1px solid #3a4252;
+  color: #e8ecf1;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: 600 13px/1.2 Manrope, sans-serif;
+}
+.wheel-item .cult-tag {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9px;
+  letter-spacing: .04em;
+  color: #2ee56a;
+  opacity: .9;
+  text-transform: uppercase;
+}
+.wheel-item.cult-track { font-weight: 700; }
+
+/* —— Share result card —— */
+.share-card {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background:
+    radial-gradient(ellipse at 50% 20%, rgba(46,229,106,.12), transparent 55%),
+    rgba(5, 6, 8, 0.92);
+  backdrop-filter: blur(8px);
+}
+.share-card.hidden { display: none !important; }
+.share-card-inner {
+  width: min(360px, 100%);
+  border-radius: 20px;
+  border: 1px solid rgba(46, 229, 106, 0.35);
+  background:
+    linear-gradient(160deg, #0e1218 0%, #080a0e 60%, #0a100e 100%);
+  padding: 28px 22px 22px;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,.04),
+    0 24px 60px rgba(0,0,0,.55),
+    0 0 40px rgba(46,229,106,.08);
+  position: relative;
+  text-align: center;
+}
+.share-card-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: #9aa3b2;
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+.share-brand {
+  margin: 0 0 10px;
+  font: 800 14px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .28em;
+  color: #2ee56a;
+}
+.share-car {
+  margin: 0;
+  font: 800 26px/1.1 "Barlow Condensed", sans-serif;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+.share-nick {
+  margin: 6px 0 14px;
+  font-size: 13px;
+  opacity: .7;
+}
+.share-type {
+  margin: 0;
+  font: 700 12px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  opacity: .75;
+}
+.share-time {
+  margin: 10px 0 14px;
+  font: 800 48px/1 "Barlow Condensed", sans-serif;
+  color: #f5f7fa;
+  letter-spacing: .02em;
+}
+.share-badge span {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid #2ee56a;
+  color: #2ee56a;
+  font: 800 11px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .16em;
+}
+.share-badge.invalid span {
+  border-color: #e23b3b;
+  color: #e23b3b;
+}
+.share-date {
+  margin: 12px 0 18px;
+  font-size: 12px;
+  opacity: .55;
+}
+.share-card-actions {
+  display: grid;
+  gap: 8px;
+}
+.share-card-actions .go-btn { width: 100%; }
+.share-hud-btn {
+  border-radius: 12px;
+  border: 1px solid #3a4252;
+  background: #12151c;
+  color: #d7dde5;
+  font: 700 13px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  min-height: 44px;
+  padding: 0 14px;
+}
+.run-drive-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* —— Paywall / Pro stub —— */
+.paywall-card {
+  margin-top: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px dashed rgba(46, 229, 106, 0.35);
+  background: rgba(46, 229, 106, 0.05);
+  text-align: center;
+}
+.paywall-card.hidden { display: none !important; }
+.paywall-card p { margin: 0 0 8px; font-size: 13px; }
+.btn-pro-soon {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: 1px solid #2ee56a;
+  background: transparent;
+  color: #2ee56a;
+  font: 800 13px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.btn-pro-soon:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+.compare-stats {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+.compare-stats b { color: #2ee56a; }
+#accTrialLeft { margin: 4px 0 8px; }
+#btnProSoon { margin-bottom: 10px; }

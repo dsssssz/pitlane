@@ -272,24 +272,50 @@
               <p class="muted">Старт открывает HUD (карта, погода). Красная «Старт» внутри — вооружение. С/Ф на трассе стартует и финиширует честно. Ручной финиш не в топ.</p>
             </article>
           </div>
+          <article class="card" id="compareCard">
+            <h3>Сравнение</h3>
+            <div id="compareBody">
+              <p class="muted tiny">Сток vs ваш GPS по текущей машине и трассе.</p>
+              <div id="compareStats" class="compare-stats"></div>
+            </div>
+            <div id="comparePaywall" class="paywall-card hidden">
+              <p><strong>Pro</strong> — полное сравнение сток / GPS</p>
+              <p class="tiny">Триал или подписка откроют блок. Оплата скоро.</p>
+              <button type="button" class="btn-pro-soon" disabled>Pro скоро</button>
+            </div>
+          </article>
           <article class="card">
             <h3>Track-day</h3>
             <ul id="trackDayList" class="laps"></ul>
+            <div id="trackDayPaywall" class="paywall-card hidden">
+              <p>Полная история track-day — в Pro</p>
+              <button type="button" class="btn-pro-soon" disabled>Pro скоро</button>
+            </div>
           </article>
           <article class="card">
             <h3 data-i18n="lap.sess">Все круги</h3>
             <ul id="lapList" class="laps"></ul>
+            <div id="lapListPaywall" class="paywall-card hidden">
+              <p>Полный список кругов — в Pro (сейчас последние 3)</p>
+              <button type="button" class="btn-pro-soon" disabled>Pro скоро</button>
+            </div>
           </article>
         </section>
 
         <section id="view-tops" class="view">
           <h2 data-i18n="top.title">Топы</h2>
-          <p class="muted">Прямая — внутри одной модели. Кольцо — выбранный трек. Сейчас локальный «сервер» в браузере.</p>
+          <p class="muted">Прямая — внутри одной модели. Кольцо — выбранный трек. Только валидные GPS.</p>
+          <div class="tops-filters card">
+            <label class="tops-check"><input type="checkbox" id="topValidOnly" checked /> только валидные GPS</label>
+            <label class="tops-model">модель
+              <select id="topModelFilter"><option value="">все модели</option></select>
+            </label>
+          </div>
           <div class="grid-2">
             <article class="card">
               <h3>Прямая 0–100 · <span id="topCarName">GT RS</span></h3>
               <ol id="topStraight" class="laps"></ol>
-              <p class="tiny">Только с GPS. Ручной ввод выключен.</p>
+              <p class="tiny">Только валидные GPS. Ручной ввод выключен.</p>
             </article>
             <article class="card">
               <h3>Кольцо · <span id="topTrackName">Moscow Raceway</span></h3>
@@ -297,7 +323,7 @@
               <div class="wheel" id="topTrackWheel"></div>
               <div class="track-map" id="topTrackMap"></div>
               <ol id="topLap" class="laps"></ol>
-              <p class="tiny">Только финиш круга с GPS.</p>
+              <p class="tiny">Только валидные GPS-круги (С/Ф).</p>
             </article>
           </div>
         </section>
@@ -363,6 +389,8 @@
           </form>
           <p class="muted" id="accPhone">не вошли</p>
           <p class="tiny" id="accPlan"></p>
+          <p class="tiny" id="accTrialLeft"></p>
+          <button type="button" id="btnProSoon" class="btn-pro-soon">Pro скоро</button>
           <button type="button" id="btnLogout">Выйти</button>
         </section>
       </main>
@@ -378,6 +406,7 @@
       <ul id="runDriveMarks" class="run-drive-marks"></ul>
       <div class="run-drive-actions">
         <button type="button" class="go-btn" id="runDriveStop">Стоп</button>
+        <button type="button" id="runDriveShare" class="share-hud-btn">Шейр</button>
       </div>
     </div>
 
@@ -415,6 +444,24 @@
         </div>
       </div>
       <div class="lap-drive-map" id="lapDriveMap"></div>
+    </div>
+
+
+    <div id="shareCard" class="share-card hidden" aria-hidden="true">
+      <div class="share-card-inner">
+        <button type="button" class="share-card-close" id="shareCardClose" aria-label="Закрыть">×</button>
+        <p class="share-brand">PITLANE</p>
+        <p class="share-car" id="shareCar">—</p>
+        <p class="share-nick" id="shareNick">—</p>
+        <p class="share-type" id="shareType">—</p>
+        <p class="share-time" id="shareTime">—</p>
+        <p class="share-badge" id="shareBadge"><span>VALID</span></p>
+        <p class="share-date" id="shareDate">—</p>
+        <div class="share-card-actions">
+          <button type="button" class="go-btn" id="shareCardBtn">Поделиться</button>
+          <button type="button" id="shareCardCopy">Копировать ссылку</button>
+        </div>
+      </div>
     </div>
 
     <script type="importmap">

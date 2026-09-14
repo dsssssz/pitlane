@@ -37,15 +37,16 @@ const CARS = [
 ];
 
 const TRACKS = [
-  { id: 'sochi', name: 'Сочи Автодром', ref: '1:35.00', km: '5.85', turns: '18' , corners: 'T2 — жёсткое торможение после прямой. T3 — длинный постоянный радиус. Финальная связка — медленные 90°.'},
-  { id: 'moscow', name: 'Moscow Raceway', ref: '1:28.50', km: '3.93', turns: '13' , corners: 'Длинная прямая в последний сектор. Средний сектор рулёжный. Несколько конфигураций срезают связки.'},
-  { id: 'igora', name: 'Игора Драйв', ref: '1:36.20', km: '5.18', turns: '20' , corners: 'Очень длинная С/Ф. Много средних поворотов против часовой. Перепад заметный на спуске.'},
-  { id: 'kazan', name: 'Казань Ринг', ref: '1:22.80', km: '3.48', turns: '12' , corners: 'Каньон: слепые вершины, уклоны до ~10%. Движение против часовой. Длинная прямая ~800 м.'},
-  { id: 'smolensk', name: 'Смоленское кольцо', ref: '1:24.00', km: '3.36', turns: '14' , corners: 'Техничное кольцо, средние радиусы, мало мест для отдыха.'},
-  { id: 'nring', name: 'NRING Нижний Новгород', ref: '1:21.50', km: '3.12', turns: '12' , corners: 'Короткое кольцо, плотная нарезка, мало времени на ошибку.'},
-  { id: 'adm', name: 'ADM Raceway Мячково', ref: '1:19.00', km: '3.25', turns: '16' , corners: 'Мячково: старое кольцо, короткие прямые, много направления.'},
-  { id: 'grozny', name: 'Fort Grozny Autodrom', ref: '1:18.80', km: '3.08', turns: '11' , corners: 'Крепость: относительно короткое GP, понятные зоны торможения.'},
-  { id: 'redring', name: 'Красное Кольцо Красноярск', ref: '1:26.00', km: '2.80', turns: '10' , corners: 'Компактное кольцо, меньше поворотов, акцент на ритм.'},
+  // cult: first-class RU tracks with verified-ish S/F in TRACK_GEO
+  { id: 'sochi', name: 'Сочи Автодром', cult: true, ref: '1:35.00', km: '5.85', turns: '18' , corners: 'T2 — жёсткое торможение после прямой. T3 — длинный постоянный радиус. Финальная связка — медленные 90°.'},
+  { id: 'moscow', name: 'Moscow Raceway', cult: true, ref: '1:28.50', km: '3.93', turns: '13' , corners: 'Длинная прямая в последний сектор. Средний сектор рулёжный. Несколько конфигураций срезают связки.'},
+  { id: 'igora', name: 'Игора Драйв', cult: true, ref: '1:36.20', km: '5.18', turns: '20' , corners: 'Очень длинная С/Ф. Много средних поворотов против часовой. Перепад заметный на спуске.'},
+  { id: 'kazan', name: 'Казань Ринг', cult: true, ref: '1:22.80', km: '3.48', turns: '12' , corners: 'Каньон: слепые вершины, уклоны до ~10%. Движение против часовой. Длинная прямая ~800 м.'},
+  { id: 'smolensk', name: 'Смоленское кольцо', cult: true, ref: '1:24.00', km: '3.36', turns: '14' , corners: 'Техничное кольцо, средние радиусы, мало мест для отдыха.'},
+  { id: 'nring', name: 'NRING Нижний Новгород', cult: true, ref: '1:21.50', km: '3.12', turns: '12' , corners: 'Короткое кольцо, плотная нарезка, мало времени на ошибку.'},
+  { id: 'adm', name: 'ADM Raceway Мячково', cult: true, ref: '1:19.00', km: '3.25', turns: '16' , corners: 'Мячково: старое кольцо, короткие прямые, много направления.'},
+  { id: 'grozny', name: 'Fort Grozny Autodrom', cult: true, ref: '1:18.80', km: '3.08', turns: '11' , corners: 'Крепость: относительно короткое GP, понятные зоны торможения.'},
+  { id: 'redring', name: 'Красное Кольцо Красноярск', cult: true, ref: '1:26.00', km: '2.80', turns: '10' , corners: 'Компактное кольцо, меньше поворотов, акцент на ритм.'},
   { id: 'spb', name: 'Автодром Санкт-Петербург', ref: '1:27.00' , corners: 'Городской/короткий профиль, тесные связки.'},
   { id: 'tlt', name: 'Тольятти Ринг', ref: '1:23.00' , corners: 'Кольцо с средней длиной прямых.'},
   { id: 'lipetsk', name: 'Липецкий автодром', ref: '1:20.00' , corners: 'Короткий автодром, стоп-энд-гоу.'},
@@ -55,18 +56,25 @@ const TRACKS = [
   { id: 'don', name: 'Донринг Ростов', ref: '1:30.00' , corners: 'Донринг: смесь прямых и средних дуг.'},
 ];
 
+function tracksOrdered() {
+  return TRACKS.slice().sort((a, b) => Number(!!b.cult) - Number(!!a.cult));
+}
 
 
+
+// Approximate S/F gate points (WGS84). Cult tracks: tightened to known paddock/S-F areas.
+// Sochi ≈ main straight S/F; Moscow Raceway ≈ pit straight; Igora ≈ long S/F;
+// Kazan/Smolensk/NRING/ADM/Grozny/RedRing ≈ circuit S/F vicinity. Others are rough.
 const TRACK_GEO = {
-  sochi: { lat: 43.405, lon: 39.968 },
-  moscow: { lat: 55.912, lon: 36.600 },
-  igora: { lat: 60.685, lon: 30.140 },
-  kazan: { lat: 55.650, lon: 49.260 },
-  smolensk: { lat: 54.620, lon: 32.280 },
-  nring: { lat: 56.180, lon: 43.520 },
-  adm: { lat: 55.560, lon: 37.980 },
-  grozny: { lat: 43.340, lon: 45.740 },
-  redring: { lat: 56.060, lon: 92.900 },
+  sochi: { lat: 43.4104, lon: 39.9685 },
+  moscow: { lat: 55.8825, lon: 36.5428 },
+  igora: { lat: 60.6882, lon: 30.1455 },
+  kazan: { lat: 55.6528, lon: 49.2635 },
+  smolensk: { lat: 54.6215, lon: 32.2788 },
+  nring: { lat: 56.1822, lon: 43.5215 },
+  adm: { lat: 55.5588, lon: 37.9785 },
+  grozny: { lat: 43.3412, lon: 45.7388 },
+  redring: { lat: 56.0615, lon: 92.9022 },
   spb: { lat: 59.970, lon: 30.240 },
   tlt: { lat: 53.530, lon: 49.350 },
   lipetsk: { lat: 52.560, lon: 39.520 },
@@ -78,8 +86,8 @@ const TRACK_GEO = {
 
 const TRACK_SVG = {
   sochi: 'M260.37 78.48 L244.49 96.31 L240.92 98.98 L236.03 101.71 L230.64 103.82 L222.94 105.56 L202.57 109.51 L172.35 115.42 L140.03 121.66 L137.93 121.5 L137.16 121.05 L136.67 119.59 L135.83 117.54 L134.5 116.03 L119.87 105.67 L114.63 102.88 L108.12 100.99 L100.29 100.49 L92.66 101.6 L86.22 104.05 L81.18 107.45 L78.11 110.8 L75.65 114.86 L74.74 119.26 L75.17 124.17 L76.92 128.34 L86.01 142.05 L86.22 143.61 L85.38 144.84 L83.29 145.95 L34.94 166.85 L33.46 167.29 L31.16 167.35 L29.48 166.63 L28.36 165.56 L16.39 146.12 L15.27 142.83 L15.0 140.16 L15.34 137.21 L18.43 125.89 L18.98 124.95 L20.18 124.5 L21.71 124.17 L61.1 119.88 L62.08 119.59 L62.99 119.04 L63.69 118.32 L66.14 111.24 L66.35 110.18 L66.49 108.85 L66.28 107.68 L54.04 82.65 L54.04 81.65 L54.53 80.76 L55.44 79.87 L56.76 79.2 L69.08 75.58 L74.74 74.63 L80.06 73.91 L87.34 73.52 L93.77 73.57 L101.13 74.13 L108.05 75.08 L120.23 76.53 L126.73 77.75 L133.39 79.48 L140.58 81.6 L165.35 89.79 L172.15 91.52 L178.29 92.46 L185.15 92.91 L192.22 92.69 L198.8 91.79 L208.87 89.67 L210.77 90.01 L211.53 90.9 L214.68 98.71 L216.16 99.82 L218.67 100.49 L221.39 100.37 L225.32 99.71 L229.73 98.09 L233.64 95.53 L236.87 92.24 L243.99 84.77 L244.35 83.88 L244.21 83.16 L242.88 82.38 L236.37 78.87 L235.18 77.64 L234.76 75.91 L235.53 74.35 L245.88 62.71 L255.12 51.73 L262.54 43.43 L264.22 42.65 L266.31 43.09 L282.9 48.44 L284.43 49.12 L285.0 50.11 L284.57 51.23 L260.37 78.48 Z',
-  moscow: 'M42 168 L210 168 C228 168 242 158 252 140 C268 112 278 78 268 58 C256 36 220 28 188 42 C168 52 158 72 142 88 C122 108 92 118 62 118 L38 118 C28 118 24 130 28 142 L36 160 C38 166 40 168 42 168 Z',
-  igora: 'M36 120 L70 52 C88 28 140 22 190 34 C240 48 278 78 274 118 C270 158 230 178 170 182 C110 186 48 166 36 140 C32 130 32 124 36 120 Z',
+  moscow: 'M40 170 L205 170 C230 170 248 158 258 138 C278 108 282 72 268 52 C250 28 210 26 178 40 C155 52 145 74 128 92 C108 114 78 124 48 124 L32 124 C22 124 18 136 24 150 L34 164 C36 168 38 170 40 170 Z',
+  igora: 'M34 122 L68 48 C90 22 145 18 198 32 C248 46 282 80 276 122 C270 164 228 184 168 186 C105 188 44 168 32 140 C28 130 30 124 34 122 Z',
   kazan: 'M78 36 C120 18 170 28 196 58 C220 86 250 108 262 140 C272 168 248 188 210 186 C160 182 120 170 88 148 C52 120 42 78 58 52 C64 42 70 38 78 36 Z',
   smolensk: 'M48 120 C58 60 120 28 180 32 C240 36 278 78 270 120 C262 168 200 188 130 180 C80 174 42 150 48 120 Z',
   nring: 'M50 100 C70 40 150 28 210 55 C255 78 270 130 230 160 C180 198 70 180 48 130 C42 116 44 108 50 100 Z',
@@ -135,7 +143,7 @@ function drawTrack(id, elId, opts) {
   const live = !!(opts && opts.live);
   const d = TRACK_SVG[id] || TRACK_SVG.sochi;
   const tr = TRACKS.find((x) => x.id === id) || {};
-  const meta = [tr.km && (tr.km + ' км'), tr.turns && (tr.turns + ' пов.')].filter(Boolean).join(' · ');
+  const meta = [tr.km && (tr.km + ' км'), tr.turns && (tr.turns + ' пов.'), tr.cult && TRACK_GEO[id] && 'проверен С/Ф'].filter(Boolean).join(' · ');
   const sf = pointOnTrack(d, 0);
   const sfMark = '<g class="sf-mark" transform="translate(' + sf.x + ',' + sf.y + ')">'
     + '<line x1="-10" y1="-14" x2="-10" y2="14" stroke="#fff" stroke-width="2"/>'
@@ -305,7 +313,11 @@ function renderCars() {
 
 function renderTracks() {
   const sel = document.getElementById('trackSelect');
-  const html = TRACKS.map((t) => `<option value="${t.id}">${t.name}</option>`).join('');
+  const ordered = tracksOrdered();
+  const html = ordered.map((t) => {
+    const tag = t.cult && TRACK_GEO[t.id] ? ' · С/Ф' : '';
+    return `<option value="${t.id}">${t.name}${tag}</option>`;
+  }).join('');
   sel.innerHTML = html;
   const def = state.trackId && TRACKS.some((t) => t.id === state.trackId) ? state.trackId : TRACKS[0].id;
   sel.value = def;
@@ -340,7 +352,13 @@ function mountWheel(selId, wheelId) {
   const box = document.getElementById(wheelId);
   if (!sel || !box) return;
   const opts = [...sel.options];
-  box.innerHTML = '<div class="wheel-item"></div>' + opts.map((o) => `<div class="wheel-item" data-val="${o.value}">${o.text}</div>`).join('') + '<div class="wheel-item"></div>';
+  box.innerHTML = '<div class="wheel-item"></div>' + opts.map((o) => {
+    const tr = TRACKS.find((t) => t.id === o.value);
+    const cult = tr?.cult && TRACK_GEO[tr.id];
+    const tag = cult ? ' <span class="cult-tag">проверен С/Ф</span>' : '';
+    const label = String(o.text).replace(/ · С\/Ф$/, '');
+    return `<div class="wheel-item${cult ? ' cult-track' : ''}" data-val="${o.value}">${label}${tag}</div>`;
+  }).join('') + '<div class="wheel-item"></div>';
   const items = () => [...box.querySelectorAll('.wheel-item[data-val]')];
   const sync = () => {
     const mid = box.scrollTop + box.clientHeight / 2;
@@ -376,6 +394,24 @@ function mountWheel(selId, wheelId) {
 
 /* renderLaps defined with lap GPS block */
 
+function filterTopRows(rows, { model } = {}) {
+  const validOnly = document.getElementById('topValidOnly')?.checked !== false;
+  let out = (rows || []).slice();
+  if (validOnly) out = out.filter((r) => r.gps && r.valid !== false);
+  const modelSel = model != null ? model : (document.getElementById('topModelFilter')?.value || '');
+  if (modelSel) out = out.filter((r) => String(r.car || '') === modelSel);
+  return out;
+}
+
+function populateTopModelFilter(allRows) {
+  const sel = document.getElementById('topModelFilter');
+  if (!sel) return;
+  const cur = sel.value;
+  const names = [...new Set((allRows || []).map((r) => String(r.car || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+  sel.innerHTML = '<option value="">все модели</option>' + names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if (cur && names.includes(cur)) sel.value = cur;
+}
+
 async function renderTops() {
   const c = currentCar();
   const trackId = document.getElementById('topTrackSelect')?.value || state.trackId || c.lap.track;
@@ -384,15 +420,18 @@ async function renderTops() {
   if (nameEl) nameEl.textContent = c.name;
   const track = TRACKS.find((t) => t.id === trackId);
   if (trackNameEl && track) trackNameEl.textContent = track.name;
+  const straightRaw = await api.listStraight(c.id);
+  const lapRaw = await api.listLap(trackId);
+  populateTopModelFilter([...straightRaw, ...lapRaw]);
   const sEl = document.getElementById('topStraight');
   if (sEl) {
-    const rows = await api.listStraight(c.id);
-    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${Number(r.t).toFixed(2)} с</strong></li>`).join('') : '<li><span>нет GPS-заездов</span><strong>—</strong></li>';
+    const rows = filterTopRows(straightRaw).slice().sort((a, b) => a.t - b.t);
+    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${Number(r.t).toFixed(2)} с</strong></li>`).join('') : '<li><span>нет валидных GPS</span><strong>—</strong></li>';
   }
   const lEl = document.getElementById('topLap');
   if (lEl) {
-    const rows = await api.listLap(trackId);
-    lEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${r.t}</strong></li>`).join('') : '<li><span>нет GPS-кругов</span><strong>—</strong></li>';
+    const rows = filterTopRows(lapRaw);
+    lEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${r.t}</strong></li>`).join('') : '<li><span>нет валидных GPS-кругов</span><strong>—</strong></li>';
   }
 }
 
@@ -1117,7 +1156,15 @@ async function publishGps(v0100, v100200, v200300) {
     state.meas[state.carId] = rec0;
     save();
     applyCarUI();
-    if (v0100 != null) pushSlip();
+    if (v0100 != null) {
+      pushSlip();
+      openShareCard(buildSharePayload({
+        type: '0-100',
+        time: Number(rec0.v0100).toFixed(2) + ' с',
+        valid: true,
+        car: currentCar().name,
+      }));
+    }
     return;
   }
   const rec = state.meas[state.carId] || {};
@@ -1128,8 +1175,16 @@ async function publishGps(v0100, v100200, v200300) {
   save();
   const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
   if (v0100 != null) {
-    await api.addStraight(currentCar().id, { name: String(who).slice(-6), car: currentCar().name, t: rec.v0100, gps: true });
+    await api.addStraight(currentCar().id, { name: String(who).slice(-6), car: currentCar().name, t: rec.v0100, gps: true, valid: true });
     pushSlip();
+    const payload = buildSharePayload({
+      type: '0-100',
+      time: Number(rec.v0100).toFixed(2) + ' с',
+      valid: true,
+      car: currentCar().name,
+      nick: String(who),
+    });
+    openShareCard(payload);
   }
   applyCarUI();
 }
@@ -1506,6 +1561,15 @@ async function completeLapRun(how, atTs) {
       slipAvg: rec.slipAvg,
       trackDay: true,
     });
+    const tr = TRACKS.find((t) => t.id === trackId);
+    openShareCard(buildSharePayload({
+      type: 'lap',
+      time: tStr,
+      trackName: tr?.name || trackId,
+      valid: true,
+      car: currentCar().name,
+      nick: String(who),
+    }));
   }
 
   updateSessionHud();
@@ -1655,21 +1719,30 @@ function renderLaps() {
   const ul = document.getElementById('lapList');
   if (!ul) return;
   const list = (state.laps[trackId] || []).slice().sort((a, b) => a.ms - b.ms);
-  ul.innerHTML = list.length
-    ? list.map((l, i) => {
+  const full = canSeeFullHistory();
+  const shown = full ? list : list.slice(0, 3);
+  const wall = document.getElementById('lapListPaywall');
+  if (wall) wall.classList.toggle('hidden', full || list.length <= 3);
+  ul.innerHTML = shown.length
+    ? shown.map((l, i) => {
         const tag = l.valid === false ? '∅' : (i === 0 ? 'PB' : '#' + (i + 1));
         const note = l.valid === false ? ` · ${l.why || 'не в топ'}` : (l.gps ? ' · GPS' : '');
         return `<li><span>${tag}</span><strong>${formatMs(l.ms)}</strong><em class="tiny">${note}</em></li>`;
       }).join('')
     : '<li><span>пока пусто</span><strong>—</strong></li>';
+  try { renderCompare(); } catch (_) {}
 }
 
 function renderTrackDays() {
   const el = document.getElementById('trackDayList');
   if (!el) return;
   const rows = state.trackDays || [];
+  const full = canSeeFullHistory();
+  const limit = full ? 12 : 3;
+  const wall = document.getElementById('trackDayPaywall');
+  if (wall) wall.classList.toggle('hidden', full || rows.length <= 3);
   el.innerHTML = rows.length
-    ? rows.slice(0, 12).map((s) => {
+    ? rows.slice(0, limit).map((s) => {
         const tr = TRACKS.find((t) => t.id === s.trackId);
         const best = s.bestMs != null ? formatMs(s.bestMs) : '—';
         const when = new Date(s.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -1724,11 +1797,21 @@ function renderSlips() {
   el.innerHTML = (state.slips || []).map((s) => `<li>${s.car} · 0–100 ${s.v0100 ?? '—'} · 100–200 ${s.v100200 ?? '—'}</li>`).join('') || '<li>пусто</li>';
 }
 document.getElementById('btnShareRun')?.addEventListener('click', async () => {
-  const t = `PITLANE\n${currentCar().name}\n0–100 ${document.getElementById('run0100')?.textContent}\n100–200 ${document.getElementById('run100200')?.textContent}`;
-  try {
-    if (navigator.share) await navigator.share({ text: t });
-    else await navigator.clipboard.writeText(t);
-  } catch (_) {}
+  const rec = state.meas[state.carId] || {};
+  const t0100 = rec.v0100 != null ? Number(rec.v0100).toFixed(2) + ' с' : (document.getElementById('run0100')?.textContent || '—');
+  const payload = buildSharePayload({ type: '0-100', time: t0100, valid: true });
+  openShareCard(payload);
+});
+document.getElementById('runDriveShare')?.addEventListener('click', () => {
+  const rec = state.meas[state.carId] || {};
+  if (rec.v0100 == null) return;
+  openShareCard(buildSharePayload({ type: '0-100', time: Number(rec.v0100).toFixed(2) + ' с', valid: true }));
+});
+document.querySelectorAll('.btn-pro-soon, #btnProSoon').forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    toastSoon();
+  });
 });
 window.addEventListener('devicemotion', (e) => {
   const a = e.accelerationIncludingGravity;
@@ -1736,8 +1819,198 @@ window.addEventListener('devicemotion', (e) => {
   const g = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2) / 9.81;
   setRunText('liveG', g.toFixed(2));
 });
+document.getElementById('topValidOnly')?.addEventListener('change', () => { void renderTops(); });
+document.getElementById('topModelFilter')?.addEventListener('change', () => { void renderTops(); });
+
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
 renderSlips();
+
+
+/* -------- Viral share card -------- */
+const SHARE_ORIGIN = 'https://dsssssz.github.io/pitlane/';
+let _sharePayload = null;
+
+function b64urlEncode(obj) {
+  const json = JSON.stringify(obj);
+  const b64 = btoa(unescape(encodeURIComponent(json)));
+  return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function b64urlDecode(s) {
+  try {
+    let b64 = String(s).replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const json = decodeURIComponent(escape(atob(b64)));
+    return JSON.parse(json);
+  } catch (_) {
+    return null;
+  }
+}
+
+function buildSharePayload({ type, time, trackName, valid, car, nick, at }) {
+  const u = currentUser();
+  const c = currentCar();
+  return {
+    brand: 'PITLANE',
+    car: car || c?.name || '—',
+    nick: nick || profile()?.nick || u?.nick || u?.phone || 'пилот',
+    type: type || '0-100',
+    track: trackName || '',
+    time: time != null ? String(time) : '—',
+    valid: valid !== false,
+    at: at || Date.now(),
+    date: new Date(at || Date.now()).toLocaleString('ru-RU', {
+      day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+    }),
+  };
+}
+
+function sharePublicUrl(payload, shareId) {
+  if (shareId) return SHARE_ORIGIN + '?s=' + encodeURIComponent(shareId);
+  return SHARE_ORIGIN + '#r=' + b64urlEncode(payload);
+}
+
+function openShareCard(payload) {
+  _sharePayload = payload;
+  const card = document.getElementById('shareCard');
+  if (!card) return;
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('shareCar', payload.car || '—');
+  set('shareNick', payload.nick || '—');
+  const typeLabel = payload.type === 'lap' || payload.type === 'круг'
+    ? ('круг' + (payload.track ? ' · ' + payload.track : ''))
+    : '0–100';
+  set('shareType', typeLabel);
+  set('shareTime', payload.time || '—');
+  set('shareDate', payload.date || '');
+  const badge = document.getElementById('shareBadge');
+  if (badge) {
+    badge.classList.toggle('invalid', payload.valid === false);
+    badge.innerHTML = payload.valid === false ? '<span>INVALID</span>' : '<span>VALID</span>';
+  }
+  card.classList.remove('hidden');
+  card.setAttribute('aria-hidden', 'false');
+}
+
+function closeShareCard() {
+  const card = document.getElementById('shareCard');
+  if (!card) return;
+  card.classList.add('hidden');
+  card.setAttribute('aria-hidden', 'true');
+}
+
+async function shareResult(payload) {
+  const p = payload || _sharePayload;
+  if (!p) return;
+  let url = sharePublicUrl(p);
+  try {
+    const res = await api.createShare(p);
+    if (res?.id) {
+      url = sharePublicUrl(p, res.id);
+      try {
+        history.replaceState(null, '', location.pathname + location.search.split('#')[0] + '#s=' + res.id);
+      } catch (_) {}
+    }
+  } catch (_) {}
+  const title = 'PITLANE';
+  const typeLabel = (p.type === 'lap' || p.type === 'круг')
+    ? ('круг' + (p.track ? ' · ' + p.track : ''))
+    : '0–100';
+  const text = `PITLANE · ${p.car} · ${p.nick}\n${typeLabel}: ${p.time}${p.valid !== false ? ' · VALID' : ''}`;
+  try {
+    if (navigator.share) {
+      await navigator.share({ title, text, url });
+      return;
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') return;
+  }
+  try {
+    await navigator.clipboard.writeText(url + '\n' + text);
+    hap(20);
+  } catch (_) {}
+}
+
+async function bootShareFromUrl() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const hash = location.hash || '';
+    let shareId = params.get('s') || '';
+    let raw = params.get('r') || '';
+    const hm = hash.match(/[#&?]([rs])=([^&]+)/);
+    if (hm) {
+      if (hm[1] === 's') shareId = decodeURIComponent(hm[2]);
+      else raw = decodeURIComponent(hm[2]);
+    }
+    // also #s=id or #r=...
+    if (!shareId && !raw && hash.startsWith('#s=')) shareId = decodeURIComponent(hash.slice(3));
+    if (!shareId && !raw && hash.startsWith('#r=')) raw = decodeURIComponent(hash.slice(3));
+    if (shareId) {
+      const payload = await api.getShare(shareId);
+      if (payload) {
+        openShareCard(payload);
+        return;
+      }
+    }
+    if (raw) {
+      const payload = b64urlDecode(raw);
+      if (payload) openShareCard(payload);
+    }
+  } catch (err) {
+    console.warn('bootShare', err);
+  }
+}
+
+document.getElementById('shareCardClose')?.addEventListener('click', closeShareCard);
+document.getElementById('shareCard')?.addEventListener('click', (e) => {
+  if (e.target?.id === 'shareCard') closeShareCard();
+});
+document.getElementById('shareCardBtn')?.addEventListener('click', () => { void shareResult(_sharePayload); });
+document.getElementById('shareCardCopy')?.addEventListener('click', async () => {
+  if (!_sharePayload) return;
+  const url = sharePublicUrl(_sharePayload);
+  try { await navigator.clipboard.writeText(url); hap(16); } catch (_) {}
+});
+
+/* -------- Monetization stub (trial gate) -------- */
+function canSeeFullHistory() {
+  return isPro(currentUser());
+}
+
+function toastSoon() {
+  hap(10);
+  const el = document.getElementById('accPlan') || document.getElementById('pulseMsg');
+  if (el) {
+    const prev = el.textContent;
+    el.textContent = 'скоро оплата';
+    setTimeout(() => { if (el.textContent === 'скоро оплата') el.textContent = prev; }, 1800);
+  } else {
+    try { alert('скоро оплата'); } catch (_) {}
+  }
+}
+
+function renderCompare() {
+  const body = document.getElementById('compareBody');
+  const wall = document.getElementById('comparePaywall');
+  const stats = document.getElementById('compareStats');
+  if (!body || !wall) return;
+  if (!canSeeFullHistory()) {
+    body.classList.add('hidden');
+    wall.classList.remove('hidden');
+    return;
+  }
+  body.classList.remove('hidden');
+  wall.classList.add('hidden');
+  const c = currentCar();
+  const rec = state.meas[state.carId] || {};
+  const trackId = document.getElementById('trackSelect')?.value || state.trackId;
+  const best = bestLapDisplay(trackId);
+  if (stats) {
+    stats.innerHTML = `
+      <div>0–100 сток <b>${fmt(c.v0100)}</b> · GPS <b>${fmt(rec.v0100)}</b></div>
+      <div>100–200 сток <b>${fmt(c.v100200)}</b> · GPS <b>${fmt(rec.v100200)}</b></div>
+      <div>круг сток <b>${c.lap?.time || '—'}</b> · ваш <b>${best}</b></div>`;
+  }
+}
 
 /* -------- auth: SMS OTP + durable account store -------- */
 const PRICE = { month: 390, year: 2990, monthOff: 195, yearOff: 1495 };
@@ -1873,12 +2146,26 @@ function refreshAccount() {
     phones.forEach((el) => { el.textContent = 'гость'; });
     const plan = document.getElementById('accPlan');
     if (plan) plan.textContent = '';
+    const trialEl = document.getElementById('accTrialLeft');
+    if (trialEl) trialEl.textContent = '';
+    try { renderCompare(); } catch (_) {}
     return;
   }
   phones.forEach((el) => { el.textContent = '+' + u.phone + (u.nick ? (' · ' + u.nick) : ''); });
   const plan = document.getElementById('accPlan');
   if (plan) {
     plan.textContent = (isPro(u) ? ('Pro · ') : ('trial · ')) + 'аккаунт сохранён';
+  }
+  const trialEl = document.getElementById('accTrialLeft');
+  if (trialEl) {
+    if (u.paidUntil && u.paidUntil > Date.now()) {
+      trialEl.textContent = 'Pro активен';
+    } else if (u.trialEnds) {
+      const days = Math.max(0, Math.ceil((u.trialEnds - Date.now()) / (24 * 60 * 60 * 1000)));
+      trialEl.textContent = days > 0 ? (`осталось ${days} дн. триала`) : 'триал закончился';
+    } else {
+      trialEl.textContent = '';
+    }
   }
   const setAcc = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setAcc('accDiscount', u.firstPaid ? 'уже использована' : '−50% на первую');
@@ -1887,6 +2174,7 @@ function refreshAccount() {
   setAcc('priceYear', (u.firstPaid ? PRICE.year : PRICE.yearOff) + ' ₽');
   const nickEl = document.getElementById('accNick');
   if (nickEl && u.nick) nickEl.value = u.nick;
+  try { renderCompare(); } catch (_) {}
 }
 
 function genOtp() {
@@ -2887,3 +3175,6 @@ document.getElementById('pulseFeed')?.addEventListener('click', async (e) => {
   }
 });
 document.querySelector('[data-view="pulse"]')?.addEventListener('click', renderPulse);
+
+void bootShareFromUrl();
+try { renderCompare(); renderLaps(); renderTrackDays(); } catch (_) {}
