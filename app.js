@@ -662,16 +662,16 @@ const renderer = new THREE.WebGLRenderer({
   alpha: false,
   powerPreference: 'high-performance',
 });
-renderer.setClearColor(0xe8e8e8, 1);
+renderer.setClearColor(0x1a1a1a, 1);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.3;
+renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf0f0f0);
+scene.background = new THREE.Color(0x1a1a1a);
 const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
 camera.position.set(5.4, 2.2, 5.8);
 
@@ -692,11 +692,11 @@ controls.addEventListener('end', () => {
   podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 2200);
 });
 
-/* Bright studio: ambient + hemi + key/fill/rim so dark paint (BMW) keeps edge definition */
-scene.add(new THREE.AmbientLight(0xffffff, 0.95));
-scene.add(new THREE.HemisphereLight(0xffffff, 0xc8c8c8, 1.15));
-const key = new THREE.DirectionalLight(0xffffff, 2.1);
-key.position.set(4.2, 8.5, 3.8);
+/* Dark cinematic studio: low ambient, soft fill, strong cool rim so black paint reads */
+scene.add(new THREE.AmbientLight(0xa8b0c0, 0.32));
+scene.add(new THREE.HemisphereLight(0x6a7a94, 0x121212, 0.38));
+const key = new THREE.DirectionalLight(0xe8eef8, 1.05);
+key.position.set(3.6, 7.0, 4.8);
 key.castShadow = true;
 key.shadow.mapSize.set(1024, 1024);
 key.shadow.camera.near = 0.5;
@@ -706,25 +706,29 @@ key.shadow.camera.right = 6;
 key.shadow.camera.top = 6;
 key.shadow.camera.bottom = -6;
 key.shadow.bias = -0.0002;
-key.shadow.radius = 3;
+key.shadow.radius = 3.5;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xf5f8ff, 1.35);
-fill.position.set(-5.2, 5.8, -2.8);
+const fill = new THREE.DirectionalLight(0xc4d0e4, 0.62);
+fill.position.set(-4.8, 4.2, 2.6);
 scene.add(fill);
-const rim = new THREE.DirectionalLight(0xffffff, 1.55);
-rim.position.set(-2.2, 4.2, 7.2);
+const rim = new THREE.DirectionalLight(0xb0c8e8, 1.9);
+rim.position.set(-1.2, 3.8, -6.8);
 scene.add(rim);
-const bounce = new THREE.DirectionalLight(0xfff8f0, 0.55);
-bounce.position.set(0.5, -1.2, 2.5);
+const rim2 = new THREE.DirectionalLight(0xd0d8e8, 0.85);
+rim2.position.set(5.8, 2.6, -3.2);
+scene.add(rim2);
+const bounce = new THREE.DirectionalLight(0x7a8494, 0.22);
+bounce.position.set(0.4, -0.9, 2.2);
 scene.add(bounce);
 
 try {
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  scene.environmentIntensity = 0.36;
   pmrem.dispose();
 } catch (_) { /* reflections optional */ }
 
-const lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const lampMat = new THREE.MeshBasicMaterial({ color: 0x2e2e36 });
 function ceilingLamp(x, z) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.04, 0.4), lampMat);
   m.position.set(x, 3.2, z);
@@ -738,23 +742,23 @@ ceilingLamp(1.4, -1.2);
 const floor = new THREE.Mesh(
   new THREE.CircleGeometry(7, 72),
   new THREE.MeshStandardMaterial({
-    color: 0xd8d8d8,
-    metalness: 0.08,
-    roughness: 0.72,
-    envMapIntensity: 0.35,
+    color: 0x1e1e22,
+    metalness: 0.62,
+    roughness: 0.32,
+    envMapIntensity: 0.55,
   })
 );
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
-/* Soft contact-shadow disk under the car (subtle, studio-style) */
+/* Soft contact-shadow disk under the car (cinema stand) */
 const contactShadow = new THREE.Mesh(
   new THREE.CircleGeometry(2.35, 64),
   new THREE.MeshBasicMaterial({
     color: 0x000000,
     transparent: true,
-    opacity: 0.18,
+    opacity: 0.42,
     depthWrite: false,
   })
 );
