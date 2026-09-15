@@ -2660,6 +2660,10 @@ function loadDefaultGlb() {
 
 loadDefaultGlb();
 
+document.getElementById('btnDynoEdit')?.addEventListener('click', () => setDynoEditMode(true));
+document.getElementById('btnDynoCancel')?.addEventListener('click', () => setDynoEditMode(false));
+document.getElementById('dynoEditForm')?.addEventListener('submit', saveDynoEdit);
+
 
 document.getElementById('liveryInput')?.addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])].slice(0, 3);
