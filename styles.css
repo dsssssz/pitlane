@@ -51,35 +51,14 @@
 .intro-logo {
   position: relative;
   z-index: 2;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 14px;
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 800;
-  font-size: clamp(40px, 10vw, 96px);
+  font-size: clamp(48px, 12vw, 120px);
   letter-spacing: 0.2em;
   color: #fff;
   opacity: 0;
   clip-path: inset(0 100% 0 0);
   animation: logoReveal 0.8s 1.7s cubic-bezier(.2,.8,.2,1) forwards;
-}
-.intro-emblem {
-  width: clamp(72px, 18vw, 120px);
-  height: auto;
-  border-radius: 22%;
-  box-shadow: 0 0 28px rgba(46,229,106,.28);
-}
-.mark {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.mark-emblem {
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
-  flex-shrink: 0;
 }
 @keyframes carSlide {
   0% { transform: translateX(-110%); opacity: 0; }
