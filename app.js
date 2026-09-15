@@ -805,16 +805,6 @@ try {
   pmrem.dispose();
 } catch (_) { /* reflections optional */ }
 
-const lampMat = new THREE.MeshBasicMaterial({ color: 0x2e2e36 });
-function ceilingLamp(x, z) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.04, 0.4), lampMat);
-  m.position.set(x, 3.2, z);
-  scene.add(m);
-}
-ceilingLamp(-1.4, 1.2);
-ceilingLamp(1.4, 1.2);
-ceilingLamp(-1.4, -1.2);
-ceilingLamp(1.4, -1.2);
 
 const floor = new THREE.Mesh(
   new THREE.CircleGeometry(7, 72),
