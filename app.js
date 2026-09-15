@@ -826,7 +826,6 @@ renderTracks();
 applyCarUI();
 onResize();
 requestAnimationFrame(tick);
-loadDefaultGlb();
 
 /* -------- GPS acceleration run -------- */
 const run = {
@@ -2478,32 +2477,44 @@ function clearGlb() {
 function fitGlb(obj) {
   clearGlb();
   glbRoot = obj;
+  glbRoot.updateMatrixWorld(true);
   glbRoot.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = true;
       o.receiveShadow = true;
-      // freeze any door/hinge userData — no open animations
       if (o.userData) o.userData.door = false;
+      // ensure materials visible
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      mats.forEach((mat) => {
+        if (!mat) return;
+        mat.side = THREE.DoubleSide;
+        mat.transparent = false;
+        if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+      });
     }
   });
-  // fit to podium ring (~diameter ~6)
-  const box = new THREE.Box3().setFromObject(glbRoot);
+  // fit length to ~4.8m on podium
+  let box = new THREE.Box3().setFromObject(glbRoot);
   const size = new THREE.Vector3();
   box.getSize(size);
-  const maxDim = Math.max(size.x, size.y, size.z, 0.01);
-  const target = 4.6;
+  const maxDim = Math.max(size.x, size.y, size.z, 0.001);
+  const target = 4.8;
   glbRoot.scale.setScalar(target / maxDim);
-  box.setFromObject(glbRoot);
+  glbRoot.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(glbRoot);
+  box.getSize(size);
   const mid = box.getCenter(new THREE.Vector3());
-  const minY = box.min.y;
   glbRoot.position.x -= mid.x;
   glbRoot.position.z -= mid.z;
-  glbRoot.position.y -= minY; // sit on floor
-  glbRoot.rotation.y = Math.PI * 0.18;
+  glbRoot.position.y -= box.min.y;
+  glbRoot.rotation.y = Math.PI * 0.2;
   scene.add(glbRoot);
   car.visible = false;
-  controls.target.set(0, Math.max(0.4, size.y * (target / maxDim) * 0.35), 0);
-  camera.position.set(5.2, 2.0, 5.6);
+  const h = Math.max(0.5, size.y);
+  controls.target.set(0, h * 0.35, 0);
+  camera.position.set(5.4, 2.1, 5.8);
+  controls.minDistance = 2.2;
+  controls.maxDistance = 16;
   controls.update();
   onResize();
 }
@@ -2519,12 +2530,24 @@ function loadPodiumModel(id) {
   const trim = document.getElementById('boxTrim');
   if (title) title.textContent = m.name;
   if (trim) trim.textContent = m.year ? (m.year + ' · 3D подиум') : '3D подиум';
+  const base = document.querySelector('base')?.href || (location.origin + location.pathname.replace(/[^/]*$/, ''));
+  const url = new URL(m.file, base).href;
+  const hint = document.querySelector('.podium-wrap .stage-hint');
+  if (hint) hint.textContent = 'загрузка модели…';
   gltfLoader.load(
-    m.file,
-    (gltf) => fitGlb(gltf.scene),
-    undefined,
+    url,
+    (gltf) => {
+      fitGlb(gltf.scene);
+      if (hint) hint.textContent = 'крути пальцем · щипок — зум';
+    },
+    (ev) => {
+      if (!hint || !ev.total) return;
+      const pct = Math.round((ev.loaded / ev.total) * 100);
+      hint.textContent = 'загрузка ' + pct + '%';
+    },
     (err) => {
-      console.warn('glb fail', m.file, err);
+      console.warn('glb fail', url, err);
+      if (hint) hint.textContent = 'ошибка загрузки GLB';
       setRunText('scanStatus', 'не удалось загрузить модель');
     }
   );
@@ -2551,6 +2574,9 @@ function loadDefaultGlb() {
   renderModelBar();
   loadPodiumModel('g87-m2');
 }
+
+loadDefaultGlb();
+
 
 document.getElementById('liveryInput')?.addEventListener('change', async (e) => {
   const files = [...(e.target.files || [])].slice(0, 3);
