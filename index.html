@@ -107,6 +107,11 @@
         </header>
 
         <section id="view-garage" class="view active garage-hero">
+          <div class="podium-wrap" id="podiumWrap">
+            <canvas id="view3d" aria-label="3D подиум"></canvas>
+            <p class="stage-hint">крути пальцем · щипок — зум</p>
+            <div class="model-bar" id="modelBar" role="listbox" aria-label="модели"></div>
+          </div>
           <div id="emptyGarage" class="empty-garage">
             <div class="empty-sil-stage" aria-hidden="true">
               <img id="emptySil" class="empty-sil empty-sil-dotted" src="./img/sil/empty-car.png" alt="" />
@@ -145,7 +150,6 @@
                 <img id="heroWheels" class="hidden" src="./img/c63-wheels.png" alt="" />
               </div>
               <button type="button" class="slide-btn" id="carNext">›</button>
-              <canvas id="view3d" class="hidden-3d"></canvas>
             </div>
             <div class="hero-title">
               <h1 id="boxName">Pitlane</h1>

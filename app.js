@@ -514,10 +514,20 @@ camera.position.set(5.4, 2.2, 5.8);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
-controls.maxPolarAngle = Math.PI * 0.49;
-controls.minDistance = 4;
-controls.maxDistance = 12;
-controls.target.set(0, 0.6, 0);
+controls.enablePan = false;
+controls.autoRotate = true;
+controls.autoRotateSpeed = 0.55;
+controls.maxPolarAngle = Math.PI * 0.495;
+controls.minPolarAngle = 0.15;
+controls.minDistance = 2.4;
+controls.maxDistance = 14;
+controls.target.set(0, 0.55, 0);
+controls.addEventListener('start', () => { controls.autoRotate = false; });
+let podiumIdleTimer = null;
+controls.addEventListener('end', () => {
+  clearTimeout(podiumIdleTimer);
+  podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 2200);
+});
 
 scene.add(new THREE.HemisphereLight(0xe8eef8, 0x1a1a1a, 0.55));
 const key = new THREE.SpotLight(0xfff3dd, 3.4, 22, Math.PI / 5, 0.35);
@@ -560,6 +570,7 @@ ring.position.y = 0.01;
 scene.add(ring);
 
 const car = new THREE.Group();
+car.visible = false;
 scene.add(car);
 const moving = {};
 
@@ -815,6 +826,7 @@ renderTracks();
 applyCarUI();
 onResize();
 requestAnimationFrame(tick);
+loadDefaultGlb();
 
 /* -------- GPS acceleration run -------- */
 const run = {
@@ -2433,32 +2445,111 @@ refreshAccount();
 
 const gltfLoader = new GLTFLoader();
 let glbRoot = null;
+let podiumModelId = null;
+
+/** Catalog of GLB models in /models — podium picker (no door anims). */
+const MODEL_CATALOG = [
+  { id: 'g87-m2', name: 'BMW G87 M2 Widebody', file: './models/g87-m2.glb', year: '2026' },
+  { id: 'ferrari', name: 'Ferrari', file: './models/ferrari.glb' },
+  { id: 'concept', name: 'Concept', file: './models/concept.glb' },
+  { id: 'toycar', name: 'Toy Car', file: './models/toycar.glb' },
+  { id: 'moto', name: 'Moto', file: './models/moto.glb' },
+  { id: 'truck', name: 'Truck', file: './models/truck.glb' },
+];
 
 function clearGlb() {
   if (glbRoot) {
     scene.remove(glbRoot);
+    glbRoot.traverse((o) => {
+      if (o.isMesh) {
+        o.geometry?.dispose?.();
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        mats.forEach((m) => m?.dispose?.());
+      }
+    });
     glbRoot = null;
   }
-  car.visible = true;
+  car.visible = false; // podium = GLB only, lowpoly off
+  moving.doorList = [];
+  moving.hood = null;
+  moving.trunk = null;
 }
 
 function fitGlb(obj) {
   clearGlb();
   glbRoot = obj;
+  glbRoot.traverse((o) => {
+    if (o.isMesh) {
+      o.castShadow = true;
+      o.receiveShadow = true;
+      // freeze any door/hinge userData — no open animations
+      if (o.userData) o.userData.door = false;
+    }
+  });
+  // fit to podium ring (~diameter ~6)
   const box = new THREE.Box3().setFromObject(glbRoot);
-  const size = box.getSize(new THREE.Vector3()).length();
-  glbRoot.scale.setScalar(4.4 / Math.max(size, 0.01));
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z, 0.01);
+  const target = 4.6;
+  glbRoot.scale.setScalar(target / maxDim);
   box.setFromObject(glbRoot);
   const mid = box.getCenter(new THREE.Vector3());
-  glbRoot.position.sub(mid);
-  glbRoot.position.y += 0.22;
-  glbRoot.rotation.y = Math.PI * 0.22;
+  const minY = box.min.y;
+  glbRoot.position.x -= mid.x;
+  glbRoot.position.z -= mid.z;
+  glbRoot.position.y -= minY; // sit on floor
+  glbRoot.rotation.y = Math.PI * 0.18;
   scene.add(glbRoot);
   car.visible = false;
+  controls.target.set(0, Math.max(0.4, size.y * (target / maxDim) * 0.35), 0);
+  camera.position.set(5.2, 2.0, 5.6);
+  controls.update();
+  onResize();
+}
+
+function loadPodiumModel(id) {
+  const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
+  if (!m) return;
+  podiumModelId = m.id;
+  document.querySelectorAll('#modelBar button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.model === m.id);
+  });
+  const title = document.getElementById('boxName');
+  const trim = document.getElementById('boxTrim');
+  if (title) title.textContent = m.name;
+  if (trim) trim.textContent = m.year ? (m.year + ' · 3D подиум') : '3D подиум';
+  gltfLoader.load(
+    m.file,
+    (gltf) => fitGlb(gltf.scene),
+    undefined,
+    (err) => {
+      console.warn('glb fail', m.file, err);
+      setRunText('scanStatus', 'не удалось загрузить модель');
+    }
+  );
+}
+
+function renderModelBar() {
+  const bar = document.getElementById('modelBar');
+  if (!bar) return;
+  bar.innerHTML = MODEL_CATALOG.map((m) =>
+    `<button type="button" role="option" data-model="${m.id}" class="${m.id === podiumModelId ? 'on' : ''}">${m.name}</button>`
+  ).join('');
+  bar.querySelectorAll('button').forEach((b) => {
+    b.addEventListener('click', () => {
+      hap(12);
+      controls.autoRotate = false;
+      loadPodiumModel(b.dataset.model);
+      clearTimeout(podiumIdleTimer);
+      podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 1800);
+    });
+  });
 }
 
 function loadDefaultGlb() {
-  gltfLoader.load('./models/sportscar.glb', (gltf) => fitGlb(gltf.scene));
+  renderModelBar();
+  loadPodiumModel('g87-m2');
 }
 
 document.getElementById('liveryInput')?.addEventListener('change', async (e) => {
@@ -2494,7 +2585,7 @@ document.getElementById('glbInput')?.addEventListener('change', (e) => {
 
 document.getElementById('btnResetModel')?.addEventListener('click', () => {
   state.customLivery = null;
-  gltfLoader.load('./models/ferrari.glb', (gltf) => fitGlb(gltf.scene));
+  loadPodiumModel(podiumModelId || 'g87-m2');
 });
 
 document.querySelectorAll('[data-photo]').forEach((b) => {
@@ -2503,31 +2594,7 @@ document.querySelectorAll('[data-photo]').forEach((b) => {
     if (img) img.src = b.dataset.photo;
   });
 });
-document.getElementById('btnToggle3d')?.addEventListener('click', () => {
-  const canvas3d = document.getElementById('view3d');
-  const photos = document.getElementById('photoStage');
-  const on = canvas3d.classList.contains('hidden-3d');
-  canvas3d.classList.toggle('hidden-3d', !on);
-  photos?.classList.toggle('hidden', on);
-  const t = document.getElementById('btnToggle3d');
-  if (t) t.textContent = on ? 'Фото' : 'Включить 3D';
-  if (on) {
-    onResize();
-    gltfLoader.load('./models/ferrari.glb', (gltf) => fitGlb(gltf.scene));
-  }
-});
-
-document.querySelectorAll('.model-bar button').forEach((b) => {
-  b.addEventListener('click', () => {
-    const url = b.dataset.glb;
-    if (!url) {
-      clearGlb();
-      paintCar(currentCar());
-      return;
-    }
-    gltfLoader.load(url, (gltf) => fitGlb(gltf.scene));
-  });
-});
+/* podium model bar wired in renderModelBar(); 3D always on garage */
 
 const paint = { body: null, wheel: null };
 function hexToRgb(hex) {
