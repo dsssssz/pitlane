@@ -835,46 +835,96 @@ function haversineM(a, b) {
 }
 let lastFix = null;
 let filtV = 0;
+let filtShow = 0;
+const speedBuf = [];
 const kf = { v: 0, a: 0, p: 80, r: 20, q: 10, e2: 30, init: false };
+
+function resetSpeedFilter() {
+  lastFix = null;
+  filtV = 0;
+  filtShow = 0;
+  speedBuf.length = 0;
+  kf.v = 0; kf.a = 0; kf.p = 80; kf.r = 20; kf.q = 10; kf.e2 = 30; kf.init = false;
+}
+
+/** GPS speed for timing (filtV) + smoother HUD (filtShow). Prefer coords.speed. */
 function kmhFromCoords(coords, ts) {
   const acc = coords.accuracy || 25;
-  if (acc > 45) return kf.init ? kf.v : null;
   if (coords.latitude == null) return kf.init ? kf.v : null;
+  if (acc > 55) return kf.init ? kf.v : null;
+
   const fix = { lat: coords.latitude, lon: coords.longitude, t: ts };
+  const dt = lastFix ? Math.max(0.08, Math.min(2.5, (ts - lastFix.t) / 1000)) : 0.3;
+
+  // Device GPS Doppler/speed is usually steadier than Δpos/Δt on phones.
   let z = null;
-  if (coords.speed != null && Number.isFinite(coords.speed) && coords.speed >= 0) {
-    z = Math.max(0, coords.speed * 3.6);
-  }
-  const dt = lastFix ? Math.max(0.05, Math.min(2, (ts - lastFix.t) / 1000)) : 0.25;
+  const hasSpd = coords.speed != null && Number.isFinite(coords.speed) && coords.speed >= 0;
+  if (hasSpd) z = Math.max(0, coords.speed * 3.6);
+
+  let hv = null;
   if (lastFix) {
-    const hv = (haversineM(lastFix, fix) / dt) * 3.6;
-    if (hv < 360) z = z == null ? hv : z * 0.7 + hv * 0.3;
+    const dist = haversineM(lastFix, fix);
+    const rawHv = (dist / dt) * 3.6;
+    // ignore teleport / absurd spikes from bad fixes
+    if (rawHv < 340 && dist < 90) hv = Math.max(0, rawHv);
   }
   lastFix = fix;
+
+  if (z == null) {
+    z = hv;
+  } else if (hv != null && acc > 22) {
+    // only light haversine blend when accuracy is mediocre
+    z = z * 0.9 + hv * 0.1;
+  }
+
   if (z == null) return kf.init ? kf.v : null;
+
+  // spike reject vs current filter
+  if (kf.init && Math.abs(z - kf.v) > 28 && acc > 18) {
+    z = kf.v + Math.sign(z - kf.v) * 14;
+  }
+
   if (!kf.init) {
-    kf.v = z; kf.a = 0; kf.p = 40; kf.r = 12 + acc; kf.q = 10; kf.e2 = 40; kf.init = true; filtV = z;
+    kf.v = z; kf.a = 0; kf.p = 25; kf.r = 8 + acc * 0.35; kf.q = 8; kf.e2 = 30; kf.init = true;
+    filtV = z; filtShow = z; speedBuf.push(z);
     return z;
   }
-  const qBoost = Math.min(40, Math.abs(kf.a) * 0.35);
-  kf.q = kf.q * 0.9 + (6 + qBoost) * 0.1;
+
+  // calmer process noise — less twitchy than before
+  const qBoost = Math.min(18, Math.abs(kf.a) * 0.2);
+  kf.q = kf.q * 0.92 + (4 + qBoost) * 0.08;
   kf.v += kf.a * dt;
-  kf.p += kf.q + acc * 0.12;
+  kf.p += kf.q + Math.min(8, acc * 0.08);
   const innov = z - kf.v;
   const S = kf.p + kf.r;
   const nis = (innov * innov) / Math.max(1, S);
-  kf.e2 = kf.e2 * 0.88 + S * 0.12;
-  if (nis > 3.5) kf.r = Math.min(260, kf.r * 1.18);
-  else if (nis < 0.35) kf.r = Math.max(5, kf.r * 0.94);
-  else kf.r = Math.max(5, Math.min(220, 0.92 * kf.r + 0.08 * (S + acc * 0.5)));
+  if (nis > 4) kf.r = Math.min(180, kf.r * 1.22);
+  else if (nis < 0.4) kf.r = Math.max(4, kf.r * 0.92);
+  else kf.r = Math.max(4, Math.min(160, 0.94 * kf.r + 0.06 * (10 + acc * 0.4)));
   const k = kf.p / (kf.p + kf.r);
-  kf.a = kf.a * 0.55 + (innov / dt) * 0.45;
+  kf.a = kf.a * 0.7 + (innov / Math.max(0.12, dt)) * 0.3;
+  if (Math.abs(kf.a) > 25) kf.a = Math.sign(kf.a) * 25;
   kf.v += k * innov;
   kf.p *= (1 - k);
-  if (kf.v < 0.5) { kf.v = 0; kf.a = 0; }
+  if (kf.v < 0.4) { kf.v = 0; kf.a = 0; }
   if (kf.v > 360) kf.v = 360;
   filtV = kf.v;
-  return kf.v;
+
+  // HUD: median of last samples + slew limit (kills 45↔59 flicker)
+  speedBuf.push(filtV);
+  while (speedBuf.length > 5) speedBuf.shift();
+  const sorted = speedBuf.slice().sort((a, b) => a - b);
+  const med = sorted[Math.floor(sorted.length / 2)];
+  const maxStep = 5.5; // км/ч за один тик GPS
+  const d = med - filtShow;
+  filtShow += Math.sign(d) * Math.min(Math.abs(d), maxStep);
+  if (filtShow < 0.4) filtShow = 0;
+
+  return filtV;
+}
+
+function displayKmh() {
+  return Math.round(filtShow || filtV || 0);
 }
 
 function interpolateCross(prev, next, target) {
@@ -938,9 +988,10 @@ function onGpsPoint(pos) {
     setRunText('runStatus', 'GPS есть, но скорость не отдаёт. Выйдите на улицу / откройте с телефона.');
     return;
   }
-  setRunText('liveSpeed', String(Math.round(v)));
-  setRunText('boxLive', String(Math.round(v)));
-  if (document.body.classList.contains('run-drive-on')) setRunText('runDriveSpeed', String(Math.round(v)));
+  const vShow = displayKmh();
+  setRunText('liveSpeed', String(vShow));
+  setRunText('boxLive', String(vShow));
+  if (document.body.classList.contains('run-drive-on')) setRunText('runDriveSpeed', String(vShow));
   if (lapRun.active) onLapGps(pos, v);
 
   if (!run.armed) {
@@ -1106,6 +1157,8 @@ function startWatch() {
 }
 
 function armRun() {
+  resetSpeedFilter();
+
   hap([18, 40, 18]);
   startWatch();
   run.armed = true;
@@ -1444,6 +1497,8 @@ function resetLapRunSoft() {
 }
 
 function armLapRun() {
+  resetSpeedFilter();
+
   hap([18, 40, 18]);
   startWatch();
   const trackId = document.getElementById('trackSelect')?.value || lapRun.trackId || TRACKS[0].id;
@@ -1657,7 +1712,7 @@ function onLapGps(pos, vKmh) {
     }
   }
 
-  document.getElementById('lapDriveSpeed').textContent = String(Math.round(vKmh || 0));
+  document.getElementById('lapDriveSpeed').textContent = String(displayKmh());
   setLapHud('lapDriveDist', `${Math.round(lapRun.dist)} м`);
   if (lapDrive.open) updateLapCarOnMap();
 
