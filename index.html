@@ -141,93 +141,60 @@
             </div>
           </div>
           <div class="mycar">
-            <div class="stage">
-              <button type="button" class="slide-btn" id="carPrev">‹</button>
-              <div id="photoStage" class="photo-stage">
-                <img id="heroPhoto" src="./img/sil/sedan.svg" alt="кузов" />
-                <div class="body-gloss" aria-hidden="true"></div>
-                <div class="glass-gloss" aria-hidden="true"></div>
-                <img id="heroWheels" class="hidden" src="./img/c63-wheels.png" alt="" />
-              </div>
-              <button type="button" class="slide-btn" id="carNext">›</button>
-            </div>
             <div class="hero-title">
-              <h1 id="boxName">Pitlane</h1>
-              <p class="hero-chip" id="boxTrim">добавь машину</p>
+              <h1 id="boxName">BMW G87 M2 Widebody</h1>
+              <p class="hero-chip" id="boxTrim">2026 · carbon widebody</p>
             </div>
-            <div class="mycar-pills">
-              <button type="button" id="btnAddCar2" title="Добавить ещё">＋</button>
-              <label class="file-btn pill">фото
-                <input id="scanInput" type="file" accept="image/*" capture="environment" hidden />
-              </label>
-              <button type="button" id="scanReset" title="Сбросить фото">фото↺</button>
-              <button type="button" id="btnRemoveCar" title="Убрать из гаража">✕</button>
-            </div>
-            <p class="tiny" id="scanStatus"></p>
-            <label class="scan-thresh-lab tiny" id="scanThreshLab">чувствительность выреза
-              <input id="scanThresh" type="range" min="12" max="55" value="30" />
-            </label>
-            <div class="mycar-speed">
-              <span id="boxClass">—</span>
-              <div>
-                <strong id="boxLive">0</strong>
-                <small>км/ч</small>
-              </div>
-              <span id="boxYear">—</span>
-            </div>
-            <div class="mycar-grid">
-              <article>
-                <label>0–100</label>
-                <b id="s0100">—</b>
-              </article>
-              <article>
-                <label>круг</label>
-                <b id="sLap">—</b>
-              </article>
-            </div>
-            <p id="s100200" class="hidden">—</p>
-                        <div class="colors" id="colorBar">
-              <button type="button" data-paint="polar-white" style="background:#f2f0ea" class="on" title="Polar White"></button>
-              <button type="button" data-paint="obsidian-black" style="background:#161618" title="Obsidian Black"></button>
-              <button type="button" data-paint="graphite-grey" style="background:#4a4e52" title="Graphite Grey"></button>
-              <button type="button" data-paint="selenite-grey" style="background:#6c7072" title="Selenite Grey"></button>
-              <button type="button" data-paint="high-tech-silver" style="background:#c5c8cc" title="High-Tech Silver"></button>
-              <button type="button" data-paint="spectral-blue" style="background:#2b4c7e" title="Spectral Blue"></button>
-              <button type="button" data-paint="patagonia-red" style="background:#8b1e2d" title="Patagonia Red"></button>
-            </div>
-            <div class="colors" id="wheelBar">
-              <button type="button" data-wheel="none" class="on" style="background:#333"></button>
-              <button type="button" data-wheel="sepia(0.4) hue-rotate(5deg) saturate(1.8)" style="background:#c9a227"></button>
-              <button type="button" data-wheel="hue-rotate(200deg) saturate(1.6)" style="background:#c41e3a"></button>
-              <button type="button" data-wheel="grayscale(1) brightness(1.4)" style="background:#eee"></button>
-              <button type="button" data-wheel="brightness(0.45)" style="background:#111"></button>
-            </div>
+            <!-- legacy hidden ids for JS compatibility -->
+            <span id="boxClass" class="hidden">—</span>
+            <span id="boxLive" class="hidden">0</span>
+            <span id="boxYear" class="hidden">—</span>
+            <span id="s0100" class="hidden">—</span>
+            <span id="sLap" class="hidden">—</span>
+            <span id="s100200" class="hidden">—</span>
+            <img id="heroPhoto" class="hidden" alt="" />
+            <div id="photoStage" class="hidden"></div>
+            <img id="heroWheels" class="hidden" alt="" />
+            <input id="scanInput" type="file" accept="image/*" class="hidden" />
+            <button type="button" id="btnAddCar2" class="hidden">＋</button>
+            <button type="button" id="btnRemoveCar" class="hidden">✕</button>
+            <button type="button" id="scanReset" class="hidden">фото↺</button>
+            <p id="scanStatus" class="hidden"></p>
 
             <article class="card box-dyno" id="boxDyno">
-              <h3 data-i18n="dyno.title">Паспорт динамики</h3>
-              <p class="muted tiny">Сток и GPS-замер. Без ручного ввода.</p>
-              <div class="grid-2 box-dyno-grid">
+              <header class="box-dyno-head">
                 <div>
-                  <h4 data-i18n="dyno.acc">Разгон</h4>
-                  <table>
-                    <tr><td>0–100</td><td id="d0100">—</td></tr>
-                    <tr><td>100–200</td><td id="d100200">—</td></tr>
-                    <tr><td>200–300</td><td id="d200300">—</td></tr>
-                    <tr><td>80–120</td><td id="d80120">—</td></tr>
-                  </table>
+                  <h3 data-i18n="dyno.title">Паспорт динамики</h3>
+                  <p class="muted tiny" id="dynoHint">сток G87 Competition · можно править под себя</p>
                 </div>
-                <div>
-                  <h4 data-i18n="dyno.mass">Масса и отдача</h4>
-                  <table>
-                    <tr><td>мощность</td><td id="dHp">—</td></tr>
-                    <tr><td>момент</td><td id="dNm">—</td></tr>
-                    <tr><td>масса</td><td id="dKg">—</td></tr>
-                    <tr><td>л.с./тонна</td><td id="dPt">—</td></tr>
-                  </table>
-                </div>
-              </div>
-            </article>
+                <button type="button" class="dyno-edit-btn" id="btnDynoEdit">Изменить</button>
+              </header>
 
+              <div id="dynoView" class="dyno-rows">
+                <div class="dyno-row"><span>0–100</span><strong id="d0100">—</strong></div>
+                <div class="dyno-row"><span>100–200</span><strong id="d100200">—</strong></div>
+                <div class="dyno-row"><span>200–300</span><strong id="d200300">—</strong></div>
+                <div class="dyno-row"><span>80–120</span><strong id="d80120">—</strong></div>
+                <div class="dyno-row"><span>мощность</span><strong id="dHp">—</strong></div>
+                <div class="dyno-row"><span>момент</span><strong id="dNm">—</strong></div>
+                <div class="dyno-row"><span>масса</span><strong id="dKg">—</strong></div>
+                <div class="dyno-row"><span>л.с. / тонна</span><strong id="dPt">—</strong></div>
+              </div>
+
+              <form id="dynoEditForm" class="dyno-edit hidden" autocomplete="off">
+                <label class="dyno-field"><span>0–100, с</span><input id="e0100" name="v0100" type="number" inputmode="decimal" step="0.01" min="0" placeholder="3.90" /></label>
+                <label class="dyno-field"><span>100–200, с</span><input id="e100200" name="v100200" type="number" inputmode="decimal" step="0.01" min="0" placeholder="—" /></label>
+                <label class="dyno-field"><span>200–300, с</span><input id="e200300" name="v200300" type="number" inputmode="decimal" step="0.01" min="0" placeholder="—" /></label>
+                <label class="dyno-field"><span>80–120, с</span><input id="e80120" name="v80120" type="number" inputmode="decimal" step="0.01" min="0" placeholder="—" /></label>
+                <label class="dyno-field"><span>мощность, л.с.</span><input id="eHp" name="hp" type="number" inputmode="numeric" step="1" min="0" placeholder="460" /></label>
+                <label class="dyno-field"><span>момент, Н·м</span><input id="eNm" name="nm" type="number" inputmode="numeric" step="1" min="0" placeholder="550" /></label>
+                <label class="dyno-field"><span>масса, кг</span><input id="eKg" name="kg" type="number" inputmode="numeric" step="1" min="0" placeholder="1725" /></label>
+                <div class="dyno-edit-actions">
+                  <button type="button" id="btnDynoCancel" class="dyno-ghost">Отмена</button>
+                  <button type="submit" class="dyno-save">Сохранить</button>
+                </div>
+              </form>
+            </article>
           </div>
         </section>
 

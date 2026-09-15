@@ -14,6 +14,8 @@ if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)
 }
 
 const CARS = [
+  // BMW M2 Competition (G87) stock + widebody showcase — DIN/EU figures
+  { id: 'g87-m2', name: 'BMW G87 M2 Widebody', cls: 'GT · RWD · 3.0 twin-turbo', year: 2026, trim: 'Competition · carbon widebody', side: './img/sil/coupe.svg', color: 0x1a1a1a, accent: 0x111, v0100: 3.9, v100200: null, v200300: null, v80120: 2.3, hp: 460, nm: 550, kg: 1725, lap: { track: 'nurb-nord', time: null }, glb: './models/g87-m2.glb' },
   { id: 'gt3rs', name: 'Porsche 911 GT3 RS', cls: 'GT · RWD · 4.0 NA', year: 2023, trim: '992 GT3 RS', side: './img/sil/gt-wing.svg', color: 0xeeeeee, accent: 0x111, v0100: 3.2, v100200: 10.6, v200300: null, v80120: 2.0, hp: 525, nm: 465, kg: 1450, lap: { track: 'nurb-nord', time: '6:49.33' } },
   { id: 'm3', name: 'BMW M3 Competition', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G80 Competition', side: './img/sil/sedan.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.5, v100200: 8.1, v200300: null, v80120: 2.1, hp: 510, nm: 650, kg: 1730, lap: { track: 'nurb-nord', time: '8:12.40' } },
   { id: 'm5', name: 'BMW M5 Competition', cls: 'GT · AWD · 4.4 V8', year: 2022, trim: 'F90 Competition', side: './img/sil/sedan.svg', color: 0xb9bcc0, accent: 0x111, v0100: 3.3, v100200: 8.0, v200300: 21.0, v80120: 2.0, hp: 625, nm: 750, kg: 1890, lap: { track: 'nurb-nord', time: '7:38.00' } },
@@ -173,7 +175,7 @@ const state = loadState();
 
 function loadState() {
   try {
-    return JSON.parse(localStorage.getItem(storeKey)) || { carId: null, garage: [], meas: {}, laps: {}, scans: {} };
+    return JSON.parse(localStorage.getItem(storeKey)) || { carId: null, garage: [], meas: {}, laps: {}, scans: {}, passport: {} };
   } catch {
     return { carId: 'm3', meas: {}, laps: {} };
   }
@@ -209,66 +211,146 @@ function fmt(v, unit = ' с') {
   return v == null || v === '' ? '—' : `${Number(v).toFixed(2).replace(/\.00$/, '')}${unit}`;
 }
 
+
+/** Stock passport by model id (internet/OEM baselines). Overrides in state.passport[id]. */
+const PASSPORT_STOCK = {
+  'g87-m2': {
+    // BMW M2 Competition G87 (official): 460 PS, 550 Nm, ~3.9–4.1 s 0–100, curb ~1725 kg DIN
+    name: 'BMW G87 M2 Widebody',
+    trim: '2026 · Competition · carbon widebody',
+    v0100: 3.9,
+    v100200: null,
+    v200300: null,
+    v80120: 2.3,
+    hp: 460,
+    nm: 550,
+    kg: 1725,
+    note: 'сток G87 Competition · widebody — твои цифры',
+  },
+};
+
+function passportId() {
+  return podiumModelId || state.carId || 'g87-m2';
+}
+
+function getPassport(id) {
+  const key = id || passportId();
+  const stock = PASSPORT_STOCK[key] || {};
+  const car = CARS.find((c) => c.id === key) || {};
+  const saved = (state.passport && state.passport[key]) || {};
+  const base = {
+    v0100: stock.v0100 ?? car.v0100 ?? null,
+    v100200: stock.v100200 ?? car.v100200 ?? null,
+    v200300: stock.v200300 ?? car.v200300 ?? null,
+    v80120: stock.v80120 ?? car.v80120 ?? null,
+    hp: stock.hp ?? car.hp ?? null,
+    nm: stock.nm ?? car.nm ?? null,
+    kg: stock.kg ?? car.kg ?? null,
+    name: stock.name || car.name || key,
+    trim: stock.trim || (car.year ? `${car.year} · ${car.trim || ''}` : ''),
+    note: stock.note || 'паспорт модели',
+  };
+  return { ...base, ...saved };
+}
+
+function fmtPass(v, unit) {
+  if (v == null || v === '' || Number.isNaN(Number(v))) return '—';
+  const n = Number(v);
+  const s = Number.isInteger(n) ? String(n) : n.toFixed(2);
+  return unit ? `${s} ${unit}` : s;
+}
+
+function applyPassportUI() {
+  const id = passportId();
+  const p = getPassport(id);
+  const setTxt = (elId, val) => { const el = document.getElementById(elId); if (el) el.textContent = val; };
+  setTxt('boxName', p.name);
+  setTxt('boxTrim', p.trim || '');
+  setTxt('dynoHint', p.note || 'можно править под себя');
+  // GPS meas overlay for times if present
+  const meas = state.meas[id] || state.meas[state.carId] || {};
+  setTxt('d0100', fmtPass(meas.v0100 ?? p.v0100, 'с'));
+  setTxt('d100200', fmtPass(meas.v100200 ?? p.v100200, 'с'));
+  setTxt('d200300', fmtPass(meas.v200300 ?? p.v200300, 'с'));
+  setTxt('d80120', fmtPass(meas.v80120 ?? p.v80120, 'с'));
+  setTxt('dHp', fmtPass(p.hp, 'л.с.'));
+  setTxt('dNm', fmtPass(p.nm, 'Н·м'));
+  setTxt('dKg', fmtPass(p.kg, 'кг'));
+  const pt = (p.hp && p.kg) ? Math.round((p.hp / p.kg) * 1000) : null;
+  setTxt('dPt', pt != null ? String(pt) : '—');
+}
+
+function setDynoEditMode(on) {
+  document.getElementById('dynoView')?.classList.toggle('hidden', on);
+  document.getElementById('dynoEditForm')?.classList.toggle('hidden', !on);
+  document.getElementById('btnDynoEdit')?.classList.toggle('hidden', on);
+  if (!on) return;
+  const p = getPassport();
+  const meas = state.meas[passportId()] || state.meas[state.carId] || {};
+  const fill = (id, v) => { const el = document.getElementById(id); if (el) el.value = v != null ? v : ''; };
+  fill('e0100', meas.v0100 ?? p.v0100);
+  fill('e100200', meas.v100200 ?? p.v100200);
+  fill('e200300', meas.v200300 ?? p.v200300);
+  fill('e80120', meas.v80120 ?? p.v80120);
+  fill('eHp', p.hp);
+  fill('eNm', p.nm);
+  fill('eKg', p.kg);
+}
+
+function saveDynoEdit(ev) {
+  ev?.preventDefault?.();
+  const id = passportId();
+  const num = (elId) => {
+    const raw = document.getElementById(elId)?.value?.trim();
+    if (raw === '' || raw == null) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  };
+  state.passport = state.passport || {};
+  state.passport[id] = {
+    ...(state.passport[id] || {}),
+    hp: num('eHp'),
+    nm: num('eNm'),
+    kg: num('eKg'),
+    v0100: num('e0100'),
+    v100200: num('e100200'),
+    v200300: num('e200300'),
+    v80120: num('e80120'),
+    note: 'твои цифры',
+  };
+  // also mirror accel into meas so GPS card stays consistent
+  state.meas = state.meas || {};
+  state.meas[id] = {
+    ...(state.meas[id] || {}),
+    v0100: num('e0100'),
+    v100200: num('e100200'),
+    v200300: num('e200300'),
+    v80120: num('e80120'),
+  };
+  save();
+  setDynoEditMode(false);
+  applyPassportUI();
+  hap(14);
+}
+
+
 function applyCarUI() {
   const empty = !garageList().length;
-  document.getElementById('emptyGarage')?.classList.toggle('hidden', !empty);
+  document.getElementById('emptyGarage')?.classList.toggle('hidden', true); // podium + passport are the garage now
   document.getElementById('addWizard')?.classList.add('hidden');
-  document.querySelector('#view-garage .mycar')?.classList.toggle('hidden', empty);
-  if (empty) {
-    const sil = document.getElementById('emptySil');
-    if (sil) sil.src = './img/sil/empty-car.png';
-    const n = document.getElementById('carName');
-    if (n) n.textContent = 'Pitlane';
-    const h = document.getElementById('hdr0100');
-    if (h) h.textContent = '—';
-    const l = document.getElementById('hdrLap');
-    if (l) l.textContent = '—';
-    try { renderCars(); } catch (err) { console.warn('renderCars', err); }
-    return;
-  }
+  document.querySelector('#view-garage .mycar')?.classList.remove('hidden');
+  applyPassportUI();
   const c = currentCar();
   const m = state.meas[c.id] || {};
-  const v0100 = m.v0100;
-  const v100200 = m.v100200;
-  const v200300 = m.v200300;
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setTxt('carName', c.name);
   setTxt('carClass', c.cls);
-  setTxt('hdr0100', fmt(v0100, 'с'));
-  setTxt('boxName', c.name);
-  setTxt('boxTrim', `${c.year} · ${c.trim}`);
-  setTxt('boxClass', c.cls);
-  setTxt('boxYear', String(c.year));
-  const hero = document.getElementById('heroPhoto');
-  const stage = document.getElementById('photoStage');
-  const wheels = document.getElementById('heroWheels');
-  const scanSrc = state.scans && state.scans[c.id];
-  const sideSrc = silForCar(c);
-  if (hero) {
-    const src = scanSrc || sideSrc;
-    hero.dataset.orig = src;
-    hero.src = src;
-  }
-  stage?.classList.toggle('has-cutout', !!scanSrc);
-  stage?.classList.toggle('has-sil', !scanSrc);
-  if (wheels) wheels.classList.add('hidden'); // silhouettes include wheels
-
-  setTxt('s0100', fmt(v0100));
-  setTxt('s100200', fmt(v100200));
-  setTxt('s200300', fmt(v200300));
-  setTxt('d0100', fmt(v0100));
-  setTxt('d100200', fmt(v100200));
-  setTxt('d200300', fmt(v200300));
-  setTxt('d80120', fmt(m.v80120));
-  const hpEl = document.getElementById('dHp');
-  if (hpEl) hpEl.textContent = c.hp ? `${c.hp} л.с.` : '—';
-  setTxt('dNm', `${c.nm} Н·м`);
-  setTxt('dKg', `${c.kg} кг`);
-  setTxt('dPt', c.kg ? String(Math.round((c.hp / c.kg) * 1000)) : '—');
-  const track = TRACKS.find((t) => t.id === (state.trackId || c.lap.track)) || TRACKS[0];
+  setTxt('hdr0100', fmt(m.v0100, 'с'));
+  const track = TRACKS.find((t) => t.id === (state.trackId || c.lap?.track)) || TRACKS[0];
   const mine = bestLapDisplay(track.id);
   setTxt('sLap', mine || 'нет заезда');
-  document.getElementById('hdrLap').textContent = mine || '—';
+  const hdrLap = document.getElementById('hdrLap');
+  if (hdrLap) hdrLap.textContent = mine || '—';
   const trackRef = document.getElementById('trackRef');
   if (trackRef) trackRef.textContent = track.ref || '—';
   const trackMine = document.getElementById('trackMine');
@@ -2530,6 +2612,7 @@ function loadPodiumModel(id) {
   const trim = document.getElementById('boxTrim');
   if (title) title.textContent = m.name;
   if (trim) trim.textContent = m.year ? (m.year + ' · 3D подиум') : '3D подиум';
+  try { applyPassportUI(); } catch (_) {}
   const base = document.querySelector('base')?.href || (location.origin + location.pathname.replace(/[^/]*$/, ''));
   const url = new URL(m.file, base).href;
   const hint = document.querySelector('.podium-wrap .stage-hint');

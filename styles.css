@@ -1615,3 +1615,122 @@ body.run-drive-on #app { visibility: hidden; }
 @media (max-width: 720px) {
   .podium-wrap { height: min(46dvh, 360px); }
 }
+
+/* Passport dynamics — clean rows + edit */
+.box-dyno {
+  position: relative;
+  margin: 8px 0 24px;
+  padding: 16px 16px 18px;
+  border-radius: 18px;
+  border: 1px solid #1e2430;
+  background: linear-gradient(180deg, #0e1118, #0a0c10);
+}
+.box-dyno-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.box-dyno-head h3 {
+  margin: 0 0 4px;
+  font: 800 20px/1.1 "Barlow Condensed", sans-serif;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.box-dyno-head .tiny { margin: 0; opacity: .55; }
+.dyno-edit-btn {
+  flex-shrink: 0;
+  align-self: flex-end;
+  margin-top: auto;
+  border: 1px solid #2ee56a;
+  background: rgba(46,229,106,.1);
+  color: #2ee56a;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font: 700 12px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.dyno-edit-btn:active { transform: scale(.97); }
+.dyno-rows { display: flex; flex-direction: column; gap: 0; }
+.dyno-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 2px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.dyno-row:last-child { border-bottom: 0; }
+.dyno-row span {
+  font-size: 13px;
+  color: #8b93a0;
+  letter-spacing: .02em;
+}
+.dyno-row strong {
+  font: 700 16px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .03em;
+  color: #f2f4f7;
+}
+.dyno-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dyno-edit.hidden { display: none; }
+.dyno-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.dyno-field span {
+  font-size: 11px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #7a8494;
+}
+.dyno-field input {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 14px;
+  border: 1px solid #2a3140;
+  background: #0c0f14;
+  color: #fff;
+  font: 600 17px/1.2 "Barlow Condensed", sans-serif;
+  letter-spacing: .03em;
+  padding: 14px 16px;
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
+}
+.dyno-field input:focus {
+  border-color: #2ee56a;
+  box-shadow: 0 0 0 3px rgba(46,229,106,.15);
+}
+.dyno-field input::placeholder { color: #3a4252; }
+.dyno-edit-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 6px;
+}
+.dyno-ghost, .dyno-save {
+  flex: 1;
+  border-radius: 14px;
+  padding: 14px 12px;
+  font: 700 13px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.dyno-ghost {
+  border: 1px solid #2a3140;
+  background: transparent;
+  color: #aab2bd;
+}
+.dyno-save {
+  border: 0;
+  background: #2ee56a;
+  color: #06140a;
+}
+.garage-hero .mycar { display: block !important; }
+.garage-hero .mycar.hidden { display: block !important; }
+.hero-title { text-align: center; margin: 6px 0 10px; }
