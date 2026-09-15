@@ -250,7 +250,11 @@ function getPassport(id) {
     trim: stock.trim || (car.year ? `${car.year} · ${car.trim || ''}` : ''),
     note: stock.note || 'паспорт модели',
   };
-  return { ...base, ...saved };
+  const out = { ...base };
+  for (const [k, v] of Object.entries(saved)) {
+    if (v != null && v !== '') out[k] = v;
+  }
+  return out;
 }
 
 function fmtPass(v, unit) {
@@ -262,7 +266,7 @@ function fmtPass(v, unit) {
 
 
 const BRAND_MARKS = {
-  bmw: './img/brands/bmw.svg',
+  bmw: './img/brands/bmw.png',
 };
 
 function brandKeyFromName(name) {
@@ -608,16 +612,23 @@ if (document.getElementById('lapForm')) document.getElementById('lapForm').onsub
 
 /* ---------------- 3D ---------------- */
 const canvas = document.getElementById('view3d');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({
+  canvas,
+  antialias: true,
+  alpha: false,
+  powerPreference: 'high-performance',
+});
+renderer.setClearColor(0x07090e, 1);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
+renderer.toneMappingExposure = 1.25;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 80);
+scene.background = new THREE.Color(0x07090e);
+const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
 camera.position.set(5.4, 2.2, 5.8);
 
 const controls = new OrbitControls(camera, canvas);
@@ -637,7 +648,8 @@ controls.addEventListener('end', () => {
   podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 2200);
 });
 
-scene.add(new THREE.HemisphereLight(0xe8eef8, 0x1a1a1a, 0.55));
+scene.add(new THREE.AmbientLight(0xffffff, 0.45));
+scene.add(new THREE.HemisphereLight(0xe8eef8, 0x1a1a1a, 0.85));
 const key = new THREE.SpotLight(0xfff3dd, 3.4, 22, Math.PI / 5, 0.35);
 key.position.set(3.2, 7.2, 3.4);
 key.castShadow = true;
@@ -663,14 +675,14 @@ ceilingLamp(1.4, -1.2);
 
 const floor = new THREE.Mesh(
   new THREE.CircleGeometry(7, 72),
-  new THREE.MeshStandardMaterial({ color: 0x1a1d24, metalness: 0.72, roughness: 0.22 })
+  new THREE.MeshStandardMaterial({ color: 0x2a303c, metalness: 0.55, roughness: 0.35 })
 );
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
 
 const ring = new THREE.Mesh(
-  new THREE.RingGeometry(3.15, 3.28, 80),
+  new THREE.RingGeometry(3.05, 3.35, 96),
   new THREE.MeshBasicMaterial({ color: 0x2ee56a, side: THREE.DoubleSide })
 );
 ring.rotation.x = -Math.PI / 2;
@@ -902,13 +914,22 @@ function lerpAngle(obj, axis, target, dt) {
 }
 
 function onResize() {
-  const w = canvas.clientWidth || canvas.parentElement.clientWidth;
-  const h = canvas.clientHeight || canvas.parentElement.clientHeight;
+  if (!canvas || !renderer) return;
+  const wrap = document.getElementById('podiumWrap') || canvas.parentElement;
+  const rect = wrap?.getBoundingClientRect?.() || { width: 0, height: 0 };
+  let w = Math.max(1, Math.floor(rect.width || canvas.clientWidth || 320));
+  let h = Math.max(1, Math.floor(rect.height || canvas.clientHeight || 240));
+  // fallback if layout not ready
+  if (w < 8 || h < 8) { w = 320; h = 240; }
   renderer.setSize(w, h, false);
-  camera.aspect = w / Math.max(h, 1);
+  camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', onResize);
+if (typeof ResizeObserver !== 'undefined') {
+  const wrap = document.getElementById('podiumWrap');
+  if (wrap) new ResizeObserver(() => onResize()).observe(wrap);
+}
 
 let last = performance.now();
 function tick(now) {
@@ -2684,7 +2705,19 @@ function loadDefaultGlb() {
   loadPodiumModel('g87-m2');
 }
 
-loadDefaultGlb();
+
+function bootPodium() {
+  onResize();
+  try { applyPassportUI(); } catch (_) {}
+  loadDefaultGlb();
+  // second resize after fonts/layout
+  requestAnimationFrame(() => { onResize(); requestAnimationFrame(onResize); });
+}
+if (document.readyState === 'complete') setTimeout(bootPodium, 50);
+else window.addEventListener('load', () => setTimeout(bootPodium, 50));
+// also boot when intro closes
+document.getElementById('intro')?.addEventListener('click', () => setTimeout(bootPodium, 30));
+setTimeout(bootPodium, 500);
 
 document.getElementById('btnDynoEdit')?.addEventListener('click', () => setDynoEditMode(true));
 document.getElementById('btnDynoCancel')?.addEventListener('click', () => setDynoEditMode(false));
