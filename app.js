@@ -2767,14 +2767,24 @@ function fitGlb(obj) {
       o.castShadow = true;
       o.receiveShadow = true;
       if (o.userData) o.userData.door = false;
-      // ensure materials visible
+      // keep glass / transmission / alpha — forcing opaque made windows black
       const mats = Array.isArray(o.material) ? o.material : [o.material];
+      let glassish = false;
       mats.forEach((mat) => {
         if (!mat) return;
         mat.side = THREE.DoubleSide;
-        mat.transparent = false;
+        const transmission = Number(mat.transmission || 0);
+        const opacity = mat.opacity == null ? 1 : Number(mat.opacity);
+        const isGlass = !!(mat.transparent || mat.alphaMap || transmission > 0.01 || opacity < 0.999);
+        if (isGlass) {
+          glassish = true;
+          mat.transparent = true;
+          if (transmission > 0.01 || opacity < 0.95) mat.depthWrite = false;
+        }
         if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+        mat.needsUpdate = true;
       });
+      if (glassish) o.castShadow = false;
     }
   });
   // fit length to ~4.8m on podium
