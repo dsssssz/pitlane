@@ -2652,18 +2652,82 @@ function fitGlb(obj) {
   onResize();
 }
 
-function loadPodiumModel(id) {
-  const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
-  if (!m) return;
-  podiumModelId = m.id;
-  document.querySelectorAll('#modelBar button').forEach((b) => {
-    b.classList.toggle('on', b.dataset.model === m.id);
-  });
+let heroTitleAnimLock = false;
+
+function applyPodiumTitle(m) {
   const title = document.getElementById('boxName');
   const trim = document.getElementById('boxTrim');
   if (title) title.textContent = m.name;
   if (trim) trim.textContent = m.year ? (m.year + ' · 3D подиум') : '3D подиум';
   try { applyPassportUI(); } catch (_) {}
+  // Keep catalog label when this model has no passport stock entry
+  if (!PASSPORT_STOCK[m.id]) {
+    if (title) title.textContent = m.name;
+    if (trim) trim.textContent = m.year ? (m.year + ' · 3D подиум') : '3D подиум';
+  }
+}
+
+/** Polished title crossfade/slide. dir > 0 = next, dir < 0 = prev. */
+function runHeroTitleTransition(dir, applyFn) {
+  const el = document.getElementById('heroTitleSwap');
+  if (!el || !dir) {
+    applyFn();
+    return Promise.resolve();
+  }
+  if (heroTitleAnimLock) {
+    applyFn();
+    return Promise.resolve();
+  }
+  heroTitleAnimLock = true;
+  const exitCls = dir > 0 ? 'is-exit-next' : 'is-exit-prev';
+  const prepCls = dir > 0 ? 'is-enter-prep-next' : 'is-enter-prep-prev';
+  const prevBtns = [document.getElementById('btnCarPrev'), document.getElementById('btnCarNext')];
+  prevBtns.forEach((b) => { if (b) b.disabled = true; });
+
+  return new Promise((resolve) => {
+    el.classList.remove('is-exit-next', 'is-exit-prev', 'is-enter-prep-next', 'is-enter-prep-prev');
+    // force style flush then exit
+    void el.offsetWidth;
+    el.classList.add(exitCls);
+    window.setTimeout(() => {
+      applyFn();
+      el.classList.remove(exitCls);
+      el.classList.add(prepCls);
+      void el.offsetWidth;
+      el.classList.remove(prepCls);
+      window.setTimeout(() => {
+        heroTitleAnimLock = false;
+        prevBtns.forEach((b) => { if (b) b.disabled = false; });
+        resolve();
+      }, 500);
+    }, 260);
+  });
+}
+
+function cyclePodiumModel(delta) {
+  if (heroTitleAnimLock || !MODEL_CATALOG.length) return;
+  const idx = MODEL_CATALOG.findIndex((x) => x.id === podiumModelId);
+  const i = idx < 0 ? 0 : idx;
+  const next = MODEL_CATALOG[(i + delta + MODEL_CATALOG.length) % MODEL_CATALOG.length];
+  if (!next || next.id === podiumModelId) return;
+  hap(12);
+  try { controls.autoRotate = false; } catch (_) {}
+  loadPodiumModel(next.id, delta > 0 ? 1 : -1);
+  clearTimeout(podiumIdleTimer);
+  podiumIdleTimer = setTimeout(() => { try { controls.autoRotate = true; } catch (_) {} }, 1800);
+}
+
+function loadPodiumModel(id, animDir = 0) {
+  const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
+  if (!m) return;
+  const same = podiumModelId === m.id;
+  podiumModelId = m.id;
+  document.querySelectorAll('#modelBar button').forEach((b) => {
+    b.classList.toggle('on', b.dataset.model === m.id);
+  });
+  const doTitle = () => applyPodiumTitle(m);
+  if (animDir && !same) runHeroTitleTransition(animDir, doTitle);
+  else doTitle();
   const base = document.querySelector('base')?.href || (location.origin + location.pathname.replace(/[^/]*$/, ''));
   const url = new URL(m.file, base).href;
   const hint = document.querySelector('.podium-wrap .stage-hint');
@@ -2695,9 +2759,14 @@ function renderModelBar() {
   ).join('');
   bar.querySelectorAll('button').forEach((b) => {
     b.addEventListener('click', () => {
+      if (heroTitleAnimLock) return;
+      const oldIdx = MODEL_CATALOG.findIndex((x) => x.id === podiumModelId);
+      const newIdx = MODEL_CATALOG.findIndex((x) => x.id === b.dataset.model);
+      let dir = 0;
+      if (oldIdx >= 0 && newIdx >= 0 && oldIdx !== newIdx) dir = newIdx > oldIdx ? 1 : -1;
       hap(12);
       controls.autoRotate = false;
-      loadPodiumModel(b.dataset.model);
+      loadPodiumModel(b.dataset.model, dir);
       clearTimeout(podiumIdleTimer);
       podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 1800);
     });
@@ -2726,6 +2795,8 @@ setTimeout(bootPodium, 500);
 document.getElementById('btnDynoEdit')?.addEventListener('click', () => setDynoEditMode(true));
 document.getElementById('btnDynoCancel')?.addEventListener('click', () => setDynoEditMode(false));
 document.getElementById('dynoEditForm')?.addEventListener('submit', saveDynoEdit);
+document.getElementById('btnCarPrev')?.addEventListener('click', () => cyclePodiumModel(-1));
+document.getElementById('btnCarNext')?.addEventListener('click', () => cyclePodiumModel(1));
 
 
 document.getElementById('liveryInput')?.addEventListener('change', async (e) => {

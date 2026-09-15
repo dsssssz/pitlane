@@ -142,12 +142,22 @@
           </div>
           <div class="mycar">
             <div class="hero-title">
-              <div class="hero-name-row">
-                <img id="brandMark" class="brand-mark" src="./img/brands/bmw.png" alt="" width="36" height="36" />
-                <h1 id="boxName">BMW G87 M2 Widebody</h1>
+              <button type="button" class="hero-nav" id="btnCarPrev" aria-label="Предыдущая машина">
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M15.4 4.6 8 12l7.4 7.4 1.4-1.4L10.8 12l6-6z"/></svg>
+              </button>
+              <div class="hero-title-main">
+                <div class="hero-title-swap" id="heroTitleSwap">
+                  <div class="hero-name-row">
+                    <img id="brandMark" class="brand-mark" src="./img/brands/bmw.png" alt="" width="36" height="36" />
+                    <h1 id="boxName">BMW G87 M2 Widebody</h1>
+                  </div>
+                  <p class="hero-chip" id="boxTrim">2026 · carbon widebody</p>
+                  <p class="tiny brand-disclaimer" id="brandDisclaimer">эмблема для превью стиля · не для релиза</p>
+                </div>
               </div>
-              <p class="hero-chip" id="boxTrim">2026 · carbon widebody</p>
-              <p class="tiny brand-disclaimer" id="brandDisclaimer">эмблема для превью стиля · не для релиза</p>
+              <button type="button" class="hero-nav" id="btnCarNext" aria-label="Следующая машина">
+                <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="m8.6 4.6-1.4 1.4 6 6-6 6 1.4 1.4L16 12z"/></svg>
+              </button>
             </div>
             <!-- legacy hidden ids for JS compatibility -->
             <span id="boxClass" class="hidden">—</span>
