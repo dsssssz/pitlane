@@ -16,7 +16,9 @@ if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)
 const CARS = [
   // BMW M2 Competition (G87) stock + widebody showcase — DIN/EU figures
   { id: 'g87-m2', name: 'BMW G87 M2 Widebody', cls: 'GT · RWD · 3.0 twin-turbo', year: 2026, trim: 'Competition · carbon widebody', side: './img/sil/coupe.svg', color: 0x1a1a1a, accent: 0x111, v0100: 3.9, v100200: null, v200300: null, v80120: 2.3, hp: 460, nm: 550, kg: 1725, lap: { track: 'nurb-nord', time: null }, glb: './models/g87-m2.glb' },
-  { id: 'gt3rs', name: 'Porsche 911 GT3 RS', cls: 'GT · RWD · 4.0 NA', year: 2023, trim: '992 GT3 RS', side: './img/sil/gt-wing.svg', color: 0xeeeeee, accent: 0x111, v0100: 3.2, v100200: 10.6, v200300: null, v80120: 2.0, hp: 525, nm: 465, kg: 1450, lap: { track: 'nurb-nord', time: '6:49.33' } },
+  { id: 'gt3rs', name: 'Porsche 911 GT3 RS', cls: 'GT · RWD · 4.0 NA', year: 2023, trim: '992 GT3 RS', side: './img/sil/gt-wing.svg', color: 0xeeeeee, accent: 0x111, v0100: 3.2, v100200: 10.6, v200300: null, v80120: 2.0, hp: 525, nm: 465, kg: 1450, lap: { track: 'nurb-nord', time: '6:49.33' }, glb: './models/gt3rs.glb' },
+  { id: 'g63', name: 'Mercedes-AMG G 63', cls: 'SUV · AWD · 4.0 V8 biturbo', year: 2020, trim: 'W463 AMG', side: './img/sil/suv.svg', color: 0x111111, accent: 0x111, v0100: 4.5, v100200: null, v200300: null, v80120: 2.8, hp: 585, nm: 850, kg: 2485, lap: { track: 'nurb-nord', time: null }, glb: './models/g63.glb' },
+  { id: 'mclaren-765lt', name: 'McLaren 765LT', cls: 'Super · RWD · 4.0 twin-turbo V8', year: 2021, trim: 'Longtail', side: './img/sil/super.svg', color: 0xff6600, accent: 0x111, v0100: 2.8, v100200: 6.5, v200300: 16.0, v80120: 1.7, hp: 765, nm: 800, kg: 1339, lap: { track: 'nurb-nord', time: null }, glb: './models/mclaren-765lt.glb' },
   { id: 'm3', name: 'BMW M3 Competition', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G80 Competition', side: './img/sil/sedan.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.5, v100200: 8.1, v200300: null, v80120: 2.1, hp: 510, nm: 650, kg: 1730, lap: { track: 'nurb-nord', time: '8:12.40' } },
   { id: 'm5', name: 'BMW M5 Competition', cls: 'GT · AWD · 4.4 V8', year: 2022, trim: 'F90 Competition', side: './img/sil/sedan.svg', color: 0xb9bcc0, accent: 0x111, v0100: 3.3, v100200: 8.0, v200300: 21.0, v80120: 2.0, hp: 625, nm: 750, kg: 1890, lap: { track: 'nurb-nord', time: '7:38.00' } },
   { id: 'm4csl', name: 'BMW M4 CSL', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G82 CSL', side: './img/sil/coupe.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.7, v100200: 8.5, v200300: null, v80120: 2.2, hp: 550, nm: 650, kg: 1625, lap: { track: 'nurb-nord', time: '7:20.00' } },
@@ -227,6 +229,42 @@ const PASSPORT_STOCK = {
     nm: 550,
     kg: 1725,
     note: 'сток G87 Competition · widebody — твои цифры',
+  },
+  gt3rs: {
+    name: 'Porsche 911 GT3 RS',
+    trim: '2023 · 992 GT3 RS',
+    v0100: 3.2,
+    v100200: 10.6,
+    v200300: null,
+    v80120: 2.0,
+    hp: 525,
+    nm: 465,
+    kg: 1450,
+    note: 'сток 992 GT3 RS',
+  },
+  g63: {
+    name: 'Mercedes-AMG G 63',
+    trim: '2020 · W463 AMG · 4.0 V8',
+    v0100: 4.5,
+    v100200: null,
+    v200300: null,
+    v80120: 2.8,
+    hp: 585,
+    nm: 850,
+    kg: 2485,
+    note: 'сток AMG G 63 · ~585 л.с. / 850 Н·м',
+  },
+  'mclaren-765lt': {
+    name: 'McLaren 765LT',
+    trim: '2021 · Longtail',
+    v0100: 2.8,
+    v100200: 6.5,
+    v200300: 16.0,
+    v80120: 1.7,
+    hp: 765,
+    nm: 800,
+    kg: 1339,
+    note: 'сток 765LT · ~765 л.с. / 800 Н·м',
   },
 };
 
@@ -2582,11 +2620,9 @@ let glbRoot = null;
 /** Catalog of GLB models in /models — cycled via title ◀ ▶ (no door anims). */
 const MODEL_CATALOG = [
   { id: 'g87-m2', name: 'BMW G87 M2 Widebody', file: './models/g87-m2.glb', year: '2026' },
-  { id: 'ferrari', name: 'Ferrari', file: './models/ferrari.glb' },
-  { id: 'concept', name: 'Concept', file: './models/concept.glb' },
-  { id: 'toycar', name: 'Toy Car', file: './models/toycar.glb' },
-  { id: 'moto', name: 'Moto', file: './models/moto.glb' },
-  { id: 'truck', name: 'Truck', file: './models/truck.glb' },
+  { id: 'gt3rs', name: 'Porsche 911 GT3 RS', file: './models/gt3rs.glb', year: '2023' },
+  { id: 'mclaren-765lt', name: 'McLaren 765LT', file: './models/mclaren-765lt.glb', year: '2021' },
+  { id: 'g63', name: 'Mercedes-AMG G 63', file: './models/g63.glb', year: '2020' },
 ];
 
 function clearGlb() {
@@ -2722,6 +2758,7 @@ function loadPodiumModel(id, animDir = 0) {
   if (!m) return;
   const same = podiumModelId === m.id;
   podiumModelId = m.id;
+  try { state.carId = m.id; } catch (_) {}
   const doTitle = () => applyPodiumTitle(m);
   if (animDir && !same) runHeroTitleTransition(animDir, doTitle);
   else doTitle();
