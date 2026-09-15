@@ -172,6 +172,7 @@ function drawTrack(id, elId, opts) {
 
 const storeKey = 'pitlane-v1';
 const state = loadState();
+let podiumModelId = null;
 
 function loadState() {
   try {
@@ -230,7 +231,11 @@ const PASSPORT_STOCK = {
 };
 
 function passportId() {
-  return podiumModelId || state.carId || 'g87-m2';
+  try {
+    return (typeof podiumModelId !== 'undefined' && podiumModelId) || state.carId || 'g87-m2';
+  } catch (_) {
+    return state.carId || 'g87-m2';
+  }
 }
 
 function getPassport(id) {
@@ -2573,7 +2578,6 @@ refreshAccount();
 
 const gltfLoader = new GLTFLoader();
 let glbRoot = null;
-let podiumModelId = null;
 
 /** Catalog of GLB models in /models — podium picker (no door anims). */
 const MODEL_CATALOG = [

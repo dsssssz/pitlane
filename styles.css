@@ -1747,12 +1747,13 @@ body.run-drive-on #app { visibility: hidden; }
   letter-spacing: .04em;
 }
 .brand-mark {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   flex-shrink: 0;
-  box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 4px 16px rgba(0,0,0,.35);
-  background: #111;
+  object-fit: contain;
+  background: transparent;
+  box-shadow: none;
 }
 .brand-mark.hidden { display: none; }
 .brand-disclaimer {
