@@ -2579,7 +2579,7 @@ refreshAccount();
 const gltfLoader = new GLTFLoader();
 let glbRoot = null;
 
-/** Catalog of GLB models in /models — podium picker (no door anims). */
+/** Catalog of GLB models in /models — cycled via title ◀ ▶ (no door anims). */
 const MODEL_CATALOG = [
   { id: 'g87-m2', name: 'BMW G87 M2 Widebody', file: './models/g87-m2.glb', year: '2026' },
   { id: 'ferrari', name: 'Ferrari', file: './models/ferrari.glb' },
@@ -2722,9 +2722,6 @@ function loadPodiumModel(id, animDir = 0) {
   if (!m) return;
   const same = podiumModelId === m.id;
   podiumModelId = m.id;
-  document.querySelectorAll('#modelBar button').forEach((b) => {
-    b.classList.toggle('on', b.dataset.model === m.id);
-  });
   const doTitle = () => applyPodiumTitle(m);
   if (animDir && !same) runHeroTitleTransition(animDir, doTitle);
   else doTitle();
@@ -2751,30 +2748,7 @@ function loadPodiumModel(id, animDir = 0) {
   );
 }
 
-function renderModelBar() {
-  const bar = document.getElementById('modelBar');
-  if (!bar) return;
-  bar.innerHTML = MODEL_CATALOG.map((m) =>
-    `<button type="button" role="option" data-model="${m.id}" class="${m.id === podiumModelId ? 'on' : ''}">${m.name}</button>`
-  ).join('');
-  bar.querySelectorAll('button').forEach((b) => {
-    b.addEventListener('click', () => {
-      if (heroTitleAnimLock) return;
-      const oldIdx = MODEL_CATALOG.findIndex((x) => x.id === podiumModelId);
-      const newIdx = MODEL_CATALOG.findIndex((x) => x.id === b.dataset.model);
-      let dir = 0;
-      if (oldIdx >= 0 && newIdx >= 0 && oldIdx !== newIdx) dir = newIdx > oldIdx ? 1 : -1;
-      hap(12);
-      controls.autoRotate = false;
-      loadPodiumModel(b.dataset.model, dir);
-      clearTimeout(podiumIdleTimer);
-      podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 1800);
-    });
-  });
-}
-
 function loadDefaultGlb() {
-  renderModelBar();
   loadPodiumModel('g87-m2');
 }
 
@@ -2841,7 +2815,6 @@ document.querySelectorAll('[data-photo]').forEach((b) => {
     if (img) img.src = b.dataset.photo;
   });
 });
-/* podium model bar wired in renderModelBar(); 3D always on garage */
 
 const paint = { body: null, wheel: null };
 function hexToRgb(hex) {

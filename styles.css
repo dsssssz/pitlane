@@ -262,16 +262,6 @@ h2 { font-size: 32px; margin-bottom: 6px; }
   position: absolute; left: 16px; bottom: 14px;
   color: var(--muted); font-size: 12px;
 }
-.model-bar {
-  position: absolute;
-  left: 14px;
-  top: 48px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  z-index: 2;
-}
-.model-bar button { font: 600 11px Manrope, sans-serif; }
 .empty-garage { text-align: center; padding: 24px 16px 8px; }
 .ghost-car { display: none; }
 .add-wizard {
@@ -1573,7 +1563,7 @@ body.run-drive-on #app { visibility: hidden; }
 .podium-wrap .stage-hint {
   position: absolute;
   left: 12px;
-  bottom: 52px;
+  bottom: 12px;
   margin: 0;
   font-size: 11px;
   letter-spacing: .08em;
@@ -1581,36 +1571,6 @@ body.run-drive-on #app { visibility: hidden; }
   color: rgba(181,181,181,.55);
   pointer-events: none;
   z-index: 2;
-}
-.model-bar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 3;
-  display: flex;
-  gap: 8px;
-  padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  background: linear-gradient(180deg, transparent, rgba(58,58,58,.92) 40%);
-}
-.model-bar button {
-  flex: 0 0 auto;
-  border-radius: 999px;
-  border: 1px solid #707070;
-  background: #696969;
-  color: #f0f0f0;
-  font: 700 12px/1 "Barlow Condensed", sans-serif;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  padding: 10px 14px;
-  white-space: nowrap;
-}
-.model-bar button.on {
-  border-color: #39FF14;
-  color: #3a3a3a;
-  background: #39FF14;
 }
 @media (max-width: 720px) {
   .podium-wrap { height: min(46dvh, 360px); }
