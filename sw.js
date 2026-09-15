@@ -1,5 +1,5 @@
-const CACHE = 'pitlane-v24';
-const CORE = ['./', './index.html', './styles.css', './app.js', './api.js', './manifest.json'];
+const CACHE = 'pitlane-v25';
+const CORE = ['./', './index.html', './styles.css', './app.js', './api.js', './manifest.json', './favicon.svg', './img/icon-192.png', './img/icon-512.png', './img/emblem.svg'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
 });

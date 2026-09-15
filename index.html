@@ -9,8 +9,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Pitlane" />
     <link rel="manifest" href="./manifest.json" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="icon" type="image/png" sizes="32x32" href="./img/favicon-32.png" />
     <link rel="apple-touch-icon" href="./img/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="./img/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="./img/icon-512.png" />
     <meta name="description" content="Pitlane — гараж, замеры и круги для трека" />
     <meta name="pitlane-api" content="" />
     <title>Pitlane — гараж и телеметрия</title>
@@ -32,12 +35,15 @@
           </g>
         </svg>
       </div>
-      <div class="intro-logo">PITLANE</div>
+      <div class="intro-logo">
+        <img class="intro-emblem" src="./img/emblem.svg" alt="Pitlane" width="120" height="120" />
+        <span>PITLANE</span>
+      </div>
       <p class="intro-skip">нажмите, чтобы пропустить</p>
     </div>
     <div id="app">
       <aside class="rail">
-        <div class="mark">PIT<span>LANE</span></div>
+        <div class="mark"><img class="mark-emblem" src="./img/emblem.svg" alt="" width="28" height="28" /><span>PIT<span>LANE</span></span></div>
         <nav class="tabbar" id="tabbar">
           <div class="tab-pill" id="tabPill" aria-hidden="true"></div>
           <button class="nav-btn active" data-view="garage" title="Гараж">
