@@ -260,12 +260,38 @@ function fmtPass(v, unit) {
   return unit ? `${s} ${unit}` : s;
 }
 
+
+const BRAND_MARKS = {
+  bmw: './img/brands/bmw.svg',
+};
+
+function brandKeyFromName(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.includes('bmw')) return 'bmw';
+  return null;
+}
+
+function applyBrandMark(name) {
+  const img = document.getElementById('brandMark');
+  if (!img) return;
+  const key = brandKeyFromName(name);
+  if (!key || !BRAND_MARKS[key]) {
+    img.classList.add('hidden');
+    img.removeAttribute('src');
+    return;
+  }
+  img.src = BRAND_MARKS[key];
+  img.classList.remove('hidden');
+  img.alt = key.toUpperCase();
+}
+
 function applyPassportUI() {
   const id = passportId();
   const p = getPassport(id);
   const setTxt = (elId, val) => { const el = document.getElementById(elId); if (el) el.textContent = val; };
   setTxt('boxName', p.name);
   setTxt('boxTrim', p.trim || '');
+  applyBrandMark(p.name);
   setTxt('dynoHint', p.note || 'можно править под себя');
   // GPS meas overlay for times if present
   const meas = state.meas[id] || state.meas[state.carId] || {};
