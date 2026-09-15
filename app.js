@@ -29,7 +29,7 @@ const CARS = [
   { id: 'c63', name: 'Mercedes-AMG C63 S E Performance', cls: 'GT · AWD · 2.0 hybrid', year: 2024, trim: 'W206 S', side: './img/sil/sedan.svg', wheels: './img/c63-wheels.png', color: 0x8a1f1a, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: null, v80120: 2.1, hp: 680, nm: 1020, kg: 2111, lap: { track: 'nurb-nord', time: '7:46.00' } },
   { id: 'rs6', name: 'Audi RS6 Avant', cls: 'GT · AWD · 4.0 V8', year: 2023, trim: 'C8 Performance', side: './img/sil/wagon.svg', color: 0xc5ccd3, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: 22.0, v80120: 2.1, hp: 630, nm: 850, kg: 2090, lap: { track: 'nurb-nord', time: '7:38.00' } },
   { id: 'r8', name: 'Audi R8 V10 Performance', cls: 'Super · AWD · 5.2 V10', year: 2022, trim: 'RWS / Perf.', side: './img/sil/super.svg', color: 0x1f4cff, accent: 0x111, v0100: 3.1, v100200: 8.2, v200300: 20.0, v80120: 1.9, hp: 620, nm: 580, kg: 1595, lap: { track: 'nurb-nord', time: '7:07.00' } },
-  { id: 'cayman', name: 'Porsche 718 Cayman GT4 RS', cls: 'GT · RWD · 4.0 NA', year: 2022, trim: 'GT4 RS', side: './img/sil/gt-wing.svg', color: 0x2ee56a, accent: 0x111, v0100: 3.4, v100200: 10.6, v200300: null, v80120: 2.1, hp: 500, nm: 450, kg: 1415, lap: { track: 'nurb-nord', time: '7:09.00' } },
+  { id: 'cayman', name: 'Porsche 718 Cayman GT4 RS', cls: 'GT · RWD · 4.0 NA', year: 2022, trim: 'GT4 RS', side: './img/sil/gt-wing.svg', color: 0x39FF14, accent: 0x111, v0100: 3.4, v100200: 10.6, v200300: null, v80120: 2.1, hp: 500, nm: 450, kg: 1415, lap: { track: 'nurb-nord', time: '7:09.00' } },
   { id: 'turboS', name: 'Porsche 911 Turbo S', cls: 'GT · AWD · 3.8 twin-turbo', year: 2023, trim: '992 Turbo S', side: './img/sil/gt-coupe.svg', color: 0x111111, accent: 0x111, v0100: 2.6, v100200: 7.4, v200300: 18.8, v80120: 1.6, hp: 650, nm: 800, kg: 1640, lap: { track: 'nurb-nord', time: '7:12.00' } },
   { id: 'supra', name: 'Toyota GR Supra', cls: 'GT · RWD · 3.0 turbo', year: 2023, trim: 'A90 3.0', side: './img/sil/coupe.svg', color: 0xc41e3a, accent: 0x111, v0100: 4.1, v100200: 11.0, v200300: null, v80120: 2.6, hp: 387, nm: 500, kg: 1520, lap: { track: 'nurb-nord', time: '7:52.00' } },
   { id: 'golf', name: 'Volkswagen Golf R', cls: 'Hot hatch · AWD · 2.0 turbo', year: 2022, trim: 'Mk8 R', side: './img/sil/hatch.svg', color: 0x1f4cff, accent: 0x111, v0100: 4.6, v100200: 13.5, v200300: null, v80120: 3.1, hp: 320, nm: 420, kg: 1550, lap: { track: 'nurb-nord', time: '8:01.00' } },
@@ -151,12 +151,12 @@ function drawTrack(id, elId, opts) {
     + '<line x1="-10" y1="-14" x2="-10" y2="14" stroke="#fff" stroke-width="2"/>'
     + '<rect x="-10" y="-14" width="8" height="8" fill="#111"/><rect x="-2" y="-14" width="8" height="8" fill="#eee"/>'
     + '<rect x="-10" y="-6" width="8" height="8" fill="#eee"/><rect x="-2" y="-6" width="8" height="8" fill="#111"/>'
-    + '<text x="14" y="4" fill="#2ee56a" font-size="11" font-family="Barlow Condensed,sans-serif" font-weight="700">С/Ф</text>'
+    + '<text x="14" y="4" fill="#39FF14" font-size="11" font-family="Barlow Condensed,sans-serif" font-weight="700">С/Ф</text>'
     + '</g>';
   const car = live
-    ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)"><polygon points="0,-9 7,8 -7,8" fill="#2ee56a" stroke="#0a0b0e" stroke-width="1.5"/></g>'
+    ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)"><polygon points="0,-9 7,8 -7,8" fill="#39FF14" stroke="#3a3a3a" stroke-width="1.5"/></g>'
     : '';
-  const svgInner = '<g class="track-scene"><path class="track-line" d="' + d + '" fill="none" stroke="#2ee56a" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>'
+  const svgInner = '<g class="track-scene"><path class="track-line" d="' + d + '" fill="none" stroke="#39FF14" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>'
     + sfMark + car + '</g>';
   const svg = '<svg viewBox="0 0 300 210" class="track-svg" ' + (live ? 'id="lapTrackSvg" ' : '')
     + 'preserveAspectRatio="xMidYMid meet">' + svgInner + '</svg>';
@@ -623,7 +623,7 @@ const renderer = new THREE.WebGLRenderer({
   alpha: false,
   powerPreference: 'high-performance',
 });
-renderer.setClearColor(0x07090e, 1);
+renderer.setClearColor(0x3a3a3a, 1);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -632,7 +632,7 @@ renderer.toneMappingExposure = 1.25;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x07090e);
+scene.background = new THREE.Color(0x3a3a3a);
 const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
 camera.position.set(5.4, 2.2, 5.8);
 
@@ -688,7 +688,7 @@ scene.add(floor);
 
 const ring = new THREE.Mesh(
   new THREE.RingGeometry(3.05, 3.35, 96),
-  new THREE.MeshBasicMaterial({ color: 0x2ee56a, side: THREE.DoubleSide })
+  new THREE.MeshBasicMaterial({ color: 0x39FF14, side: THREE.DoubleSide })
 );
 ring.rotation.x = -Math.PI / 2;
 ring.position.y = 0.01;
@@ -733,7 +733,7 @@ function texLivery(hex) {
 
 function texCarbon() {
   return canvasTex((ctx, s) => {
-    ctx.fillStyle = '#1a1a1a';
+    ctx.fillStyle = '#4a4a4a';
     ctx.fillRect(0, 0, s, s);
     for (let y = 0; y < s; y += 8) {
       for (let x = 0; x < s; x += 8) {
@@ -748,7 +748,7 @@ function texCarbon() {
 
 function texTire() {
   return canvasTex((ctx, s) => {
-    ctx.fillStyle = '#0c0c0c';
+    ctx.fillStyle = '#3a3a3a';
     ctx.fillRect(0, 0, s, s);
     ctx.strokeStyle = '#3a3a3a';
     ctx.lineWidth = 6;
@@ -783,7 +783,7 @@ function texRim() {
       ctx.lineTo(s / 2 + Math.cos(a) * s * 0.45, s / 2 + Math.sin(a) * s * 0.45);
       ctx.stroke();
     }
-    ctx.fillStyle = '#2ee56a';
+    ctx.fillStyle = '#39FF14';
     ctx.beginPath();
     ctx.arc(s / 2, s / 2, s * 0.12, 0, Math.PI * 2);
     ctx.fill();
@@ -2736,7 +2736,7 @@ document.getElementById('liveryInput')?.addEventListener('change', async (e) => 
   const cnv = document.createElement('canvas');
   cnv.width = cnv.height = 1024;
   const ctx = cnv.getContext('2d');
-  ctx.fillStyle = '#111';
+  ctx.fillStyle = '#696969';
   ctx.fillRect(0, 0, 1024, 1024);
   for (let i = 0; i < files.length; i++) {
     const img = await new Promise((res, rej) => {
