@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { api, apiBase, isRemoteApi } from './api.js';
 
 function hap(ms = 12) {
@@ -661,16 +662,16 @@ const renderer = new THREE.WebGLRenderer({
   alpha: false,
   powerPreference: 'high-performance',
 });
-renderer.setClearColor(0x3a3a3a, 1);
+renderer.setClearColor(0xe8e8e8, 1);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.25;
+renderer.toneMappingExposure = 1.3;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x3a3a3a);
+scene.background = new THREE.Color(0xf0f0f0);
 const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
 camera.position.set(5.4, 2.2, 5.8);
 
@@ -691,24 +692,42 @@ controls.addEventListener('end', () => {
   podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 2200);
 });
 
-scene.add(new THREE.AmbientLight(0xffffff, 0.45));
-scene.add(new THREE.HemisphereLight(0xe8eef8, 0x1a1a1a, 0.85));
-const key = new THREE.SpotLight(0xfff3dd, 3.4, 22, Math.PI / 5, 0.35);
-key.position.set(3.2, 7.2, 3.4);
+/* Bright studio: ambient + hemi + key/fill/rim so dark paint (BMW) keeps edge definition */
+scene.add(new THREE.AmbientLight(0xffffff, 0.95));
+scene.add(new THREE.HemisphereLight(0xffffff, 0xc8c8c8, 1.15));
+const key = new THREE.DirectionalLight(0xffffff, 2.1);
+key.position.set(4.2, 8.5, 3.8);
 key.castShadow = true;
 key.shadow.mapSize.set(1024, 1024);
+key.shadow.camera.near = 0.5;
+key.shadow.camera.far = 28;
+key.shadow.camera.left = -6;
+key.shadow.camera.right = 6;
+key.shadow.camera.top = 6;
+key.shadow.camera.bottom = -6;
+key.shadow.bias = -0.0002;
+key.shadow.radius = 3;
 scene.add(key);
-scene.add(key.target);
-const fill = new THREE.SpotLight(0xcfe4ff, 1.6, 18, Math.PI / 4, 0.5);
-fill.position.set(-4.5, 5.5, -2.2);
+const fill = new THREE.DirectionalLight(0xf5f8ff, 1.35);
+fill.position.set(-5.2, 5.8, -2.8);
 scene.add(fill);
-const rim = new THREE.DirectionalLight(0xffffff, 1.15);
-rim.position.set(-2.5, 4.5, 6);
+const rim = new THREE.DirectionalLight(0xffffff, 1.55);
+rim.position.set(-2.2, 4.2, 7.2);
 scene.add(rim);
-const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff6e0 });
+const bounce = new THREE.DirectionalLight(0xfff8f0, 0.55);
+bounce.position.set(0.5, -1.2, 2.5);
+scene.add(bounce);
+
+try {
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  pmrem.dispose();
+} catch (_) { /* reflections optional */ }
+
+const lampMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 function ceilingLamp(x, z) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.06, 0.35), lampMat);
-  m.position.set(x, 3.15, z);
+  const m = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.04, 0.4), lampMat);
+  m.position.set(x, 3.2, z);
   scene.add(m);
 }
 ceilingLamp(-1.4, 1.2);
@@ -718,11 +737,30 @@ ceilingLamp(1.4, -1.2);
 
 const floor = new THREE.Mesh(
   new THREE.CircleGeometry(7, 72),
-  new THREE.MeshStandardMaterial({ color: 0x2a303c, metalness: 0.55, roughness: 0.35 })
+  new THREE.MeshStandardMaterial({
+    color: 0xd8d8d8,
+    metalness: 0.08,
+    roughness: 0.72,
+    envMapIntensity: 0.35,
+  })
 );
 floor.rotation.x = -Math.PI / 2;
 floor.receiveShadow = true;
 scene.add(floor);
+
+/* Soft contact-shadow disk under the car (subtle, studio-style) */
+const contactShadow = new THREE.Mesh(
+  new THREE.CircleGeometry(2.35, 64),
+  new THREE.MeshBasicMaterial({
+    color: 0x000000,
+    transparent: true,
+    opacity: 0.18,
+    depthWrite: false,
+  })
+);
+contactShadow.rotation.x = -Math.PI / 2;
+contactShadow.position.y = 0.008;
+scene.add(contactShadow);
 
 const ring = new THREE.Mesh(
   new THREE.RingGeometry(3.05, 3.35, 96),
