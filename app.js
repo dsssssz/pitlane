@@ -97,22 +97,32 @@ const TRACK_GEO = {
 };
 
 const TRACK_SVG = {
+  // Sochi Autodrom — detailed GP centerline (kept)
   sochi: 'M260.37 78.48 L244.49 96.31 L240.92 98.98 L236.03 101.71 L230.64 103.82 L222.94 105.56 L202.57 109.51 L172.35 115.42 L140.03 121.66 L137.93 121.5 L137.16 121.05 L136.67 119.59 L135.83 117.54 L134.5 116.03 L119.87 105.67 L114.63 102.88 L108.12 100.99 L100.29 100.49 L92.66 101.6 L86.22 104.05 L81.18 107.45 L78.11 110.8 L75.65 114.86 L74.74 119.26 L75.17 124.17 L76.92 128.34 L86.01 142.05 L86.22 143.61 L85.38 144.84 L83.29 145.95 L34.94 166.85 L33.46 167.29 L31.16 167.35 L29.48 166.63 L28.36 165.56 L16.39 146.12 L15.27 142.83 L15.0 140.16 L15.34 137.21 L18.43 125.89 L18.98 124.95 L20.18 124.5 L21.71 124.17 L61.1 119.88 L62.08 119.59 L62.99 119.04 L63.69 118.32 L66.14 111.24 L66.35 110.18 L66.49 108.85 L66.28 107.68 L54.04 82.65 L54.04 81.65 L54.53 80.76 L55.44 79.87 L56.76 79.2 L69.08 75.58 L74.74 74.63 L80.06 73.91 L87.34 73.52 L93.77 73.57 L101.13 74.13 L108.05 75.08 L120.23 76.53 L126.73 77.75 L133.39 79.48 L140.58 81.6 L165.35 89.79 L172.15 91.52 L178.29 92.46 L185.15 92.91 L192.22 92.69 L198.8 91.79 L208.87 89.67 L210.77 90.01 L211.53 90.9 L214.68 98.71 L216.16 99.82 L218.67 100.49 L221.39 100.37 L225.32 99.71 L229.73 98.09 L233.64 95.53 L236.87 92.24 L243.99 84.77 L244.35 83.88 L244.21 83.16 L242.88 82.38 L236.37 78.87 L235.18 77.64 L234.76 75.91 L235.53 74.35 L245.88 62.71 L255.12 51.73 L262.54 43.43 L264.22 42.65 L266.31 43.09 L282.9 48.44 L284.43 49.12 L285.0 50.11 L284.57 51.23 L260.37 78.48 Z',
-  moscow: 'M40 170 L205 170 C230 170 248 158 258 138 C278 108 282 72 268 52 C250 28 210 26 178 40 C155 52 145 74 128 92 C108 114 78 124 48 124 L32 124 C22 124 18 136 24 150 L34 164 C36 168 38 170 40 170 Z',
-  igora: 'M34 122 L68 48 C90 22 145 18 198 32 C248 46 282 80 276 122 C270 164 228 184 168 186 C105 188 44 168 32 140 C28 130 30 124 34 122 Z',
-  kazan: 'M78 36 C120 18 170 28 196 58 C220 86 250 108 262 140 C272 168 248 188 210 186 C160 182 120 170 88 148 C52 120 42 78 58 52 C64 42 70 38 78 36 Z',
-  smolensk: 'M48 120 C58 60 120 28 180 32 C240 36 278 78 270 120 C262 168 200 188 130 180 C80 174 42 150 48 120 Z',
-  nring: 'M50 100 C70 40 150 28 210 55 C255 78 270 130 230 160 C180 198 70 180 48 130 C42 116 44 108 50 100 Z',
-  adm: 'M40 110 L78 48 L160 36 L240 50 L275 100 L255 160 L170 185 L70 165 Z',
-  grozny: 'M70 42 C140 18 250 50 265 110 C275 155 210 185 130 180 C70 176 40 130 48 90 C52 70 58 52 70 42 Z',
-  redring: 'M40 140 C48 70 140 30 230 55 C280 75 270 150 180 170 C100 188 36 170 40 140 Z',
-  spb: 'M55 40 L235 48 L270 120 L210 175 L55 165 L35 100 Z',
-  tlt: 'M45 95 C90 35 230 40 265 95 C280 140 210 175 110 170 C55 166 38 130 45 95 Z',
-  lipetsk: 'M55 50 L235 65 L260 145 L90 170 L40 105 Z',
-  'auto-msk': 'M40 105 C70 40 200 28 265 85 C280 130 170 180 80 155 C45 142 32 122 40 105 Z',
-  neva: 'M48 80 C120 30 255 45 268 110 C275 160 120 180 55 130 C42 115 40 95 48 80 Z',
-  ufa: 'M65 95 C100 40 230 38 260 95 C275 145 160 175 80 150 C55 138 52 115 65 95 Z',
-  don: 'M50 90 C110 30 250 48 265 110 C272 160 120 180 55 130 C42 115 42 100 50 90 Z'
+  // Moscow Raceway GP — Tilke: long pit straight, right complex, technical top, left return
+  moscow: 'M36 172 L70 170 L120 164 L170 154 L205 140 C225 128 242 110 250 88 C258 66 252 48 232 38 C212 28 190 34 175 52 C160 70 148 92 130 110 C112 128 88 140 60 148 L38 156 C28 160 26 168 32 172 L36 172 Z',
+  // Igora Drive GP — long S/F, CCW, elevation loop on far end, dense mid sector
+  igora: 'M22 168 L60 168 L110 166 L165 160 L210 148 C235 136 255 115 262 90 C268 68 260 48 238 38 C218 28 198 34 185 52 C174 68 162 88 145 105 C125 125 98 140 68 150 L40 158 C28 162 20 166 22 168 Z',
+  // Kazan Ring — canyon: irregular, blind crests, long straight ~800m, CCW
+  kazan: 'M68 36 L115 24 L160 30 L195 48 C218 64 238 88 250 118 C258 142 248 168 218 178 C180 190 140 182 105 162 C72 142 48 112 46 80 C44 55 52 40 68 36 Z',
+  // Смоленское кольцо — technical, mid-radius, few rest spots
+  smolensk: 'M50 130 L62 78 C78 42 125 26 175 30 C225 34 262 60 272 100 C280 135 258 168 215 180 C160 196 95 188 58 158 C40 144 42 136 50 130 Z',
+  // NRING — short dense ring, tight sequence
+  nring: 'M55 118 L68 62 C88 30 148 22 205 42 C245 58 272 95 262 132 C250 172 195 188 130 182 C78 176 42 148 42 120 C42 112 48 116 55 118 Z',
+  // ADM Raceway Myachkovo — old technical: short straights, many direction changes
+  adm: 'M36 122 L48 78 L78 48 L120 34 L168 30 L215 42 L255 70 L278 110 L270 145 L235 175 L175 188 L115 180 L68 158 L42 135 L36 122 Z',
+  // Fort Grozny — compact GP, clear braking zones
+  grozny: 'M72 46 L130 26 L195 34 L245 62 C268 82 278 118 262 148 C242 182 180 192 120 182 C75 174 40 145 40 105 C40 75 52 55 72 46 Z',
+  // Красное Кольцо — compact, fewer corners, rhythm focus
+  redring: 'M45 148 L55 82 C72 42 140 26 210 40 C255 52 282 95 268 138 C254 178 185 192 115 186 C70 182 40 168 45 148 Z',
+  // Remaining regional rings — circuit-shaped (not blobs)
+  spb: 'M50 55 L130 42 L220 48 L268 95 L250 150 L170 178 L70 165 L35 110 L50 55 Z',
+  tlt: 'M48 105 L80 50 C115 28 200 30 245 70 C275 105 260 155 200 175 C130 198 55 165 42 120 C40 110 44 108 48 105 Z',
+  lipetsk: 'M52 60 L150 42 L240 70 L265 130 L200 175 L90 168 L40 115 L52 60 Z',
+  'auto-msk': 'M45 110 L70 50 C110 25 200 28 255 75 C278 110 240 165 160 178 C90 190 40 150 38 115 C38 108 42 110 45 110 Z',
+  neva: 'M50 90 L110 40 L210 38 L265 85 L270 140 L180 178 L70 155 L40 110 L50 90 Z',
+  ufa: 'M60 100 L100 45 C140 25 220 30 255 80 C275 115 240 165 160 178 C95 190 48 150 50 115 C51 105 55 102 60 100 Z',
+  don: 'M52 95 L100 40 C145 22 230 35 262 85 C278 120 245 165 165 180 C95 192 45 150 42 110 C42 100 48 98 52 95 Z'
 };
 
 function ensurePathProbe() {
@@ -158,18 +168,32 @@ function drawTrack(id, elId, opts) {
   const meta = [tr.km && (tr.km + ' км'), tr.turns && (tr.turns + ' пов.'), tr.cult && TRACK_GEO[id] && 'проверен С/Ф'].filter(Boolean).join(' · ');
   const sf = pointOnTrack(d, 0);
   const sfMark = '<g class="sf-mark" transform="translate(' + sf.x + ',' + sf.y + ')">'
-    + '<line x1="-10" y1="-14" x2="-10" y2="14" stroke="#fff" stroke-width="2"/>'
-    + '<rect x="-10" y="-14" width="8" height="8" fill="#111"/><rect x="-2" y="-14" width="8" height="8" fill="#eee"/>'
-    + '<rect x="-10" y="-6" width="8" height="8" fill="#eee"/><rect x="-2" y="-6" width="8" height="8" fill="#111"/>'
-    + '<text x="14" y="4" fill="#39FF14" font-size="11" font-family="Barlow Condensed,sans-serif" font-weight="700">С/Ф</text>'
+    + '<line x1="-11" y1="-16" x2="-11" y2="16" stroke="#fff" stroke-width="2.2"/>'
+    + '<rect x="-11" y="-16" width="9" height="9" fill="#111"/><rect x="-2" y="-16" width="9" height="9" fill="#eee"/>'
+    + '<rect x="-11" y="-7" width="9" height="9" fill="#eee"/><rect x="-2" y="-7" width="9" height="9" fill="#111"/>'
+    + '<text x="16" y="4" fill="#39FF14" font-size="11" font-family="Barlow Condensed,sans-serif" font-weight="700">С/Ф</text>'
     + '</g>';
   const car = live
-    ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)"><polygon points="0,-9 7,8 -7,8" fill="#39FF14" stroke="#3a3a3a" stroke-width="1.5"/></g>'
+    ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)">'
+      + '<circle class="lap-car-glow" r="16" cx="0" cy="0"/>'
+      + '<polygon class="lap-car-chevron" points="0,-13 10,12 -10,12"/>'
+      + '</g>'
     : '';
-  const svgInner = '<g class="track-scene"><path class="track-line" d="' + d + '" fill="none" stroke="#39FF14" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/>'
-    + sfMark + car + '</g>';
+  // Autodrome layers: runoff apron → asphalt ribbon → curb dashes → neon racing line
+  const join = ' stroke-linejoin="round" stroke-linecap="round"';
+  const layers =
+    '<path class="track-apron" d="' + d + '" fill="none" stroke="#2c2c2c" stroke-width="28"' + join + '/>'
+    + '<path class="track-asphalt" d="' + d + '" fill="none" stroke="#1a1a1a" stroke-width="16"' + join + '/>'
+    + '<path class="track-curb" d="' + d + '" fill="none" stroke="rgba(240,240,240,.22)" stroke-width="16" stroke-dasharray="3 9"' + join + '/>'
+    + '<path class="track-edge" d="' + d + '" fill="none" stroke="rgba(57,255,20,.12)" stroke-width="10"' + join + '/>'
+    + '<path class="track-line" d="' + d + '" fill="none" stroke="#39FF14" stroke-width="3.2"' + join + '/>';
+  const svgInner = '<g class="track-scene">' + layers + sfMark + car + '</g>';
   const svg = '<svg viewBox="0 0 300 210" class="track-svg" ' + (live ? 'id="lapTrackSvg" ' : '')
     + 'preserveAspectRatio="xMidYMid meet">' + svgInner + '</svg>';
+  if (live) {
+    // reset smooth mapper when (re)drawing live HUD
+    try { resetLapMapSmooth(id); } catch (_) {}
+  }
   if (compact || live) {
     el.innerHTML = '<div class="lap-map-inner' + (live ? ' lap-map-live' : '') + '">' + svg
       + '<p class="lap-map-cap">' + (tr.name || '') + '<br><small>' + meta + '</small></p></div>';
@@ -186,9 +210,14 @@ let podiumModelId = null;
 
 function loadState() {
   try {
-    return JSON.parse(localStorage.getItem(storeKey)) || { carId: null, garage: [], meas: {}, laps: {}, scans: {}, passport: {} };
+    const s = JSON.parse(localStorage.getItem(storeKey)) || { carId: null, garage: [], meas: {}, laps: {}, scans: {}, passport: {} };
+    const inCars = !!(s.carId && CARS.some((c) => c.id === s.carId));
+    const inGarage = !!(s.carId && (s.garage || []).some((c) => c.id === s.carId));
+    // Catalog / stock ids must resolve; unknown ids fall back to G87 M2 (not M3).
+    if (!s.carId || (!inCars && !inGarage)) s.carId = 'g87-m2';
+    return s;
   } catch {
-    return { carId: 'm3', meas: {}, laps: {} };
+    return { carId: 'g87-m2', garage: [], meas: {}, laps: {}, scans: {}, passport: {} };
   }
 }
 function save() {
@@ -215,7 +244,10 @@ function garageList() {
 function currentCar() {
   const mine = garageList().find((c) => c.id === state.carId);
   if (mine) return mine;
-  return CARS.find((c) => c.id === state.carId) || garageList()[0] || CARS[0];
+  const stock = CARS.find((c) => c.id === state.carId);
+  if (stock) return stock;
+  const fallback = CARS.find((c) => c.id === 'g87-m2') || CARS[0];
+  return garageList()[0] || fallback;
 }
 
 function fmt(v, unit = ' с') {
@@ -498,6 +530,8 @@ function applyCarUI() {
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setTxt('carName', c.name);
   setTxt('carClass', c.cls);
+  setTxt('lapDriveCar', c.name);
+  setTxt('runCarName', c.name);
   setTxt('hdr0100', fmt(m.v0100, 'с'));
   const track = TRACKS.find((t) => t.id === (state.trackId || c.lap?.track)) || TRACKS[0];
   const mine = bestLapDisplay(track.id);
@@ -527,6 +561,25 @@ function formatMs(ms) {
   return `${m}:${s.toFixed(2).padStart(5, '0')}`;
 }
 
+
+/** Switch active car site-wide; keep podium GLB in sync when catalog has a model. */
+function selectActiveCar(id, opts) {
+  if (!id) return;
+  state.carId = id;
+  save();
+  applyCarUI();
+  const syncPodium = !(opts && opts.skipPodium);
+  if (!syncPodium) return;
+  try {
+    if (typeof MODEL_CATALOG === 'undefined' || !MODEL_CATALOG?.length) return;
+    if (typeof loadPodiumModel !== 'function') return;
+    if (!MODEL_CATALOG.some((m) => m.id === id)) return;
+    if (typeof podiumModelId !== 'undefined' && podiumModelId === id) return;
+    // animDir 0 — don't fight title ◀ ▶ transition
+    loadPodiumModel(id, 0);
+  } catch (_) {}
+}
+
 function renderCars() {
   const grid = document.getElementById('carGrid');
   if (!grid) return;
@@ -538,9 +591,7 @@ function renderCars() {
     const src = silForCar(c);
     b.innerHTML = `<img src="${src}" alt="" loading="lazy" /><strong>${c.name}</strong><small>${c.cls}</small><small>0–100 ${fmt(c.v0100)}</small>`;
     b.onclick = () => {
-      state.carId = c.id;
-      save();
-      applyCarUI();
+      selectActiveCar(c.id);
     };
     grid.appendChild(b);
   });
@@ -1651,23 +1702,113 @@ function lapProgress01() {
   return Math.max(0, Math.min(0.999, (lapRun.dist || 0) / Math.max(1, need)));
 }
 
+const lapMapSmooth = {
+  trackId: null,
+  prog: 0,
+  ang: 0,
+  x: 0,
+  y: 0,
+  camX: 0,
+  camY: 0,
+  camRot: 0,
+  camScale: 1,
+  targetProg: 0,
+  has: false,
+  raf: 0,
+};
+
+function resetLapMapSmooth(trackId) {
+  lapMapSmooth.trackId = trackId || null;
+  lapMapSmooth.has = false;
+  lapMapSmooth.prog = 0;
+  lapMapSmooth.targetProg = 0;
+  lapMapSmooth.ang = 0;
+  lapMapSmooth.camRot = 0;
+  lapMapSmooth.camScale = 1;
+  lapMapSmooth.camX = 0;
+  lapMapSmooth.camY = 0;
+  if (lapMapSmooth.raf) {
+    try { cancelAnimationFrame(lapMapSmooth.raf); } catch (_) {}
+    lapMapSmooth.raf = 0;
+  }
+}
+
+function lerpAngDeg(a, b, t) {
+  let d = ((b - a + 540) % 360) - 180;
+  return a + d * t;
+}
+
 function updateLapCarOnMap() {
   const trackId = lapRun.trackId || document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  if (lapMapSmooth.trackId && lapMapSmooth.trackId !== trackId) resetLapMapSmooth(trackId);
+  lapMapSmooth.trackId = trackId;
+  lapMapSmooth.targetProg = lapProgress01();
+  if (!lapMapSmooth.raf) lapMapSmooth.raf = requestAnimationFrame(tickLapMapSmooth);
+}
+
+function tickLapMapSmooth(now) {
+  lapMapSmooth.raf = 0;
+  const trackId = lapMapSmooth.trackId || lapRun.trackId || document.getElementById('trackSelect')?.value || TRACKS[0].id;
   const d = TRACK_SVG[trackId] || TRACK_SVG.sochi;
-  const prog = lapProgress01();
-  const p = pointOnTrack(d, prog);
+  let target = Math.max(0, Math.min(0.999, lapMapSmooth.targetProg || 0));
+  if (!lapMapSmooth.has) {
+    lapMapSmooth.prog = target;
+    const p0 = pointOnTrack(d, lapMapSmooth.prog);
+    lapMapSmooth.x = p0.x;
+    lapMapSmooth.y = p0.y;
+    lapMapSmooth.ang = p0.ang + 90;
+    lapMapSmooth.camX = p0.x;
+    lapMapSmooth.camY = p0.y;
+    lapMapSmooth.camRot = -(p0.ang + 90);
+    lapMapSmooth.camScale = lapDrive.mapMode === 'nav' ? 2.1 : 1;
+    lapMapSmooth.has = true;
+  } else {
+    // shortest-path progress on a closed lap
+    let diff = target - lapMapSmooth.prog;
+    if (diff > 0.5) diff -= 1;
+    if (diff < -0.5) diff += 1;
+    const k = 0.16;
+    lapMapSmooth.prog = (lapMapSmooth.prog + diff * k + 1) % 1;
+    const p = pointOnTrack(d, lapMapSmooth.prog);
+    lapMapSmooth.x += (p.x - lapMapSmooth.x) * 0.22;
+    lapMapSmooth.y += (p.y - lapMapSmooth.y) * 0.22;
+    lapMapSmooth.ang = lerpAngDeg(lapMapSmooth.ang, p.ang + 90, 0.22);
+    const wantNav = lapDrive.mapMode === 'nav';
+    const wantScale = wantNav ? 2.1 : 1;
+    const wantRot = wantNav ? -(p.ang + 90) : 0;
+    const wantCx = wantNav ? p.x : 150;
+    const wantCy = wantNav ? p.y : 105;
+    // when leaving nav, ease toward identity framing
+    if (!wantNav) {
+      lapMapSmooth.camX += (lapMapSmooth.x - lapMapSmooth.camX) * 0.12;
+      lapMapSmooth.camY += (lapMapSmooth.y - lapMapSmooth.camY) * 0.12;
+    } else {
+      lapMapSmooth.camX += (wantCx - lapMapSmooth.camX) * 0.18;
+      lapMapSmooth.camY += (wantCy - lapMapSmooth.camY) * 0.18;
+    }
+    lapMapSmooth.camRot = lerpAngDeg(lapMapSmooth.camRot, wantRot, 0.18);
+    lapMapSmooth.camScale += (wantScale - lapMapSmooth.camScale) * 0.14;
+  }
   const mark = document.getElementById('lapCarMark');
   const svg = document.getElementById('lapTrackSvg');
-  if (mark) mark.setAttribute('transform', 'translate(' + p.x + ',' + p.y + ') rotate(' + (p.ang + 90) + ')');
+  if (mark) {
+    mark.setAttribute('transform', 'translate(' + lapMapSmooth.x.toFixed(2) + ',' + lapMapSmooth.y.toFixed(2) + ') rotate(' + lapMapSmooth.ang.toFixed(2) + ')');
+  }
   const scene = svg && svg.querySelector('.track-scene');
-  if (!scene) return;
-  if (lapDrive.mapMode === 'nav') {
-    const cx = 150, cy = 120;
-    const rot = -(p.ang + 90);
-    const scale = 2.1;
-    scene.setAttribute('transform', 'translate(' + cx + ',' + cy + ') scale(' + scale + ') rotate(' + rot + ') translate(' + (-p.x) + ',' + (-p.y) + ')');
-  } else {
-    scene.setAttribute('transform', '');
+  if (scene) {
+    if (lapDrive.mapMode === 'nav' || Math.abs(lapMapSmooth.camScale - 1) > 0.02) {
+      const cx = 150, cy = 120;
+      scene.setAttribute('transform',
+        'translate(' + cx + ',' + cy + ') scale(' + lapMapSmooth.camScale.toFixed(3) + ') rotate(' + lapMapSmooth.camRot.toFixed(2) + ') translate(' + (-lapMapSmooth.camX).toFixed(2) + ',' + (-lapMapSmooth.camY).toFixed(2) + ')');
+    } else {
+      scene.setAttribute('transform', '');
+    }
+  }
+  // keep ticking while live HUD open or still converging
+  const moving = Math.abs(((lapMapSmooth.targetProg - lapMapSmooth.prog + 1.5) % 1) - 0.5) > 0.001
+    || Math.abs(lapMapSmooth.camScale - (lapDrive.mapMode === 'nav' ? 2.1 : 1)) > 0.01;
+  if (lapDrive.open || moving) {
+    lapMapSmooth.raf = requestAnimationFrame(tickLapMapSmooth);
   }
 }
 
@@ -1701,6 +1842,10 @@ function openLapDrive() {
   const trackId = lapRun.trackId || document.getElementById('trackSelect')?.value || TRACKS[0].id;
   const track = TRACKS.find((t) => t.id === trackId) || TRACKS[0];
   document.getElementById('lapDriveTrack').textContent = track.name;
+  try {
+    const carEl = document.getElementById('lapDriveCar');
+    if (carEl) carEl.textContent = currentCar().name;
+  } catch (_) {}
   document.getElementById('lapDriveClock').textContent = '0:00.0';
   document.getElementById('lapDriveSpeed').textContent = '0';
   setLapHud('lapDriveDist', '0 м');
@@ -2944,6 +3089,8 @@ function loadPodiumModel(id, animDir = 0) {
   const same = podiumModelId === m.id;
   podiumModelId = m.id;
   try { state.carId = m.id; } catch (_) {}
+  try { save(); } catch (_) {}
+  try { applyCarUI(); } catch (_) {}
   const doTitle = () => applyPodiumTitle(m);
   if (animDir && !same) runHeroTitleTransition(animDir, doTitle);
   else doTitle();
@@ -3159,14 +3306,13 @@ document.querySelectorAll('#wheelBar button').forEach((b) => {
 function shiftCar(dir) {
   const list = garageList().length ? garageList() : CARS;
   const i = Math.max(0, list.findIndex((c) => c.id === state.carId));
-  state.carId = list[(i + dir + list.length) % list.length].id;
-  save();
+  const nextId = list[(i + dir + list.length) % list.length].id;
   paint.body = 'none';
   paint.wheel = 'none';
   document.querySelectorAll('#colorBar button, #wheelBar button').forEach((x) => x.classList.remove('on'));
   document.querySelector('#colorBar button')?.classList.add('on');
   document.querySelector('#wheelBar button')?.classList.add('on');
-  applyCarUI();
+  selectActiveCar(nextId);
 }
 document.getElementById('carPrev')?.addEventListener('click', () => shiftCar(-1));
 document.getElementById('carNext')?.addEventListener('click', () => shiftCar(1));
@@ -3314,18 +3460,15 @@ document.getElementById('wSave')?.addEventListener('click', () => {
   };
   state.garage = garageList();
   state.garage.push(car);
-  state.carId = car.id;
   save();
-  applyCarUI();
+  selectActiveCar(car.id, { skipPodium: true });
 });
 
 function shiftGarage(dir) {
   const list = garageList();
   if (!list.length) return;
   const i = Math.max(0, list.findIndex((c) => c.id === state.carId));
-  state.carId = list[(i + dir + list.length) % list.length].id;
-  save();
-  applyCarUI();
+  selectActiveCar(list[(i + dir + list.length) % list.length].id);
 }
 
 function setScanStatus(text) {

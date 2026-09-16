@@ -606,7 +606,7 @@ input, select {
   .wheel-item.on { transform: scale(1.04); }
 }
 .track-map { margin-top: 12px; background:#4a4a4a; border-radius:16px; padding:10px; }
-.track-svg { width:100%; height:140px; }
+.track-svg { width:100%; height:160px; }
 .track-map p { text-align:center; color:#b5b5b5; font-size:12px; margin-top:4px; }
 .track-notes { color:#b5b5b5; font-size:12px; line-height:1.4; text-align:left; padding:6px 8px 2px; }
 .photo-stage { position: relative; }
@@ -1243,7 +1243,6 @@ body.run-drive-on #app { visibility: hidden; }
   box-shadow: 0 0 0 1px rgba(57,255,20,.25);
 }
 .sf-mark text { paint-order: stroke; stroke: #3a3a3a; stroke-width: 3px; }
-.lap-car-mark { transition: transform .2s linear; }
 .lap-drive.mode-nav .lap-map-cap { opacity: .55; font-size: 13px; }
 .lap-drive.mode-nav .lap-drive-left {
   /* in nav: emphasize speed + clock */
@@ -1252,9 +1251,6 @@ body.run-drive-on #app { visibility: hidden; }
 .lap-drive.mode-nav .lap-drive-speed strong { font-size: clamp(40px, 12vw, 64px); color: #f0f0f0; }
 .lap-drive.mode-nav .lap-drive-map .track-svg {
   max-height: min(48dvh, 340px);
-}
-.track-line {
-  filter: drop-shadow(0 0 4px rgba(57,255,20,.35));
 }
 
 
@@ -1802,3 +1798,46 @@ body.run-drive-on #app { visibility: hidden; }
   text-transform: uppercase;
   font-size: 10px;
 }
+
+
+/* Autodrome map layers */
+.track-map {
+  background:
+    radial-gradient(ellipse at 50% 40%, #3a3a3a 0%, #2e2e2e 55%, #262626 100%);
+  border: 1px solid #3f3f3f;
+  box-shadow: inset 0 0 40px rgba(0,0,0,.35);
+}
+.track-svg { width:100%; height:168px; overflow: visible; }
+.track-apron { opacity: .95; }
+.track-asphalt { filter: drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
+.track-line {
+  filter: drop-shadow(0 0 3px rgba(57,255,20,.55)) drop-shadow(0 0 8px rgba(57,255,20,.25));
+}
+.track-curb { opacity: .9; pointer-events: none; }
+.lap-car-mark { /* rAF-smoothed — no CSS transition fight */ transition: none; }
+.lap-car-glow {
+  fill: rgba(57,255,20,.18);
+  stroke: rgba(57,255,20,.35);
+  stroke-width: 1.2;
+}
+.lap-car-chevron {
+  fill: #39FF14;
+  stroke: #1a1a1a;
+  stroke-width: 1.6;
+  filter: drop-shadow(0 0 4px rgba(57,255,20,.65));
+}
+.lap-drive-car {
+  margin: 0 0 6px;
+  color: #39FF14;
+  font: 700 13px/1.1 "Barlow Condensed", sans-serif;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  opacity: .9;
+}
+.run-car-name {
+  margin: -4px 0 10px;
+  color: #39FF14;
+  font: 700 15px/1.1 "Barlow Condensed", sans-serif;
+  letter-spacing: .04em;
+}
+.lap-drive-map .track-svg { height: auto; }
