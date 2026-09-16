@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { Reflector } from 'three/addons/objects/Reflector.js';
+import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { api, apiBase, isRemoteApi } from './api.js';
 
 function hap(ms = 12) {
@@ -744,8 +746,9 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 1.2;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
+if ('useLegacyLights' in renderer) renderer.useLegacyLights = false;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1a1a);
@@ -769,76 +772,111 @@ controls.addEventListener('end', () => {
   podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 2200);
 });
 
-/* Dark cinematic studio: low ambient, soft fill, strong cool rim so black paint reads */
-scene.add(new THREE.AmbientLight(0xa8b0c0, 0.32));
-scene.add(new THREE.HemisphereLight(0x6a7a94, 0x121212, 0.38));
-const key = new THREE.DirectionalLight(0xe8eef8, 1.05);
-key.position.set(3.6, 7.0, 4.8);
+/* Dark cinematic studio: soft key/fill + strong cool rims for body-line definition */
+scene.add(new THREE.AmbientLight(0xa8b0c0, 0.26));
+scene.add(new THREE.HemisphereLight(0x7a8aa4, 0x101012, 0.44));
+const key = new THREE.DirectionalLight(0xeef2fa, 1.18);
+key.position.set(3.2, 7.4, 5.2);
 key.castShadow = true;
-key.shadow.mapSize.set(1024, 1024);
+const shadowRes = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ? 1024 : 1536;
+key.shadow.mapSize.set(shadowRes, shadowRes);
 key.shadow.camera.near = 0.5;
 key.shadow.camera.far = 28;
 key.shadow.camera.left = -6;
 key.shadow.camera.right = 6;
 key.shadow.camera.top = 6;
 key.shadow.camera.bottom = -6;
-key.shadow.bias = -0.0002;
-key.shadow.radius = 3.5;
+key.shadow.bias = -0.00018;
+key.shadow.normalBias = 0.02;
+key.shadow.radius = 3.2;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0xc4d0e4, 0.62);
-fill.position.set(-4.8, 4.2, 2.6);
+const fill = new THREE.DirectionalLight(0xc8d4e8, 0.58);
+fill.position.set(-5.2, 4.6, 2.2);
 scene.add(fill);
-const rim = new THREE.DirectionalLight(0xb0c8e8, 1.9);
-rim.position.set(-1.2, 3.8, -6.8);
+const rim = new THREE.DirectionalLight(0xb4ccf0, 2.15);
+rim.position.set(-1.0, 4.0, -7.0);
 scene.add(rim);
-const rim2 = new THREE.DirectionalLight(0xd0d8e8, 0.85);
-rim2.position.set(5.8, 2.6, -3.2);
+const rim2 = new THREE.DirectionalLight(0xd4dcec, 1.0);
+rim2.position.set(6.0, 2.8, -3.4);
 scene.add(rim2);
-const bounce = new THREE.DirectionalLight(0x7a8494, 0.22);
-bounce.position.set(0.4, -0.9, 2.2);
+const bounce = new THREE.DirectionalLight(0x8890a0, 0.28);
+bounce.position.set(0.2, -0.7, 2.4);
 scene.add(bounce);
+
+/* Soft ceiling softboxes — lights only, no visible lamp meshes */
+try {
+  RectAreaLightUniformsLib.init();
+  const softA = new THREE.RectAreaLight(0xeef2fa, 3.4, 5.8, 1.5);
+  softA.position.set(-0.6, 5.9, 1.0);
+  softA.lookAt(0, 0.55, 0);
+  scene.add(softA);
+  const softB = new THREE.RectAreaLight(0xd8e0f0, 2.1, 3.6, 1.15);
+  softB.position.set(2.6, 5.0, -1.8);
+  softB.lookAt(0, 0.5, 0);
+  scene.add(softB);
+} catch (_) { /* RectAreaLight optional on constrained GPUs */ }
 
 try {
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.36;
+  scene.environmentIntensity = 0.88;
   pmrem.dispose();
 } catch (_) { /* reflections optional */ }
 
-
-const floor = new THREE.Mesh(
-  new THREE.CircleGeometry(7, 72),
-  new THREE.MeshStandardMaterial({
-    color: 0x1e1e22,
-    metalness: 0.62,
-    roughness: 0.32,
-    envMapIntensity: 0.55,
-  })
-);
+/* Dark reflective stand floor (mobile-friendly Reflector res) */
+const _dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+const _reflRes = Math.min(1024, Math.max(512, Math.floor(512 * _dpr)));
+const floor = new Reflector(new THREE.CircleGeometry(7, 72), {
+  clipBias: 0.003,
+  textureWidth: _reflRes,
+  textureHeight: _reflRes,
+  color: 0x1a1a1e,
+  multisample: 0,
+});
 floor.rotation.x = -Math.PI / 2;
-floor.receiveShadow = true;
+floor.position.y = 0;
 scene.add(floor);
 
 /* Soft contact-shadow disk under the car (cinema stand) */
 const contactShadow = new THREE.Mesh(
-  new THREE.CircleGeometry(2.35, 64),
+  new THREE.CircleGeometry(2.4, 64),
   new THREE.MeshBasicMaterial({
     color: 0x000000,
     transparent: true,
-    opacity: 0.42,
+    opacity: 0.48,
     depthWrite: false,
   })
 );
 contactShadow.rotation.x = -Math.PI / 2;
-contactShadow.position.y = 0.008;
+contactShadow.position.y = 0.006;
 scene.add(contactShadow);
 
+/* Subtle neon-green accent — soft core + faint halo (not loud) */
+const ringGlow = new THREE.Mesh(
+  new THREE.RingGeometry(2.92, 3.48, 96),
+  new THREE.MeshBasicMaterial({
+    color: 0x39FF14,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.11,
+    depthWrite: false,
+  })
+);
+ringGlow.rotation.x = -Math.PI / 2;
+ringGlow.position.y = 0.009;
+scene.add(ringGlow);
 const ring = new THREE.Mesh(
-  new THREE.RingGeometry(3.05, 3.35, 96),
-  new THREE.MeshBasicMaterial({ color: 0x39FF14, side: THREE.DoubleSide })
+  new THREE.RingGeometry(3.1, 3.28, 96),
+  new THREE.MeshBasicMaterial({
+    color: 0x39FF14,
+    side: THREE.DoubleSide,
+    transparent: true,
+    opacity: 0.5,
+    depthWrite: false,
+  })
 );
 ring.rotation.x = -Math.PI / 2;
-ring.position.y = 0.01;
+ring.position.y = 0.012;
 scene.add(ring);
 
 const car = new THREE.Group();
@@ -2762,12 +2800,13 @@ function fitGlb(obj) {
   clearGlb();
   glbRoot = obj;
   glbRoot.updateMatrixWorld(true);
+  const maxAniso = renderer.capabilities?.getMaxAnisotropy?.() || 8;
   glbRoot.traverse((o) => {
     if (o.isMesh) {
       o.castShadow = true;
       o.receiveShadow = true;
       if (o.userData) o.userData.door = false;
-      // keep glass / transmission / alpha — forcing opaque made windows black
+      // keep glass / transmission / alpha — never force transparent=false
       const mats = Array.isArray(o.material) ? o.material : [o.material];
       let glassish = false;
       mats.forEach((mat) => {
@@ -2781,7 +2820,28 @@ function fitGlb(obj) {
           mat.transparent = true;
           if (transmission > 0.01 || opacity < 0.95) mat.depthWrite = false;
         }
-        if (mat.map) mat.map.colorSpace = THREE.SRGBColorSpace;
+        // anisotropy + color space on common maps
+        ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap'].forEach((k) => {
+          const tex = mat[k];
+          if (!tex || !tex.isTexture) return;
+          tex.anisotropy = maxAniso;
+          if (k === 'map' || k === 'emissiveMap') tex.colorSpace = THREE.SRGBColorSpace;
+        });
+        const isPbr = !!(mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial);
+        if (isPbr) {
+          if (isGlass) {
+            // glass keeps transmission; slight env for edge highlights
+            if (mat.envMapIntensity == null || mat.envMapIntensity < 1.0) mat.envMapIntensity = 1.05;
+          } else {
+            // opaque paint / body — richer RoomEnvironment reflections
+            mat.envMapIntensity = Math.min(1.4, Math.max(1.15, Number(mat.envMapIntensity) || 1.2));
+            // near-black panels: lift min roughness so they aren't dead voids
+            if (mat.color && mat.roughness != null) {
+              const lum = 0.2126 * mat.color.r + 0.7152 * mat.color.g + 0.0722 * mat.color.b;
+              if (lum < 0.085) mat.roughness = Math.max(Number(mat.roughness), 0.2);
+            }
+          }
+        }
         mat.needsUpdate = true;
       });
       if (glassish) o.castShadow = false;
