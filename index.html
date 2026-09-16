@@ -23,19 +23,52 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="intro">
-      <div class="intro-track">
-        <div class="intro-line"></div>
-        <svg class="intro-car-svg" viewBox="0 0 900 220" aria-hidden="true">
-          <g fill="none" stroke="#f0f0f0" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M40 168 C120 166 170 158 230 150 C310 88 430 62 560 58 C680 56 760 78 820 118 L868 148 C880 156 872 168 850 168" stroke-width="7"/>
-            <path d="M268 148 C330 108 420 86 530 82 C620 80 700 96 760 128" stroke-width="5"/>
-            <path d="M430 84 L520 148" stroke-width="4"/>
-            <path d="M820 120 L860 108" stroke-width="5"/>
-          </g>
-        </svg>
+    <div id="intro" role="dialog" aria-label="Pitlane intro" aria-modal="true">
+      <div class="intro-bg" aria-hidden="true">
+        <div class="intro-vignette"></div>
+        <div class="intro-grain"></div>
+        <div class="intro-grid"></div>
       </div>
-      <div class="intro-logo">PITLANE</div>
+      <div class="intro-checkered" aria-hidden="true"></div>
+      <div class="intro-track" aria-hidden="true">
+        <div class="intro-line"></div>
+        <div class="intro-car-wrap">
+          <div class="intro-trail"></div>
+          <svg class="intro-car-svg" viewBox="0 0 920 200" aria-hidden="true">
+            <defs>
+              <linearGradient id="introCarGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#39FF14" stop-opacity="0"/>
+                <stop offset="55%" stop-color="#39FF14" stop-opacity=".55"/>
+                <stop offset="100%" stop-color="#39FF14" stop-opacity=".95"/>
+              </linearGradient>
+              <filter id="introNeon" x="-20%" y="-40%" width="140%" height="180%">
+                <feGaussianBlur stdDeviation="2.2" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <!-- motion ghost trail -->
+            <g opacity=".35" filter="url(#introNeon)">
+              <path d="M20 150 C90 148 140 142 190 136 C260 88 360 62 470 58 C580 54 660 72 720 108 L760 132 C772 140 764 150 742 150 Z"
+                    fill="url(#introCarGlow)" stroke="none"/>
+            </g>
+            <!-- sleek silhouette -->
+            <g fill="none" stroke="#39FF14" stroke-linecap="round" stroke-linejoin="round" filter="url(#introNeon)">
+              <path d="M48 158 C120 156 168 150 220 142 C295 86 410 58 540 54 C660 50 745 72 810 112 L862 144 C876 154 866 166 840 166 H72 C56 166 46 160 48 158 Z" stroke-width="2.6" fill="rgba(10,10,10,.72)"/>
+              <path d="M250 140 C320 100 410 78 520 74 C610 72 690 88 755 120" stroke-width="1.8" opacity=".85"/>
+              <path d="M430 76 L515 142" stroke-width="1.6" opacity=".7"/>
+              <path d="M800 114 L848 100" stroke-width="2" opacity=".9"/>
+              <circle cx="210" cy="166" r="18" stroke-width="2.2" fill="#0a0a0a"/>
+              <circle cx="210" cy="166" r="7" fill="#39FF14" opacity=".55"/>
+              <circle cx="700" cy="166" r="18" stroke-width="2.2" fill="#0a0a0a"/>
+              <circle cx="700" cy="166" r="7" fill="#39FF14" opacity=".55"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+      <div class="intro-brand">
+        <div class="intro-logo">PITLANE</div>
+        <p class="intro-tagline">гараж · замер · круг</p>
+      </div>
       <p class="intro-skip">нажмите, чтобы пропустить</p>
     </div>
     <div id="app">

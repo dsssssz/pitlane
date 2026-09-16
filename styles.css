@@ -12,58 +12,149 @@
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: #3a3a3a;
+  background: #0a0a0a;
   overflow: hidden;
   display: grid;
   place-items: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 #intro.done {
-  animation: introOut 0.55s ease forwards;
+  animation: introOut 0.5s ease forwards;
+  pointer-events: none;
+}
+.intro-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.intro-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 75% 60% at 50% 48%, rgba(18,18,18,.15) 0%, rgba(0,0,0,.78) 72%, #000 100%),
+    linear-gradient(180deg, #121212 0%, #0a0a0a 55%, #050505 100%);
+}
+.intro-grain {
+  position: absolute;
+  inset: -20%;
+  opacity: .07;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+  mix-blend-mode: overlay;
+  animation: introGrain 1.2s steps(2) infinite;
+}
+.intro-grid {
+  position: absolute;
+  inset: 0;
+  opacity: .12;
+  background-image:
+    linear-gradient(rgba(57,255,20,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(57,255,20,.05) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse 70% 55% at 50% 50%, #000 20%, transparent 75%);
+  -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 50%, #000 20%, transparent 75%);
+}
+.intro-checkered {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 42%;
+  height: 14px;
+  transform: translateY(-50%) skewX(-12deg);
+  opacity: 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      #0a0a0a 0 14px,
+      #39FF14 14px 28px
+    );
+  box-shadow: 0 0 24px rgba(57,255,20,.35), 0 0 60px rgba(57,255,20,.12);
+  animation: checkeredFlash 0.55s 0.08s cubic-bezier(.2,.8,.2,1) forwards;
   pointer-events: none;
 }
 .intro-track {
   position: absolute;
   left: 0;
   right: 0;
-  top: 52%;
-  height: 160px;
+  top: 50%;
+  height: 180px;
   transform: translateY(-50%);
+  pointer-events: none;
 }
 .intro-line {
   position: absolute;
   left: 0;
   top: 78%;
-  height: 3px;
+  height: 2px;
   width: 0;
-  background: #39FF14;
-  box-shadow: 0 0 18px rgba(57,255,20,.45);
-  animation: drawHLine 2.4s cubic-bezier(.2,.8,.2,1) forwards;
+  background: linear-gradient(90deg, transparent, #39FF14 12%, #39FF14 88%, transparent);
+  box-shadow: 0 0 16px rgba(57,255,20,.55), 0 0 40px rgba(57,255,20,.25);
+  animation: drawHLine 1.6s 0.35s cubic-bezier(.2,.8,.2,1) forwards;
 }
-.intro-car-svg {
+.intro-car-wrap {
   position: absolute;
   left: 0;
-  top: 0;
-  width: min(52vw, 520px);
+  top: 8%;
+  width: min(58vw, 560px);
   height: auto;
-  filter: drop-shadow(0 0 10px rgba(255,255,255,.35));
-  animation: carSlide 2.8s cubic-bezier(.18,.8,.2,1) forwards;
+  animation: carSlide 2.35s 0.18s cubic-bezier(.16,.82,.18,1) forwards;
+  opacity: 0;
 }
-.intro-logo {
+.intro-trail {
+  position: absolute;
+  right: 62%;
+  top: 42%;
+  width: min(42vw, 380px);
+  height: 10px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(57,255,20,.08) 20%, rgba(57,255,20,.45) 70%, rgba(57,255,20,.85));
+  filter: blur(6px);
+  transform: translateY(-50%);
+  opacity: .85;
+}
+.intro-car-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 0 12px rgba(57,255,20,.45)) drop-shadow(0 0 28px rgba(57,255,20,.2));
+}
+.intro-brand {
   position: relative;
   z-index: 2;
+  text-align: center;
+  padding: 0 16px;
+  transform: translateY(28px);
+}
+.intro-logo {
   font-family: "Barlow Condensed", sans-serif;
   font-weight: 800;
   font-size: clamp(48px, 12vw, 120px);
-  letter-spacing: 0.2em;
-  color: #f0f0f0;
+  letter-spacing: 0.22em;
+  margin-right: -0.22em;
+  color: #f2f2f2;
+  text-shadow:
+    0 0 18px rgba(57,255,20,.35),
+    0 0 48px rgba(57,255,20,.12);
   opacity: 0;
   clip-path: inset(0 100% 0 0);
-  animation: logoReveal 0.8s 1.7s cubic-bezier(.2,.8,.2,1) forwards;
+  animation: logoReveal 0.75s 1.35s cubic-bezier(.2,.8,.2,1) forwards;
+}
+.intro-tagline {
+  margin-top: 10px;
+  font-family: Manrope, system-ui, sans-serif;
+  font-size: clamp(11px, 2.6vw, 14px);
+  letter-spacing: 0.28em;
+  text-transform: lowercase;
+  color: #6e6e6e;
+  opacity: 0;
+  animation: taglineIn 0.55s 1.95s ease forwards;
 }
 @keyframes carSlide {
-  0% { transform: translateX(-110%); opacity: 0; }
-  12% { opacity: 1; }
-  100% { transform: translateX(118vw); opacity: 1; }
+  0% { transform: translateX(-120%); opacity: 0; }
+  8% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: translateX(125vw); opacity: .15; }
 }
 @keyframes drawHLine {
   to { width: 100%; }
@@ -71,16 +162,65 @@
 @keyframes logoReveal {
   to { opacity: 1; clip-path: inset(0 0 0 0); }
 }
+@keyframes taglineIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes checkeredFlash {
+  0% { opacity: 0; transform: translateY(-50%) skewX(-12deg) scaleX(.35); }
+  35% { opacity: .95; }
+  100% { opacity: 0; transform: translateY(-50%) skewX(-12deg) scaleX(1.05); }
+}
+@keyframes introGrain {
+  to { transform: translate3d(2%, -1%, 0); }
+}
 @keyframes introOut {
   to { opacity: 0; visibility: hidden; }
 }
 .intro-skip {
   position: absolute;
-  bottom: 28px;
-  color: #b5b5b5;
-  font-size: 12px;
-  letter-spacing: 0.14em;
+  bottom: max(24px, env(safe-area-inset-bottom, 0px));
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #5a5a5a;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
+  z-index: 3;
+  opacity: 0;
+  animation: taglineIn 0.4s 0.9s ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .intro-grain,
+  .intro-checkered,
+  .intro-line,
+  .intro-car-wrap,
+  .intro-trail {
+    animation: none !important;
+  }
+  .intro-checkered,
+  .intro-line,
+  .intro-car-wrap,
+  .intro-trail {
+    opacity: 0 !important;
+    visibility: hidden;
+  }
+  .intro-logo {
+    clip-path: none;
+    animation: taglineIn 0.35s ease forwards;
+  }
+  .intro-tagline {
+    animation: taglineIn 0.35s 0.12s ease forwards;
+  }
+  .intro-skip {
+    animation: none;
+    opacity: .55;
+  }
+  #intro.done {
+    animation: introOut 0.25s ease forwards;
+  }
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }

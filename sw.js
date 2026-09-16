@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v48';
+const CACHE = 'pitlane-v49';
 const CORE = ['./', './index.html', './styles.css', './app.js', './api.js', './manifest.json', './favicon.svg', './img/icon-192.png', './img/icon-512.png', './img/emblem.svg', './img/brands/bmw.png'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));

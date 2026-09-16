@@ -1187,10 +1187,31 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
-setTimeout(() => document.getElementById('intro')?.classList.add('done'), 4200);
-document.getElementById('intro')?.addEventListener('click', () => {
-  document.getElementById('intro')?.classList.add('done');
-});
+(function setupIntro() {
+  const el = document.getElementById('intro');
+  if (!el) return;
+  const KEY = 'pitlane-intro-seen';
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    el.classList.add('done');
+    try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
+    setTimeout(() => { try { bootPodium(); } catch (_) {} }, 30);
+  };
+  let seen = false;
+  try { seen = sessionStorage.getItem(KEY) === '1'; } catch (_) {}
+  if (seen) {
+    finish();
+    return;
+  }
+  el.addEventListener('click', finish, { once: true });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') finish();
+  });
+  setTimeout(finish, reduce ? 900 : 4000);
+})();
 
 renderTracks();
 applyCarUI();
@@ -3131,8 +3152,7 @@ function bootPodium() {
 }
 if (document.readyState === 'complete') setTimeout(bootPodium, 50);
 else window.addEventListener('load', () => setTimeout(bootPodium, 50));
-// also boot when intro closes
-document.getElementById('intro')?.addEventListener('click', () => setTimeout(bootPodium, 30));
+// intro finish also boots podium; keep early boot so podium is never blocked
 setTimeout(bootPodium, 500);
 
 document.getElementById('btnDynoEdit')?.addEventListener('click', () => setDynoEditMode(true));
