@@ -92,32 +92,53 @@
   box-shadow: 0 0 16px rgba(57,255,20,.55), 0 0 40px rgba(57,255,20,.25);
   animation: drawHLine 1.6s 0.35s cubic-bezier(.2,.8,.2,1) forwards;
 }
-.intro-car-wrap {
+.intro-mark-wrap {
   position: absolute;
   left: 0;
-  top: 8%;
-  width: min(58vw, 560px);
+  top: 18%;
+  width: min(42vw, 320px);
   height: auto;
   animation: carSlide 2.35s 0.18s cubic-bezier(.16,.82,.18,1) forwards;
   opacity: 0;
 }
 .intro-trail {
   position: absolute;
-  right: 62%;
-  top: 42%;
-  width: min(42vw, 380px);
-  height: 10px;
+  right: 58%;
+  top: 50%;
+  width: min(48vw, 420px);
+  height: 6px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(57,255,20,.08) 20%, rgba(57,255,20,.45) 70%, rgba(57,255,20,.85));
-  filter: blur(6px);
+  background: linear-gradient(90deg, transparent, rgba(57,255,20,.06) 15%, rgba(57,255,20,.4) 65%, rgba(57,255,20,.9));
+  filter: blur(5px);
   transform: translateY(-50%);
-  opacity: .85;
+  opacity: .9;
 }
-.intro-car-svg {
+.intro-speed-lines {
+  position: absolute;
+  right: 72%;
+  top: 50%;
+  width: min(36vw, 280px);
+  height: 48px;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.intro-speed-lines span {
+  display: block;
+  height: 2px;
+  margin: 10px 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, rgba(57,255,20,.15) 30%, rgba(57,255,20,.75));
+  box-shadow: 0 0 8px rgba(57,255,20,.35);
+  opacity: .7;
+}
+.intro-speed-lines span:nth-child(1) { width: 72%; margin-left: 18%; opacity: .45; }
+.intro-speed-lines span:nth-child(2) { width: 100%; opacity: .75; }
+.intro-speed-lines span:nth-child(3) { width: 58%; margin-left: 28%; opacity: .4; }
+.intro-mark-svg {
   display: block;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 0 12px rgba(57,255,20,.45)) drop-shadow(0 0 28px rgba(57,255,20,.2));
+  filter: drop-shadow(0 0 14px rgba(57,255,20,.55)) drop-shadow(0 0 32px rgba(57,255,20,.25));
 }
 .intro-brand {
   position: relative;
@@ -196,13 +217,13 @@
   .intro-grain,
   .intro-checkered,
   .intro-line,
-  .intro-car-wrap,
+  .intro-mark-wrap,
   .intro-trail {
     animation: none !important;
   }
   .intro-checkered,
   .intro-line,
-  .intro-car-wrap,
+  .intro-mark-wrap,
   .intro-trail {
     opacity: 0 !important;
     visibility: hidden;
@@ -1707,16 +1728,7 @@ body.run-drive-on #app { visibility: hidden; }
   background: #1a1a1a;
 }
 .podium-wrap .stage-hint {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  margin: 0;
-  font-size: 11px;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: rgba(200,200,210,.32);
-  pointer-events: none;
-  z-index: 2;
+  display: none !important;
 }
 @media (max-width: 720px) {
   .podium-wrap { height: min(46dvh, 360px); }

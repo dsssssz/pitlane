@@ -3104,6 +3104,116 @@ function cyclePodiumModel(delta) {
   podiumIdleTimer = setTimeout(() => { try { controls.autoRotate = true; } catch (_) {} }, 1800);
 }
 
+const GLB_CACHE_NAME = 'pitlane-glb-v1';
+let glbPrefetchStarted = false;
+let podiumLoadGen = 0;
+
+function catalogModelUrl(m) {
+  const base = document.querySelector('base')?.href || (location.origin + location.pathname.replace(/[^/]*$/, ''));
+  return new URL(m.file, base).href;
+}
+
+async function openGlbCache() {
+  try {
+    if (!('caches' in window)) return null;
+    return await caches.open(GLB_CACHE_NAME);
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Store raw GLB bytes in Cache Storage (not decoded scenes). */
+async function putGlbBuffer(url, buf) {
+  const cache = await openGlbCache();
+  if (!cache || !buf) return;
+  try {
+    await cache.put(
+      url,
+      new Response(buf, {
+        headers: {
+          'Content-Type': 'model/gltf-binary',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      })
+    );
+  } catch (_) {}
+}
+
+async function matchGlbBuffer(url) {
+  const cache = await openGlbCache();
+  if (!cache) return null;
+  try {
+    const hit = await cache.match(url);
+    if (!hit) return null;
+    return await hit.arrayBuffer();
+  } catch (_) {
+    return null;
+  }
+}
+
+async function prefetchGlbUrl(url) {
+  try {
+    const cache = await openGlbCache();
+    if (cache) {
+      const hit = await cache.match(url);
+      if (hit) return;
+    }
+    const res = await fetch(url, { credentials: 'same-origin', mode: 'cors' });
+    if (!res.ok) return;
+    const buf = await res.arrayBuffer();
+    await putGlbBuffer(url, buf);
+  } catch (_) {}
+}
+
+/** Neighbors first, then the rest — concurrency 2, idle-friendly. */
+function startGlbPrefetch(priorityId) {
+  if (glbPrefetchStarted || !MODEL_CATALOG?.length) return;
+  glbPrefetchStarted = true;
+  const run = async () => {
+    const cats = MODEL_CATALOG.slice();
+    const idx = cats.findIndex((x) => x.id === priorityId);
+    const ordered = [];
+    const seen = new Set();
+    const push = (m) => {
+      if (!m || seen.has(m.id) || m.id === priorityId) return;
+      seen.add(m.id);
+      ordered.push(m);
+    };
+    if (idx >= 0) {
+      push(cats[(idx - 1 + cats.length) % cats.length]);
+      push(cats[(idx + 1) % cats.length]);
+    }
+    cats.forEach(push);
+    const urls = ordered.map(catalogModelUrl);
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < urls.length) {
+        const u = urls[cursor++];
+        await prefetchGlbUrl(u);
+        await new Promise((r) => setTimeout(r, 50));
+      }
+    };
+    await Promise.all([worker(), worker()]);
+  };
+  const kick = () => { try { run(); } catch (_) {} };
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(kick, { timeout: 2800 });
+  } else {
+    setTimeout(kick, 900);
+  }
+}
+
+function parseGlbBuffer(buf, url) {
+  const path = url.replace(/[^/]+$/, '');
+  return new Promise((resolve, reject) => {
+    try {
+      gltfLoader.parse(buf, path, resolve, reject);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 function loadPodiumModel(id, animDir = 0) {
   const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
   if (!m) return;
@@ -3115,27 +3225,39 @@ function loadPodiumModel(id, animDir = 0) {
   const doTitle = () => applyPodiumTitle(m);
   if (animDir && !same) runHeroTitleTransition(animDir, doTitle);
   else doTitle();
-  const base = document.querySelector('base')?.href || (location.origin + location.pathname.replace(/[^/]*$/, ''));
-  const url = new URL(m.file, base).href;
-  const hint = document.querySelector('.podium-wrap .stage-hint');
-  if (hint) hint.textContent = 'загрузка модели…';
-  gltfLoader.load(
-    url,
-    (gltf) => {
-      fitGlb(gltf.scene);
-      if (hint) hint.textContent = 'крути пальцем · щипок — зум';
-    },
-    (ev) => {
-      if (!hint || !ev.total) return;
-      const pct = Math.round((ev.loaded / ev.total) * 100);
-      hint.textContent = 'загрузка ' + pct + '%';
-    },
-    (err) => {
-      console.warn('glb fail', url, err);
-      if (hint) hint.textContent = 'ошибка загрузки GLB';
-      setRunText('scanStatus', 'не удалось загрузить модель');
+  const url = catalogModelUrl(m);
+  const gen = ++podiumLoadGen;
+
+  const apply = (gltf) => {
+    if (gen !== podiumLoadGen) return;
+    fitGlb(gltf.scene);
+    startGlbPrefetch(m.id);
+  };
+
+  const fail = (err) => {
+    if (gen !== podiumLoadGen) return;
+    console.warn('glb fail', url, err);
+    setRunText('scanStatus', 'не удалось загрузить модель');
+  };
+
+  (async () => {
+    try {
+      let buf = await matchGlbBuffer(url);
+      if (!buf) {
+        const res = await fetch(url, { credentials: 'same-origin', mode: 'cors' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        buf = await res.arrayBuffer();
+        putGlbBuffer(url, buf.slice(0)); // cache copy; parse uses buf
+      }
+      if (gen !== podiumLoadGen) return;
+      const gltf = await parseGlbBuffer(buf, url);
+      apply(gltf);
+    } catch (err) {
+      // fallback to classic loader (progress events unused — no podium hint spam)
+      if (gen !== podiumLoadGen) return;
+      gltfLoader.load(url, apply, undefined, fail);
     }
-  );
+  })();
 }
 
 function loadDefaultGlb() {
