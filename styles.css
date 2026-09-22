@@ -381,14 +381,54 @@ h2 { font-size: 32px; margin-bottom: 6px; }
 .top-meta span { display: block; color: var(--muted); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
 .top-meta strong { font-size: 22px; font-family: "Barlow Condensed", sans-serif; }
 
-.view { display: none; padding: 18px 28px 32px; overflow: auto; }
+.view-host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.view { display: none; padding: 18px 28px 32px; overflow: auto; height: 100%; box-sizing: border-box; }
 .view.active {
   display: block;
-  animation: tabIn .48s cubic-bezier(.22,.8,.24,1);
+  position: relative;
+  z-index: 1;
+  animation: viewIn .48s cubic-bezier(.22,.8,.24,1) both;
+}
+.view.leaving {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  overflow: auto;
+  animation: viewOut .42s ease forwards;
+}
+@keyframes viewIn {
+  from { opacity: 0; transform: translateY(16px) scale(.985); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes viewOut {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-12px) scale(.992); }
 }
 @keyframes tabIn {
   from { opacity: 0; transform: translateY(18px) scale(.985); }
   to { opacity: 1; transform: none; }
+}
+.sfx-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+}
+.sfx-field input { accent-color: var(--gold); width: 16px; height: 16px; }
+@media (prefers-reduced-motion: reduce) {
+  .view.active,
+  .view.leaving { animation: none; }
 }
 
 .stage {

@@ -132,6 +132,7 @@
           </div>
         </header>
 
+        <div class="view-host" id="viewHost">
         <section id="view-garage" class="view active garage-hero">
           <div class="podium-wrap" id="podiumWrap">
             <canvas id="view3d" aria-label="3D подиум"></canvas>
@@ -381,6 +382,11 @@
               <option value="es">Español</option>
             </select>
           </label>
+          <label class="sfx-field">
+            <input type="checkbox" id="sfxToggle" checked />
+            <span>Звук старта двигателя</span>
+          </label>
+          <!-- Audio: JaimeLopes «Lambo Start Up Sound» Freesound #564373 — CC0 -->
           <form id="authForm" class="card auth-card" onsubmit="event.preventDefault();">
             <h3 data-i18n="acc.login">Вход по SMS</h3>
             <p class="muted" data-i18n="acc.hint">Телефон → код из SMS. Аккаунт и ник сохраняются.</p>
@@ -406,6 +412,7 @@
           <button type="button" id="btnProSoon" class="btn-pro-soon">Pro скоро</button>
           <button type="button" id="btnLogout">Выйти</button>
         </section>
+        </div>
       </main>
     </div>
 

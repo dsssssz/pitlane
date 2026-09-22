@@ -742,18 +742,211 @@ function activateNavBtn(btn) {
   syncTabPill(btn);
 }
 
+/* Engine start SFX — JaimeLopes «Lambo Start Up Sound» Freesound #564373 (CC0)
+   https://freesound.org/people/JaimeLopes/sounds/564373/
+   Trimmed ~2.5s clean Huracán EVO Spyder start (no kids chatter). */
+const SFX_KEY = 'pitlane-sfx';
+const ENGINE_START_URL = './audio/huracan-start.mp3';
+let engineStartAudio = null;
+let viewTransitionTimer = 0;
+
+function sfxEnabled() {
+  try {
+    const v = localStorage.getItem(SFX_KEY);
+    if (v == null) return true;
+    return v !== '0' && v !== 'false' && v !== 'off';
+  } catch (_) {
+    return true;
+  }
+}
+
+function setSfxEnabled(on) {
+  try { localStorage.setItem(SFX_KEY, on ? '1' : '0'); } catch (_) {}
+  const t = document.getElementById('sfxToggle');
+  if (t) t.checked = !!on;
+}
+
+function prefetchEngineStart() {
+  try {
+    if (!engineStartAudio) {
+      engineStartAudio = new Audio(ENGINE_START_URL);
+      engineStartAudio.preload = 'auto';
+      engineStartAudio.playsInline = true;
+    }
+    engineStartAudio.load();
+  } catch (_) {}
+}
+
+function synthesizeEngineStart() {
+  return new Promise((resolve) => {
+    let ctx;
+    try {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+    } catch (_) {
+      resolve();
+      return;
+    }
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.connect(ctx.destination);
+
+    // Crank / starter grind
+    const dur = 2.1;
+    const bufferSize = Math.floor(ctx.sampleRate * dur);
+    const noiseBuf = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+      const t = i / ctx.sampleRate;
+      const grind = (Math.random() * 2 - 1) * (t < 0.45 ? 0.55 : 0.12 * Math.exp(-(t - 0.45) * 4));
+      data[i] = grind;
+    }
+    const noise = ctx.createBufferSource();
+    noise.buffer = noiseBuf;
+    const noiseFilter = ctx.createBiquadFilter();
+    noiseFilter.type = 'bandpass';
+    noiseFilter.frequency.value = 900;
+    noiseFilter.Q.value = 0.8;
+    const noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.35, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.08, now + 0.5);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    noise.connect(noiseFilter);
+    noiseFilter.connect(noiseGain);
+    noiseGain.connect(master);
+
+    // Catch + brief V10-ish roar (saw stack)
+    const roarGain = ctx.createGain();
+    roarGain.gain.setValueAtTime(0.0001, now);
+    roarGain.gain.setValueAtTime(0.0001, now + 0.38);
+    roarGain.gain.exponentialRampToValueAtTime(0.55, now + 0.52);
+    roarGain.gain.exponentialRampToValueAtTime(0.28, now + 1.1);
+    roarGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    roarGain.connect(master);
+
+    [55, 110, 165, 220, 275].forEach((f, i) => {
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f * 0.92, now + 0.4);
+      o.frequency.exponentialRampToValueAtTime(f * 1.35, now + 0.85);
+      o.frequency.exponentialRampToValueAtTime(f * 1.05, now + 1.6);
+      const g = ctx.createGain();
+      g.gain.value = 0.18 / (i + 1);
+      const fil = ctx.createBiquadFilter();
+      fil.type = 'lowpass';
+      fil.frequency.setValueAtTime(600, now + 0.4);
+      fil.frequency.exponentialRampToValueAtTime(4200, now + 0.7);
+      fil.frequency.exponentialRampToValueAtTime(1800, now + 1.5);
+      o.connect(fil);
+      fil.connect(g);
+      g.connect(roarGain);
+      o.start(now + 0.38);
+      o.stop(now + dur);
+    });
+
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.7, now + 0.05);
+    master.gain.setValueAtTime(0.7, now + dur - 0.25);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+
+    noise.start(now);
+    noise.stop(now + dur);
+    setTimeout(() => {
+      try { ctx.close(); } catch (_) {}
+      resolve();
+    }, Math.ceil(dur * 1000) + 50);
+  });
+}
+
+function playEngineStart() {
+  return new Promise((resolve) => {
+    if (!sfxEnabled()) {
+      resolve();
+      return;
+    }
+    const finish = () => resolve();
+    try {
+      if (!engineStartAudio) prefetchEngineStart();
+      const a = engineStartAudio;
+      if (!a) {
+        synthesizeEngineStart().then(finish).catch(finish);
+        return;
+      }
+      a.pause();
+      try { a.currentTime = 0; } catch (_) {}
+      const p = a.play();
+      if (p && typeof p.then === 'function') {
+        p.then(finish).catch(() => {
+          synthesizeEngineStart().then(finish).catch(finish);
+        });
+      } else {
+        finish();
+      }
+    } catch (_) {
+      synthesizeEngineStart().then(finish).catch(finish);
+    }
+  });
+}
+
+function goToView(id, opts = {}) {
+  const next = document.getElementById('view-' + id);
+  if (!next) return;
+  const prev = document.querySelector('.view.active');
+  const already = !!(prev && prev.id === 'view-' + id);
+
+  const nav = (opts.navBtn && opts.navBtn.classList.contains('nav-btn'))
+    ? opts.navBtn
+    : document.querySelector(`.nav-btn[data-view="${id}"]`);
+  if (nav) activateNavBtn(nav);
+  else if (id === 'account') {
+    document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+  }
+
+  if (already) {
+    try { onResize(); } catch (_) {}
+    return;
+  }
+
+  // Unlock + play on the same user gesture that navigates to Замер
+  if (id === 'run' && opts.sfx !== false) {
+    playEngineStart().catch(() => {});
+  }
+
+  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  clearTimeout(viewTransitionTimer);
+
+  if (prev && !reduce) {
+    prev.classList.add('leaving');
+    prev.classList.remove('active');
+    next.classList.add('active');
+    const cleanup = () => {
+      prev.classList.remove('leaving');
+    };
+    prev.addEventListener('animationend', cleanup, { once: true });
+    viewTransitionTimer = setTimeout(cleanup, 520);
+  } else {
+    document.querySelectorAll('.view').forEach((v) => v.classList.remove('active', 'leaving'));
+    next.classList.add('active');
+  }
+  try { onResize(); } catch (_) {}
+}
+
 document.querySelectorAll('[data-view]').forEach((btn) => {
   btn.onclick = () => {
     const id = btn.dataset.view;
     if (!id || !document.getElementById('view-' + id)) return;
     try { navigator.vibrate?.(10); } catch (_) {}
-    document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
-    const nav = btn.classList.contains('nav-btn') ? btn : document.querySelector(`.nav-btn[data-view="${id}"]`);
-    activateNavBtn(nav);
-    document.getElementById('view-' + id).classList.add('active');
-    onResize();
+    goToView(id, { navBtn: btn });
   };
 });
+
+(function setupSfxToggle() {
+  const t = document.getElementById('sfxToggle');
+  if (!t) return;
+  t.checked = sfxEnabled();
+  t.addEventListener('change', () => setSfxEnabled(t.checked));
+})();
+
 window.addEventListener('resize', () => syncTabPill(document.querySelector('.nav-btn.active')));
 requestAnimationFrame(() => syncTabPill(document.querySelector('.nav-btn.active')));
 
@@ -1199,6 +1392,7 @@ function tick(now) {
     el.classList.add('done');
     try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
     setTimeout(() => { try { bootPodium(); } catch (_) {} }, 30);
+    try { prefetchEngineStart(); } catch (_) {}
   };
   let seen = false;
   try { seen = sessionStorage.getItem(KEY) === '1'; } catch (_) {}
@@ -1597,8 +1791,7 @@ function needLogin(msg) {
   if (currentUser()) return false;
   const el = document.getElementById('authMsg');
   if (el) el.textContent = msg || 'Чтобы писать в топ, войди или зарегистрируйся';
-  document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
-  document.getElementById('view-account')?.classList.add('active');
+  goToView('account', { sfx: false });
   return true;
 }
 
