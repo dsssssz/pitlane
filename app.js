@@ -1380,6 +1380,40 @@ function tick(now) {
   requestAnimationFrame(tick);
 }
 
+
+const DEEP_VIEWS = new Set(['garage', 'run', 'lap', 'tops', 'pulse', 'account', 'cars']);
+
+/** Parse ?view= / ?skipIntro=1 and hash #view=… (never treats #r= / #s= as view). */
+function getDeepLinkView() {
+  try {
+    const params = new URLSearchParams(location.search);
+    let view = (params.get('view') || '').toLowerCase();
+    const skipFlag = params.get('skipIntro') === '1';
+    const hash = location.hash || '';
+    if (!view && hash) {
+      // Only #view=… — do not steal share payloads #r= / #s=
+      if (/^#view=/i.test(hash)) {
+        view = decodeURIComponent(hash.slice(6).split(/[&#]/)[0] || '').toLowerCase();
+      } else if (!/^#[rs]=/i.test(hash)) {
+        const m = hash.match(/[#&?]view=([a-z]+)/i);
+        if (m) view = m[1].toLowerCase();
+      }
+    }
+    if (!DEEP_VIEWS.has(view)) view = '';
+    return { view, skipIntro: skipFlag || !!view };
+  } catch (_) {
+    return { view: '', skipIntro: false };
+  }
+}
+
+function clearDeepLinkUrl() {
+  try {
+    const hash = location.hash || '';
+    const keep = /^#[rs]=/i.test(hash) ? hash : '';
+    history.replaceState(null, '', location.pathname + keep);
+  } catch (_) {}
+}
+
 (function setupIntro() {
   const el = document.getElementById('intro');
   if (!el) return;
@@ -1396,7 +1430,9 @@ function tick(now) {
   };
   let seen = false;
   try { seen = sessionStorage.getItem(KEY) === '1'; } catch (_) {}
-  if (seen) {
+  let deepSkip = false;
+  try { deepSkip = !!getDeepLinkView().skipIntro; } catch (_) {}
+  if (seen || deepSkip) {
     finish();
     return;
   }
@@ -4220,3 +4256,23 @@ document.querySelector('[data-view="pulse"]')?.addEventListener('click', renderP
 
 void bootShareFromUrl();
 try { renderCompare(); renderLaps(); renderTrackDays(); } catch (_) {}
+
+/* -------- PWA deep link / home-screen shortcuts -------- */
+(function bootDeepLinkView() {
+  const deep = getDeepLinkView();
+  if (!deep.view) return;
+  const apply = () => {
+    try { goToView(deep.view); } catch (_) {}
+    clearDeepLinkUrl();
+  };
+  // After DOM/nav wiring; intro already finished when skipIntro/view set
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => setTimeout(apply, 0));
+  } else {
+    setTimeout(apply, 0);
+  }
+})();
+
+document.getElementById('btnOpenZamerPage')?.addEventListener('click', () => {
+  location.href = './zamer.html';
+});

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#3a3a3a" />
+    <meta name="theme-color" content="#1a1a1a" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -386,6 +386,11 @@
             <input type="checkbox" id="sfxToggle" checked />
             <span>Звук старта двигателя</span>
           </label>
+          <article class="card" id="iosHomeCard">
+            <h3>Добавить Замер на Домой</h3>
+            <p class="muted">iPhone: откройте страницу иконки → Поделиться → На экран «Домой». На Android long-press иконки Pitlane → «Быстрый замер».</p>
+            <button type="button" id="btnOpenZamerPage" class="go-btn">Открыть страницу для иконки</button>
+          </article>
           <!-- Audio: JaimeLopes «Lambo Start Up Sound» Freesound #564373 — CC0 -->
           <form id="authForm" class="card auth-card" onsubmit="event.preventDefault();">
             <h3 data-i18n="acc.login">Вход по SMS</h3>

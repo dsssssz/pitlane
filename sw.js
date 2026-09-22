@@ -1,5 +1,5 @@
-const CACHE = 'pitlane-v51';
-const CORE = ['./', './index.html', './styles.css', './app.js', './api.js', './manifest.json', './favicon.svg', './img/icon-192.png', './img/icon-512.png', './img/emblem.svg', './img/brands/bmw.png', './audio/huracan-start.mp3'];
+const CACHE = 'pitlane-v52';
+const CORE = ['./', './index.html', './zamer.html', './styles.css', './app.js', './api.js', './manifest.json', './favicon.svg', './img/icon-192.png', './img/icon-512.png', './img/emblem.svg', './img/brands/bmw.png', './audio/huracan-start.mp3'];
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
 });

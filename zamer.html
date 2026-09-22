@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Замер" />
+    <link rel="apple-touch-icon" href="./img/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="./img/icon-192.png" />
+    <link rel="manifest" href="./manifest.json" />
+    <meta http-equiv="refresh" content="0;url=./index.html?view=run&amp;skipIntro=1" />
+    <title>Замер — Pitlane</title>
+    <style>
+      html, body {
+        margin: 0; height: 100%;
+        background: #1a1a1a; color: #e8e8e8;
+        font-family: system-ui, -apple-system, sans-serif;
+        display: flex; align-items: center; justify-content: center;
+        text-align: center;
+      }
+      a { color: #39ff14; }
+      .hint { opacity: .55; font-size: 13px; margin-top: 12px; max-width: 280px; }
+    </style>
+    <script>
+      location.replace('./index.html?view=run&skipIntro=1');
+    </script>
+  </head>
+  <body>
+    <div>
+      <p>Открываем замер…</p>
+      <p><a href="./index.html?view=run&amp;skipIntro=1">продолжить</a></p>
+      <p class="hint">iPhone: Поделиться → На экран «Домой» — иконка «Замер» откроет замер сразу.</p>
+    </div>
+  </body>
+</html>
