@@ -1,7 +1,11 @@
 /**
  * Pitlane shared tops API — Cloudflare Worker + KV
  * Bindings: PITLANE (KV namespace)
- * Optional env: SMS_DEMO (default 1), TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, EXTRA_ORIGINS
+ * Env: SMS_DEMO (default 1), TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, EXTRA_ORIGINS
+ *
+ * Auth: POST /auth/verify → { token, phone, nick, user }
+ * Session: KV sess:<token> → { phone, nick, at }; Authorization: Bearer <token>
+ * X-Pilot-Id kept as soft fallback for reads; writes to tops/pulse/garage require session.
  */
 const DEFAULT_ORIGINS = [
   'https://dsssssz.github.io',
@@ -12,6 +16,9 @@ const DEFAULT_ORIGINS = [
 ];
 
 const SHARE_TTL = 30 * 24 * 60 * 60; // 30 days
+const SESS_TTL = 90 * 24 * 60 * 60; // 90 days
+const OTP_PHONE_LIMIT = 5; // per 15 min
+const OTP_IP_LIMIT = 20; // soft per 15 min
 
 function corsHeaders(req, env) {
   const origin = req.headers.get('Origin') || '';
@@ -23,8 +30,8 @@ function corsHeaders(req, env) {
   const ok = allow.has(origin) ? origin : DEFAULT_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': ok,
-    'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, X-Pilot-Id, X-Pilot-Name',
+    'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Pilot-Id, X-Pilot-Name',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   };
@@ -52,15 +59,75 @@ async function writeList(kv, key, arr) {
   await kv.put(key, JSON.stringify(arr.slice(0, 200)));
 }
 
-function pilotFrom(req) {
-  const id = (req.headers.get('X-Pilot-Id') || '').trim().slice(0, 64);
-  const name = (req.headers.get('X-Pilot-Name') || '').trim().slice(0, 48);
-  return { id, name };
+function clientIp(req) {
+  return (
+    req.headers.get('CF-Connecting-IP') ||
+    (req.headers.get('X-Forwarded-For') || '').split(',')[0].trim() ||
+    '0.0.0.0'
+  );
 }
 
-/** GPS rows: missing valid → keep (legacy); explicit false → drop */
+function randomToken() {
+  const a = new Uint8Array(24);
+  crypto.getRandomValues(a);
+  return [...a].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Resolve session from Bearer token (preferred) or soft X-Pilot-Id fallback. */
+async function resolvePilot(req, env) {
+  const auth = req.headers.get('Authorization') || '';
+  const m = auth.match(/^Bearer\s+(\S+)/i);
+  if (m) {
+    const token = m[1].trim();
+    const raw = await env.PITLANE.get('sess:' + token);
+    if (raw) {
+      try {
+        const s = JSON.parse(raw);
+        if (s?.phone) {
+          return {
+            id: String(s.phone).slice(0, 64),
+            name: String(s.nick || '').slice(0, 48),
+            token,
+            authed: true,
+          };
+        }
+      } catch (_) {}
+    }
+    return { id: '', name: '', token: null, authed: false, badToken: true };
+  }
+  const id = (req.headers.get('X-Pilot-Id') || '').trim().slice(0, 64);
+  const name = (req.headers.get('X-Pilot-Name') || '').trim().slice(0, 48);
+  return { id, name, token: null, authed: false };
+}
+
+function requireAuth(pilot, headers) {
+  if (pilot.badToken) return json({ error: 'invalid session' }, 401, headers);
+  if (!pilot.authed || !pilot.id) return json({ error: 'auth required' }, 401, headers);
+  return null;
+}
+
+/** Public tops: GPS + valid !== false; A/B preferred (C kept only if valid true and no teleport). */
 function isValidGpsRow(r) {
-  return !!(r && r.gps && r.valid !== false);
+  if (!r || !r.gps || r.valid === false) return false;
+  if (Array.isArray(r.flags) && r.flags.includes('teleport')) return false;
+  return true;
+}
+
+function computeValid(body) {
+  const flags = Array.isArray(body?.flags)
+    ? body.flags.map((f) => String(f).slice(0, 24)).slice(0, 8)
+    : [];
+  const gpsQ = body?.gpsQ === 'A' || body?.gpsQ === 'B' || body?.gpsQ === 'C' ? body.gpsQ : null;
+  let valid = true;
+  if (flags.includes('teleport') || flags.includes('speed')) valid = false;
+  if (gpsQ === 'C') valid = false;
+  if (gpsQ !== 'A' && gpsQ !== 'B' && gpsQ !== 'C') {
+    // unknown grade: trust client only if explicitly true and no bad flags
+    if (body?.valid === false) valid = false;
+  }
+  // Public tops: A/B only
+  if (gpsQ !== 'A' && gpsQ !== 'B') valid = false;
+  return { valid, gpsQ, flags };
 }
 
 function sanitizeStraight(body, pilot) {
@@ -69,18 +136,24 @@ function sanitizeStraight(body, pilot) {
   if (!body?.gps) return null;
   const name = String(body.name || pilot.name || 'пилот').slice(0, 48);
   const car = String(body.car || '').slice(0, 80);
+  const { valid, gpsQ, flags } = computeValid(body);
   const row = {
     name,
     car,
     t: Math.round(t * 1000) / 1000,
     gps: true,
-    valid: true,
+    valid,
     pilotId: pilot.id || null,
     at: Date.now(),
   };
-  if (body.gpsQ === 'A' || body.gpsQ === 'B' || body.gpsQ === 'C') row.gpsQ = body.gpsQ;
-  if (body.avgAcc != null && Number.isFinite(Number(body.avgAcc))) row.avgAcc = Math.round(Number(body.avgAcc) * 10) / 10;
-  if (body.hz != null && Number.isFinite(Number(body.hz))) row.hz = Math.round(Number(body.hz) * 10) / 10;
+  if (gpsQ) row.gpsQ = gpsQ;
+  if (flags.length) row.flags = flags;
+  if (body.avgAcc != null && Number.isFinite(Number(body.avgAcc))) {
+    row.avgAcc = Math.round(Number(body.avgAcc) * 10) / 10;
+  }
+  if (body.hz != null && Number.isFinite(Number(body.hz))) {
+    row.hz = Math.round(Number(body.hz) * 10) / 10;
+  }
   return row;
 }
 
@@ -90,20 +163,26 @@ function sanitizeLap(body, pilot) {
   if (!body?.gps) return null;
   const name = String(body.name || pilot.name || 'пилот').slice(0, 48);
   const car = String(body.car || '').slice(0, 80);
+  const { valid, gpsQ, flags } = computeValid(body);
   const row = {
     name,
     car,
     t,
     gps: true,
-    valid: true,
+    valid,
     pilotId: pilot.id || null,
     at: Date.now(),
     dist: body.dist != null ? Number(body.dist) : undefined,
     slipAvg: body.slipAvg != null ? Number(body.slipAvg) : undefined,
   };
-  if (body.gpsQ === 'A' || body.gpsQ === 'B' || body.gpsQ === 'C') row.gpsQ = body.gpsQ;
-  if (body.avgAcc != null && Number.isFinite(Number(body.avgAcc))) row.avgAcc = Math.round(Number(body.avgAcc) * 10) / 10;
-  if (body.hz != null && Number.isFinite(Number(body.hz))) row.hz = Math.round(Number(body.hz) * 10) / 10;
+  if (gpsQ) row.gpsQ = gpsQ;
+  if (flags.length) row.flags = flags;
+  if (body.avgAcc != null && Number.isFinite(Number(body.avgAcc))) {
+    row.avgAcc = Math.round(Number(body.avgAcc) * 10) / 10;
+  }
+  if (body.hz != null && Number.isFinite(Number(body.hz))) {
+    row.hz = Math.round(Number(body.hz) * 10) / 10;
+  }
   return row;
 }
 
@@ -117,11 +196,27 @@ function sanitizePulse(body, pilot) {
     img: body.img ? String(body.img).slice(0, 200_000) : null,
     at: Date.now(),
     likes: [],
+    pilotId: pilot.id || null,
   };
 }
 
 function shareId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+async function rateHit(kv, key, limit, ttlSec) {
+  const raw = await kv.get(key);
+  let n = 0;
+  if (raw) {
+    try {
+      n = Number(JSON.parse(raw).n) || 0;
+    } catch {
+      n = Number(raw) || 0;
+    }
+  }
+  n += 1;
+  await kv.put(key, JSON.stringify({ n, at: Date.now() }), { expirationTtl: ttlSec });
+  return n > limit;
 }
 
 async function sendTwilioSms(env, phone, code) {
@@ -161,7 +256,7 @@ export default {
 
     const url = new URL(req.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
-    const pilot = pilotFrom(req);
+    const pilot = await resolvePilot(req, env);
 
     try {
       if (req.method === 'GET' && path === '/health') {
@@ -173,24 +268,41 @@ export default {
         const body = await req.json().catch(() => null);
         const phone = String(body?.phone || '').replace(/\D/g, '');
         if (phone.length < 10) return json({ error: 'bad phone' }, 400, headers);
+
+        const ip = clientIp(req);
+        const phoneLimited = await rateHit(env.PITLANE, 'rl:otp:ph:' + phone, OTP_PHONE_LIMIT, 900);
+        const ipLimited = await rateHit(env.PITLANE, 'rl:otp:ip:' + ip, OTP_IP_LIMIT, 900);
+        if (phoneLimited || ipLimited) {
+          return json({ error: 'rate limit', retry: 900 }, 429, headers);
+        }
+
         const code = String(Math.floor(1000 + Math.random() * 9000));
         await env.PITLANE.put(
           'otp:' + phone,
           JSON.stringify({ code, exp: Date.now() + 10 * 60 * 1000 }),
           { expirationTtl: 600 }
         );
+
         let sent = false;
         try {
           sent = await sendTwilioSms(env, phone, code);
         } catch (_) {
           sent = false;
         }
-        const demo = String(env.SMS_DEMO || '1') !== '0';
-        return json(
-          { ok: true, sent, demoCode: demo && !sent ? code : demo ? code : null },
-          200,
-          headers
-        );
+
+        const demo = String(env.SMS_DEMO ?? '1') !== '0';
+        // SMS_DEMO=0 and no Twilio → hard error, never leak demoCode
+        if (!demo && !sent) {
+          return json(
+            { ok: false, error: 'SMS not configured', sent: false },
+            503,
+            headers
+          );
+        }
+
+        const out = { ok: true, sent, demo: demo && !sent };
+        if (demo && !sent) out.demoCode = code;
+        return json(out, 200, headers);
       }
 
       if (req.method === 'POST' && path === '/auth/verify') {
@@ -208,6 +320,7 @@ export default {
         if (Date.now() > otp.exp) return json({ ok: false, error: 'expired' }, 400, headers);
         if (code !== String(otp.code)) return json({ ok: false, error: 'bad code' }, 400, headers);
         await env.PITLANE.delete('otp:' + phone);
+
         const ukey = 'user:' + phone;
         let user = null;
         const uraw = await env.PITLANE.get(ukey);
@@ -227,9 +340,66 @@ export default {
             plan: 'trial',
           };
         }
+        if (body?.nick) user.nick = String(body.nick).trim().slice(0, 48) || user.nick;
         user.lastLogin = Date.now();
         await env.PITLANE.put(ukey, JSON.stringify(user));
-        return json({ ok: true, user }, 200, headers);
+
+        const token = randomToken();
+        await env.PITLANE.put(
+          'sess:' + token,
+          JSON.stringify({ phone, nick: user.nick, at: Date.now() }),
+          { expirationTtl: SESS_TTL }
+        );
+
+        return json(
+          { ok: true, token, phone, nick: user.nick, user },
+          200,
+          headers
+        );
+      }
+
+      // —— Garage sync (auth required) ——
+      if (path === '/garage') {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const gkey = 'garage:' + pilot.id;
+        if (req.method === 'GET') {
+          const raw = await env.PITLANE.get(gkey);
+          if (!raw) return json({ cars: [], carId: null }, 200, headers);
+          try {
+            const data = JSON.parse(raw);
+            return json(
+              {
+                cars: Array.isArray(data.cars) ? data.cars : Array.isArray(data) ? data : [],
+                carId: data.carId || null,
+                at: data.at || null,
+              },
+              200,
+              headers
+            );
+          } catch {
+            return json({ cars: [], carId: null }, 200, headers);
+          }
+        }
+        if (req.method === 'PUT') {
+          const body = await req.json().catch(() => null);
+          const cars = Array.isArray(body?.cars)
+            ? body.cars.slice(0, 40)
+            : Array.isArray(body)
+              ? body.slice(0, 40)
+              : null;
+          if (!cars) return json({ error: 'invalid garage' }, 400, headers);
+          const payload = {
+            cars,
+            carId: body?.carId ? String(body.carId).slice(0, 64) : null,
+            at: Date.now(),
+          };
+          // ~1.5MB soft cap
+          const ser = JSON.stringify(payload);
+          if (ser.length > 1_500_000) return json({ error: 'garage too large' }, 413, headers);
+          await env.PITLANE.put(gkey, ser);
+          return json({ ok: true, ...payload }, 200, headers);
+        }
       }
 
       // —— Share cards ——
@@ -268,10 +438,17 @@ export default {
         return json(rows, 200, headers);
       }
       if (req.method === 'POST' && m) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
         const carId = decodeURIComponent(m[1]);
         const body = await req.json().catch(() => null);
         const row = sanitizeStraight(body, pilot);
         if (!row) return json({ error: 'invalid gps straight row' }, 400, headers);
+        // reject forged pilot ids in body
+        if (body?.pilotId && String(body.pilotId) !== pilot.id) {
+          return json({ error: 'pilot mismatch' }, 403, headers);
+        }
+        row.pilotId = pilot.id;
         const key = `straight:${carId}`;
         const rows = await readList(env.PITLANE, key);
         rows.push(row);
@@ -288,10 +465,16 @@ export default {
         return json(rows, 200, headers);
       }
       if (req.method === 'POST' && m) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
         const trackId = decodeURIComponent(m[1]);
         const body = await req.json().catch(() => null);
         const row = sanitizeLap(body, pilot);
         if (!row) return json({ error: 'invalid gps lap row' }, 400, headers);
+        if (body?.pilotId && String(body.pilotId) !== pilot.id) {
+          return json({ error: 'pilot mismatch' }, 403, headers);
+        }
+        row.pilotId = pilot.id;
         const key = `lap:${trackId}`;
         const rows = await readList(env.PITLANE, key);
         rows.push(row);
@@ -307,6 +490,8 @@ export default {
           return json(rows.slice(0, 200), 200, headers);
         }
         if (req.method === 'POST') {
+          const denied = requireAuth(pilot, headers);
+          if (denied) return denied;
           const body = await req.json().catch(() => null);
           const row = sanitizePulse(body, pilot);
           if (!row) return json({ error: 'invalid pulse' }, 400, headers);
@@ -319,6 +504,8 @@ export default {
 
       m = path.match(/^\/pulse\/([^/]+)\/like$/);
       if (req.method === 'POST' && m) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
         const id = decodeURIComponent(m[1]);
         const who = pilot.name || pilot.id || 'пилот';
         const rows = await readList(env.PITLANE, 'pulse');
@@ -335,10 +522,12 @@ export default {
 
       m = path.match(/^\/pulse\/([^/]+)$/);
       if (req.method === 'DELETE' && m) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
         const id = decodeURIComponent(m[1]);
         const who = pilot.name || pilot.id || '';
         let rows = await readList(env.PITLANE, 'pulse');
-        rows = rows.filter((x) => !(x.id === id && x.who === who));
+        rows = rows.filter((x) => !(x.id === id && (x.who === who || x.pilotId === pilot.id)));
         await writeList(env.PITLANE, 'pulse', rows);
         return json(rows.slice(0, 200), 200, headers);
       }

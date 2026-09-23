@@ -1,0 +1,24 @@
+# Copy to wrangler.toml and fill KV id + account.
+# Deploy: npx wrangler deploy
+
+name = "pitlane-api"
+main = "worker-index.js"
+compatibility_date = "2024-09-01"
+
+# workers_dev = true
+# Or custom route after first deploy.
+
+[[kv_namespaces]]
+binding = "PITLANE"
+id = "<your_kv_namespace_id>"
+# preview_id = "<optional_preview_id>"
+
+# Secrets (wrangler secret put …):
+#   SMS_DEMO          → "0" for production (no demoCode; requires Twilio)
+#   TWILIO_SID
+#   TWILIO_TOKEN
+#   TWILIO_FROM
+# Vars (optional):
+# [vars]
+# EXTRA_ORIGINS = "https://example.com"
+# SMS_DEMO = "1"

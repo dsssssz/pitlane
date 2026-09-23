@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { api, apiBase, isRemoteApi } from './api.js';
+import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken } from './api.js';
 
 function hap(ms = 12) {
   try { navigator.vibrate?.(ms); } catch (_) {}
@@ -78,22 +78,24 @@ function tracksOrdered() {
 // Sochi ≈ main straight S/F; Moscow Raceway ≈ pit straight; Igora ≈ long S/F;
 // Kazan/Smolensk/NRING/ADM/Grozny/RedRing ≈ circuit S/F vicinity. Others are rough.
 const TRACK_GEO = {
-  sochi: { lat: 43.4104, lon: 39.9685 },
-  moscow: { lat: 55.8825, lon: 36.5428 },
-  igora: { lat: 60.6882, lon: 30.1455 },
-  kazan: { lat: 55.6528, lon: 49.2635 },
-  smolensk: { lat: 54.6215, lon: 32.2788 },
-  nring: { lat: 56.1822, lon: 43.5215 },
-  adm: { lat: 55.5588, lon: 37.9785 },
-  grozny: { lat: 43.3412, lon: 45.7388 },
-  redring: { lat: 56.0615, lon: 92.9022 },
-  spb: { lat: 59.970, lon: 30.240 },
-  tlt: { lat: 53.530, lon: 49.350 },
-  lipetsk: { lat: 52.560, lon: 39.520 },
-  'auto-msk': { lat: 55.700, lon: 37.400 },
-  neva: { lat: 59.900, lon: 30.400 },
-  ufa: { lat: 54.700, lon: 56.000 },
-  don: { lat: 47.280, lon: 39.700 },
+  // Cult: tightened toward known pit/S-F areas (still ±tens of meters — phone GPS is coarser).
+  sochi: { lat: 43.4055, lon: 39.9578 },      // Sochi Autodrom main S/F ~pit straight
+  moscow: { lat: 55.8819, lon: 36.5436 },     // MRW pit straight
+  igora: { lat: 60.6885, lon: 30.1462 },
+  kazan: { lat: 55.6531, lon: 49.2629 },
+  smolensk: { lat: 54.6212, lon: 32.2792 },
+  nring: { lat: 56.1820, lon: 43.5218 },
+  adm: { lat: 55.5590, lon: 37.9782 },
+  grozny: { lat: 43.3410, lon: 45.7390 },
+  redring: { lat: 56.0613, lon: 92.9025 },
+  // Rough club / street-ish — UI marks «С/Ф приблизителен»
+  spb: { lat: 59.970, lon: 30.240, rough: true },
+  tlt: { lat: 53.530, lon: 49.350, rough: true },
+  lipetsk: { lat: 52.560, lon: 39.520, rough: true },
+  'auto-msk': { lat: 55.700, lon: 37.400, rough: true },
+  neva: { lat: 59.900, lon: 30.400, rough: true },
+  ufa: { lat: 54.700, lon: 56.000, rough: true },
+  don: { lat: 47.280, lon: 39.700, rough: true },
 };
 
 /** Approx lat/lon rings for soft corridor math (NOT display SVG). Densified near S/F. */
@@ -191,7 +193,9 @@ function drawTrack(id, elId, opts) {
   const live = !!(opts && opts.live);
   const d = TRACK_SVG[id] || TRACK_SVG.sochi;
   const tr = TRACKS.find((x) => x.id === id) || {};
-  const meta = [tr.km && (tr.km + ' км'), tr.turns && (tr.turns + ' пов.'), tr.cult && TRACK_GEO[id] && 'проверен С/Ф'].filter(Boolean).join(' · ');
+  const geo = TRACK_GEO[id];
+  const sfLabel = geo?.rough ? 'С/Ф приблизителен' : (tr.cult && geo ? 'проверен С/Ф' : '');
+  const meta = [tr.km && (tr.km + ' км'), tr.turns && (tr.turns + ' пов.'), sfLabel].filter(Boolean).join(' · ');
   const sf = pointOnTrack(d, 0);
   const sfMark = '<g class="sf-mark" transform="translate(' + sf.x + ',' + sf.y + ')">'
     + '<line x1="-11" y1="-16" x2="-11" y2="16" stroke="#fff" stroke-width="2.2"/>'
@@ -247,6 +251,7 @@ function loadState() {
   }
 }
 function save() {
+  try { scheduleGarageSync(); } catch (_) {}
   localStorage.setItem(storeKey, JSON.stringify(state));
   try {
     if (typeof authDb === 'undefined' || !authDb?.users) return;
@@ -545,11 +550,56 @@ function saveDynoEdit(ev) {
 }
 
 
+
+/* -------- Garage hero: 3D | Фото -------- */
+let heroMode = (function () {
+  try { return localStorage.getItem('pitlane-hero-mode') || '3d'; } catch (_) { return '3d'; }
+})();
+
+function syncHeroModeUI() {
+  const mode = heroMode === 'photo' ? 'photo' : '3d';
+  document.querySelectorAll('[data-hero-mode]').forEach((b) => {
+    b.classList.toggle('on', b.dataset.heroMode === mode);
+  });
+  const podium = document.getElementById('podiumWrap');
+  const photo = document.getElementById('photoStage');
+  const empty = !garageList().length;
+  if (podium) podium.classList.toggle('hidden', mode === 'photo' || empty);
+  if (photo) {
+    photo.classList.toggle('hidden', mode !== 'photo' || empty);
+    if (mode === 'photo') {
+      photo.classList.remove('hidden');
+      const img = document.getElementById('heroPhoto');
+      const scan = state.scans?.[state.carId];
+      if (img && scan) {
+        img.src = scan;
+        img.classList.remove('hidden');
+        photo.classList.add('has-cutout');
+      }
+    }
+  }
+  // Prefer photo as primary if user chose photo mode; keep 3D default when GLB exists
+}
+
+function setHeroMode(mode) {
+  heroMode = mode === 'photo' ? 'photo' : '3d';
+  try { localStorage.setItem('pitlane-hero-mode', heroMode); } catch (_) {}
+  syncHeroModeUI();
+  if (heroMode === '3d') {
+    try { bootPodium?.(); } catch (_) {}
+  }
+}
+
+document.getElementById('btnHero3d')?.addEventListener('click', () => setHeroMode('3d'));
+document.getElementById('btnHeroPhoto')?.addEventListener('click', () => setHeroMode('photo'));
+
 function applyCarUI() {
   const empty = !garageList().length;
-  document.getElementById('emptyGarage')?.classList.toggle('hidden', true); // podium + passport are the garage now
+  document.getElementById('emptyGarage')?.classList.toggle('hidden', !empty);
   document.getElementById('addWizard')?.classList.add('hidden');
-  document.querySelector('#view-garage .mycar')?.classList.remove('hidden');
+  document.querySelector('#view-garage .mycar')?.classList.toggle('hidden', empty);
+  document.getElementById('podiumWrap')?.classList.toggle('hidden', empty && !(state.scans && Object.keys(state.scans).length));
+  try { syncHeroModeUI(); } catch (_) {}
   applyPassportUI();
   const c = currentCar();
   const m = state.meas[c.id] || {};
@@ -627,7 +677,8 @@ function renderTracks() {
   const sel = document.getElementById('trackSelect');
   const ordered = tracksOrdered();
   const html = ordered.map((t) => {
-    const tag = t.cult && TRACK_GEO[t.id] ? ' · С/Ф' : '';
+    const g = TRACK_GEO[t.id];
+    const tag = g?.rough ? ' · С/Ф≈' : (t.cult && g ? ' · С/Ф' : '');
     return `<option value="${t.id}">${t.name}${tag}</option>`;
   }).join('');
   sel.innerHTML = html;
@@ -666,10 +717,14 @@ function mountWheel(selId, wheelId) {
   const opts = [...sel.options];
   box.innerHTML = '<div class="wheel-item"></div>' + opts.map((o) => {
     const tr = TRACKS.find((t) => t.id === o.value);
-    const cult = tr?.cult && TRACK_GEO[tr.id];
-    const tag = cult ? ' <span class="cult-tag">проверен С/Ф</span>' : '';
-    const label = String(o.text).replace(/ · С\/Ф$/, '');
-    return `<div class="wheel-item${cult ? ' cult-track' : ''}" data-val="${o.value}">${label}${tag}</div>`;
+    const g = TRACK_GEO[tr?.id];
+    const cult = tr?.cult && g && !g.rough;
+    const rough = !!(g && g.rough);
+    const tag = rough
+      ? ' <span class="cult-tag rough-sf">С/Ф приблизителен</span>'
+      : (cult ? ' <span class="cult-tag">проверен С/Ф</span>' : '');
+    const label = String(o.text).replace(/ · С\/Ф≈?$/, '');
+    return `<div class="wheel-item${cult ? ' cult-track' : ''}${rough ? ' rough-track' : ''}" data-val="${o.value}">${label}${tag}</div>`;
   }).join('') + '<div class="wheel-item"></div>';
   const items = () => [...box.querySelectorAll('.wheel-item[data-val]')];
   const sync = () => {
@@ -706,10 +761,41 @@ function mountWheel(selId, wheelId) {
 
 /* renderLaps defined with lap GPS block */
 
+
+/** Client-side tops publish gate: need valid + gps + A/B (C only if filter unchecked). */
+function canPublishTop(gq, flags) {
+  const fl = flags || [];
+  if (fl.includes('teleport') || fl.includes('speed')) return false;
+  const q = gq?.gpsQ || gq;
+  const allowC = document.getElementById('topValidOnly')?.checked === false;
+  if (q === 'A' || q === 'B') return true;
+  if (q === 'C' && allowC) return true;
+  return false;
+}
+
+function runRowValid(gq, flags) {
+  const fl = flags || [];
+  if (fl.includes('teleport') || fl.includes('speed')) return false;
+  const q = gq?.gpsQ || gq;
+  if (q === 'C') return false;
+  return q === 'A' || q === 'B';
+}
+
 function filterTopRows(rows, { model } = {}) {
   const validOnly = document.getElementById('topValidOnly')?.checked !== false;
   let out = (rows || []).slice();
-  if (validOnly) out = out.filter((r) => r.gps && r.valid !== false);
+  if (validOnly) {
+    // Default stricter: public tops = GPS A/B only, no teleport
+    out = out.filter((r) => {
+      if (!r || !r.gps || r.valid === false) return false;
+      if (Array.isArray(r.flags) && r.flags.includes('teleport')) return false;
+      if (r.gpsQ === 'C') return false;
+      return r.gpsQ === 'A' || r.gpsQ === 'B' || r.gpsQ == null; // legacy without gpsQ kept if valid
+    });
+  } else {
+    // Filter unchecked: allow C, still drop explicit invalid / teleport
+    out = out.filter((r) => r && r.gps && r.valid !== false && !(Array.isArray(r.flags) && r.flags.includes('teleport')));
+  }
   const modelSel = model != null ? model : (document.getElementById('topModelFilter')?.value || '');
   if (modelSel) out = out.filter((r) => String(r.car || '') === modelSel);
   return out;
@@ -2316,10 +2402,11 @@ async function publishGps(v0100, v100200, v200300) {
     if (v0100 != null) {
       pushSlip();
       const gq = gpsQualityFromStraightRun();
+      const flags0 = (run.flags || []).slice(0, 8);
       openShareCard(buildSharePayload({
         type: '0-100',
         time: Number(rec0.v0100).toFixed(2) + ' с',
-        valid: true,
+        valid: runRowValid(gq, flags0),
         car: currentCar().name,
         gpsQ: gq.gpsQ,
         avgAcc: gq.avgAcc,
@@ -2337,21 +2424,28 @@ async function publishGps(v0100, v100200, v200300) {
   const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
   if (v0100 != null) {
     const gq = gpsQualityFromStraightRun();
-    await api.addStraight(currentCar().id, {
-      name: String(who).slice(-6),
-      car: currentCar().name,
-      t: rec.v0100,
-      gps: true,
-      valid: true,
-      gpsQ: gq.gpsQ,
-      avgAcc: gq.avgAcc,
-      hz: gq.hz,
-    });
+    const flags = (run.flags || []).slice(0, 8);
+    const valid = runRowValid(gq, flags);
+    if (valid && canPublishTop(gq, flags)) {
+      await api.addStraight(currentCar().id, {
+        name: String(who).slice(-6),
+        car: currentCar().name,
+        t: rec.v0100,
+        gps: true,
+        valid,
+        gpsQ: gq.gpsQ,
+        avgAcc: gq.avgAcc,
+        hz: gq.hz,
+        flags,
+      });
+    } else if (!valid) {
+      console.info('0-100 not published to tops', gq.gpsQ, flags);
+    }
     pushSlip();
     const payload = buildSharePayload({
       type: '0-100',
       time: Number(rec.v0100).toFixed(2) + ' с',
-      valid: true,
+      valid,
       car: currentCar().name,
       nick: String(who),
       gpsQ: gq.gpsQ,
@@ -2866,7 +2960,7 @@ async function completeLapRun(how, atTs) {
     slipPeak: Math.round(lapRun.slipPeak * 10) / 10,
     flags: lapRun.flags.slice(0, 8),
     session: true,
-    why: valid ? '' : (how === 'manual' ? 'ручной — не в топ' : check.why),
+    why: valid ? '' : (how === 'manual' ? 'ручной финиш — круг не попадает в топ (нужен авто-финиш на С/Ф)' : check.why),
   };
   state.laps[trackId] = state.laps[trackId] || [];
   state.laps[trackId].push(rec);
@@ -2884,26 +2978,30 @@ async function completeLapRun(how, atTs) {
     rec.gpsQ = gq.gpsQ;
     rec.avgAcc = gq.avgAcc;
     rec.hz = gq.hz;
-    await api.addLap(trackId, {
-      name: String(who).slice(0, 24),
-      car: currentCar().name,
-      t: tStr,
-      gps: true,
-      valid: true,
-      dist: rec.dist,
-      slipAvg: rec.slipAvg,
-      trackDay: true,
-      gpsQ: gq.gpsQ,
-      avgAcc: gq.avgAcc,
-      hz: gq.hz,
-      flags: rec.flags,
-    });
+    const topOk = runRowValid(gq, rec.flags) && canPublishTop(gq, rec.flags);
+    rec.valid = topOk;
+    if (topOk) {
+      await api.addLap(trackId, {
+        name: String(who).slice(0, 24),
+        car: currentCar().name,
+        t: tStr,
+        gps: true,
+        valid: true,
+        dist: rec.dist,
+        slipAvg: rec.slipAvg,
+        trackDay: true,
+        gpsQ: gq.gpsQ,
+        avgAcc: gq.avgAcc,
+        hz: gq.hz,
+        flags: rec.flags,
+      });
+    }
     const tr = TRACKS.find((t) => t.id === trackId);
     openShareCard(buildSharePayload({
       type: 'lap',
       time: tStr,
       trackName: tr?.name || trackId,
-      valid: true,
+      valid: topOk,
       car: currentCar().name,
       nick: String(who),
       gpsQ: gq.gpsQ,
@@ -2922,7 +3020,9 @@ async function completeLapRun(how, atTs) {
     const best = lapSession.bestMs != null ? fmtLapTime(lapSession.bestMs) : '—';
     setLapMsg(valid
       ? `круг ${n} ${tStr} ✓ · лучший ${best} · следующий`
-      : `круг ${n} ${tStr} ∅ ${rec.why} · следующий`);
+      : (how === 'manual'
+        ? `ручной финиш ${tStr} — не в топ (нужен авто-финиш на линии С/Ф)`
+        : `круг ${n} ${tStr} ∅ ${rec.why} · следующий`));
     hap(valid ? [40, 30, 40] : [12, 40, 12]);
     lapRun.phase = 'running';
     lapRun.t0 = finishAt;
@@ -3243,7 +3343,7 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
     type: type || '0-100',
     track: trackName || '',
     time: time != null ? String(time) : '—',
-    valid: valid !== false,
+    valid: (valid !== false) && gpsQ !== 'C',
     at: at || Date.now(),
     date: new Date(at || Date.now()).toLocaleString('ru-RU', {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -3280,7 +3380,10 @@ function openShareCard(payload) {
     if (payload.valid === false) mark = 'INVALID';
     else if (payload.gpsQ === 'A') mark = 'VALID · честный GPS';
     else if (payload.gpsQ === 'B') mark = 'VALID · GPS B';
-    else if (payload.gpsQ === 'C') mark = 'VALID · GPS C';
+    else if (payload.gpsQ === 'C') {
+      mark = 'GPS C';
+      badge.classList.add('gps-c');
+    }
     badge.innerHTML = `<span>${mark}</span>`;
   }
   card.classList.remove('hidden');
@@ -3369,7 +3472,8 @@ document.getElementById('shareCardCopy')?.addEventListener('click', async () => 
 
 /* -------- Monetization stub (trial gate) -------- */
 function canSeeFullHistory() {
-  return isPro(currentUser());
+  // Pro paywall disabled — comparison/history free for now
+  return true;
 }
 
 function toastSoon() {
@@ -3377,10 +3481,8 @@ function toastSoon() {
   const el = document.getElementById('accPlan') || document.getElementById('pulseMsg');
   if (el) {
     const prev = el.textContent;
-    el.textContent = 'скоро оплата';
-    setTimeout(() => { if (el.textContent === 'скоро оплата') el.textContent = prev; }, 1800);
-  } else {
-    try { alert('скоро оплата'); } catch (_) {}
+    el.textContent = 'пока бесплатно';
+    setTimeout(() => { if (el.textContent === 'пока бесплатно') el.textContent = prev; }, 1800);
   }
 }
 
@@ -3537,9 +3639,12 @@ function isPro(u) {
 function refreshAccount() {
   const u = currentUser();
   document.getElementById('authForm')?.classList.toggle('hidden', !!u);
-  const phones = document.querySelectorAll('#accPhone');
+  const phones = document.querySelectorAll('#accPhone, #accPhoneStatus');
+  const demoBan = document.getElementById('accDemoBanner');
+  if (demoBan) demoBan.classList.toggle('hidden', !(authDb.demoSms && u));
   if (!u) {
     phones.forEach((el) => { el.textContent = 'гость'; });
+    if (demoBan) demoBan.classList.add('hidden');
     const plan = document.getElementById('accPlan');
     if (plan) plan.textContent = '';
     const trialEl = document.getElementById('accTrialLeft');
@@ -3593,19 +3698,26 @@ async function requestSmsCode(phone) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: p }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 429) throw new Error('Слишком много запросов кода — подождите ~15 мин');
+      if (res.status === 503 || data?.error === 'SMS not configured') {
+        throw new Error('SMS не настроен на сервере. Нужен Twilio или SMS_DEMO=1');
+      }
       if (res.ok) {
-        const data = await res.json();
-        // production: no code in body; demo worker may echo
-        if (data?.demoCode) {
-          return { phone: p, demoCode: String(data.demoCode) };
-        }
-        return { phone: p, demoCode: null };
+        authDb.demoSms = !!(data?.demo || data?.demoCode);
+        saveAuth();
+        if (data?.demoCode) return { phone: p, demoCode: String(data.demoCode), demo: true };
+        return { phone: p, demoCode: null, demo: false };
       }
     }
-  } catch (_) {}
+  } catch (err) {
+    if (err && err.message && !String(err.message).includes('fetch')) throw err;
+  }
 
-  // No SMS gateway yet — show demo code so flow works; accounts still persist
-  return { phone: p, demoCode: code };
+  // Offline / no Worker — local demo OTP
+  authDb.demoSms = true;
+  saveAuth();
+  return { phone: p, demoCode: code, demo: true };
 }
 
 async function verifySmsCode(phone, code, nick) {
@@ -3617,24 +3729,36 @@ async function verifySmsCode(phone, code, nick) {
   otp.tries = (otp.tries || 0) + 1;
   if (otp.tries > 8) throw new Error('Слишком много попыток');
 
-  let ok = c === String(otp.code);
-  // remote verify if available
+  let ok = false;
+  // Prefer remote verify when Worker configured (issues real session token)
   try {
-    if (!ok && isRemoteApi()) {
+    if (isRemoteApi()) {
       const res = await fetch(apiBase() + '/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: p, code: c }),
+        body: JSON.stringify({ phone: p, code: c, nick: (nick || '').trim() || undefined }),
       });
       if (res.ok) {
         const data = await res.json();
         ok = !!data?.ok;
+        if (data?.token) {
+          setSessionToken(data.token);
+          authDb.token = data.token;
+        }
         if (data?.user) {
           authDb.users[p] = { ...authDb.users[p], ...data.user, phone: p };
         }
+        if (data?.nick && authDb.users[p]) authDb.users[p].nick = data.nick;
       }
     }
   } catch (_) {}
+  if (!ok) ok = c === String(otp.code);
+  // Local demo verify still issues a local pseudo-token so Bearer path works offline
+  if (ok && !getSessionToken()) {
+    const localTok = 'local-' + p + '-' + Date.now().toString(36);
+    setSessionToken(localTok);
+    authDb.token = localTok;
+  }
 
   if (!ok) {
     saveAuth();
@@ -3678,7 +3802,35 @@ async function verifySmsCode(phone, code, nick) {
     u.carId = state.carId || null;
   }
   saveAuth();
+  void mergeGarageOnLogin();
   return u;
+}
+
+async function mergeGarageOnLogin() {
+  if (!isRemoteApi() || !getSessionToken()) return;
+  try {
+    const remote = await api.getGarage();
+    const remoteCars = Array.isArray(remote?.cars) ? remote.cars : [];
+    if ((!state.garage || !state.garage.length) && remoteCars.length) {
+      state.garage = remoteCars;
+      state.carId = remote.carId || remoteCars[0]?.id || null;
+      save();
+      try { applyCarUI(); } catch (_) {}
+    } else if (state.garage?.length) {
+      await api.putGarage({ cars: state.garage, carId: state.carId || null });
+    }
+  } catch (err) {
+    console.warn('garage merge', err);
+  }
+}
+
+let _garageSyncTimer = null;
+function scheduleGarageSync() {
+  if (!currentUser() || !isRemoteApi() || !getSessionToken()) return;
+  clearTimeout(_garageSyncTimer);
+  _garageSyncTimer = setTimeout(() => {
+    void api.putGarage({ cars: state.garage || [], carId: state.carId || null });
+  }, 2500);
 }
 
 function showAuthStep(step) {
@@ -3736,6 +3888,8 @@ document.getElementById('btnLogout')?.addEventListener('click', () => {
     u.carId = state.carId || null;
   }
   authDb.session = null;
+  authDb.token = null;
+  setSessionToken('');
   saveAuth();
   refreshAccount();
 });
@@ -4576,7 +4730,7 @@ function syncWizard() {
   fillSelect(document.getElementById('wEngine'), spec?.engines || []);
 }
 function openWizard() {
-  document.getElementById('emptyGarage')?.classList.add('hidden');
+  document.getElementById('emptyGarage')?.classList.add('hidden'); // wizard open
   document.getElementById('addWizard')?.classList.remove('hidden');
   document.querySelector('#view-garage .mycar')?.classList.add('hidden');
   fillSelect(document.getElementById('wBrand'), Object.keys(CATALOG));
@@ -4812,6 +4966,7 @@ async function runScan(file) {
     save();
     applyCarUI();
     document.getElementById('photoStage')?.classList.add('has-cutout');
+    setHeroMode('photo');
     setScanStatus('Кузов на стенде. Ползунок — если фон съел машину или остался.');
   } catch (err) {
     console.warn(err);
@@ -4873,7 +5028,7 @@ document.getElementById('topLapForm')?.addEventListener('submit', async (e) => {
 
 const I18N = {
   ru: {
-    'nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Paddock',
+    'nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Paddock','nav.park':'Парк',
     'garage.empty':'Гараж пуст','garage.hint':'Добавь свой автомобиль — марка, кузов, год, мотор.','garage.add':'Добавить автомобиль','garage.reset':'сброс',
     'run.title':'Замер','run.hint':'Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
@@ -4882,7 +5037,7 @@ const I18N = {
     'acc.title':'Аккаунт','acc.login':'Вход по SMS','acc.hint':'Телефон → код. Аккаунт сохраняется.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
-    'nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock',
+    'nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock','nav.park':'Park',
     'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car','garage.reset':'reset',
     'run.title':'Run','run.hint':'Tap start, almost stop, then accelerate. When speed drops the run is saved.','run.start':'Start',
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
@@ -5043,6 +5198,21 @@ document.querySelector('[data-view="pulse"]')?.addEventListener('click', renderP
 
 void bootShareFromUrl();
 try { renderCompare(); renderLaps(); renderTrackDays(); } catch (_) {}
+try {
+  ['comparePaywall', 'trackDayPaywall', 'lapListPaywall'].forEach((id) => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+  syncHeroModeUI();
+} catch (_) {}
+// periodic garage push when logged in
+setInterval(() => {
+  try {
+    if (currentUser() && isRemoteApi() && getSessionToken() && (state.garage || []).length) {
+      void api.putGarage({ cars: state.garage, carId: state.carId || null });
+    }
+  } catch (_) {}
+}, 120000);
+
 
 /* -------- PWA deep link / home-screen shortcuts -------- */
 (function bootDeepLinkView() {
@@ -5063,3 +5233,25 @@ try { renderCompare(); renderLaps(); renderTrackDays(); } catch (_) {}
 document.getElementById('btnOpenZamerPage')?.addEventListener('click', () => {
   location.href = './zamer.html';
 });
+
+
+document.getElementById('btnEnableImu')?.addEventListener('click', async () => {
+  const tip = document.getElementById('imuTip');
+  try {
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      const r = await DeviceMotionEvent.requestPermission();
+      if (tip) tip.textContent = r === 'granted'
+        ? 'Датчики движения разрешены. Можно стартовать замер/круг.'
+        : 'Доступ отклонён. На iOS: Настройки → Safari → Движение и ориентация.';
+    } else if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const r = await DeviceOrientationEvent.requestPermission();
+      if (tip) tip.textContent = r === 'granted' ? 'Ориентация разрешена.' : 'Ориентация отклонена.';
+    } else {
+      if (tip) tip.textContent = 'Разрешение не требуется на этой платформе — IMU подхватится при замере.';
+    }
+    try { GpsFusion?.enableImu?.(); } catch (_) {}
+  } catch (err) {
+    if (tip) tip.textContent = 'Не удалось запросить разрешение: ' + (err?.message || err);
+  }
+});
+

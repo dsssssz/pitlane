@@ -99,6 +99,12 @@
             </span>
             <i data-i18n="nav.paddock">Paddock</i>
           </button>
+          <button class="nav-btn" data-view="cars" title="Парк">
+            <span class="nav-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico"><path class="ico-body" fill="none" stroke="currentColor" stroke-width="1.6" d="M4 16h16M6 16l1.5-5h9L18 16M8 16v2M16 16v2M9 11l1-3h4l1 3"/></svg>
+            </span>
+            <i data-i18n="nav.park">Парк</i>
+          </button>
         </nav>
         
         <div class="rail-foot">TRACK ONLY</div>
@@ -177,7 +183,7 @@
                     <h1 id="boxName">BMW G87 M2 Widebody</h1>
                   </div>
                   <p class="hero-chip" id="boxTrim">2026 · carbon widebody</p>
-                  <p class="tiny brand-disclaimer" id="brandDisclaimer">эмблема для превью стиля · не для релиза</p>
+                  <p class="tiny brand-disclaimer" id="brandDisclaimer">эмблемы марок — только для превью в приложении</p>
                 </div>
               </div>
               <button type="button" class="hero-nav" id="btnCarNext" aria-label="Следующая машина">
@@ -207,14 +213,23 @@
             <span id="s0100" class="hidden">—</span>
             <span id="sLap" class="hidden">—</span>
             <span id="s100200" class="hidden">—</span>
-            <img id="heroPhoto" class="hidden" alt="" />
-            <div id="photoStage" class="hidden"></div>
-            <img id="heroWheels" class="hidden" alt="" />
-            <input id="scanInput" type="file" accept="image/*" class="hidden" />
+            <div class="hero-mode-bar" id="heroModeBar" role="tablist" aria-label="Вид гаража">
+              <button type="button" class="hero-mode on" data-hero-mode="3d" id="btnHero3d">3D</button>
+              <button type="button" class="hero-mode" data-hero-mode="photo" id="btnHeroPhoto">Фото</button>
+            </div>
+            <div id="photoStage" class="photo-stage hero-photo-panel hidden">
+              <img id="heroPhoto" alt="Фото машины" />
+              <img id="heroWheels" class="hidden" alt="" />
+              <div class="photo-actions">
+                <label class="go-btn file-btn" for="scanInput">Сканировать / загрузить фото</label>
+                <input id="scanInput" type="file" accept="image/*" capture="environment" class="hidden" />
+                <button type="button" id="scanReset" class="dyno-ghost">сброс фото</button>
+              </div>
+              <label class="tiny scan-thresh-lab">порог выреза <input type="range" id="scanThresh" min="10" max="80" value="30" /></label>
+              <p id="scanStatus" class="tiny muted"></p>
+            </div>
             <button type="button" id="btnAddCar2" class="hidden">＋</button>
             <button type="button" id="btnRemoveCar" class="hidden">✕</button>
-            <button type="button" id="scanReset" class="hidden">фото↺</button>
-            <p id="scanStatus" class="hidden"></p>
 
             <article class="card box-dyno" id="boxDyno">
               <header class="box-dyno-head">
@@ -309,25 +324,22 @@
               <div id="compareStats" class="compare-stats"></div>
             </div>
             <div id="comparePaywall" class="paywall-card hidden">
-              <p><strong>Pro</strong> — полное сравнение сток / GPS</p>
-              <p class="tiny">Триал или подписка откроют блок. Оплата скоро.</p>
-              <button type="button" class="btn-pro-soon" disabled>Pro скоро</button>
+              <p><strong>Сравнение</strong> — сток / GPS</p>
+              <p class="tiny">Пока бесплатно для всех.</p>
             </div>
           </article>
           <article class="card">
             <h3>Track-day</h3>
             <ul id="trackDayList" class="laps"></ul>
             <div id="trackDayPaywall" class="paywall-card hidden">
-              <p>Полная история track-day — в Pro</p>
-              <button type="button" class="btn-pro-soon" disabled>Pro скоро</button>
+              <p>История track-day — пока бесплатно</p>
             </div>
           </article>
           <article class="card">
             <h3 data-i18n="lap.sess">Все круги</h3>
             <ul id="lapList" class="laps"></ul>
             <div id="lapListPaywall" class="paywall-card hidden">
-              <p>Полный список кругов — в Pro (сейчас последние 3)</p>
-              <button type="button" class="btn-pro-soon" disabled>Pro скоро</button>
+              <p>Полный список кругов — пока бесплатно</p>
             </div>
           </article>
         </section>
@@ -427,10 +439,17 @@
               </div>
             </div>
           </form>
-          <p class="muted" id="accPhone">не вошли</p>
+          <p class="muted" id="accPhoneStatus">не вошли</p>
+          <p class="tiny demo-banner hidden" id="accDemoBanner">режим демо · SMS не подключён</p>
           <p class="tiny" id="accPlan"></p>
           <p class="tiny" id="accTrialLeft"></p>
-          <button type="button" id="btnProSoon" class="btn-pro-soon">Pro скоро</button>
+          <article class="card" id="imuCard">
+            <h3>Датчики движения</h3>
+            <p class="muted tiny">На iOS нужен жест пользователя, чтобы разрешить DeviceMotion / ориентацию для GPS+IMU fusion.</p>
+            <button type="button" id="btnEnableImu" class="go-btn">Включить датчики движения</button>
+            <p class="tiny" id="imuTip"></p>
+          </article>
+          <button type="button" id="btnProSoon" class="btn-pro-soon">пока бесплатно</button>
           <button type="button" id="btnLogout">Выйти</button>
         </section>
         </div>
@@ -511,8 +530,8 @@
     <script type="importmap">
       {
         "imports": {
-          "three": "https://unpkg.com/three@0.168.0/build/three.module.js",
-          "three/addons/": "https://unpkg.com/three@0.168.0/examples/jsm/"
+          "three": "./vendor/three/three.module.js",
+          "three/addons/": "./vendor/three/addons/"
         }
       }
     </script>

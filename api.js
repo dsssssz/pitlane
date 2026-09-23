@@ -1,5 +1,6 @@
 /** Shared API: remote Worker when configured, else localStorage fallback. */
 const API_KEY = 'pitlane-api-v1';
+const TOKEN_KEY = 'pitlane-token-v1';
 
 export function apiBase() {
   try {
@@ -13,10 +14,27 @@ export function apiBase() {
   return '';
 }
 
+export function getSessionToken() {
+  try {
+    return localStorage.getItem(TOKEN_KEY) || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+export function setSessionToken(token) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, String(token));
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch (_) {}
+}
+
 function pilotHeaders() {
   const h = { 'Content-Type': 'application/json' };
   try {
-    const auth = JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}');
+    const token = getSessionToken();
+    if (token) h['Authorization'] = 'Bearer ' + token;
+    const auth = JSON.parse(localStorage.getItem('pitlane-auth-v2') || localStorage.getItem('pitlane-auth-v1') || '{}');
     const phone = auth.session || null;
     const prof = JSON.parse(localStorage.getItem('pitlane-prof-v1') || '{}');
     if (phone) h['X-Pilot-Id'] = String(phone);
@@ -37,7 +55,14 @@ async function remote(path, opts = {}) {
       headers: { ...pilotHeaders(), ...(opts.headers || {}) },
       signal: ctrl.signal,
     });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
+    if (!res.ok) {
+      let errBody = null;
+      try { errBody = await res.json(); } catch (_) {}
+      const err = new Error('HTTP ' + res.status);
+      err.status = res.status;
+      err.body = errBody;
+      throw err;
+    }
     return await res.json();
   } catch (err) {
     console.warn('pitlane api remote fail', path, err);
@@ -62,14 +87,16 @@ function saveDb(d) {
   localStorage.setItem(API_KEY, JSON.stringify(d));
 }
 function seed() {
-  const d = { topsStraight: {}, topsLap: {}, pulse: [], shares: {} };
+  const d = { topsStraight: {}, topsLap: {}, pulse: [], shares: {}, garage: null };
   saveDb(d);
   return d;
 }
 
-/** GPS + valid: missing valid counts as true (legacy); false drops */
+/** GPS + valid: false drops; teleport flags drop */
 function isValidGpsRow(r) {
-  return !!(r && r.gps && r.valid !== false);
+  if (!r || !r.gps || r.valid === false) return false;
+  if (Array.isArray(r.flags) && r.flags.includes('teleport')) return false;
+  return true;
 }
 
 function localListStraight(carId) {
@@ -91,7 +118,6 @@ function localCreateShare(payload) {
   d.shares = d.shares || {};
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
   d.shares[id] = { payload, at: Date.now() };
-  // prune old local shares (~keep 50)
   const keys = Object.keys(d.shares);
   if (keys.length > 50) {
     keys
@@ -121,7 +147,13 @@ export const api = {
     return localListLap(trackId);
   },
   async addStraight(carId, row) {
-    const body = { ...row, gps: true, valid: row.valid !== false };
+    // Do NOT force valid:true — client/server compute honesty
+    const body = {
+      ...row,
+      gps: true,
+      valid: row.valid === true,
+      flags: Array.isArray(row.flags) ? row.flags : undefined,
+    };
     const remoteRows = await remote('/tops/straight/' + encodeURIComponent(carId), {
       method: 'POST',
       body: JSON.stringify(body),
@@ -134,8 +166,12 @@ export const api = {
     return localListStraight(carId);
   },
   async addLap(trackId, row) {
-    // gate laps always carry valid:true going forward
-    const body = { ...row, gps: true, valid: row.valid !== false };
+    const body = {
+      ...row,
+      gps: true,
+      valid: row.valid === true,
+      flags: Array.isArray(row.flags) ? row.flags : undefined,
+    };
     const remoteRows = await remote('/tops/lap/' + encodeURIComponent(trackId), {
       method: 'POST',
       body: JSON.stringify(body),
@@ -189,7 +225,6 @@ export const api = {
     saveDb(d);
     return localListPulse();
   },
-  /** POST /share → {id}; falls back to localStorage */
   async createShare(payload) {
     const remoteRes = await remote('/share', {
       method: 'POST',
@@ -198,11 +233,33 @@ export const api = {
     if (remoteRes && remoteRes.id) return remoteRes;
     return localCreateShare(payload);
   },
-  /** GET /share/:id */
   async getShare(id) {
     const remoteRes = await remote('/share/' + encodeURIComponent(id));
     if (remoteRes && !remoteRes.error) return remoteRes;
     return localGetShare(id);
+  },
+  /** GET /garage → { cars, carId } */
+  async getGarage() {
+    const remoteRes = await remote('/garage');
+    if (remoteRes && Array.isArray(remoteRes.cars)) return remoteRes;
+    const d = db();
+    return d.garage || { cars: [], carId: null };
+  },
+  /** PUT /garage { cars, carId } */
+  async putGarage(payload) {
+    const body = {
+      cars: Array.isArray(payload?.cars) ? payload.cars : [],
+      carId: payload?.carId || null,
+    };
+    const remoteRes = await remote('/garage', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+    if (remoteRes && remoteRes.ok) return remoteRes;
+    const d = db();
+    d.garage = { ...body, at: Date.now() };
+    saveDb(d);
+    return { ok: true, ...d.garage };
   },
 };
 
