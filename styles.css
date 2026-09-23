@@ -282,6 +282,7 @@ html.standalone .brand-bar {
 #view-garage:has(#emptyGarage:not(.hidden)) .scan-row,
 #view-garage:has(#emptyGarage:not(.hidden)) .paint-label,
 #view-garage:has(#emptyGarage:not(.hidden)) .colors,
+#view-garage:has(#emptyGarage:not(.hidden)) .body-paint,
 #view-garage:has(#emptyGarage:not(.hidden)) .box-card {
   display: none !important;
 }
@@ -1587,6 +1588,113 @@ body.run-drive-on #app { visibility: hidden; }
   text-transform: uppercase;
 }
 .wheel-item.cult-track { font-weight: 700; }
+
+
+/* —— Body paint swatches (3D podium) —— */
+.body-paint {
+  margin: 8px 12px 4px;
+  text-align: center;
+}
+.body-paint .paint-label {
+  color: #b5b5b5;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin: 4px 0 10px;
+}
+.body-paint .colors {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+.body-paint .colors button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.12);
+  padding: 0;
+  cursor: pointer;
+  background-clip: padding-box;
+  transition: box-shadow .2s ease, transform .15s ease;
+}
+.body-paint .colors button.on {
+  box-shadow: 0 0 0 2px #1a1a1a, 0 0 0 4px #39FF14;
+}
+.body-paint .colors button:active { transform: scale(.94); }
+.paint-custom {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px dashed rgba(57,255,20,.45);
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  position: relative;
+  background: #2a2a2a;
+}
+.paint-custom input[type="color"] {
+  position: absolute;
+  inset: -4px;
+  width: calc(100% + 8px);
+  height: calc(100% + 8px);
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+}
+.paint-custom.on {
+  box-shadow: 0 0 0 2px #1a1a1a, 0 0 0 4px #39FF14;
+  border-style: solid;
+  border-color: #39FF14;
+}
+
+/* —— Tops GPS honesty badges —— */
+.tops-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.tops-gps {
+  display: inline-block;
+  font: 700 9px/1 Manrope, system-ui, sans-serif;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 999px;
+  vertical-align: middle;
+  white-space: nowrap;
+  font-style: normal;
+}
+.tops-gps-a {
+  background: rgba(57, 255, 20, 0.16);
+  color: #39FF14;
+  border: 1px solid rgba(57, 255, 20, 0.55);
+}
+.tops-gps-b {
+  background: rgba(105, 105, 105, 0.55);
+  color: #d8d8d8;
+  border: 1px solid #808080;
+}
+.tops-gps-c,
+.tops-gps-unk {
+  background: rgba(26, 26, 26, 0.65);
+  color: #9a9a9a;
+  border: 1px solid #555;
+  font-weight: 600;
+}
+.laps li .tops-time { max-width: 58%; text-align: right; }
+@media (max-width: 420px) {
+  .body-paint .colors { gap: 8px; }
+  .body-paint .colors button,
+  .paint-custom { width: 28px; height: 28px; }
+  .tops-gps { font-size: 8px; padding: 2px 5px; }
+}
 
 /* —— Share result card —— */
 .share-card {

@@ -184,6 +184,22 @@
                 <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="m8.6 4.6-1.4 1.4 6 6-6 6 1.4 1.4L16 12z"/></svg>
               </button>
             </div>
+            <div class="body-paint" id="bodyPaint">
+              <p class="paint-label">Цвет кузова</p>
+              <div class="colors" id="colorBar" role="listbox" aria-label="Цвет кузова">
+                <button type="button" class="on" data-hex="" title="Сток" aria-label="Сток" style="background:linear-gradient(135deg,#8a8a8a 0%,#3a3a3a 55%,#1a1a1a 100%)"></button>
+                <button type="button" data-hex="#1a1a1a" title="Чёрный" aria-label="Чёрный" style="background:#1a1a1a"></button>
+                <button type="button" data-hex="#f2f2f2" title="Белый" aria-label="Белый" style="background:#f2f2f2"></button>
+                <button type="button" data-hex="#c0c0c0" title="Серебро" aria-label="Серебро" style="background:#c0c0c0"></button>
+                <button type="button" data-hex="#c41e3a" title="Красный" aria-label="Красный" style="background:#c41e3a"></button>
+                <button type="button" data-hex="#39FF14" title="Неон" aria-label="Неон" style="background:#39FF14"></button>
+                <button type="button" data-hex="#1e4fd6" title="Синий" aria-label="Синий" style="background:#1e4fd6"></button>
+                <button type="button" data-hex="#f5c518" title="Жёлтый" aria-label="Жёлтый" style="background:#f5c518"></button>
+                <label class="paint-custom" title="Свой HEX">
+                  <input type="color" id="paintCustom" value="#39FF14" aria-label="Свой цвет" />
+                </label>
+              </div>
+            </div>
             <!-- legacy hidden ids for JS compatibility -->
             <span id="boxClass" class="hidden">—</span>
             <span id="boxLive" class="hidden">0</span>

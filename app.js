@@ -698,6 +698,29 @@ function populateTopModelFilter(allRows) {
   if (cur && names.includes(cur)) sel.value = cur;
 }
 
+function topsGpsTip(r) {
+  if (!r) return '';
+  const parts = [];
+  if (r.avgAcc != null && Number.isFinite(Number(r.avgAcc))) parts.push(`средняя точность ±${Math.round(Number(r.avgAcc))} м`);
+  if (r.hz != null && Number.isFinite(Number(r.hz))) parts.push(`${Number(r.hz).toFixed(1)} Гц`);
+  if (Array.isArray(r.flags) && r.flags.includes('teleport')) parts.push('есть телепорты');
+  else if (r.gpsQ === 'A' || r.gpsQ === 'B') parts.push('без телепортов');
+  return parts.join(' · ') || 'валидный GPS';
+}
+
+function topsGpsBadge(r) {
+  if (!r || !r.gps || r.valid === false) return '';
+  const q = r.gpsQ;
+  let cls = 'tops-gps';
+  let label = 'GPS';
+  if (q === 'A') { cls += ' tops-gps-a'; label = 'честный'; }
+  else if (q === 'B') { cls += ' tops-gps-b'; label = 'B'; }
+  else if (q === 'C') { cls += ' tops-gps-c'; label = 'C'; }
+  else { cls += ' tops-gps-unk'; label = 'GPS'; }
+  const tip = esc(topsGpsTip(r));
+  return `<em class="${cls}" title="${tip}">${label}</em>`;
+}
+
 async function renderTops() {
   const c = currentCar();
   const trackId = document.getElementById('topTrackSelect')?.value || state.trackId || c.lap.track;
@@ -712,12 +735,12 @@ async function renderTops() {
   const sEl = document.getElementById('topStraight');
   if (sEl) {
     const rows = filterTopRows(straightRaw).slice().sort((a, b) => a.t - b.t);
-    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${Number(r.t).toFixed(2)} с</strong></li>`).join('') : '<li><span>нет валидных GPS</span><strong>—</strong></li>';
+    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${Number(r.t).toFixed(2)} с${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>нет валидных GPS</span><strong>—</strong></li>';
   }
   const lEl = document.getElementById('topLap');
   if (lEl) {
     const rows = filterTopRows(lapRaw);
-    lEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${r.name} · ${r.car}</span><strong>${r.t}</strong></li>`).join('') : '<li><span>нет валидных GPS-кругов</span><strong>—</strong></li>';
+    lEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${esc(String(r.t))}${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>нет валидных GPS-кругов</span><strong>—</strong></li>';
   }
 }
 
@@ -1631,9 +1654,13 @@ function onGpsPoint(pos) {
     return;
   }
 
-  const sample = { t: now, v };
+  const sample = { t: now, v, acc: acc != null ? Number(acc) : null };
   const prev = run.samples[run.samples.length - 1];
   run.samples.push(sample);
+  if (acc != null && Number.isFinite(Number(acc))) {
+    run.accSum = (run.accSum || 0) + Number(acc);
+    run.accN = (run.accN || 0) + 1;
+  }
 
   if (!run.launched) {
     if (v < 8) {
@@ -1798,6 +1825,9 @@ function armRun() {
   run.samples = [];
   run.t0 = null;
   run.marks = {};
+  run.accSum = 0;
+  run.accN = 0;
+  run.flags = [];
   run.revealed = {};
   run.peak = 0;
   run.dist = 0;
@@ -1842,11 +1872,15 @@ async function publishGps(v0100, v100200, v200300) {
     applyCarUI();
     if (v0100 != null) {
       pushSlip();
+      const gq = gpsQualityFromStraightRun();
       openShareCard(buildSharePayload({
         type: '0-100',
         time: Number(rec0.v0100).toFixed(2) + ' с',
         valid: true,
         car: currentCar().name,
+        gpsQ: gq.gpsQ,
+        avgAcc: gq.avgAcc,
+        hz: gq.hz,
       }));
     }
     return;
@@ -1859,7 +1893,17 @@ async function publishGps(v0100, v100200, v200300) {
   save();
   const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
   if (v0100 != null) {
-    await api.addStraight(currentCar().id, { name: String(who).slice(-6), car: currentCar().name, t: rec.v0100, gps: true, valid: true });
+    const gq = gpsQualityFromStraightRun();
+    await api.addStraight(currentCar().id, {
+      name: String(who).slice(-6),
+      car: currentCar().name,
+      t: rec.v0100,
+      gps: true,
+      valid: true,
+      gpsQ: gq.gpsQ,
+      avgAcc: gq.avgAcc,
+      hz: gq.hz,
+    });
     pushSlip();
     const payload = buildSharePayload({
       type: '0-100',
@@ -1867,6 +1911,9 @@ async function publishGps(v0100, v100200, v200300) {
       valid: true,
       car: currentCar().name,
       nick: String(who),
+      gpsQ: gq.gpsQ,
+      avgAcc: gq.avgAcc,
+      hz: gq.hz,
     });
     openShareCard(payload);
   }
@@ -2169,6 +2216,8 @@ const lapRun = {
   flags: [],
   bad: 0,
   samples: 0,
+  accSum: 0,
+  accN: 0,
   sectorMs: [null, null, null],
   sectorHit: [false, false, false],
   slipPeak: 0,
@@ -2202,6 +2251,8 @@ function resetLapCounters() {
   lapRun.flags = [];
   lapRun.bad = 0;
   lapRun.samples = 0;
+  lapRun.accSum = 0;
+  lapRun.accN = 0;
   lapRun.sectorMs = [null, null, null];
   lapRun.sectorHit = [false, false, false];
   lapRun.slipPeak = 0;
@@ -2283,6 +2334,49 @@ function abortLapRun(reason) {
   endLapSession(reason || 'сессия сброшена');
 }
 
+
+/** Grade GPS honesty for tops / share: A честный, B ok, C weak. */
+function gradeGpsQuality({ avgAcc, badRatio, flags, hz }) {
+  const fl = flags || [];
+  const hasTeleport = fl.includes('teleport');
+  const hasSpeed = fl.includes('speed');
+  const acc = avgAcc != null && Number.isFinite(avgAcc) ? avgAcc : null;
+  const br = badRatio != null && Number.isFinite(badRatio) ? badRatio : null;
+  let gpsQ = 'C';
+  if (!hasTeleport && acc != null && acc <= 8 && (br == null || br < 0.08) && !hasSpeed && (hz == null || hz >= 1)) {
+    gpsQ = 'A';
+  } else if (!hasTeleport && acc != null && acc <= 15 && (br == null || br < 0.18)) {
+    gpsQ = 'B';
+  } else if (!hasTeleport && acc == null && (br == null || br < 0.12) && !hasSpeed) {
+    gpsQ = 'B';
+  }
+  return {
+    gpsQ,
+    avgAcc: acc != null ? Math.round(acc * 10) / 10 : undefined,
+    hz: hz != null && Number.isFinite(hz) ? Math.round(hz * 10) / 10 : undefined,
+  };
+}
+
+function gpsQualityFromLapRun(ms) {
+  const n = lapRun.samples || 0;
+  const avgAcc = lapRun.accN ? (lapRun.accSum / lapRun.accN) : null;
+  const badRatio = n ? (lapRun.bad || 0) / n : null;
+  const hz = (ms > 0 && n > 1) ? (n / (ms / 1000)) : null;
+  return gradeGpsQuality({ avgAcc, badRatio, flags: lapRun.flags, hz });
+}
+
+function gpsQualityFromStraightRun() {
+  const samples = run.samples || [];
+  const n = run.accN || 0;
+  const avgAcc = n ? (run.accSum / n) : null;
+  let hz = null;
+  if (samples.length >= 2) {
+    const dt = (samples[samples.length - 1].t - samples[0].t) / 1000;
+    if (dt > 0.2) hz = samples.length / dt;
+  }
+  return gradeGpsQuality({ avgAcc, badRatio: null, flags: run.flags || [], hz });
+}
+
 function lapValidEnough(ms) {
   const need = trackLenM(lapRun.trackId) * 0.52;
   const minT = Math.max(35000, trackLenM(lapRun.trackId) / 55 * 1000);
@@ -2331,6 +2425,10 @@ async function completeLapRun(how, atTs) {
 
   if (valid) {
     const who = (profile()?.nick) || currentUser()?.nick || currentUser()?.phone || 'пилот';
+    const gq = gpsQualityFromLapRun(ms);
+    rec.gpsQ = gq.gpsQ;
+    rec.avgAcc = gq.avgAcc;
+    rec.hz = gq.hz;
     await api.addLap(trackId, {
       name: String(who).slice(0, 24),
       car: currentCar().name,
@@ -2340,6 +2438,10 @@ async function completeLapRun(how, atTs) {
       dist: rec.dist,
       slipAvg: rec.slipAvg,
       trackDay: true,
+      gpsQ: gq.gpsQ,
+      avgAcc: gq.avgAcc,
+      hz: gq.hz,
+      flags: rec.flags,
     });
     const tr = TRACKS.find((t) => t.id === trackId);
     openShareCard(buildSharePayload({
@@ -2349,6 +2451,9 @@ async function completeLapRun(how, atTs) {
       valid: true,
       car: currentCar().name,
       nick: String(who),
+      gpsQ: gq.gpsQ,
+      avgAcc: gq.avgAcc,
+      hz: gq.hz,
     }));
   }
 
@@ -2391,6 +2496,10 @@ function onLapGps(pos, vKmh) {
   if (!gate || pt.lat == null) return;
 
   lapRun.samples += 1;
+  if (Number.isFinite(acc)) {
+    lapRun.accSum = (lapRun.accSum || 0) + acc;
+    lapRun.accN = (lapRun.accN || 0) + 1;
+  }
   const dGate = haversineM(pt, gate);
   const inGate = dGate <= LAP_GATE_R;
 
@@ -2626,10 +2735,10 @@ function b64urlDecode(s) {
   }
 }
 
-function buildSharePayload({ type, time, trackName, valid, car, nick, at }) {
+function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, avgAcc, hz }) {
   const u = currentUser();
   const c = currentCar();
-  return {
+  const payload = {
     brand: 'PITLANE',
     car: car || c?.name || '—',
     nick: nick || profile()?.nick || u?.nick || u?.phone || 'пилот',
@@ -2642,6 +2751,10 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at }) {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
     }),
   };
+  if (gpsQ === 'A' || gpsQ === 'B' || gpsQ === 'C') payload.gpsQ = gpsQ;
+  if (avgAcc != null) payload.avgAcc = avgAcc;
+  if (hz != null) payload.hz = hz;
+  return payload;
 }
 
 function sharePublicUrl(payload, shareId) {
@@ -2665,7 +2778,12 @@ function openShareCard(payload) {
   const badge = document.getElementById('shareBadge');
   if (badge) {
     badge.classList.toggle('invalid', payload.valid === false);
-    badge.innerHTML = payload.valid === false ? '<span>INVALID</span>' : '<span>VALID</span>';
+    let mark = 'VALID';
+    if (payload.valid === false) mark = 'INVALID';
+    else if (payload.gpsQ === 'A') mark = 'VALID · честный GPS';
+    else if (payload.gpsQ === 'B') mark = 'VALID · GPS B';
+    else if (payload.gpsQ === 'C') mark = 'VALID · GPS C';
+    badge.innerHTML = `<span>${mark}</span>`;
   }
   card.classList.remove('hidden');
   card.setAttribute('aria-hidden', 'false');
@@ -3266,6 +3384,7 @@ function fitGlb(obj) {
   controls.maxDistance = 16;
   controls.update();
   onResize();
+  try { applyStoredBodyPaint(); } catch (err) { console.warn('paint after fitGlb', err); }
 }
 
 let heroTitleAnimLock = false;
@@ -3557,6 +3676,173 @@ document.querySelectorAll('[data-photo]').forEach((b) => {
 });
 
 const paint = { body: null, wheel: null };
+const PAINT_LS_KEY = 'pitlane-paint';
+const BODY_NAME_RE = /body|paint|carpaint|car_paint|exterior|chassis|hood|door|fender|bumper|wing|roof|trunk|bonnet|skin|shell|кузов/i;
+const SKIP_NAME_RE = /glass|window|windshield|windscreen|tire|tyre|rubber|wheel|rim|chrome|carbon|interior|cabin|seat|leather|brake|disc|disk|caliper|emissive|light|lamp|led|grille|grill|mirror|exhaust|pipe|logo|badge|number|plate|text|calliper|rotor|spoke|hub/i;
+
+function paintStoreAll() {
+  try { return JSON.parse(localStorage.getItem(PAINT_LS_KEY) || '{}') || {}; } catch (_) { return {}; }
+}
+function getStoredPaintHex(modelId) {
+  const id = modelId || podiumModelId || state.carId;
+  const s = paintStoreAll();
+  const v = s[id];
+  return (typeof v === 'string' && /^#?[0-9a-fA-F]{6}$/.test(v)) ? (v.startsWith('#') ? v : '#' + v) : null;
+}
+function setStoredPaintHex(hex, modelId) {
+  const id = modelId || podiumModelId || state.carId;
+  if (!id) return;
+  const s = paintStoreAll();
+  if (!hex) delete s[id];
+  else s[id] = hex;
+  try { localStorage.setItem(PAINT_LS_KEY, JSON.stringify(s)); } catch (_) {}
+  paint.body = hex || null;
+}
+
+function isGlassMat(mat) {
+  if (!mat) return true;
+  const transmission = Number(mat.transmission || 0);
+  const opacity = mat.opacity == null ? 1 : Number(mat.opacity);
+  return !!(mat.transparent || mat.alphaMap || transmission > 0.01 || opacity < 0.999);
+}
+
+function meshSizeHint(mesh) {
+  try {
+    if (!mesh.geometry) return 0;
+    if (!mesh.geometry.boundingSphere) mesh.geometry.computeBoundingSphere();
+    const r = mesh.geometry.boundingSphere?.radius || 0;
+    return r * r;
+  } catch (_) {
+    return 0;
+  }
+}
+
+function isBodyPaintCandidate(mesh, mat) {
+  if (!mat || !mat.color || !mat.color.isColor) return false;
+  if (!(mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial || mat.type === 'MeshStandardMaterial' || mat.type === 'MeshPhysicalMaterial')) {
+    // still allow MeshPhong / basic with color
+    if (!mat.color) return false;
+  }
+  if (isGlassMat(mat)) return false;
+  const name = `${mesh?.name || ''} ${mat.name || ''}`;
+  if (SKIP_NAME_RE.test(name)) return false;
+  if (BODY_NAME_RE.test(name)) return true;
+  const metal = mat.metalness != null ? Number(mat.metalness) : 0.25;
+  const rough = mat.roughness != null ? Number(mat.roughness) : 0.45;
+  const lum = 0.2126 * mat.color.r + 0.7152 * mat.color.g + 0.0722 * mat.color.b;
+  if (metal >= 0.85) return false; // chrome
+  if (lum < 0.035 && rough > 0.72) return false; // rubber / tire-ish
+  // large opaque panels
+  return meshSizeHint(mesh) >= 0.04 && metal < 0.85 && rough < 0.92;
+}
+
+function collectBodyPaintMats() {
+  if (!glbRoot) return [];
+  const named = [];
+  const large = [];
+  const seen = new Set();
+  glbRoot.traverse((o) => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((mat) => {
+      if (!mat || seen.has(mat)) return;
+      if (!isBodyPaintCandidate(o, mat)) return;
+      seen.add(mat);
+      const name = `${o.name || ''} ${mat.name || ''}`;
+      if (BODY_NAME_RE.test(name)) named.push(mat);
+      else large.push({ mat, size: meshSizeHint(o) });
+    });
+  });
+  if (named.length) return named;
+  large.sort((a, b) => b.size - a.size);
+  // take largest cluster (top half or at least 1)
+  const keep = large.slice(0, Math.max(1, Math.ceil(large.length * 0.55)));
+  return keep.map((x) => x.mat);
+}
+
+function rememberPaintOrig(mat) {
+  if (!mat.userData) mat.userData = {};
+  if (mat.userData.__paintOrig) return;
+  mat.userData.__paintOrig = {
+    r: mat.color.r,
+    g: mat.color.g,
+    b: mat.color.b,
+  };
+}
+
+function applyGlbBodyPaint(hex) {
+  if (!glbRoot || typeof THREE === 'undefined') return;
+  const mats = collectBodyPaintMats();
+  if (!hex) {
+    mats.forEach((mat) => {
+      const o = mat.userData?.__paintOrig;
+      if (o && mat.color) {
+        mat.color.setRGB(o.r, o.g, o.b);
+        mat.needsUpdate = true;
+      }
+    });
+    // also restore any previously painted mats that may no longer match heuristic
+    glbRoot.traverse((o) => {
+      if (!o.isMesh) return;
+      const list = Array.isArray(o.material) ? o.material : [o.material];
+      list.forEach((mat) => {
+        const orig = mat?.userData?.__paintOrig;
+        if (!orig || !mat.color) return;
+        mat.color.setRGB(orig.r, orig.g, orig.b);
+        mat.needsUpdate = true;
+      });
+    });
+    return;
+  }
+  let color;
+  try { color = new THREE.Color(hex); } catch (_) { return; }
+  mats.forEach((mat) => {
+    rememberPaintOrig(mat);
+    // multiply tint while keeping albedo map when present
+    mat.color.copy(color);
+    mat.needsUpdate = true;
+  });
+}
+
+function syncPaintSwatches(hex) {
+  const bar = document.getElementById('colorBar');
+  if (!bar) return;
+  const custom = document.getElementById('paintCustom');
+  bar.querySelectorAll('button').forEach((b) => b.classList.remove('on'));
+  bar.querySelector('.paint-custom')?.classList.remove('on');
+  if (!hex) {
+    bar.querySelector('button[data-hex=""]')?.classList.add('on');
+    return;
+  }
+  const want = hex.toLowerCase();
+  let hit = false;
+  bar.querySelectorAll('button[data-hex]').forEach((b) => {
+    const h = (b.dataset.hex || '').toLowerCase();
+    if (h && h === want) { b.classList.add('on'); hit = true; }
+  });
+  if (!hit && custom) {
+    custom.value = want.startsWith('#') ? want : '#' + want;
+    custom.closest('.paint-custom')?.classList.add('on');
+  }
+}
+
+function applyStoredBodyPaint() {
+  const hex = getStoredPaintHex(podiumModelId || state.carId);
+  paint.body = hex;
+  syncPaintSwatches(hex);
+  applyGlbBodyPaint(hex);
+  try { applyPaint(); } catch (_) {}
+}
+
+function pickBodyPaint(hex) {
+  const clean = hex ? (hex.startsWith('#') ? hex : '#' + hex) : null;
+  setStoredPaintHex(clean, podiumModelId || state.carId);
+  syncPaintSwatches(clean);
+  applyGlbBodyPaint(clean);
+  try { applyPaint(); } catch (_) {}
+  try { hap(8); } catch (_) {}
+}
+
 function hexToRgb(hex) {
   const h = hex.replace('#', '');
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
@@ -3661,12 +3947,18 @@ function applyPaint() {
 }
 document.querySelectorAll('#colorBar button').forEach((b) => {
   b.addEventListener('click', () => {
-    document.querySelectorAll('#colorBar button').forEach((x) => x.classList.remove('on'));
-    b.classList.add('on');
     paint.mb = b.dataset.paint || 'polar-white';
-    paint.body = b.dataset.hex || null;
-    applyPaint();
+    const hex = b.dataset.hex || null;
+    pickBodyPaint(hex || null);
   });
+});
+document.getElementById('paintCustom')?.addEventListener('input', (e) => {
+  const v = e.target?.value;
+  if (v) pickBodyPaint(v);
+});
+document.getElementById('paintCustom')?.addEventListener('change', (e) => {
+  const v = e.target?.value;
+  if (v) pickBodyPaint(v);
 });
 document.querySelectorAll('#wheelBar button').forEach((b) => {
   b.addEventListener('click', () => {
@@ -3678,12 +3970,9 @@ function shiftCar(dir) {
   const list = garageList().length ? garageList() : CARS;
   const i = Math.max(0, list.findIndex((c) => c.id === state.carId));
   const nextId = list[(i + dir + list.length) % list.length].id;
-  paint.body = 'none';
-  paint.wheel = 'none';
-  document.querySelectorAll('#colorBar button, #wheelBar button').forEach((x) => x.classList.remove('on'));
-  document.querySelector('#colorBar button')?.classList.add('on');
-  document.querySelector('#wheelBar button')?.classList.add('on');
+  paint.wheel = null;
   selectActiveCar(nextId);
+  try { applyStoredBodyPaint(); } catch (_) {}
 }
 document.getElementById('carPrev')?.addEventListener('click', () => shiftCar(-1));
 document.getElementById('carNext')?.addEventListener('click', () => shiftCar(1));
