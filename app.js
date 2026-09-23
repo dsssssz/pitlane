@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken } from './api.js';
 
 function hap(ms = 12) {
@@ -4228,7 +4228,7 @@ function cloneParsedScene(gltf) {
   if (!src) return null;
   let scene;
   try {
-    scene = SkeletonUtils.clone(src);
+    scene = cloneSkinned(src);
   } catch (_) {
     scene = src.clone(true);
   }
