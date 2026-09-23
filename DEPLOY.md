@@ -29,18 +29,29 @@ Or set `window.PITLANE_API` before the module loads. Without this meta, the app 
 
 ## 3. OTP / SMS / sessions
 
-- Default: `SMS_DEMO` on (`1` or unset) → `/auth/otp` may return `demoCode` when Twilio is missing; UI shows a «демо» banner.
-- Production: `wrangler secret put SMS_DEMO` → `0`. If Twilio is not configured, Worker returns **503** `{ error: "SMS not configured" }` and **never** leaks `demoCode`.
-- Rate limits (KV): ~5 OTP / phone / 15 min; ~20 / IP / 15 min → HTTP 429.
+- Production default (`wrangler.toml` `[vars] SMS_DEMO = "0"`): real Twilio only. No `demoCode` in responses. Missing/failed Twilio → **503** `{ error: "SMS not configured" | "SMS send failed" }`.
+- Local/dev demo: set `SMS_DEMO=1` (var or `wrangler secret put SMS_DEMO` → `1`) → if Twilio absent/fails, `/auth/otp` returns `demoCode` and UI shows «демо» banner. **Never** leave `SMS_DEMO=1` on prod.
+- Phone: normalized to RU `7XXXXXXXXXX` (accepts `8…` / 10-digit local).
+- OTP: 4 digits, TTL 10 min, max **5** verify attempts then code wiped. Rate limits (KV): ~5 OTP / phone / 15 min; ~20 / IP / 15 min → HTTP 429.
+- Codes are **not** logged in production. OTP stored in KV only after a successful send (or demo fallback).
 - `/auth/verify` returns `{ ok, token, phone, nick, user }`. Client stores `token` and sends `Authorization: Bearer …` on API calls. Fallback header `X-Pilot-Id` remains for reads; **writes** to tops / pulse / garage require a valid session (`sess:<token>` in KV).
 
-### Optional Twilio
+### Twilio (required for real SMS)
+
+Maga must set these **Worker secrets** (not in git / not in chat). Account SID + Auth Token + From number from https://console.twilio.com :
 
 ```bash
-wrangler secret put TWILIO_SID
-wrangler secret put TWILIO_TOKEN
-wrangler secret put TWILIO_FROM   # e.g. +1…
+cd /workspace/pitlane-auth   # or repo root with wrangler.toml
+export CLOUDFLARE_API_TOKEN=…   # already on the box card
+npx wrangler@3.114.17 secret put TWILIO_SID     # ACxxxxxxxx…
+npx wrangler@3.114.17 secret put TWILIO_TOKEN   # auth token
+npx wrangler@3.114.17 secret put TWILIO_FROM    # E.164, e.g. +1… or Twilio Messaging Service sender
+# confirm SMS_DEMO is 0 (wrangler.toml vars) — optional override:
+# echo 0 | npx wrangler@3.114.17 secret put SMS_DEMO
+npx wrangler@3.114.17 deploy
 ```
+
+Until secrets exist, `/auth/otp` returns 503 and phone login cannot complete on the live site.
 
 ## 4. Garage sync
 
@@ -69,7 +80,7 @@ Allowed origins include `https://dsssssz.github.io` and local ports. Add more vi
 
 ## 9. Offline / SW
 
-- Service worker cache `pitlane-v67`: app shell + vendored `./vendor/three/*`.
+- Service worker cache `pitlane-v68`: app shell + vendored `./vendor/three/*`.
 - CDN Three URLs also cached in `pitlane-three-v1` on first load (fallback).
 - GLB models prefetch into `pitlane-glb-v1` on activate (same name the app already uses).
 
@@ -120,7 +131,7 @@ Duels routes live: POST/GET /duel, POST /duel/:id/run, GET /duels?mine=
 - Lap records already store cumulative `sectors: [s1,s2,s3]` ms; UI converts to splits.
 - Personal bests / «оптимал» (sum of best sectors) computed client-side from own history on the selected track.
 - A/B GPS required for win/lose emphasis; no Worker sector tops in this MVP.
-- SW cache: `pitlane-v67`.
+- SW cache: `pitlane-v68`.
 
 
 ## 14. Crews / Экипажи MVP
@@ -134,14 +145,14 @@ Duels routes live: POST/GET /duel, POST /duel/:id/run, GET /duels?mine=
 - `GET /crews?mine=<pilotId>`
 - Client: tops button «Экипаж», deep link `?crew=ID`, auto-push best after lap
 - Rank: personal best A/B lap (lower better). Team badge = count with ≥1 A/B lap. Team avg = average of bests.
-- SW cache: `pitlane-v67`
+- SW cache: `pitlane-v68`
 
 
 ### Worker deploy log (crews MVP 2026-09-23)
 
 Deployed with wrangler@3.114.17. Version ID: `81960051-1c84-497d-a568-b7a4df2b4906` → https://pitlane-api.pitlane-taksimaga.workers.dev
 Crews live: POST/GET /crew, join, board, best, GET /crews?mine=
-Client SW: `pitlane-v67`. Ship SHA `a03b2b5eddbf`.
+Client SW: `pitlane-v68`. Ship SHA `a03b2b5eddbf`.
 
 
 ## 15. Session of the day + autodrome discovery
@@ -152,11 +163,32 @@ Client SW: `pitlane-v67`. Ship SHA `a03b2b5eddbf`.
 - `POST /session/today/checkin` `{ nick, pilotId? }` → KV `session:att:{date}:{trackId}` (TTL ~2d).
 - Client fallback: same date-hash + filter `listLap` by day if Worker empty/offline.
 - Discovery: tops «Автодромы» + lap «Автодромы · справочник» → RU cards (blurb / configs / real site or «уточняйте…»). No booking integration.
-- SW cache: `pitlane-v67`. Completes «Делай» roadmap (no Pro monetization).
+- SW cache: `pitlane-v68`. Completes «Делай» roadmap (no Pro monetization).
 
 ### Worker deploy log (session-of-day 2026-09-23)
 
 Deployed with wrangler@3.114.17. Version ID: `ebd5e335-1c02-43ff-8f2d-90e2caa81234` → https://pitlane-api.pitlane-taksimaga.workers.dev
 Routes live: GET /session/today, POST /session/today/checkin
-Client SW: `pitlane-v67`. Ship SHA `cced8b543fd9`. Completes «Делай» roadmap.
+Client SW: `pitlane-v68`. Ship SHA `cced8b543fd9`. Completes «Делай» roadmap.
 
+
+## 16. Real SMS login (Twilio) — 2026-09-24
+
+- Worker hardened: RU `normPhone`, OTP store-after-send, 5 verify attempts, `SMS_DEMO=0` in `[vars]`.
+- Deployed wrangler@3.114.17. Version ID: `7c45750a-8bec-45eb-873d-e58fe0e985e7` → https://pitlane-api.pitlane-taksimaga.workers.dev
+- Live `/auth/otp` returns **503** `{ error: "SMS not configured" }` until Maga sets Twilio secrets (none present yet).
+- Client: clearer SMS errors; local code wiped when remote SMS path used; SW cache `pitlane-v68`.
+
+### Maga next step (Twilio secrets)
+
+```bash
+export CLOUDFLARE_API_TOKEN=…   # box card
+cd /path/to/pitlane
+npx wrangler@3.114.17 secret put TWILIO_SID
+npx wrangler@3.114.17 secret put TWILIO_TOKEN
+npx wrangler@3.114.17 secret put TWILIO_FROM
+# no redeploy strictly required after secret put, but harmless:
+npx wrangler@3.114.17 deploy
+```
+
+Then phone login sends a real SMS; demo path stays off while `SMS_DEMO=0`.

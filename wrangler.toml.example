@@ -21,4 +21,4 @@ id = "<your_kv_namespace_id>"
 # Vars (optional):
 # [vars]
 # EXTRA_ORIGINS = "https://example.com"
-# SMS_DEMO = "1"
+# SMS_DEMO = "0"   # prod; use "1" only for local demo without Twilio

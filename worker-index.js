@@ -1,7 +1,8 @@
 /**
  * Pitlane shared tops API — Cloudflare Worker + KV
  * Bindings: PITLANE (KV namespace)
- * Env: SMS_DEMO (default 1), TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, EXTRA_ORIGINS
+ * Env: SMS_DEMO ("0"=prod, no demoCode), TWILIO_SID, TWILIO_TOKEN, TWILIO_FROM, EXTRA_ORIGINS
+ * Prod: set SMS_DEMO=0 + Twilio secrets. Demo OTP only when SMS_DEMO explicitly "1".
  *
  * Auth: POST /auth/verify → { token, phone, nick, user }
  * Session: KV sess:<token> → { phone, nick, at }; Authorization: Bearer <token>
@@ -19,6 +20,8 @@ const SHARE_TTL = 30 * 24 * 60 * 60; // 30 days
 const SESS_TTL = 90 * 24 * 60 * 60; // 90 days
 const OTP_PHONE_LIMIT = 5; // per 15 min
 const OTP_IP_LIMIT = 20; // soft per 15 min
+const OTP_MAX_TRIES = 5; // bad verify attempts per code
+const OTP_TTL_SEC = 600; // 10 min
 
 function corsHeaders(req, env) {
   const origin = req.headers.get('Origin') || '';
@@ -229,30 +232,58 @@ async function rateHit(kv, key, limit, ttlSec) {
   return n > limit;
 }
 
+/** Normalize RU mobiles to 11 digits starting with 7 (no +). */
+function normPhone(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (d.length === 11 && d.startsWith('8')) d = '7' + d.slice(1);
+  else if (d.length === 10) d = '7' + d;
+  return d;
+}
+
+function isDemoSms(env) {
+  // Explicit "1" only — unset/other treated as off when deploying prod with SMS_DEMO=0 var.
+  // Legacy: if var missing entirely, default off after this release (wrangler.toml sets "0").
+  return String(env.SMS_DEMO ?? '0') === '1';
+}
+
+function twilioConfigured(env) {
+  return !!(env.TWILIO_SID && env.TWILIO_TOKEN && env.TWILIO_FROM);
+}
+
+/** Send OTP via Twilio. Never logs the code. Returns { ok, status }. */
 async function sendTwilioSms(env, phone, code) {
   const sid = env.TWILIO_SID;
   const token = env.TWILIO_TOKEN;
   const from = env.TWILIO_FROM;
-  if (!sid || !token || !from) return false;
+  if (!sid || !token || !from) return { ok: false, status: 0, reason: 'missing_creds' };
   const to = phone.startsWith('+') ? phone : '+' + phone;
   const body = new URLSearchParams({
     To: to,
     From: from,
-    Body: `Pitlane код: ${code}`,
+    Body: 'Pitlane код: ' + code,
   });
-  const auth = btoa(`${sid}:${token}`);
-  const res = await fetch(
-    `https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: 'Basic ' + auth,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body,
-    }
-  );
-  return res.ok;
+  const auth = btoa(sid + ':' + token);
+  let res;
+  try {
+    res = await fetch(
+      'https://api.twilio.com/2010-04-01/Accounts/' + sid + '/Messages.json',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: 'Basic ' + auth,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body,
+      }
+    );
+  } catch (_) {
+    return { ok: false, status: 0, reason: 'network' };
+  }
+  if (!res.ok && isDemoSms(env)) {
+    // Dev only: surface Twilio HTTP status, never body (may echo To/From)
+    console.warn('twilio sms failed', res.status);
+  }
+  return { ok: res.ok, status: res.status };
 }
 
 
@@ -568,8 +599,10 @@ export default {
       // —— Auth OTP ——
       if (req.method === 'POST' && path === '/auth/otp') {
         const body = await req.json().catch(() => null);
-        const phone = String(body?.phone || '').replace(/\D/g, '');
-        if (phone.length < 10) return json({ error: 'bad phone' }, 400, headers);
+        const phone = normPhone(body?.phone);
+        if (phone.length !== 11 || !phone.startsWith('7')) {
+          return json({ error: 'bad phone', hint: '+7…' }, 400, headers);
+        }
 
         const ip = clientIp(req);
         const phoneLimited = await rateHit(env.PITLANE, 'rl:otp:ph:' + phone, OTP_PHONE_LIMIT, 900);
@@ -578,39 +611,57 @@ export default {
           return json({ error: 'rate limit', retry: 900 }, 429, headers);
         }
 
+        const demo = isDemoSms(env);
         const code = String(Math.floor(1000 + Math.random() * 9000));
-        await env.PITLANE.put(
-          'otp:' + phone,
-          JSON.stringify({ code, exp: Date.now() + 10 * 60 * 1000 }),
-          { expirationTtl: 600 }
-        );
 
         let sent = false;
-        try {
-          sent = await sendTwilioSms(env, phone, code);
-        } catch (_) {
-          sent = false;
+        let twStatus = 0;
+        if (twilioConfigured(env)) {
+          try {
+            const tw = await sendTwilioSms(env, phone, code);
+            sent = !!tw.ok;
+            twStatus = tw.status || 0;
+          } catch (_) {
+            sent = false;
+          }
         }
 
-        const demo = String(env.SMS_DEMO ?? '1') !== '0';
-        // SMS_DEMO=0 and no Twilio → hard error, never leak demoCode
+        // Prod (SMS_DEMO≠1): require real send; never leak demoCode; do not persist unused OTP
         if (!demo && !sent) {
           return json(
-            { ok: false, error: 'SMS not configured', sent: false },
+            {
+              ok: false,
+              error: twilioConfigured(env) ? 'SMS send failed' : 'SMS not configured',
+              sent: false,
+            },
             503,
             headers
           );
         }
 
+        await env.PITLANE.put(
+          'otp:' + phone,
+          JSON.stringify({ code, exp: Date.now() + OTP_TTL_SEC * 1000, tries: 0 }),
+          { expirationTtl: OTP_TTL_SEC }
+        );
+
         const out = { ok: true, sent, demo: demo && !sent };
+        // demoCode only when explicitly SMS_DEMO=1 and Twilio did not send
         if (demo && !sent) out.demoCode = code;
+        if (demo && !sent && twStatus) out.twilioStatus = twStatus;
         return json(out, 200, headers);
       }
 
       if (req.method === 'POST' && path === '/auth/verify') {
         const body = await req.json().catch(() => null);
-        const phone = String(body?.phone || '').replace(/\D/g, '');
+        const phone = normPhone(body?.phone);
         const code = String(body?.code || '').trim();
+        if (phone.length !== 11 || !phone.startsWith('7')) {
+          return json({ ok: false, error: 'bad phone' }, 400, headers);
+        }
+        if (!/^\d{4,6}$/.test(code)) {
+          return json({ ok: false, error: 'bad code' }, 400, headers);
+        }
         const raw = await env.PITLANE.get('otp:' + phone);
         if (!raw) return json({ ok: false, error: 'no otp' }, 400, headers);
         let otp;
@@ -619,8 +670,23 @@ export default {
         } catch {
           return json({ ok: false }, 400, headers);
         }
-        if (Date.now() > otp.exp) return json({ ok: false, error: 'expired' }, 400, headers);
-        if (code !== String(otp.code)) return json({ ok: false, error: 'bad code' }, 400, headers);
+        if (Date.now() > otp.exp) {
+          await env.PITLANE.delete('otp:' + phone);
+          return json({ ok: false, error: 'expired' }, 400, headers);
+        }
+        const tries = (Number(otp.tries) || 0) + 1;
+        if (tries > OTP_MAX_TRIES) {
+          await env.PITLANE.delete('otp:' + phone);
+          return json({ ok: false, error: 'too many attempts' }, 429, headers);
+        }
+        if (code !== String(otp.code)) {
+          otp.tries = tries;
+          const remainTtl = Math.max(30, Math.ceil((otp.exp - Date.now()) / 1000));
+          await env.PITLANE.put('otp:' + phone, JSON.stringify(otp), {
+            expirationTtl: remainTtl,
+          });
+          return json({ ok: false, error: 'bad code', left: OTP_MAX_TRIES - tries }, 400, headers);
+        }
         await env.PITLANE.delete('otp:' + phone);
 
         const ukey = 'user:' + phone;

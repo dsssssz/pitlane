@@ -4420,10 +4420,16 @@ async function requestSmsCode(phone) {
       const data = await res.json().catch(() => ({}));
       if (res.status === 429) throw new Error('Слишком много запросов кода — подождите ~15 мин');
       if (res.status === 503 || data?.error === 'SMS not configured') {
-        throw new Error('SMS не настроен на сервере. Нужен Twilio или SMS_DEMO=1');
+        throw new Error(data?.error === 'SMS send failed' ? 'Не удалось отправить SMS — попробуй позже' : 'SMS не настроен на сервере (нужен Twilio)');
       }
       if (res.ok) {
         authDb.demoSms = !!(data?.demo || data?.demoCode);
+        if (data?.demoCode) {
+          authDb.otps[p] = { code: String(data.demoCode), exp, tries: 0 };
+        } else {
+          // Real SMS: keep placeholder for try-counter UX but wipe local code
+          authDb.otps[p] = { code: null, exp, tries: 0, remote: true };
+        }
         saveAuth();
         if (data?.demoCode) return { phone: p, demoCode: String(data.demoCode), demo: true };
         return { phone: p, demoCode: null, demo: false };
@@ -4449,17 +4455,29 @@ async function verifySmsCode(phone, code, nick) {
   if (otp.tries > 8) throw new Error('Слишком много попыток');
 
   let ok = false;
+  let remoteTried = false;
   // Prefer remote verify when Worker configured (issues real session token)
   try {
     if (isRemoteApi()) {
+      remoteTried = true;
       const res = await fetch(apiBase() + '/auth/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ phone: p, code: c, nick: (nick || '').trim() || undefined }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        ok = !!data?.ok;
+      const data = await res.json().catch(() => ({}));
+      if (res.status === 429 || data?.error === 'too many attempts') {
+        delete authDb.otps[p];
+        saveAuth();
+        throw new Error('Слишком много попыток — запроси новый код');
+      }
+      if (data?.error === 'expired') {
+        delete authDb.otps[p];
+        saveAuth();
+        throw new Error('Код истёк — запроси новый');
+      }
+      if (res.ok && data?.ok) {
+        ok = true;
         if (data?.token) {
           setSessionToken(data.token);
           authDb.token = data.token;
@@ -4470,8 +4488,12 @@ async function verifySmsCode(phone, code, nick) {
         if (data?.nick && authDb.users[p]) authDb.users[p].nick = data.nick;
       }
     }
-  } catch (_) {}
-  if (!ok) ok = c === String(otp.code);
+  } catch (err) {
+    if (err && err.message && !String(err.message).includes('fetch')) throw err;
+  }
+  // Local OTP fallback only for offline/demo path (never override a failed remote verify)
+  if (!ok && !remoteTried) ok = c === String(otp.code);
+  else if (!ok && authDb.demoSms && otp?.code) ok = c === String(otp.code);
   // Local demo verify still issues a local pseudo-token so Bearer path works offline
   if (ok && !getSessionToken()) {
     const localTok = 'local-' + p + '-' + Date.now().toString(36);

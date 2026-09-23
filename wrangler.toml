@@ -9,4 +9,4 @@ binding = "PITLANE"
 id = "fc7e076d77824da184e7314c2fb3ff1b"
 
 [vars]
-SMS_DEMO = "1"
+SMS_DEMO = "0"
