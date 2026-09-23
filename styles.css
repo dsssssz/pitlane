@@ -290,6 +290,7 @@ html.standalone .brand-bar {
 #view-garage:has(#emptyGarage:not(.hidden)) .paint-label,
 #view-garage:has(#emptyGarage:not(.hidden)) .colors,
 #view-garage:has(#emptyGarage:not(.hidden)) .body-paint,
+#view-garage:has(#emptyGarage:not(.hidden)) .paint-finish,
 #view-garage:has(#emptyGarage:not(.hidden)) .box-card {
   display: none !important;
 }
@@ -1602,6 +1603,37 @@ body.run-drive-on #app { visibility: hidden; }
   margin: 8px 12px 4px;
   text-align: center;
 }
+
+.body-paint .paint-finish {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.35);
+  border: 1px solid rgba(255,255,255,.08);
+}
+.body-paint .paint-finish button {
+  border: 0;
+  background: transparent;
+  color: #b5b5b5;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  line-height: 1;
+}
+.body-paint .paint-finish button.on {
+  background: rgba(57,255,20,.16);
+  color: #f0f0f0;
+  box-shadow: inset 0 0 0 1px rgba(57,255,20,.45);
+}
+.body-paint .paint-finish button:active { transform: scale(.96); }
+
 .body-paint .paint-label {
   color: #b5b5b5;
   font-size: 11px;

@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v59';
+const CACHE = 'pitlane-v60';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -24,6 +24,7 @@ const CORE = [
   './vendor/three/addons/lights/RectAreaLightUniformsLib.js',
   './vendor/three/addons/lights/RectAreaLightTexturesLib.js',
   './vendor/three/addons/utils/BufferGeometryUtils.js',
+  './vendor/three/addons/utils/SkeletonUtils.js',
 ];
 
 const THREE_CDN = [

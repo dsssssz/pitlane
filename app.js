@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
+import { SkeletonUtils } from 'three/addons/utils/SkeletonUtils.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken } from './api.js';
 
 function hap(ms = 12) {
@@ -3943,17 +3944,42 @@ const MODEL_CATALOG = [
   { id: 'spark', name: 'Chevrolet Spark GT', file: './models/spark.glb', year: '2018' },
 ];
 
-function clearGlb() {
-  if (glbRoot) {
-    scene.remove(glbRoot);
-    glbRoot.traverse((o) => {
-      if (o.isMesh) {
-        o.geometry?.dispose?.();
-        const mats = Array.isArray(o.material) ? o.material : [o.material];
-        mats.forEach((m) => m?.dispose?.());
+function disposeGlbTree(root, { sharedFromCache = false } = {}) {
+  if (!root) return;
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    if (!sharedFromCache) {
+      try { o.geometry?.dispose?.(); } catch (_) {}
+    }
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((m) => {
+      if (!m) return;
+      // Paint clones are instance-local; shared cache mats/geos must stay alive
+      if (sharedFromCache) {
+        if (m.userData?.__isPaintClone) {
+          try { m.dispose?.(); } catch (_) {}
+        }
+      } else {
+        try { m.dispose?.(); } catch (_) {}
       }
     });
+  });
+}
+
+function scheduleDisposeGlb(root) {
+  if (!root) return;
+  const fromCache = !!root.userData?.__fromParsedCache;
+  requestAnimationFrame(() => {
+    try { disposeGlbTree(root, { sharedFromCache: fromCache }); } catch (_) {}
+  });
+}
+
+function clearGlb() {
+  if (glbRoot) {
+    const prev = glbRoot;
+    scene.remove(prev);
     glbRoot = null;
+    scheduleDisposeGlb(prev);
   }
   car.visible = false; // podium = GLB only, lowpoly off
   moving.doorList = [];
@@ -3962,8 +3988,9 @@ function clearGlb() {
 }
 
 function fitGlb(obj) {
-  clearGlb();
+  const prevRoot = glbRoot;
   glbRoot = obj;
+  if (glbRoot.userData) glbRoot.userData.__fromParsedCache = !!obj.userData?.__fromParsedCache;
   glbRoot.updateMatrixWorld(true);
   const maxAniso = renderer.capabilities?.getMaxAnisotropy?.() || 8;
   glbRoot.traverse((o) => {
@@ -4028,6 +4055,10 @@ function fitGlb(obj) {
   glbRoot.position.y -= box.min.y;
   glbRoot.rotation.y = Math.PI * 0.2;
   scene.add(glbRoot);
+  if (prevRoot && prevRoot !== glbRoot) {
+    try { scene.remove(prevRoot); } catch (_) {}
+    scheduleDisposeGlb(prevRoot);
+  }
   car.visible = false;
   const h = Math.max(0.5, size.y);
   controls.target.set(0, h * 0.35, 0);
@@ -4107,8 +4138,11 @@ function cyclePodiumModel(delta) {
 const GLB_CACHE_NAME = 'pitlane-glb-v1';
 let glbPrefetchStarted = false;
 let podiumLoadGen = 0;
-/** In-memory ArrayBuffer cache (url -> ArrayBuffer) ahead of Cache Storage / network. */
+/** In-memory raw bytes (url -> ArrayBuffer). */
 const glbMemCache = new Map();
+/** In-memory parsed GLTF (url -> gltf). Switch clones from here — no re-parse. */
+const glbParsedCache = new Map();
+let glbParseQueue = Promise.resolve();
 
 function catalogModelUrl(m) {
   const base = document.querySelector('base')?.href || (location.origin + location.pathname.replace(/[^/]*$/, ''));
@@ -4124,7 +4158,7 @@ async function openGlbCache() {
   }
 }
 
-/** Store raw GLB bytes in memory Map + Cache Storage (not decoded scenes). */
+/** Store raw GLB bytes in memory Map + Cache Storage. */
 async function putGlbBuffer(url, buf) {
   if (!buf) return;
   try { glbMemCache.set(url, buf); } catch (_) {}
@@ -4161,26 +4195,78 @@ async function matchGlbBuffer(url) {
   }
 }
 
-async function prefetchGlbUrl(url) {
+function parseGlbBuffer(buf, url) {
+  const path = url.replace(/[^/]+$/, '');
+  return new Promise((resolve, reject) => {
+    try {
+      gltfLoader.parse(buf, path, resolve, reject);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/** Parse once, keep template scene in glbParsedCache.
+ *  Background prefetch is serialized (concurrency via queue).
+ *  Interactive loads (priority) parse immediately so swaps aren't stuck behind idle work. */
+function ensureParsedGlb(url, buf, { priority = false } = {}) {
+  if (glbParsedCache.has(url)) return Promise.resolve(glbParsedCache.get(url));
+  const run = async () => {
+    if (glbParsedCache.has(url)) return glbParsedCache.get(url);
+    const gltf = await parseGlbBuffer(buf, url);
+    try { glbParsedCache.set(url, gltf); } catch (_) {}
+    return gltf;
+  };
+  if (priority) return run();
+  const p = glbParseQueue.then(run, run);
+  glbParseQueue = p.catch(() => {});
+  return p;
+}
+
+function cloneParsedScene(gltf) {
+  const src = gltf?.scene;
+  if (!src) return null;
+  let scene;
   try {
-    if (glbMemCache.has(url)) return;
-    const cache = await openGlbCache();
-    if (cache) {
-      const hit = await cache.match(url);
-      if (hit) {
-        const buf = await hit.arrayBuffer();
-        try { glbMemCache.set(url, buf); } catch (_) {}
-        return;
+    scene = SkeletonUtils.clone(src);
+  } catch (_) {
+    scene = src.clone(true);
+  }
+  if (scene.userData) scene.userData.__fromParsedCache = true;
+  else scene.userData = { __fromParsedCache: true };
+  return scene;
+}
+
+async function prefetchGlbUrl(url, { parse = true } = {}) {
+  try {
+    if (parse && glbParsedCache.has(url)) return;
+    let buf = null;
+    try {
+      const mem = glbMemCache.get(url);
+      if (mem) buf = mem;
+    } catch (_) {}
+    if (!buf) {
+      const cache = await openGlbCache();
+      if (cache) {
+        const hit = await cache.match(url);
+        if (hit) buf = await hit.arrayBuffer();
       }
     }
-    const res = await fetch(url, { credentials: 'same-origin', mode: 'cors' });
-    if (!res.ok) return;
-    const buf = await res.arrayBuffer();
-    await putGlbBuffer(url, buf);
+    if (!buf) {
+      const res = await fetch(url, { credentials: 'same-origin', mode: 'cors' });
+      if (!res.ok) return;
+      buf = await res.arrayBuffer();
+      await putGlbBuffer(url, buf);
+    } else {
+      try { glbMemCache.set(url, buf); } catch (_) {}
+    }
+    if (parse && !glbParsedCache.has(url)) {
+      await ensureParsedGlb(url, buf.slice ? buf.slice(0) : buf);
+    }
   } catch (_) {}
 }
 
-/** Prefetch ALL catalog GLBs (incl. current). Neighbors first. Concurrency 3. */
+/** Prefetch + decode catalog. Neighbors first. Parse concurrency 2. */
 function startGlbPrefetch(priorityId) {
   if (glbPrefetchStarted || !MODEL_CATALOG?.length) return;
   glbPrefetchStarted = true;
@@ -4194,8 +4280,9 @@ function startGlbPrefetch(priorityId) {
       seen.add(m.id);
       ordered.push(m);
     };
-    // current first (warm memory), then neighbors, then the rest
+    // current first, then GT3 (heavy), neighbors, then the rest
     if (idx >= 0) push(cats[idx]);
+    push(cats.find((x) => x.id === 'gt3rs'));
     if (idx >= 0) {
       push(cats[(idx - 1 + cats.length) % cats.length]);
       push(cats[(idx + 1) % cats.length]);
@@ -4206,30 +4293,18 @@ function startGlbPrefetch(priorityId) {
     const worker = async () => {
       while (cursor < urls.length) {
         const u = urls[cursor++];
-        await prefetchGlbUrl(u);
-        await new Promise((r) => setTimeout(r, 40));
+        await prefetchGlbUrl(u, { parse: true });
+        await new Promise((r) => setTimeout(r, 60));
       }
     };
-    await Promise.all([worker(), worker(), worker()]);
+    await Promise.all([worker(), worker()]);
   };
   const kick = () => { try { run(); } catch (_) {} };
-  // Start ASAP (ahead of first paint / idle) — still yield once so first model can start
   if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(kick, { timeout: 400 });
+    requestIdleCallback(kick, { timeout: 600 });
   } else {
     setTimeout(kick, 0);
   }
-}
-
-function parseGlbBuffer(buf, url) {
-  const path = url.replace(/[^/]+$/, '');
-  return new Promise((resolve, reject) => {
-    try {
-      gltfLoader.parse(buf, path, resolve, reject);
-    } catch (err) {
-      reject(err);
-    }
-  });
 }
 
 function loadPodiumModel(id, animDir = 0) {
@@ -4249,9 +4324,10 @@ function loadPodiumModel(id, animDir = 0) {
   // Kick catalog prefetch immediately (not only after first model paints)
   try { startGlbPrefetch(m.id); } catch (_) {}
 
-  const apply = (gltf) => {
+  const applyScene = (scene) => {
     if (gen !== podiumLoadGen) return;
-    fitGlb(gltf.scene);
+    if (!scene) return;
+    fitGlb(scene);
   };
 
   const fail = (err) => {
@@ -4262,20 +4338,30 @@ function loadPodiumModel(id, animDir = 0) {
 
   (async () => {
     try {
+      // Warm path: clone already-parsed scene (no GLB re-parse)
+      const cached = glbParsedCache.get(url);
+      if (cached) {
+        const scene = cloneParsedScene(cached);
+        applyScene(scene);
+        return;
+      }
       let buf = await matchGlbBuffer(url);
       if (!buf) {
         const res = await fetch(url, { credentials: 'same-origin', mode: 'cors' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         buf = await res.arrayBuffer();
-        putGlbBuffer(url, buf.slice(0)); // cache copy; parse uses buf
+        putGlbBuffer(url, buf.slice(0));
       }
       if (gen !== podiumLoadGen) return;
-      const gltf = await parseGlbBuffer(buf, url);
-      apply(gltf);
-    } catch (err) {
-      // fallback to classic loader (progress events unused — no podium hint spam)
+      const gltf = await ensureParsedGlb(url, buf, { priority: true });
       if (gen !== podiumLoadGen) return;
-      gltfLoader.load(url, apply, undefined, fail);
+      applyScene(cloneParsedScene(gltf));
+    } catch (err) {
+      if (gen !== podiumLoadGen) return;
+      gltfLoader.load(url, (gltf) => {
+        try { glbParsedCache.set(url, gltf); } catch (_) {}
+        applyScene(cloneParsedScene(gltf) || gltf.scene);
+      }, undefined, fail);
     }
   })();
 }
@@ -4349,7 +4435,7 @@ document.querySelectorAll('[data-photo]').forEach((b) => {
   });
 });
 
-const paint = { body: null, wheel: null };
+const paint = { body: null, wheel: null, finish: 'gloss' };
 const PAINT_LS_KEY = 'pitlane-paint';
 
 /** Split CamelCase / digits so "Recycled" ≠ "led" and "2020Paint" → paint. */
@@ -4418,10 +4504,12 @@ const PAINT_MAT_OVERRIDES = {
     exclude: [/Coloured/i, /Carbon/i, /Base_/i, /Window/i, /Grille/i, /Wheel/i, /Interior/i, /Light/i, /Badge/i, /Calliper/i, /SeatBelt/i, /Specular/i, /Manufacturer/i],
     meshExclude: [/SeatBelt/i],
   },
+  /* X6: only CarPaint body. bamper_gray + plastic_SH = black plastic inserts (not body color). */
   x6: {
     strict: true,
-    include: [/^CarPaint$/i, /bamper/i, /bumper/i],
-    exclude: [/^chassis$/i, /plastic/i, /baked/i, /Salon/i, /Koleso/i, /chrome/i, /Chrome/i, /glass/i, /light/i, /ligts/i, /Mirror/i, /badge/i, /plate/i, /Emblema/i, /Windows/i],
+    include: [/^CarPaint$/i],
+    exclude: [/^chassis$/i, /plastic/i, /bamper/i, /bumper/i, /baked/i, /Salon/i, /Koleso/i, /chrome/i, /Chrome/i, /glass/i, /light/i, /ligts/i, /Mirror/i, /badge/i, /plate/i, /Emblema/i, /Windows/i, /black_metal/i],
+    meshExclude: [/Niere/i, /plastic/i, /bamper/i, /bumper/i],
   },
   isf: {
     strict: true,
@@ -4433,10 +4521,14 @@ const PAINT_MAT_OVERRIDES = {
     include: [/car_body\d/i, /bodykit\d/i, /hood\d/i, /spoiler\d/i],
     exclude: [/interior/i, /glass/i, /rim/i, /Tire/i, /caliper/i, /Capiler/i, /^m4car_plast1$/i, /bodykit_plast/i, /emissive/i, /grill/i],
   },
+  /* M3: phong5/phong2 = carpaint. chassis_chrome shares phong2 — exclude so kidney/grille stay black. */
   m3: {
     strict: true,
     include: [/phong5SG/i, /phong2SG/i],
-    exclude: [/phong8SG/i, /phong3SG/i, /phong4SG/i, /phong6SG/i, /phong14SG/i, /phong11SG/i],
+    exclude: [/phong8SG/i, /phong3SG/i, /phong4SG/i, /phong6SG/i, /phong14SG/i, /phong11SG/i, /phong1SG/i, /phong7SG/i, /phong9SG/i, /phong10SG/i, /phong12SG/i, /phong13SG/i],
+    meshExclude: [/chassischassis_chrome/i, /grille/i, /grill/i, /kidney/i, /niere/i, /(?:^|[^a-z])mesh(?:[^a-z]|$)/i],
+    forceBlackMesh: [/chassischassis_chrome/i, /grille/i, /grill/i, /kidney/i, /niere/i],
+    forceBlackMat: [/phong12SG/i, /phong13SG/i, /phong6SG/i],
   },
   'c63-ed507': {
     strict: true,
@@ -4453,20 +4545,55 @@ const PAINT_MAT_OVERRIDES = {
 function paintStoreAll() {
   try { return JSON.parse(localStorage.getItem(PAINT_LS_KEY) || '{}') || {}; } catch (_) { return {}; }
 }
-function getStoredPaintHex(modelId) {
+function normalizePaintEntry(v) {
+  if (typeof v === 'string' && /^#?[0-9a-fA-F]{6}$/.test(v)) {
+    return { hex: v.startsWith('#') ? v : '#' + v, finish: 'gloss' };
+  }
+  if (v && typeof v === 'object') {
+    const hex = (typeof v.hex === 'string' && /^#?[0-9a-fA-F]{6}$/.test(v.hex))
+      ? (v.hex.startsWith('#') ? v.hex : '#' + v.hex)
+      : null;
+    const finish = (v.finish === 'matte' || v.finish === 'satin' || v.finish === 'gloss') ? v.finish : 'gloss';
+    return { hex, finish };
+  }
+  return { hex: null, finish: 'gloss' };
+}
+function getStoredPaintEntry(modelId) {
   const id = modelId || podiumModelId || state.carId;
   const s = paintStoreAll();
-  const v = s[id];
-  return (typeof v === 'string' && /^#?[0-9a-fA-F]{6}$/.test(v)) ? (v.startsWith('#') ? v : '#' + v) : null;
+  return normalizePaintEntry(id ? s[id] : null);
+}
+function getStoredPaintHex(modelId) {
+  return getStoredPaintEntry(modelId).hex;
+}
+function getStoredPaintFinish(modelId) {
+  return getStoredPaintEntry(modelId).finish || 'gloss';
 }
 function setStoredPaintHex(hex, modelId) {
   const id = modelId || podiumModelId || state.carId;
   if (!id) return;
   const s = paintStoreAll();
-  if (!hex) delete s[id];
-  else s[id] = hex;
+  const prev = normalizePaintEntry(s[id]);
+  const finish = prev.finish || 'gloss';
+  if (!hex) {
+    // keep finish preference even when color reset to stock
+    s[id] = { hex: null, finish };
+  } else {
+    s[id] = { hex, finish };
+  }
   try { localStorage.setItem(PAINT_LS_KEY, JSON.stringify(s)); } catch (_) {}
   paint.body = hex || null;
+  paint.finish = finish;
+}
+function setStoredPaintFinish(finish, modelId) {
+  const id = modelId || podiumModelId || state.carId;
+  if (!id) return;
+  const f = (finish === 'matte' || finish === 'satin') ? finish : 'gloss';
+  const s = paintStoreAll();
+  const prev = normalizePaintEntry(s[id]);
+  s[id] = { hex: prev.hex, finish: f };
+  try { localStorage.setItem(PAINT_LS_KEY, JSON.stringify(s)); } catch (_) {}
+  paint.finish = f;
 }
 
 function isGlassMat(mat) {
@@ -4621,37 +4748,70 @@ function restorePaintOrig(mat) {
   mat.needsUpdate = true;
 }
 
+const PAINT_FINISH_PRESETS = {
+  gloss: { roughness: 0.18, metalnessMax: 0.18, clearcoat: 1.0, clearcoatRoughness: 0.08, envMin: 1.05 },
+  satin: { roughness: 0.42, metalnessMax: 0.14, clearcoat: 0.25, clearcoatRoughness: 0.35, envMin: 0.9 },
+  matte: { roughness: 0.72, metalnessMax: 0.08, clearcoat: 0, clearcoatRoughness: 0.6, envMin: 0.75 },
+};
+
+function currentPaintFinish() {
+  const f = paint.finish || getStoredPaintFinish(podiumModelId || state.carId) || 'gloss';
+  return (f === 'matte' || f === 'satin') ? f : 'gloss';
+}
+
 /** Solid lacquer: pure color replace — never multiply with original albedo map. */
-function applySolidBodyColor(mat, color) {
+function applySolidBodyColor(mat, color, finish) {
   rememberPaintOrig(mat);
   // MUST strip baseColor/albedo map (factory hue lives there on Forza atlases)
   mat.map = null;
   if ('vertexColors' in mat) mat.vertexColors = false;
   mat.color.copy(color);
-  // Modern automotive lacquer response (keep normal/roughness/metalness/ao maps)
+  const fin = PAINT_FINISH_PRESETS[finish] || PAINT_FINISH_PRESETS.gloss;
   if (mat.metalness != null) {
     // Coloured/Paint atlases often ship metalness≈1; clamp to paint-like
-    if (mat.metalness > 0.35) mat.metalness = 0.12;
-    else mat.metalness = Math.min(mat.metalness, 0.2);
+    if (mat.metalness > 0.35) mat.metalness = Math.min(0.12, fin.metalnessMax);
+    else mat.metalness = Math.min(mat.metalness, fin.metalnessMax);
   }
-  if (mat.roughness != null) {
-    if (mat.roughness > 0.45) mat.roughness = 0.28;
-    else if (mat.roughness < 0.1) mat.roughness = 0.18;
-  }
+  if (mat.roughness != null) mat.roughness = fin.roughness;
   if (mat.isMeshPhysicalMaterial) {
-    if (!(mat.clearcoat > 0.4)) mat.clearcoat = 1.0;
-    if (mat.clearcoatRoughness == null || mat.clearcoatRoughness > 0.35) mat.clearcoatRoughness = 0.1;
+    mat.clearcoat = fin.clearcoat;
+    mat.clearcoatRoughness = fin.clearcoatRoughness;
   }
-  if (mat.envMapIntensity != null && mat.envMapIntensity < 0.6) mat.envMapIntensity = 1.0;
-  // Ensure lighting still works — never force emissive white
-  if (mat.emissive?.isColor && !mat.userData.__paintKeepEmissive) {
-    // leave factory emissive on true light mats (those shouldn't reach here)
+  if (mat.envMapIntensity != null) {
+    mat.envMapIntensity = Math.max(fin.envMin, Number(mat.envMapIntensity) || fin.envMin);
   }
   mat.needsUpdate = true;
 }
 
+/** Keep kidney/grille/black trim from taking body paint (M3 chrome mesh, etc.). */
+function forceBlackTrim() {
+  if (!glbRoot) return;
+  const ov = PAINT_MAT_OVERRIDES[podiumModelId || state.carId] || null;
+  if (!ov?.forceBlackMesh?.length && !ov?.forceBlackMat?.length) return;
+  glbRoot.traverse((o) => {
+    if (!o.isMesh) return;
+    const meshName = o.name || '';
+    const forceMesh = !!(ov.forceBlackMesh && ov.forceBlackMesh.some((re) => re.test(meshName)));
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach((mat) => {
+      if (!mat || !mat.color || !mat.color.isColor) return;
+      const forceMat = !!(ov.forceBlackMat && ov.forceBlackMat.some((re) => re.test(mat.name || '')));
+      if (!forceMesh && !forceMat) return;
+      mat.color.setRGB(0.02, 0.02, 0.02);
+      if ('map' in mat) mat.map = null;
+      if (mat.metalness != null) mat.metalness = Math.min(Number(mat.metalness) || 0.2, 0.35);
+      if (mat.roughness != null) mat.roughness = Math.max(Number(mat.roughness) || 0.4, 0.45);
+      if (mat.isMeshPhysicalMaterial) {
+        mat.clearcoat = 0;
+      }
+      mat.needsUpdate = true;
+    });
+  });
+}
+
 function applyGlbBodyPaint(hex) {
   if (!glbRoot || typeof THREE === 'undefined') return;
+  const finish = currentPaintFinish();
   if (!hex) {
     glbRoot.traverse((o) => {
       if (!o.isMesh) return;
@@ -4662,6 +4822,7 @@ function applyGlbBodyPaint(hex) {
       const list = Array.isArray(o.material) ? o.material : [o.material];
       list.forEach((mat) => restorePaintOrig(mat));
     });
+    try { forceBlackTrim(); } catch (_) {}
     return;
   }
   let color;
@@ -4687,8 +4848,8 @@ function applyGlbBodyPaint(hex) {
         rememberPaintOrig(dest);
         mutated = true;
       }
-      applySolidBodyColor(dest, color);
-      dest.map = null;
+      applySolidBodyColor(dest, color, finish);
+      dest.map = null; // re-verify solid replace strips albedo (no color mix)
       dest.color.copy(color);
       dest.needsUpdate = true;
       return dest;
@@ -4696,8 +4857,19 @@ function applyGlbBodyPaint(hex) {
     if (mutated) {
       if (o.userData.__paintMatBackup === undefined) o.userData.__paintMatBackup = o.material;
       o.material = isArr ? next : next[0];
+    } else {
+      // finish change on already-cloned paint mats
+      next.forEach((mat) => {
+        if (mat?.userData?.__isPaintClone) {
+          applySolidBodyColor(mat, color, finish);
+          mat.map = null;
+          mat.color.copy(color);
+          mat.needsUpdate = true;
+        }
+      });
     }
   });
+  try { forceBlackTrim(); } catch (_) {}
 }
 
 function syncPaintSwatches(hex) {
@@ -4722,11 +4894,24 @@ function syncPaintSwatches(hex) {
   }
 }
 
+function syncPaintFinishUI(finish) {
+  const bar = document.getElementById('paintFinish');
+  if (!bar) return;
+  const f = (finish === 'matte' || finish === 'satin') ? finish : 'gloss';
+  bar.querySelectorAll('button[data-finish]').forEach((b) => {
+    const on = (b.dataset.finish || '') === f;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+
 function applyStoredBodyPaint() {
-  const hex = getStoredPaintHex(podiumModelId || state.carId);
-  paint.body = hex;
-  syncPaintSwatches(hex);
-  applyGlbBodyPaint(hex);
+  const entry = getStoredPaintEntry(podiumModelId || state.carId);
+  paint.body = entry.hex;
+  paint.finish = entry.finish || 'gloss';
+  syncPaintSwatches(entry.hex);
+  syncPaintFinishUI(paint.finish);
+  applyGlbBodyPaint(entry.hex);
   try { applyPaint(); } catch (_) {}
 }
 
@@ -4734,9 +4919,18 @@ function pickBodyPaint(hex) {
   const clean = hex ? (hex.startsWith('#') ? hex : '#' + hex) : null;
   setStoredPaintHex(clean, podiumModelId || state.carId);
   syncPaintSwatches(clean);
+  syncPaintFinishUI(paint.finish || getStoredPaintFinish());
   applyGlbBodyPaint(clean);
   try { applyPaint(); } catch (_) {}
   try { hap(8); } catch (_) {}
+}
+
+function pickPaintFinish(finish) {
+  setStoredPaintFinish(finish, podiumModelId || state.carId);
+  syncPaintFinishUI(paint.finish);
+  // Re-apply on current podium model without reload
+  applyGlbBodyPaint(paint.body || getStoredPaintHex());
+  try { hap(6); } catch (_) {}
 }
 
 function hexToRgb(hex) {
@@ -4855,6 +5049,11 @@ document.getElementById('paintCustom')?.addEventListener('input', (e) => {
 document.getElementById('paintCustom')?.addEventListener('change', (e) => {
   const v = e.target?.value;
   if (v) pickBodyPaint(v);
+});
+document.getElementById('paintFinish')?.addEventListener('click', (e) => {
+  const btn = e.target?.closest?.('button[data-finish]');
+  if (!btn) return;
+  pickPaintFinish(btn.dataset.finish || 'gloss');
 });
 document.querySelectorAll('#wheelBar button').forEach((b) => {
   b.addEventListener('click', () => {
