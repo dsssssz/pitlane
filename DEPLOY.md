@@ -93,3 +93,9 @@ npx wrangler deploy
 ```
 
 If deploy fails, client still ships; Worker source in `worker-index.js` includes weather — redeploy when CF token works.
+
+### Worker deploy log (2026-09-23)
+
+Deployed with wrangler@3.114.17 + `CLOUDFLARE_API_TOKEN` from box-secrets card.
+Version ID: `df7b9c5a-91f3-43d7-8a7f-c7249f34dd65` → https://pitlane-api.pitlane-taksimaga.workers.dev
+Weather field + `?weather=` filter live on Worker.
