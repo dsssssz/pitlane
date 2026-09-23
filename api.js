@@ -141,10 +141,24 @@ export const api = {
     if (Array.isArray(remoteRows)) return remoteRows.filter(isValidGpsRow).slice().sort((a, b) => a.t - b.t);
     return localListStraight(carId);
   },
-  async listLap(trackId) {
-    const remoteRows = await remote('/tops/lap/' + encodeURIComponent(trackId));
-    if (Array.isArray(remoteRows)) return remoteRows.filter(isValidGpsRow).slice();
-    return localListLap(trackId);
+  async listLap(trackId, weather) {
+    let path = '/tops/lap/' + encodeURIComponent(trackId);
+    if (weather === 'dry' || weather === 'damp' || weather === 'wet') {
+      path += '?weather=' + encodeURIComponent(weather);
+    }
+    const remoteRows = await remote(path);
+    if (Array.isArray(remoteRows)) {
+      let rows = remoteRows.filter(isValidGpsRow).slice();
+      if (weather === 'dry' || weather === 'damp' || weather === 'wet') {
+        rows = rows.filter((r) => r && r.weather === weather);
+      }
+      return rows;
+    }
+    let rows = localListLap(trackId);
+    if (weather === 'dry' || weather === 'damp' || weather === 'wet') {
+      rows = rows.filter((r) => r && r.weather === weather);
+    }
+    return rows;
   },
   async addStraight(carId, row) {
     // Do NOT force valid:true — client/server compute honesty

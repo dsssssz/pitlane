@@ -752,7 +752,20 @@ function canPublishTop(gq, flags) {
   const fl = flags || [];
   if (fl.includes('teleport') || fl.includes('speed')) return false;
   const q = gq?.gpsQ || gq;
-  const allowC = document.getElementById('topValidOnly')?.checked === false;
+  const allowC = 
+document.getElementById('topWeatherChips')?.addEventListener('click', (e) => {
+  const btn = e.target?.closest?.('.wx-chip');
+  if (!btn?.dataset?.wx) return;
+  setTopsWeatherFilter(btn.dataset.wx, { user: true });
+  void renderTops();
+});
+document.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('.tops-gps');
+  if (b?.dataset?.tip) {
+    try { alert(b.dataset.tip); } catch (_) {}
+  }
+});
+document.getElementById('topValidOnly')?.checked === false;
   if (q === 'A' || q === 'B') return true;
   if (q === 'C' && allowC) return true;
   return false;
@@ -802,20 +815,77 @@ function topsGpsTip(r) {
   if (r.hz != null && Number.isFinite(Number(r.hz))) parts.push(`${Number(r.hz).toFixed(1)} Гц`);
   if (Array.isArray(r.flags) && r.flags.includes('teleport')) parts.push('есть телепорты');
   else if (r.gpsQ === 'A' || r.gpsQ === 'B') parts.push('без телепортов');
+  if (r.weather === 'dry') parts.push('сухо');
+  else if (r.weather === 'damp') parts.push('сыро');
+  else if (r.weather === 'wet') parts.push('мокро');
   return parts.join(' · ') || 'валидный GPS';
+}
+
+function gpsGradeLabel(q) {
+  if (q === 'A') return 'Честный';
+  if (q === 'B') return 'Ок';
+  if (q === 'C') return 'Слабый GPS';
+  return 'GPS';
 }
 
 function topsGpsBadge(r) {
   if (!r || !r.gps || r.valid === false) return '';
   const q = r.gpsQ;
   let cls = 'tops-gps';
-  let label = 'GPS';
-  if (q === 'A') { cls += ' tops-gps-a'; label = 'честный'; }
-  else if (q === 'B') { cls += ' tops-gps-b'; label = 'B'; }
-  else if (q === 'C') { cls += ' tops-gps-c'; label = 'C'; }
-  else { cls += ' tops-gps-unk'; label = 'GPS'; }
+  if (q === 'A') cls += ' tops-gps-a';
+  else if (q === 'B') cls += ' tops-gps-b';
+  else if (q === 'C') cls += ' tops-gps-c';
+  else cls += ' tops-gps-unk';
+  const label = gpsGradeLabel(q);
   const tip = esc(topsGpsTip(r));
-  return `<em class="${cls}" title="${tip}">${label}</em>`;
+  return `<em class="${cls}" title="${tip}" data-tip="${tip}" tabindex="0" role="button" aria-label="${esc(label)}. ${tip}">${label}</em>`;
+}
+
+/** WMO weather_code → dry | damp | wet */
+function weatherCategoryFromCode(code) {
+  const c = Number(code);
+  if (!Number.isFinite(c)) return null;
+  if (c <= 3 || c === 45 || c === 48) return 'dry';
+  if (c === 51 || c === 53 || c === 56 || c === 61) return 'damp';
+  if (c >= 51) return 'wet';
+  return 'dry';
+}
+
+function weatherLabelRu(w) {
+  if (w === 'dry') return 'Сухо';
+  if (w === 'damp') return 'Сыро';
+  if (w === 'wet') return 'Мокро';
+  return '';
+}
+
+let topsWeatherFilter = 'dry'; // all | dry | damp | wet
+let _topsWxAutoDone = false;
+
+function getTopsWeatherFilter() {
+  return topsWeatherFilter || 'dry';
+}
+
+function setTopsWeatherFilter(w, { user } = {}) {
+  const v = (w === 'all' || w === 'dry' || w === 'damp' || w === 'wet') ? w : 'dry';
+  topsWeatherFilter = v;
+  if (user) _topsWxAutoDone = true;
+  document.querySelectorAll('#topWeatherChips .wx-chip').forEach((b) => {
+    b.classList.toggle('on', b.dataset.wx === v);
+  });
+}
+
+function filterRowsByWeather(rows, wx) {
+  if (!wx || wx === 'all') return rows || [];
+  return (rows || []).filter((r) => r && r.weather === wx);
+}
+
+function pickDefaultWeatherFilter(lapRows) {
+  const rows = lapRows || [];
+  const hasDry = rows.some((r) => r && r.weather === 'dry');
+  const hasAnyWx = rows.some((r) => r && (r.weather === 'dry' || r.weather === 'damp' || r.weather === 'wet'));
+  if (hasDry) return 'dry';
+  if (!hasAnyWx) return 'all';
+  return 'all';
 }
 
 async function renderTops() {
@@ -827,17 +897,25 @@ async function renderTops() {
   const track = TRACKS.find((t) => t.id === trackId);
   if (trackNameEl && track) trackNameEl.textContent = track.name;
   const straightRaw = await api.listStraight(c.id);
-  const lapRaw = await api.listLap(trackId);
-  populateTopModelFilter([...straightRaw, ...lapRaw]);
+  // Fetch all lap rows first so default chip (Сухо vs Все) can see weather presence
+  const lapAll = await api.listLap(trackId);
+  populateTopModelFilter([...straightRaw, ...lapAll]);
+  if (!_topsWxAutoDone) {
+    const pref = pickDefaultWeatherFilter(lapAll);
+    setTopsWeatherFilter(pref);
+  }
+  const wx = getTopsWeatherFilter();
+  const lapRaw = (wx === 'all') ? lapAll : filterRowsByWeather(lapAll, wx);
   const sEl = document.getElementById('topStraight');
   if (sEl) {
+    // straight: weather optional — show all (still store when present)
     const rows = filterTopRows(straightRaw).slice().sort((a, b) => a.t - b.t);
     sEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${Number(r.t).toFixed(2)} с${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>нет валидных GPS</span><strong>—</strong></li>';
   }
   const lEl = document.getElementById('topLap');
   if (lEl) {
     const rows = filterTopRows(lapRaw);
-    lEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${esc(String(r.t))}${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>нет валидных GPS-кругов</span><strong>—</strong></li>';
+    lEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${esc(String(r.t))}${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>нет кругов для фильтра</span><strong>—</strong></li>';
   }
 }
 
@@ -2412,6 +2490,7 @@ async function publishGps(v0100, v100200, v200300) {
         gpsQ: gq.gpsQ,
         avgAcc: gq.avgAcc,
         hz: gq.hz,
+        paint: getStoredPaintHex() || undefined,
       }));
     }
     return;
@@ -2452,6 +2531,7 @@ async function publishGps(v0100, v100200, v200300) {
       gpsQ: gq.gpsQ,
       avgAcc: gq.avgAcc,
       hz: gq.hz,
+      paint: getStoredPaintHex() || undefined,
     });
     openShareCard(payload);
   }
@@ -2733,8 +2813,16 @@ async function fetchLapWeather(trackId, force) {
     const cur = data.current || {};
     const t = cur.temperature_2m;
     const w = cur.wind_speed_10m;
-    box.textContent = (t != null ? `${Math.round(t)}°C` : '—') + (w != null ? ` · ветер ${Math.round(w)} м/с` : '');
+    const code = cur.weather_code;
+    const cat = weatherCategoryFromCode(code);
+    lapDrive.weatherCode = code;
+    lapDrive.weather = cat;
+    const wxLab = weatherLabelRu(cat);
+    box.textContent = (t != null ? `${Math.round(t)}°C` : '—')
+      + (w != null ? ` · ветер ${Math.round(w)} м/с` : '')
+      + (wxLab ? ` · ${wxLab.toLowerCase()}` : '');
     box.dataset.ready = '1';
+    if (cat) box.dataset.weather = cat;
     lapDrive.weatherAt = Date.now();
   } catch (_) {
     if (!box.dataset.ready) box.textContent = 'погода недоступна';
@@ -2982,6 +3070,8 @@ async function completeLapRun(how, atTs) {
     const topOk = runRowValid(gq, rec.flags) && canPublishTop(gq, rec.flags);
     rec.valid = topOk;
     if (topOk) {
+      const wx = lapDrive.weather || weatherCategoryFromCode(lapDrive.weatherCode);
+      if (wx) rec.weather = wx;
       await api.addLap(trackId, {
         name: String(who).slice(0, 24),
         car: currentCar().name,
@@ -2995,9 +3085,11 @@ async function completeLapRun(how, atTs) {
         avgAcc: gq.avgAcc,
         hz: gq.hz,
         flags: rec.flags,
+        weather: wx || undefined,
       });
     }
     const tr = TRACKS.find((t) => t.id === trackId);
+    const wxShare = rec.weather || lapDrive.weather || weatherCategoryFromCode(lapDrive.weatherCode);
     openShareCard(buildSharePayload({
       type: 'lap',
       time: tStr,
@@ -3008,6 +3100,8 @@ async function completeLapRun(how, atTs) {
       gpsQ: gq.gpsQ,
       avgAcc: gq.avgAcc,
       hz: gq.hz,
+      weather: wxShare || undefined,
+      paint: getStoredPaintHex() || undefined,
     }));
   }
 
@@ -3208,8 +3302,9 @@ function renderLaps() {
   ul.innerHTML = shown.length
     ? shown.map((l, i) => {
         const tag = l.valid === false ? '∅' : (i === 0 ? 'PB' : '#' + (i + 1));
-        const note = l.valid === false ? ` · ${l.why || 'не в топ'}` : (l.gps ? ' · GPS' : '');
-        return `<li><span>${tag}</span><strong>${formatMs(l.ms)}</strong><em class="tiny">${note}</em></li>`;
+        const note = l.valid === false ? ` · ${l.why || 'не в топ'}` : '';
+        const badge = l.gpsQ ? topsGpsBadge({ gps: true, valid: l.valid !== false, gpsQ: l.gpsQ, avgAcc: l.avgAcc, hz: l.hz, flags: l.flags, weather: l.weather }) : (l.gps ? '<em class="tops-gps tops-gps-unk">GPS</em>' : '');
+        return `<li><span>${tag}</span><strong class="tops-time">${formatMs(l.ms)}${badge}</strong><em class="tiny">${note}</em></li>`;
       }).join('')
     : '<li><span>пока пусто</span><strong>—</strong></li>';
   try { renderCompare(); } catch (_) {}
@@ -3287,7 +3382,7 @@ document.getElementById('btnShareRun')?.addEventListener('click', async () => {
 document.getElementById('runDriveShare')?.addEventListener('click', () => {
   const rec = state.meas[state.carId] || {};
   if (rec.v0100 == null) return;
-  openShareCard(buildSharePayload({ type: '0-100', time: Number(rec.v0100).toFixed(2) + ' с', valid: true }));
+  openShareCard(buildSharePayload({ type: '0-100', time: Number(rec.v0100).toFixed(2) + ' с', valid: true, paint: getStoredPaintHex() || undefined }));
 });
 document.querySelectorAll('.btn-pro-soon, #btnProSoon').forEach((btn) => {
   btn.addEventListener('click', (e) => {
@@ -3334,7 +3429,7 @@ function b64urlDecode(s) {
   }
 }
 
-function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, avgAcc, hz }) {
+function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, avgAcc, hz, weather, paint }) {
   const u = currentUser();
   const c = currentCar();
   const payload = {
@@ -3353,6 +3448,9 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
   if (gpsQ === 'A' || gpsQ === 'B' || gpsQ === 'C') payload.gpsQ = gpsQ;
   if (avgAcc != null) payload.avgAcc = avgAcc;
   if (hz != null) payload.hz = hz;
+  if (weather === 'dry' || weather === 'damp' || weather === 'wet') payload.weather = weather;
+  const paintHex = paint || getStoredPaintHex();
+  if (paintHex) payload.paint = paintHex;
   return payload;
 }
 
@@ -3368,25 +3466,83 @@ function openShareCard(payload) {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('shareCar', payload.car || '—');
   set('shareNick', payload.nick || '—');
-  const typeLabel = payload.type === 'lap' || payload.type === 'круг'
-    ? ('круг' + (payload.track ? ' · ' + payload.track : ''))
-    : '0–100';
-  set('shareType', typeLabel);
   set('shareTime', payload.time || '—');
   set('shareDate', payload.date || '');
+
+  const isLap = payload.type === 'lap' || payload.type === 'круг';
+  const typeLabel = isLap ? 'круг' : '0–100';
+  set('shareType', typeLabel);
+
+  const trackRow = document.getElementById('shareTrackRow');
+  const trackLab = document.getElementById('shareTrackLabel');
+  if (trackRow && trackLab) {
+    if (isLap && payload.track) {
+      trackRow.hidden = false;
+      trackLab.textContent = payload.track;
+    } else {
+      trackRow.hidden = true;
+      trackLab.textContent = '';
+    }
+  }
+
+  const wxEl = document.getElementById('shareWeather');
+  if (wxEl) {
+    const wl = weatherLabelRu(payload.weather);
+    if (wl) {
+      wxEl.textContent = wl;
+      wxEl.classList.remove('hidden');
+      wxEl.dataset.wx = payload.weather;
+    } else {
+      wxEl.textContent = '';
+      wxEl.classList.add('hidden');
+      delete wxEl.dataset.wx;
+    }
+  }
+
+  const sw = document.getElementById('shareSwatch');
+  if (sw) {
+    if (payload.paint) {
+      sw.style.background = payload.paint;
+      sw.classList.remove('hidden');
+    } else {
+      sw.classList.add('hidden');
+      sw.style.background = '';
+    }
+  }
+
   const badge = document.getElementById('shareBadge');
   if (badge) {
-    badge.classList.toggle('invalid', payload.valid === false);
+    badge.classList.remove('invalid', 'gps-c', 'gps-a', 'gps-b');
+    const q = payload.gpsQ;
     let mark = 'VALID';
-    if (payload.valid === false) mark = 'INVALID';
-    else if (payload.gpsQ === 'A') mark = 'VALID · честный GPS';
-    else if (payload.gpsQ === 'B') mark = 'VALID · GPS B';
-    else if (payload.gpsQ === 'C') {
-      mark = 'GPS C';
-      badge.classList.add('gps-c');
+    let honesty = '';
+    if (payload.valid === false || q === 'C') {
+      mark = q === 'C' ? 'НЕ В ТОП · Слабый GPS' : 'НЕ В ТОП';
+      badge.classList.add('invalid');
+      if (q === 'C') badge.classList.add('gps-c');
+      honesty = 'Слабый GPS — результат не публикуется в топах';
+    } else if (q === 'A') {
+      mark = 'VALID · Честный';
+      badge.classList.add('gps-a');
+      honesty = 'Честный GPS';
+    } else if (q === 'B') {
+      mark = 'VALID · Ок';
+      badge.classList.add('gps-b');
+      honesty = 'Ок GPS';
     }
+    const tipParts = [];
+    if (payload.avgAcc != null) tipParts.push(`±${Math.round(Number(payload.avgAcc))} м`);
+    if (payload.hz != null) tipParts.push(`${Number(payload.hz).toFixed(1)} Гц`);
+    if (tipParts.length) honesty = (honesty ? honesty + ' · ' : '') + tipParts.join(' · ');
     badge.innerHTML = `<span>${mark}</span>`;
+    badge.title = honesty || mark;
+    const hon = document.getElementById('shareHonesty');
+    if (hon) {
+      if (honesty) { hon.hidden = false; hon.textContent = honesty; }
+      else { hon.hidden = true; hon.textContent = ''; }
+    }
   }
+
   card.classList.remove('hidden');
   card.setAttribute('aria-hidden', 'false');
 }
@@ -3396,6 +3552,22 @@ function closeShareCard() {
   if (!card) return;
   card.classList.add('hidden');
   card.setAttribute('aria-hidden', 'true');
+}
+
+function shareTextRu(p) {
+  const isLap = p.type === 'lap' || p.type === 'круг';
+  const typeLabel = isLap ? ('круг' + (p.track ? ' · ' + p.track : '')) : '0–100';
+  const grade = gpsGradeLabel(p.gpsQ);
+  const wx = weatherLabelRu(p.weather);
+  const lines = [
+    `PITLANE · ${p.car} · ${p.nick}`,
+    `${typeLabel}: ${p.time}`,
+  ];
+  if (grade && grade !== 'GPS') lines.push(`GPS: ${grade}`);
+  if (wx) lines.push(`Погода: ${wx}`);
+  if (p.valid === false || p.gpsQ === 'C') lines.push('не в публичный топ');
+  else lines.push('VALID');
+  return lines.join('\n');
 }
 
 async function shareResult(payload) {
@@ -3412,10 +3584,7 @@ async function shareResult(payload) {
     }
   } catch (_) {}
   const title = 'PITLANE';
-  const typeLabel = (p.type === 'lap' || p.type === 'круг')
-    ? ('круг' + (p.track ? ' · ' + p.track : ''))
-    : '0–100';
-  const text = `PITLANE · ${p.car} · ${p.nick}\n${typeLabel}: ${p.time}${p.valid !== false ? ' · VALID' : ''}`;
+  const text = shareTextRu(p);
   try {
     if (navigator.share) {
       await navigator.share({ title, text, url });
@@ -3425,7 +3594,7 @@ async function shareResult(payload) {
     if (err && err.name === 'AbortError') return;
   }
   try {
-    await navigator.clipboard.writeText(url + '\n' + text);
+    await navigator.clipboard.writeText(text + '\n' + url);
     hap(20);
   } catch (_) {}
 }

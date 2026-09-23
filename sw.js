@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v61';
+const CACHE = 'pitlane-v62';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -6,6 +6,7 @@ const CORE = [
   './',
   './index.html',
   './zamer.html',
+  './method.html',
   './styles.css',
   './app.js',
   './api.js',

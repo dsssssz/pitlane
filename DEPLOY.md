@@ -69,6 +69,27 @@ Allowed origins include `https://dsssssz.github.io` and local ports. Add more vi
 
 ## 9. Offline / SW
 
-- Service worker cache `pitlane-v55`: app shell + vendored `./vendor/three/*`.
+- Service worker cache `pitlane-v62`: app shell + vendored `./vendor/three/*`.
 - CDN Three URLs also cached in `pitlane-three-v1` on first load (fallback).
 - GLB models prefetch into `pitlane-glb-v1` on activate (same name the app already uses).
+
+## 10. Methodology & weather (weeks 1–2)
+
+- Client page: `method.html` (linked from tops header, share card footer, account).
+- GPS grades A/B/C shown as Честный / Ок / Слабый GPS on tops, after-run share card, and lap history.
+- Lap submits may include `weather`: `dry` | `damp` | `wet` from Open-Meteo `weather_code`:
+  - dry: 0–3, 45, 48
+  - damp: 51, 53, 56, 61
+  - wet: other precip (≥51 except damp list)
+- Worker `sanitizeStraight` / `sanitizeLap` keep `weather`. GET `/tops/lap/:id?weather=dry` filters.
+- Ring tops UI chips: Все | Сухо | Сыро | Мокро (default Сухо when dry rows exist).
+
+## 11. Worker deploy (this box)
+
+```bash
+# secrets from box-secrets.json card.CLOUDFLARE_API_TOKEN
+export CLOUDFLARE_API_TOKEN=…
+npx wrangler deploy
+```
+
+If deploy fails, client still ships; Worker source in `worker-index.js` includes weather — redeploy when CF token works.

@@ -345,13 +345,23 @@
         </section>
 
         <section id="view-tops" class="view">
-          <h2 data-i18n="top.title">Топы</h2>
-          <p class="muted">Прямая — внутри одной модели. Кольцо — выбранный трек. Только валидные GPS.</p>
+          <div class="tops-head">
+            <h2 data-i18n="top.title">Топы</h2>
+            <a class="method-link" href="./method.html" id="topsMethodLink">методика</a>
+          </div>
+          <p class="muted">Прямая — внутри одной модели. Кольцо — выбранный трек. Только валидные GPS A/B.</p>
           <div class="tops-filters card">
             <label class="tops-check"><input type="checkbox" id="topValidOnly" checked /> только валидные GPS</label>
             <label class="tops-model">модель
               <select id="topModelFilter"><option value="">все модели</option></select>
             </label>
+            <div class="tops-weather" id="topWeatherChips" role="group" aria-label="Погода кольца">
+              <span class="tops-weather-label">кольцо · погода</span>
+              <button type="button" class="wx-chip" data-wx="all">Все</button>
+              <button type="button" class="wx-chip on" data-wx="dry">Сухо</button>
+              <button type="button" class="wx-chip" data-wx="damp">Сыро</button>
+              <button type="button" class="wx-chip" data-wx="wet">Мокро</button>
+            </div>
           </div>
           <div class="grid-2">
             <article class="card">
@@ -450,6 +460,7 @@
             <p class="tiny" id="imuTip"></p>
           </article>
           <button type="button" id="btnProSoon" class="btn-pro-soon">пока бесплатно</button>
+          <p class="tiny acc-method"><a class="method-link" href="./method.html">Методика измерений и топов</a></p>
           <button type="button" id="btnLogout">Выйти</button>
         </section>
         </div>
@@ -514,12 +525,24 @@
       <div class="share-card-inner">
         <button type="button" class="share-card-close" id="shareCardClose" aria-label="Закрыть">×</button>
         <p class="share-brand">PITLANE</p>
-        <p class="share-car" id="shareCar">—</p>
-        <p class="share-nick" id="shareNick">—</p>
+        <p class="share-badge" id="shareBadge"><span>VALID</span></p>
+        <p class="share-honesty" id="shareHonesty" hidden></p>
+        <div class="share-track-row" id="shareTrackRow" hidden>
+          <svg class="share-track-svg" viewBox="0 0 64 36" aria-hidden="true">
+            <ellipse cx="32" cy="18" rx="26" ry="12" fill="none" stroke="currentColor" stroke-width="2.5"/>
+            <path d="M50 18 L56 14 L56 22 Z" fill="currentColor"/>
+          </svg>
+          <span id="shareTrackLabel">—</span>
+        </div>
         <p class="share-type" id="shareType">—</p>
         <p class="share-time" id="shareTime">—</p>
-        <p class="share-badge" id="shareBadge"><span>VALID</span></p>
+        <div class="share-meta-row">
+          <span class="share-weather-chip hidden" id="shareWeather"></span>
+        </div>
+        <p class="share-car" id="shareCarRow"><i class="share-swatch hidden" id="shareSwatch" aria-hidden="true"></i><span id="shareCar">—</span></p>
+        <p class="share-nick" id="shareNick">—</p>
         <p class="share-date" id="shareDate">—</p>
+        <p class="share-method-foot"><a href="./method.html">как считаем · методика</a></p>
         <div class="share-card-actions">
           <button type="button" class="go-btn" id="shareCardBtn">Поделиться</button>
           <button type="button" id="shareCardCopy">Копировать ссылку</button>

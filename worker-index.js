@@ -130,6 +130,12 @@ function computeValid(body) {
   return { valid, gpsQ, flags };
 }
 
+function sanitizeWeather(v) {
+  const s = String(v || '').toLowerCase();
+  if (s === 'dry' || s === 'damp' || s === 'wet') return s;
+  return null;
+}
+
 function sanitizeStraight(body, pilot) {
   const t = Number(body?.t);
   if (!Number.isFinite(t) || t <= 0 || t > 60) return null;
@@ -154,6 +160,8 @@ function sanitizeStraight(body, pilot) {
   if (body.hz != null && Number.isFinite(Number(body.hz))) {
     row.hz = Math.round(Number(body.hz) * 10) / 10;
   }
+  const wxS = sanitizeWeather(body.weather);
+  if (wxS) row.weather = wxS;
   return row;
 }
 
@@ -183,6 +191,8 @@ function sanitizeLap(body, pilot) {
   if (body.hz != null && Number.isFinite(Number(body.hz))) {
     row.hz = Math.round(Number(body.hz) * 10) / 10;
   }
+  const wxL = sanitizeWeather(body.weather);
+  if (wxL) row.weather = wxL;
   return row;
 }
 
@@ -432,9 +442,12 @@ export default {
       m = path.match(/^\/tops\/straight\/([^/]+)$/);
       if (req.method === 'GET' && m) {
         const carId = decodeURIComponent(m[1]);
-        const rows = (await readList(env.PITLANE, `straight:${carId}`))
+        const url = new URL(req.url);
+        const wx = sanitizeWeather(url.searchParams.get('weather'));
+        let rows = (await readList(env.PITLANE, `straight:${carId}`))
           .filter(isValidGpsRow)
           .sort((a, b) => a.t - b.t);
+        if (wx) rows = rows.filter((r) => r && r.weather === wx);
         return json(rows, 200, headers);
       }
       if (req.method === 'POST' && m) {
@@ -461,7 +474,10 @@ export default {
       m = path.match(/^\/tops\/lap\/([^/]+)$/);
       if (req.method === 'GET' && m) {
         const trackId = decodeURIComponent(m[1]);
-        const rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter(isValidGpsRow);
+        const url = new URL(req.url);
+        const wx = sanitizeWeather(url.searchParams.get('weather'));
+        let rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter(isValidGpsRow);
+        if (wx) rows = rows.filter((r) => r && r.weather === wx);
         return json(rows, 200, headers);
       }
       if (req.method === 'POST' && m) {

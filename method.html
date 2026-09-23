@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <meta name="description" content="Pitlane — как считаем GPS-замеры и топы" />
+    <title>Pitlane — методика</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+    <style>
+      .method-page {
+        max-width: 640px;
+        margin: 0 auto;
+        padding: 28px 18px 64px;
+      }
+      .method-page h1 {
+        font: 800 32px/1.1 "Barlow Condensed", sans-serif;
+        letter-spacing: .04em;
+        text-transform: uppercase;
+        margin: 0 0 8px;
+        color: #39FF14;
+      }
+      .method-page h2 {
+        font: 700 18px/1.25 "Barlow Condensed", sans-serif;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        margin: 28px 0 10px;
+        color: #f0f0f0;
+      }
+      .method-page p, .method-page li {
+        font: 500 14px/1.55 Manrope, system-ui, sans-serif;
+        color: #c8c8c8;
+        margin: 0 0 10px;
+      }
+      .method-page ul { padding-left: 1.2em; margin: 0 0 12px; }
+      .method-page .back {
+        display: inline-block;
+        margin-bottom: 18px;
+        color: #39FF14;
+        text-decoration: none;
+        font: 700 12px/1 Manrope, sans-serif;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .method-page .back:hover { text-decoration: underline; }
+      .method-grade {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font: 700 11px/1.2 Manrope, sans-serif;
+        letter-spacing: .04em;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+      .method-grade.a { background: rgba(57,255,20,.16); color: #39FF14; border: 1px solid rgba(57,255,20,.55); }
+      .method-grade.b { background: rgba(105,105,105,.55); color: #d8d8d8; border: 1px solid #808080; }
+      .method-grade.c { background: rgba(26,26,26,.65); color: #f5c518; border: 1px solid #555; }
+      .method-note {
+        border-left: 3px solid rgba(57,255,20,.45);
+        padding: 8px 12px;
+        background: rgba(26,26,26,.45);
+        border-radius: 0 10px 10px 0;
+        margin: 14px 0;
+      }
+    </style>
+  </head>
+  <body class="method-body">
+    <main class="method-page">
+      <a class="back" href="./index.html">← Pitlane</a>
+      <h1>Методика</h1>
+      <p class="muted">Честно о том, как Pitlane измеряет время и что попадает в публичные топы. Без маркетинга.</p>
+
+      <h2>Как работает GPS-замер и круг</h2>
+      <p>Телефон получает координаты через браузерный GPS (Geolocation API). Pitlane не «рисует» скорость с сервера карт — только ваши точки и локальная fusion-логика (GPS + при доступности IMU/датчики движения).</p>
+      <ul>
+        <li><strong>0–100</strong> — сессия на прямой: старт по движению/вооружению, финиш по порогу скорости. Время считается по меткам GPS.</li>
+        <li><strong>Круг</strong> — летящие круги на выбранной трассе. Старт/финиш только при пересечении линии С/Ф на GPS (авто-финиш). Ручной «финиш» сохраняет круг у вас, но <em>не</em> пускает в топ.</li>
+      </ul>
+      <p>Точность зависит от телефона, неба, помех и частоты точек. Плохой GPS ≠ «вы медленные» — это просто слабый сигнал.</p>
+
+      <h2>Оценки GPS: A / B / C</h2>
+      <p><span class="method-grade a">A · Честный</span> хорошая средняя точность, мало плохих точек, без телепортов и явных speed-флагов.</p>
+      <p><span class="method-grade b">B · Ок</span> приемлемо для топа: сигнал не идеальный, но без грубых аномалий.</p>
+      <p><span class="method-grade c">C · Слабый GPS</span> слабая точность, много мусора или подозрительные скачки — результат можно сохранить и шарить, в публичный топ не идёт.</p>
+      <p>В интерфейсе бейдж всегда виден. Нажмите на него — увидите среднюю точность (±м) и частоту точек (Гц), если они есть в данных.</p>
+
+      <h2>Что никогда не попадает в публичные топы</h2>
+      <ul>
+        <li>Ручной финиш круга (нужен авто-финиш на линии С/Ф)</li>
+        <li>Оценка <strong>C</strong> (слабый GPS)</li>
+        <li>Флаги телепорта / нереальной скорости</li>
+        <li>Явно невалидные сессии (мало дистанции, «пауза», слишком быстро для длины трассы и т.п.)</li>
+      </ul>
+
+      <h2>Серверная перепроверка</h2>
+      <p>Клиент уже отсекает слабые результаты. Worker API дополнительно пересчитывает <code>valid</code>: публичный топ — только GPS A/B без teleport/speed. Подделать «валид» в теле запроса недостаточно.</p>
+
+      <h2>Погода: сухо / сыро / мокро</h2>
+      <p>Для кольца при сохранении круга пишется категория погоды (Open-Meteo weather_code у трассы):</p>
+      <ul>
+        <li><strong>Сухо</strong> — ясно / облачно / туман без осадков</li>
+        <li><strong>Сыро</strong> — морось, слабый дождь</li>
+        <li><strong>Мокро</strong> — умеренный+ дождь, ливни, гроза, снег</li>
+      </ul>
+      <div class="method-note">
+        <p style="margin:0">Погода — ориентир условий, не лабораторный датчик покрытия. Сравнивайте круги в одном бакете. В топах кольца фильтр по умолчанию — <strong>Сухо</strong> (если такие записи есть), иначе «Все».</p>
+      </div>
+
+      <h2>Шейр-карточка</h2>
+      <p>Карточка показывает время, машину, оценку GPS, погоду (если есть) и ссылку. Оценка C помечается как «не в топ». Ссылка <code>?s=</code> / офлайн <code>#r=</code> открывает ту же карточку.</p>
+
+      <p style="margin-top:28px;opacity:.55;font-size:12px">Pitlane · методика · без выдуманных лидеров</p>
+    </main>
+  </body>
+</html>
