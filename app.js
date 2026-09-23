@@ -4337,8 +4337,69 @@ document.querySelectorAll('[data-photo]').forEach((b) => {
 
 const paint = { body: null, wheel: null };
 const PAINT_LS_KEY = 'pitlane-paint';
-const BODY_NAME_RE = /body|paint|carpaint|car_paint|exterior|chassis|hood|door|fender|bumper|wing|roof|trunk|bonnet|skin|shell|кузов/i;
-const SKIP_NAME_RE = /glass|window|windshield|windscreen|tire|tyre|rubber|wheel|rim|chrome|carbon|interior|cabin|seat|leather|brake|disc|disk|caliper|emissive|light|lamp|led|grille|grill|mirror|exhaust|pipe|logo|badge|number|plate|text|calliper|rotor|spoke|hub/i;
+
+/** Split CamelCase / digits so "Recycled" ≠ "led" and "2020Paint" → paint. */
+function paintNameTokens(s) {
+  return String(s || '')
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .replace(/([a-zA-Z])(\d)/g, '$1_$2')
+    .replace(/(\d)([a-zA-Z])/g, '$1_$2')
+    .toLowerCase()
+    .split(/[^a-z0-9а-яё]+/i)
+    .filter((t) => t && t.length > 1);
+}
+
+const PAINT_INCLUDE_TOKENS = new Set([
+  'body', 'paint', 'carpaint', 'coloured', 'colored', 'exterior', 'ext',
+  'hood', 'bonnet', 'door', 'doors', 'fender', 'bumper', 'bamper', 'wing',
+  'roof', 'trunk', 'boot', 'skin', 'shell', 'lacquer', 'clearcoat', 'кузов',
+  'bodykit', 'spoiler', 'quater', 'quarter', 'panel', 'panels', 'chassis',
+]);
+const PAINT_SKIP_TOKENS = new Set([
+  'glass', 'window', 'windows', 'windshield', 'windscreen', 'tire', 'tyre', 'tyres',
+  'rubber', 'wheel', 'wheels', 'rim', 'rims', 'chrome', 'carbon', 'interior', 'cabin',
+  'seat', 'seats', 'leather', 'brake', 'brakes', 'disc', 'disk', 'caliper', 'calliper',
+  'calipers', 'callipers', 'calip', 'emissive', 'light', 'lights', 'lamp', 'lamps',
+  'led', 'grille', 'grill', 'mirror', 'mirrors', 'exhaust', 'pipe', 'pipes', 'logo',
+  'badge', 'badges', 'emblem', 'emblems', 'number', 'plate', 'plates', 'text',
+  'textured', 'rotor', 'spoke', 'spokes', 'hub', 'salon', 'engine', 'engines',
+  'seatbelt', 'belt', 'torpeda', 'steering', 'potolok', 'koleso', 'misc', 'cab',
+  'shadow', 'occlusion',
+]);
+/** Substring include (material name) — Forza / FH style */
+const PAINT_INCLUDE_RE = /carpaint|car_paint|(?:^|[^a-z])paint(?:[^a-z]|$)|coloured|colored|bodykit|(?:^|[^a-z])body(?:[^a-z]|$)|exterior|bamper|bumper/i;
+
+/**
+ * Per-car paint material overrides when heuristics are ambiguous.
+ * include/exclude test against material.name (not mesh path junk).
+ */
+const PAINT_MAT_OVERRIDES = {
+  g63: {
+    include: [/Paint_Material/i, /Coloured_Material/i],
+    exclude: [/Interior/i, /Window/i, /Grille/i, /Wheel/i, /Carbon/i, /Light/i, /Badge/i, /Engine/i, /Base_Material/i, /Calliper/i, /calip/i, /Textured/i, /Plate/i, /Manufacturer/i],
+  },
+  x6: {
+    include: [/^CarPaint$/i, /bamper/i, /bumper/i],
+    exclude: [/^chassis$/i, /plastic/i, /baked/i, /Salon/i, /Koleso/i, /chrome/i, /Chrome/i, /glass/i, /light/i, /ligts/i, /Mirror/i, /badge/i, /plate/i, /Emblema/i, /Windows/i],
+  },
+  isf: {
+    include: [/Exterior_mm_ext/i],
+    exclude: [/Interior/i, /windows/i, /lights/i, /wheel/i, /tyre/i, /chassis/i, /_cab$/i, /badges/i, /misc/i, /rotor/i, /Glass/i],
+  },
+  'g87-m2': {
+    include: [/Paint/i, /Coloured/i],
+    exclude: [/Interior/i, /Carbon/i, /Light/i, /Wheel/i, /Tire/i, /Rim/i, /Base_/i, /Engine/i, /Window/i, /Grille/i],
+  },
+  m4: {
+    include: [/car_body\d/i, /bodykit\d/i, /hood\d/i, /spoiler\d/i, /bodykit_plast/i],
+    exclude: [/interior/i, /glass/i, /rim/i, /Tire/i, /caliper/i, /Capiler/i, /^m4car_plast1$/i],
+  },
+  m3: {
+    include: [/phong5SG/i, /phong2SG/i], // body lacquer + related panels (verified by verts)
+    exclude: [/phong8SG/i, /phong3SG/i, /phong4SG/i, /phong6SG/i, /phong14SG/i, /phong11SG/i],
+  },
+};
 
 function paintStoreAll() {
   try { return JSON.parse(localStorage.getItem(PAINT_LS_KEY) || '{}') || {}; } catch (_) { return {}; }
@@ -4377,47 +4438,96 @@ function meshSizeHint(mesh) {
   }
 }
 
-function isBodyPaintCandidate(mesh, mat) {
-  if (!mat || !mat.color || !mat.color.isColor) return false;
-  if (!(mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial || mat.type === 'MeshStandardMaterial' || mat.type === 'MeshPhysicalMaterial')) {
-    // still allow MeshPhong / basic with color
-    if (!mat.color) return false;
+function tokensHitSet(tokens, set) {
+  for (const t of tokens) {
+    if (set.has(t)) return true;
+    // mild plurals already in set; also "light" vs token "lighting" avoided
   }
-  if (isGlassMat(mat)) return false;
-  const name = `${mesh?.name || ''} ${mat.name || ''}`;
-  if (SKIP_NAME_RE.test(name)) return false;
-  if (BODY_NAME_RE.test(name)) return true;
+  return false;
+}
+
+function scoreBodyPaintMaterial(matName, meshName, mat, size) {
+  const matTok = paintNameTokens(matName);
+  const meshTok = paintNameTokens(meshName);
+  const ov = PAINT_MAT_OVERRIDES[podiumModelId || state.carId] || null;
+  let score = 0;
+
+  if (ov) {
+    if (ov.exclude?.some((re) => re.test(matName))) return -10000;
+    if (ov.include?.some((re) => re.test(matName))) {
+      // Explicit allow-list wins over generic skip tokens (e.g. bodykit_plast, Recycled*Paint)
+      return 500 + (size >= 0.08 ? 20 : 0);
+    }
+  }
+
+  // Skip tokens: material name is authoritative (mesh paths often contain "interior" junk)
+  if (tokensHitSet(matTok, PAINT_SKIP_TOKENS)) return -10000;
+  if (/textured/i.test(matName) && !/paint|colour|color|body/i.test(matName)) {
+    return -10000;
+  }
+
+  if (isGlassMat(mat)) return -10000;
+  if (mat.emissiveMap || (mat.emissive && (mat.emissive.r + mat.emissive.g + mat.emissive.b) > 0.2 && Number(mat.emissiveIntensity || 1) > 0.15)) {
+    // glowing lights — skip unless named paint
+    if (!PAINT_INCLUDE_RE.test(matName) && !tokensHitSet(matTok, PAINT_INCLUDE_TOKENS)) return -8000;
+  }
+
+  if (tokensHitSet(matTok, PAINT_INCLUDE_TOKENS) || PAINT_INCLUDE_RE.test(matName)) score += 120;
+  // mesh name boost only for clean include tokens (ignore mesh skip pollution)
+  if (tokensHitSet(meshTok, PAINT_INCLUDE_TOKENS)) score += 25;
+  if (tokensHitSet(meshTok, PAINT_SKIP_TOKENS) && score < 100) score -= 40;
+
   const metal = mat.metalness != null ? Number(mat.metalness) : 0.25;
   const rough = mat.roughness != null ? Number(mat.roughness) : 0.45;
-  const lum = 0.2126 * mat.color.r + 0.7152 * mat.color.g + 0.0722 * mat.color.b;
-  if (metal >= 0.85) return false; // chrome
-  if (lum < 0.035 && rough > 0.72) return false; // rubber / tire-ish
-  // large opaque panels
-  return meshSizeHint(mesh) >= 0.04 && metal < 0.85 && rough < 0.92;
+  let lum = 0.5;
+  if (mat.color?.isColor) lum = 0.2126 * mat.color.r + 0.7152 * mat.color.g + 0.0722 * mat.color.b;
+
+  // True chrome (mirror) — but Forza "Coloured" often has metal≈1 with paint albedo; allow if include scored
+  if (metal >= 0.92 && rough <= 0.08 && score < 100) return -5000;
+  if (lum < 0.03 && rough > 0.75 && score < 100) return -4000; // rubber
+
+  // Size helps pick body panels among unknowns
+  if (size >= 0.5) score += 30;
+  else if (size >= 0.08) score += 12;
+  else if (size < 0.01 && score < 100) score -= 20;
+
+  // Prefer materials that look like lacquer (moderate/low roughness)
+  if (rough >= 0.05 && rough <= 0.55) score += 8;
+  if (mat.map || mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial) score += 2;
+
+  return score;
 }
 
 function collectBodyPaintMats() {
   if (!glbRoot) return [];
-  const named = [];
-  const large = [];
-  const seen = new Set();
+  const byMat = new Map(); // mat -> { score, size }
   glbRoot.traverse((o) => {
     if (!o.isMesh) return;
     const mats = Array.isArray(o.material) ? o.material : [o.material];
+    const size = meshSizeHint(o);
     mats.forEach((mat) => {
-      if (!mat || seen.has(mat)) return;
-      if (!isBodyPaintCandidate(o, mat)) return;
-      seen.add(mat);
-      const name = `${o.name || ''} ${mat.name || ''}`;
-      if (BODY_NAME_RE.test(name)) named.push(mat);
-      else large.push({ mat, size: meshSizeHint(o) });
+      if (!mat || !mat.color || !mat.color.isColor) return;
+      const matName = mat.name || '';
+      const sc = scoreBodyPaintMaterial(matName, o.name || '', mat, size);
+      const prev = byMat.get(mat);
+      if (!prev || sc > prev.score || (sc === prev.score && size > prev.size)) {
+        byMat.set(mat, { score: sc, size });
+      }
     });
   });
-  if (named.length) return named;
-  large.sort((a, b) => b.size - a.size);
-  // take largest cluster (top half or at least 1)
-  const keep = large.slice(0, Math.max(1, Math.ceil(large.length * 0.55)));
-  return keep.map((x) => x.mat);
+  const scored = [...byMat.entries()]
+    .map(([mat, meta]) => ({ mat, score: meta.score, size: meta.size }))
+    .filter((x) => x.score >= 80)
+    .sort((a, b) => b.score - a.score || b.size - a.size);
+
+  if (scored.length) return scored.map((x) => x.mat);
+
+  // Fallback: largest opaque non-skip materials
+  const fallback = [...byMat.entries()]
+    .map(([mat, meta]) => ({ mat, score: meta.score, size: meta.size }))
+    .filter((x) => x.score > -1000)
+    .sort((a, b) => b.size - a.size);
+  return fallback.slice(0, Math.max(1, Math.ceil(fallback.length * 0.35))).map((x) => x.mat);
 }
 
 function rememberPaintOrig(mat) {
@@ -4427,41 +4537,73 @@ function rememberPaintOrig(mat) {
     r: mat.color.r,
     g: mat.color.g,
     b: mat.color.b,
+    map: mat.map || null,
+    metalness: mat.metalness,
+    roughness: mat.roughness,
+    clearcoat: mat.clearcoat,
+    clearcoatRoughness: mat.clearcoatRoughness,
+    envMapIntensity: mat.envMapIntensity,
   };
+}
+
+function restorePaintOrig(mat) {
+  const o = mat?.userData?.__paintOrig;
+  if (!o || !mat.color) return;
+  mat.color.setRGB(o.r, o.g, o.b);
+  if ('map' in mat) mat.map = o.map || null;
+  if (o.metalness != null && mat.metalness != null) mat.metalness = o.metalness;
+  if (o.roughness != null && mat.roughness != null) mat.roughness = o.roughness;
+  if (mat.isMeshPhysicalMaterial) {
+    if (o.clearcoat != null) mat.clearcoat = o.clearcoat;
+    if (o.clearcoatRoughness != null) mat.clearcoatRoughness = o.clearcoatRoughness;
+  }
+  if (o.envMapIntensity != null && mat.envMapIntensity != null) mat.envMapIntensity = o.envMapIntensity;
+  mat.needsUpdate = true;
+}
+
+/** Solid lacquer: hue only in color factor — never multiply with original albedo map. */
+function applySolidBodyColor(mat, color) {
+  rememberPaintOrig(mat);
+  // Strip baseColor / albedo map that encodes the factory paint hue
+  if (mat.map) mat.map = null;
+  mat.color.copy(color);
+  // Modern automotive lacquer response (keep normal/roughness/metalness/ao maps)
+  if (mat.metalness != null) {
+    // Coloured/Paint atlases often ship metalness≈1; clamp to paint-like
+    if (mat.metalness > 0.35) mat.metalness = 0.12;
+    else mat.metalness = Math.min(mat.metalness, 0.2);
+  }
+  if (mat.roughness != null) {
+    if (mat.roughness > 0.45) mat.roughness = 0.28;
+    else if (mat.roughness < 0.1) mat.roughness = 0.18;
+  }
+  if (mat.isMeshPhysicalMaterial) {
+    if (!(mat.clearcoat > 0.4)) mat.clearcoat = 1.0;
+    if (mat.clearcoatRoughness == null || mat.clearcoatRoughness > 0.35) mat.clearcoatRoughness = 0.1;
+  }
+  if (mat.envMapIntensity != null && mat.envMapIntensity < 0.6) mat.envMapIntensity = 1.0;
+  // Ensure lighting still works — never force emissive white
+  if (mat.emissive?.isColor && !mat.userData.__paintKeepEmissive) {
+    // leave factory emissive on true light mats (those shouldn't reach here)
+  }
+  mat.needsUpdate = true;
 }
 
 function applyGlbBodyPaint(hex) {
   if (!glbRoot || typeof THREE === 'undefined') return;
-  const mats = collectBodyPaintMats();
   if (!hex) {
-    mats.forEach((mat) => {
-      const o = mat.userData?.__paintOrig;
-      if (o && mat.color) {
-        mat.color.setRGB(o.r, o.g, o.b);
-        mat.needsUpdate = true;
-      }
-    });
-    // also restore any previously painted mats that may no longer match heuristic
     glbRoot.traverse((o) => {
       if (!o.isMesh) return;
       const list = Array.isArray(o.material) ? o.material : [o.material];
-      list.forEach((mat) => {
-        const orig = mat?.userData?.__paintOrig;
-        if (!orig || !mat.color) return;
-        mat.color.setRGB(orig.r, orig.g, orig.b);
-        mat.needsUpdate = true;
-      });
+      list.forEach((mat) => restorePaintOrig(mat));
     });
     return;
   }
   let color;
   try { color = new THREE.Color(hex); } catch (_) { return; }
-  mats.forEach((mat) => {
-    rememberPaintOrig(mat);
-    // multiply tint while keeping albedo map when present
-    mat.color.copy(color);
-    mat.needsUpdate = true;
-  });
+  // sRGB color factor — Three Color from hex is sRGB-encoded values in r/g/b
+  const mats = collectBodyPaintMats();
+  mats.forEach((mat) => applySolidBodyColor(mat, color));
 }
 
 function syncPaintSwatches(hex) {
