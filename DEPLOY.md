@@ -154,3 +154,9 @@ Client SW: `pitlane-v67`. Ship SHA `a03b2b5eddbf`.
 - Discovery: tops «Автодромы» + lap «Автодромы · справочник» → RU cards (blurb / configs / real site or «уточняйте…»). No booking integration.
 - SW cache: `pitlane-v67`. Completes «Делай» roadmap (no Pro monetization).
 
+### Worker deploy log (session-of-day 2026-09-23)
+
+Deployed with wrangler@3.114.17. Version ID: `ebd5e335-1c02-43ff-8f2d-90e2caa81234` → https://pitlane-api.pitlane-taksimaga.workers.dev
+Routes live: GET /session/today, POST /session/today/checkin
+Client SW: `pitlane-v67`. Ship SHA `cced8b543fd9`. Completes «Делай» roadmap.
+
