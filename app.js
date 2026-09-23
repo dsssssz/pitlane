@@ -2794,12 +2794,156 @@ function fmtLapClock(ms) {
   return `${m}:${s}`;
 }
 
+
 function fmtLapTime(ms) {
   const sec = Math.max(0, ms) / 1000;
   const m = Math.floor(sec / 60);
   const s = (sec % 60).toFixed(2).padStart(5, '0');
   return `${m}:${s}`;
 }
+
+/* -------- Sector Battle (client personal bests / rainbow) -------- */
+/** Cumulative sector marks → per-sector splits. Null if incomplete. */
+function sectorSplits(lap) {
+  const cum = lap && lap.sectors;
+  if (!Array.isArray(cum) || cum.length < 2) return null;
+  const c0 = cum[0];
+  const c1 = cum[1];
+  if (c0 == null || c1 == null || !Number.isFinite(c0) || !Number.isFinite(c1) || c1 <= c0 || c0 <= 0) return null;
+  let c2 = cum[2];
+  if (c2 == null || !Number.isFinite(c2) || c2 <= c1) {
+    c2 = Number.isFinite(lap.ms) ? lap.ms : null;
+  }
+  if (c2 == null || c2 <= c1) return null;
+  return [c0, c1 - c0, c2 - c1];
+}
+
+function lapIsAbQuality(lap) {
+  const q = lap && lap.gpsQ;
+  return q === 'A' || q === 'B';
+}
+
+/** Personal best sector splits on track. excludeAt skips one lap (current). Prefers A/B pool; falls back to any with sectors. */
+function personalBestSectors(trackId, excludeAt) {
+  const list = (state.laps && state.laps[trackId]) || [];
+  const pools = [[], []]; // 0=A/B, 1=any
+  for (const lap of list) {
+    if (excludeAt != null && lap.at === excludeAt) continue;
+    const sp = sectorSplits(lap);
+    if (!sp) continue;
+    pools[1].push(sp);
+    if (lapIsAbQuality(lap) || (lap.valid !== false && lap.gpsQ == null)) pools[0].push(sp);
+  }
+  const use = pools[0].length ? pools[0] : pools[1];
+  const bests = [null, null, null];
+  for (const sp of use) {
+    for (let i = 0; i < 3; i++) {
+      if (bests[i] == null || sp[i] < bests[i]) bests[i] = sp[i];
+    }
+  }
+  return bests;
+}
+
+/** Rainbow / theoretical optimal = sum of best sectors (incl. current lap). */
+function optimalLapMs(trackId) {
+  const bests = personalBestSectors(trackId, null);
+  // include every sectored lap: recompute without exclude, A/B preferred inside personalBestSectors
+  if (bests.some((x) => x == null)) {
+    const list = (state.laps && state.laps[trackId]) || [];
+    const any = [null, null, null];
+    for (const lap of list) {
+      const sp = sectorSplits(lap);
+      if (!sp) continue;
+      for (let i = 0; i < 3; i++) {
+        if (any[i] == null || sp[i] < any[i]) any[i] = sp[i];
+      }
+    }
+    if (any.some((x) => x == null)) return null;
+    return any[0] + any[1] + any[2];
+  }
+  return bests[0] + bests[1] + bests[2];
+}
+
+function fmtSectorSplit(ms) {
+  if (ms == null || !Number.isFinite(ms)) return '—';
+  const sec = Math.max(0, ms) / 1000;
+  if (sec >= 60) {
+    const m = Math.floor(sec / 60);
+    const s = (sec % 60).toFixed(2).padStart(5, '0');
+    return `${m}:${s}`;
+  }
+  return sec.toFixed(2) + 'с';
+}
+
+function fmtSectorDelta(deltaMs) {
+  if (deltaMs == null || !Number.isFinite(deltaMs)) return '';
+  const sec = deltaMs / 1000;
+  const abs = Math.abs(sec).toFixed(2);
+  if (Math.abs(sec) < 0.005) return '±0.00';
+  return (sec < 0 ? '−' : '+') + abs;
+}
+
+function buildSectorBattleHtml(trackId, lap, opts) {
+  const o = opts || {};
+  const splits = sectorSplits(lap);
+  if (!splits) return '';
+  const pb = personalBestSectors(trackId, o.excludeAt != null ? o.excludeAt : lap.at);
+  const abOk = lapIsAbQuality(lap) || (lap.valid !== false && lap.gpsQ == null);
+  const opt = optimalLapMs(trackId);
+  const rows = splits.map((ms, i) => {
+    const best = pb[i];
+    let delta = null;
+    let cls = 'sb-even';
+    let mark = '';
+    if (best != null && Number.isFinite(best)) {
+      delta = ms - best;
+      if (Math.abs(delta) < 8) { cls = 'sb-match'; mark = '='; }
+      else if (delta < 0) { cls = abOk ? 'sb-win' : 'sb-win-muted'; mark = '▼'; }
+      else { cls = abOk ? 'sb-lose' : 'sb-lose-muted'; mark = '▲'; }
+    } else {
+      cls = 'sb-new';
+      mark = 'PB';
+    }
+    const bestTxt = best != null ? fmtSectorSplit(best) : '—';
+    const dTxt = delta != null ? fmtSectorDelta(delta) : (best == null ? 'новый' : '');
+    return `<li class="sb-row ${cls}"><span class="sb-lab">S${i + 1}</span>`
+      + `<span class="sb-time">${fmtSectorSplit(ms)}</span>`
+      + `<span class="sb-best">лучш. ${bestTxt}</span>`
+      + `<span class="sb-delta">${mark} ${dTxt}</span></li>`;
+  }).join('');
+  const optLine = opt != null
+    ? `<p class="sb-opt">оптимал <strong>${fmtLapTime(opt)}</strong><em>сумма лучших секторов</em></p>`
+    : '';
+  const title = o.title || 'Sector Battle';
+  const note = abOk ? '' : '<p class="sb-note">дельта без «победы» — нужен GPS A/B</p>';
+  return `<div class="sector-battle" data-track="${trackId}">`
+    + `<p class="sb-title">${title}</p>`
+    + `<ul class="sb-list">${rows}</ul>`
+    + optLine + note
+    + `</div>`;
+}
+
+function renderSectorBattlePanel() {
+  const host = document.getElementById('sectorBattlePanel');
+  if (!host) return;
+  const trackId = document.getElementById('trackSelect')?.value || currentCar()?.lap?.track;
+  if (!trackId) { host.innerHTML = ''; host.hidden = true; return; }
+  const list = ((state.laps && state.laps[trackId]) || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
+  const withSec = list.filter((l) => sectorSplits(l));
+  if (withSec.length < 1) {
+    host.innerHTML = '<p class="muted tiny">Sector Battle — проедьте 2+ круга с секторами на этой трассе</p>';
+    host.hidden = false;
+    return;
+  }
+  const latest = withSec[0];
+  const nSec = withSec.length;
+  host.innerHTML = buildSectorBattleHtml(trackId, latest, {
+    title: nSec >= 2 ? 'Sector Battle · последний vs лучшие' : 'Sector Battle · первый круг с секторами',
+    excludeAt: latest.at,
+  });
+  host.hidden = false;
+}
+
 
 function bearingDeg(a, b) {
   const φ1 = a.lat * Math.PI / 180;
@@ -3336,6 +3480,10 @@ async function completeLapRun(how, atTs) {
       hz: gq.hz,
       weather: wxShare || undefined,
       paint: getStoredPaintHex() || undefined,
+      trackId,
+      sectors: rec.sectors,
+      ms: rec.ms,
+      at: rec.at,
     }));
   }
 
@@ -3533,14 +3681,32 @@ function renderLaps() {
   const shown = full ? list : list.slice(0, 3);
   const wall = document.getElementById('lapListPaywall');
   if (wall) wall.classList.toggle('hidden', full || list.length <= 3);
+  const pbAll = personalBestSectors(trackId, null);
   ul.innerHTML = shown.length
     ? shown.map((l, i) => {
         const tag = l.valid === false ? '∅' : (i === 0 ? 'PB' : '#' + (i + 1));
         const note = l.valid === false ? ` · ${l.why || 'не в топ'}` : '';
         const badge = l.gpsQ ? topsGpsBadge({ gps: true, valid: l.valid !== false, gpsQ: l.gpsQ, avgAcc: l.avgAcc, hz: l.hz, flags: l.flags, weather: l.weather }) : (l.gps ? '<em class="tops-gps tops-gps-unk">GPS</em>' : '');
-        return `<li><span>${tag}</span><strong class="tops-time">${formatMs(l.ms)}${badge}</strong><em class="tiny">${note}</em></li>`;
+        const sp = sectorSplits(l);
+        let secHtml = '';
+        if (sp) {
+          const bits = sp.map((ms, si) => {
+            const best = pbAll[si];
+            let cls = 'sb-chip';
+            if (best != null) {
+              const d = ms - best;
+              if (Math.abs(d) < 8) cls += ' sb-match';
+              else if (d < 0) cls += ' sb-win';
+              else cls += ' sb-lose';
+            }
+            return `<em class="${cls}">S${si + 1} ${fmtSectorSplit(ms)}</em>`;
+          }).join(' ');
+          secHtml = `<div class="sb-mini">${bits}</div>`;
+        }
+        return `<li><span>${tag}</span><strong class="tops-time">${formatMs(l.ms)}${badge}</strong><em class="tiny">${note}</em>${secHtml}</li>`;
       }).join('')
     : '<li><span>пока пусто</span><strong>—</strong></li>';
+  try { renderSectorBattlePanel(); } catch (_) {}
   try { renderCompare(); } catch (_) {}
 }
 
@@ -3663,7 +3829,7 @@ function b64urlDecode(s) {
   }
 }
 
-function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, avgAcc, hz, weather, paint }) {
+function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, avgAcc, hz, weather, paint, trackId, sectors, ms }) {
   const u = currentUser();
   const c = currentCar();
   const payload = {
@@ -3685,6 +3851,9 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
   if (weather === 'dry' || weather === 'damp' || weather === 'wet') payload.weather = weather;
   const paintHex = paint || getStoredPaintHex();
   if (paintHex) payload.paint = paintHex;
+  if (trackId) payload.trackId = trackId;
+  if (Array.isArray(sectors)) payload.sectors = sectors.slice(0, 3);
+  if (ms != null && Number.isFinite(ms)) payload.ms = ms;
   return payload;
 }
 
@@ -3775,6 +3944,21 @@ function openShareCard(payload) {
     if (hon) {
       if (honesty) { hon.hidden = false; hon.textContent = honesty; }
       else { hon.hidden = true; hon.textContent = ''; }
+    }
+  }
+
+  const sb = document.getElementById('shareSectorBattle');
+  if (sb) {
+    if (isLap && payload.sectors && payload.trackId) {
+      const lapLike = { sectors: payload.sectors, ms: payload.ms, at: payload.at, gpsQ: payload.gpsQ, valid: payload.valid };
+      sb.innerHTML = buildSectorBattleHtml(payload.trackId, lapLike, {
+        title: 'Sector Battle',
+        excludeAt: payload.at,
+      });
+      sb.hidden = !sb.innerHTML;
+    } else {
+      sb.innerHTML = '';
+      sb.hidden = true;
     }
   }
 
