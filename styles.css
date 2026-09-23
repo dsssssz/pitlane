@@ -3168,3 +3168,133 @@ body.run-drive-on #app { visibility: hidden; }
   .session-day-card h3 { font-size: 18px; }
 }
 
+
+
+/* —— Public sector tops (photo | nick | time) —— */
+.sector-tops-btn {
+  appearance: none;
+  border: 1px solid rgba(57, 255, 20, 0.55);
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.14), rgba(0, 200, 255, 0.06));
+  color: #39FF14;
+  font: 700 12px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 0 14px rgba(57, 255, 20, 0.18);
+}
+.sector-tops-btn:active { filter: brightness(1.12); transform: scale(0.97); }
+.sector-tops-card {
+  margin-bottom: 12px;
+}
+.sector-tops-head h3 { margin: 0 0 4px; }
+.sector-tops-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: flex-end;
+  margin: 10px 0 12px;
+}
+.sector-chips {
+  display: flex;
+  gap: 6px;
+}
+.sec-chip {
+  appearance: none;
+  border: 1px solid #505050;
+  background: #2a2a2a;
+  color: #c8c8c8;
+  font: 800 12px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .1em;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.sec-chip.on {
+  border-color: #39FF14;
+  color: #39FF14;
+  background: rgba(57, 255, 20, 0.12);
+  box-shadow: 0 0 12px rgba(57, 255, 20, 0.2);
+}
+.sector-tops-link {
+  margin-top: 10px;
+  appearance: none;
+  width: 100%;
+  border: 1px dashed rgba(57, 255, 20, 0.4);
+  background: transparent;
+  color: #39FF14;
+  font: 700 12px/1.2 "Barlow Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.tops-pilot-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tops-pilot-list > li,
+.laps.tops-pilot-list > li {
+  display: grid;
+  grid-template-columns: 28px 40px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.tops-pilot-list .tp-rank {
+  font: 800 13px/1 "Barlow Condensed", sans-serif;
+  color: #888;
+  text-align: center;
+}
+.tops-av {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(57, 255, 20, 0.45);
+  background: #696969;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.tops-av img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tops-av-ini {
+  font: 800 13px/1 "Barlow Condensed", sans-serif;
+  color: #39FF14;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.tops-pilot-list .tp-who {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tops-pilot-list .tp-nick {
+  font: 700 14px/1.2 "Barlow Condensed", sans-serif;
+  color: #f0f0f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tops-pilot-list .tp-sub {
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tops-pilot-list .tp-time {
+  font: 800 15px/1 "Barlow Condensed", sans-serif;
+  color: #39FF14;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}

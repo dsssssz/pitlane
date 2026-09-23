@@ -1014,6 +1014,8 @@ function renderTracks() {
       save();
       drawTrack(topSel.value, 'trackMap');
       drawTrack(topSel.value, 'topTrackMap');
+      const secSel = document.getElementById('sectorTopTrackSelect');
+      if (secSel) secSel.value = topSel.value;
       void renderTops();
     };
   }
@@ -1218,6 +1220,7 @@ function pickDefaultWeatherFilter(lapRows) {
 
 async function renderTops() {
   try { void renderSessionOfDay(); } catch (_) {}
+  try { void renderSectorTops(); } catch (_) {}
   const c = currentCar();
   const trackId = document.getElementById('topTrackSelect')?.value || state.trackId || c.lap.track;
   const nameEl = document.getElementById('topCarName');
@@ -1244,7 +1247,18 @@ async function renderTops() {
   const lEl = document.getElementById('topLap');
   if (lEl) {
     const rows = filterTopRows(lapRaw);
-    lEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${esc(String(r.t))}${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>нет кругов для фильтра</span><strong>—</strong></li>';
+    if (!rows.length) {
+      lEl.innerHTML = '<li><span>нет кругов для фильтра</span><strong>—</strong></li>';
+    } else {
+      lEl.classList.add('tops-pilot-list');
+      lEl.innerHTML = rows.map((r, i) => topsPilotRowHtml({
+        rank: i + 1,
+        name: r.name,
+        avatar: r.avatar,
+        sub: r.car,
+        timeHtml: `${esc(String(r.t))}${topsGpsBadge(r)}`,
+      })).join('');
+    }
   }
 }
 
@@ -3064,6 +3078,143 @@ function renderSectorBattlePanel() {
 }
 
 
+/* -------- Public sector tops (photo | nick | time) -------- */
+let _sectorTopIdx = 0;
+
+function nickInitials(name) {
+  const s = String(name || 'пилот').trim();
+  if (!s) return 'П';
+  const parts = s.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+  return s.slice(0, 2).toUpperCase();
+}
+
+function topsAvatarHtml(name, avatar) {
+  const ok = typeof avatar === 'string' && (
+    /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(avatar) ||
+    /^https:\/\//i.test(avatar)
+  );
+  if (ok) {
+    return `<span class="tops-av"><img src="${esc(avatar)}" alt="" loading="lazy" /></span>`;
+  }
+  return `<span class="tops-av tops-av-ini" aria-hidden="true">${esc(nickInitials(name))}</span>`;
+}
+
+function topsPilotRowHtml({ rank, name, avatar, sub, timeHtml }) {
+  const nick = esc(name || 'пилот');
+  const subHtml = sub ? `<span class="tp-sub">${esc(sub)}</span>` : '';
+  return `<li>`
+    + `<span class="tp-rank">${rank}</span>`
+    + topsAvatarHtml(name, avatar)
+    + `<span class="tp-who"><span class="tp-nick">${nick}</span>${subHtml}</span>`
+    + `<strong class="tp-time">${timeHtml}</strong>`
+    + `</li>`;
+}
+
+/** Shrink profile avatar for tops payload (≤~12KB jpeg). */
+function avatarThumbForTops() {
+  return new Promise((resolve) => {
+    try {
+      const raw = profile()?.avatar;
+      if (!raw || typeof raw !== 'string') { resolve(null); return; }
+      if (/^https:\/\//i.test(raw) && raw.length <= 500) { resolve(raw); return; }
+      if (!/^data:image\//i.test(raw)) { resolve(null); return; }
+      if (raw.length <= 12000) { resolve(raw); return; }
+      const im = new Image();
+      im.onload = () => {
+        try {
+          const size = 72;
+          const c = document.createElement('canvas');
+          c.width = size; c.height = size;
+          const ctx = c.getContext('2d');
+          const side = Math.min(im.width, im.height);
+          const sx = (im.width - side) / 2;
+          const sy = (im.height - side) / 2;
+          ctx.drawImage(im, sx, sy, side, side, 0, 0, size, size);
+          let q = 0.72;
+          let out = c.toDataURL('image/jpeg', q);
+          while (out.length > 12000 && q > 0.4) {
+            q -= 0.1;
+            out = c.toDataURL('image/jpeg', q);
+          }
+          resolve(out.length <= 16000 ? out : null);
+        } catch (_) { resolve(null); }
+      };
+      im.onerror = () => resolve(null);
+      im.src = raw;
+    } catch (_) { resolve(null); }
+  });
+}
+
+function syncSectorTopTrackSelect() {
+  const sel = document.getElementById('sectorTopTrackSelect');
+  if (!sel) return;
+  const cur = sel.value || document.getElementById('topTrackSelect')?.value || state.trackId || currentCar()?.lap?.track;
+  sel.innerHTML = TRACKS.map((tr) => `<option value="${esc(tr.id)}"${tr.id === cur ? ' selected' : ''}>${esc(tr.name)}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+async function renderSectorTops() {
+  const listEl = document.getElementById('topSector');
+  const hint = document.getElementById('sectorTopsHint');
+  if (!listEl) return;
+  syncSectorTopTrackSelect();
+  const trackId = document.getElementById('sectorTopTrackSelect')?.value
+    || document.getElementById('topTrackSelect')?.value
+    || state.trackId
+    || currentCar()?.lap?.track;
+  if (!trackId) {
+    listEl.innerHTML = '';
+    if (hint) hint.textContent = 'Выберите трассу';
+    return;
+  }
+  const sector = Math.max(0, Math.min(2, _sectorTopIdx | 0));
+  document.querySelectorAll('#sectorTopChips .sec-chip').forEach((b) => {
+    b.classList.toggle('on', Number(b.dataset.sector) === sector);
+  });
+  let rows = [];
+  try {
+    const res = await api.listSector(trackId, sector);
+    if (res && Array.isArray(res.rows)) rows = res.rows;
+    else if (res && Array.isArray(res.sectors) && res.sectors[sector]) rows = res.sectors[sector];
+  } catch (_) { rows = []; }
+  if (!rows.length) {
+    listEl.innerHTML = '';
+    if (hint) hint.textContent = 'Пока пусто — проедьте валидный круг A/B с секторами';
+    return;
+  }
+  if (hint) {
+    const tr = TRACKS.find((t) => t.id === trackId);
+    hint.textContent = `${tr?.name || trackId} · S${sector + 1} · только GPS A/B`;
+  }
+  listEl.innerHTML = rows.map((r, i) => topsPilotRowHtml({
+    rank: i + 1,
+    name: r.name,
+    avatar: r.avatar,
+    sub: r.car || (r.gpsQ ? ('GPS ' + r.gpsQ) : ''),
+    timeHtml: esc(String(r.t || fmtSectorSplit(r.ms))),
+  })).join('');
+}
+
+function openSectorTops(opts = {}) {
+  goToView('tops');
+  if (opts.trackId) {
+    const a = document.getElementById('sectorTopTrackSelect');
+    const b = document.getElementById('topTrackSelect');
+    if (a) a.value = opts.trackId;
+    if (b) b.value = opts.trackId;
+    state.trackId = opts.trackId;
+  }
+  if (opts.sector != null) _sectorTopIdx = Math.max(0, Math.min(2, Number(opts.sector) | 0));
+  setTimeout(() => {
+    document.getElementById('sectorTopsCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    void renderSectorTops();
+  }, 80);
+}
+
+
+
+
 function bearingDeg(a, b) {
   const φ1 = a.lat * Math.PI / 180;
   const φ2 = b.lat * Math.PI / 180;
@@ -3569,6 +3720,7 @@ async function completeLapRun(how, atTs) {
     if (topOk) {
       const wx = lapDrive.weather || weatherCategoryFromCode(lapDrive.weatherCode);
       if (wx) rec.weather = wx;
+      const avThumb = await avatarThumbForTops();
       await api.addLap(trackId, {
         name: String(who).slice(0, 24),
         car: currentCar().name,
@@ -3583,6 +3735,9 @@ async function completeLapRun(how, atTs) {
         hz: gq.hz,
         flags: rec.flags,
         weather: wx || undefined,
+        sectors: Array.isArray(rec.sectors) ? rec.sectors.slice(0, 3) : undefined,
+        ms: rec.ms,
+        avatar: avThumb || undefined,
       });
       try { void pushCrewBestAfterLap(trackId, {
         t: typeof tStr !== 'undefined' ? tStr : undefined,
@@ -3932,6 +4087,30 @@ window.addEventListener('devicemotion', (e) => {
 window.addEventListener('deviceorientation', (e) => {
   GpsFusion.onDeviceOrientation(e);
 }, true);
+
+document.getElementById('sectorTopTrackSelect')?.addEventListener('change', () => {
+  const v = document.getElementById('sectorTopTrackSelect')?.value;
+  if (v) {
+    state.trackId = v;
+    const topSel = document.getElementById('topTrackSelect');
+    if (topSel) topSel.value = v;
+    try { drawTrack(v, 'topTrackMap'); } catch (_) {}
+  }
+  void renderSectorTops();
+  void renderTops();
+});
+document.getElementById('sectorTopChips')?.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-sector]');
+  if (!b) return;
+  _sectorTopIdx = Number(b.dataset.sector) | 0;
+  void renderSectorTops();
+});
+document.getElementById('btnSectorTopsOpen')?.addEventListener('click', () => openSectorTops());
+document.getElementById('btnSectorTopsFromBattle')?.addEventListener('click', () => {
+  const trackId = document.getElementById('trackSelect')?.value || state.trackId;
+  openSectorTops({ trackId });
+});
+
 document.getElementById('topValidOnly')?.addEventListener('change', () => { void renderTops(); });
 document.getElementById('topModelFilter')?.addEventListener('change', () => { void renderTops(); });
 

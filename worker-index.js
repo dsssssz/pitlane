@@ -168,6 +168,31 @@ function sanitizeStraight(body, pilot) {
   return row;
 }
 
+function sanitizeAvatar(v) {
+  if (v == null) return null;
+  const s = String(v).trim();
+  if (!s) return null;
+  if (/^https:\/\//i.test(s) && s.length <= 500) return s;
+  // data:image/jpeg|png|webp;base64,... — keep small thumbs only
+  if (/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(s) && s.length <= 16000) return s;
+  return null;
+}
+
+/** Cumulative sector marks [s1,s2,s3?] ms; must be increasing positive. */
+function sanitizeSectors(body) {
+  const raw = body?.sectors;
+  if (!Array.isArray(raw) || raw.length < 2) return null;
+  const out = [];
+  for (let i = 0; i < Math.min(3, raw.length); i++) {
+    const n = Number(raw[i]);
+    if (!Number.isFinite(n) || n <= 0 || n > 3_600_000) return null;
+    if (i > 0 && n <= out[i - 1]) return null;
+    out.push(Math.round(n));
+  }
+  if (out.length < 2) return null;
+  return out;
+}
+
 function sanitizeLap(body, pilot) {
   const t = String(body?.t || '').trim();
   if (!/^\d+:\d{2}(\.\d+)?$/.test(t)) return null;
@@ -196,7 +221,114 @@ function sanitizeLap(body, pilot) {
   }
   const wxL = sanitizeWeather(body.weather);
   if (wxL) row.weather = wxL;
+  const sectors = sanitizeSectors(body);
+  if (sectors) row.sectors = sectors;
+  const ms = Number(body?.ms);
+  if (Number.isFinite(ms) && ms > 0 && ms <= 3_600_000) row.ms = Math.round(ms);
+  const av = sanitizeAvatar(body?.avatar);
+  if (av) row.avatar = av;
   return row;
+}
+
+/** Cumulative → splits [S1,S2,S3]; null if incomplete. */
+function sectorSplitsFromLap(lap) {
+  const cum = lap && lap.sectors;
+  if (!Array.isArray(cum) || cum.length < 2) return null;
+  const c0 = Number(cum[0]);
+  const c1 = Number(cum[1]);
+  if (!Number.isFinite(c0) || !Number.isFinite(c1) || c1 <= c0 || c0 <= 0) return null;
+  let c2 = cum[2] != null ? Number(cum[2]) : NaN;
+  if (!Number.isFinite(c2) || c2 <= c1) {
+    c2 = Number.isFinite(Number(lap.ms)) ? Number(lap.ms) : NaN;
+  }
+  if (!Number.isFinite(c2) || c2 <= c1) {
+    // last resort: parse lap time string
+    const fromT = parseLapMs(lap.t);
+    c2 = fromT != null ? fromT : NaN;
+  }
+  if (!Number.isFinite(c2) || c2 <= c1) return null;
+  return [c0, c1 - c0, c2 - c1];
+}
+
+function fmtSectorMs(ms) {
+  if (ms == null || !Number.isFinite(ms)) return '—';
+  const sec = Math.max(0, ms) / 1000;
+  if (sec >= 60) {
+    const m = Math.floor(sec / 60);
+    const s = (sec % 60).toFixed(2).padStart(5, '0');
+    return m + ':' + s;
+  }
+  return sec.toFixed(2) + 'с';
+}
+
+/**
+ * Best A/B sector time per pilot for sectorIndex 0..2.
+ * Rows must already be filtered for public tops honesty where possible.
+ */
+function buildSectorLeaderboard(rows, sectorIndex) {
+  const idx = Math.max(0, Math.min(2, Number(sectorIndex) | 0));
+  const best = new Map(); // key → row
+  for (const r of rows || []) {
+    if (!isAbLapRow(r)) continue;
+    const sp = sectorSplitsFromLap(r);
+    if (!sp || sp[idx] == null) continue;
+    const key = r.pilotId ? ('id:' + r.pilotId) : ('n:' + String(r.name || '').toLowerCase());
+    const ms = sp[idx];
+    const prev = best.get(key);
+    if (!prev || ms < prev.ms) {
+      best.set(key, {
+        name: String(r.name || 'пилот').slice(0, 48),
+        car: String(r.car || '').slice(0, 80),
+        pilotId: r.pilotId || null,
+        gpsQ: r.gpsQ || null,
+        weather: r.weather || null,
+        at: r.at || null,
+        ms,
+        t: fmtSectorMs(ms),
+        avatar: r.avatar || (prev && prev.avatar) || null,
+        sector: idx,
+      });
+    } else if (prev && !prev.avatar && r.avatar) {
+      prev.avatar = r.avatar;
+    }
+  }
+  return [...best.values()].sort((a, b) => a.ms - b.ms).slice(0, 50);
+}
+
+async function rememberPilotMeta(kv, pilotId, name, avatar) {
+  if (!pilotId) return;
+  const key = 'pilotmeta:' + String(pilotId).slice(0, 64);
+  let prev = {};
+  const raw = await kv.get(key);
+  if (raw) {
+    try { prev = JSON.parse(raw) || {}; } catch { prev = {}; }
+  }
+  const next = {
+    nick: String(name || prev.nick || 'пилот').slice(0, 48),
+    avatar: avatar || prev.avatar || null,
+    at: Date.now(),
+  };
+  await kv.put(key, JSON.stringify(next), { expirationTtl: SESS_TTL });
+}
+
+async function enrichSectorAvatars(kv, rows) {
+  const need = [];
+  for (const r of rows) {
+    if (r && r.pilotId && !r.avatar) need.push(r);
+  }
+  if (!need.length) return rows;
+  await Promise.all(
+    need.map(async (r) => {
+      try {
+        const raw = await kv.get('pilotmeta:' + r.pilotId);
+        if (!raw) return;
+        const meta = JSON.parse(raw);
+        if (meta && meta.avatar) r.avatar = meta.avatar;
+        if (meta && meta.nick && (!r.name || r.name === 'пилот')) r.name = String(meta.nick).slice(0, 48);
+      } catch (_) {}
+    })
+  );
+  return rows;
 }
 
 function sanitizePulse(body, pilot) {
@@ -849,11 +981,42 @@ export default {
           return json({ error: 'pilot mismatch' }, 403, headers);
         }
         row.pilotId = pilot.id;
+        const av = row.avatar || null;
+        // keep KV lap lists lean — avatar lives in pilotmeta, not on every row
+        delete row.avatar;
         const key = `lap:${trackId}`;
         const rows = await readList(env.PITLANE, key);
         rows.push(row);
         await writeList(env.PITLANE, key, rows);
+        // remember nick/avatar for sector tops (A/B only; avatar optional)
+        if (row.valid && (row.gpsQ === 'A' || row.gpsQ === 'B')) {
+          await rememberPilotMeta(env.PITLANE, row.pilotId, row.name, av);
+        }
         return json(rows.filter(isValidGpsRow), 200, headers);
+      }
+
+      // —— Tops sector (public A/B best sector times) ——
+      m = path.match(/^\/tops\/sector\/([^/]+)$/);
+      if (req.method === 'GET' && m) {
+        const trackId = decodeURIComponent(m[1]);
+        const url = new URL(req.url);
+        const sectorParam = url.searchParams.get('sector');
+        const wx = sanitizeWeather(url.searchParams.get('weather'));
+        let rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter(isAbLapRow);
+        if (wx) rows = rows.filter((r) => r && r.weather === wx);
+        if (sectorParam == null || sectorParam === '' || sectorParam === 'all') {
+          const sectors = [];
+          for (let i = 0; i < 3; i++) {
+            let board = buildSectorLeaderboard(rows, i);
+            board = await enrichSectorAvatars(env.PITLANE, board);
+            sectors.push(board);
+          }
+          return json({ trackId, sectors }, 200, headers);
+        }
+        const sector = Math.max(0, Math.min(2, Number(sectorParam) | 0));
+        let board = buildSectorLeaderboard(rows, sector);
+        board = await enrichSectorAvatars(env.PITLANE, board);
+        return json({ trackId, sector, rows: board }, 200, headers);
       }
 
       // —— Pulse ——

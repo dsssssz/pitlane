@@ -473,6 +473,29 @@ export const api = {
 
 
 
+  /**
+   * GET /tops/sector/:trackId?sector=0|1|2
+   * → { trackId, sector, rows: [{ name, avatar, t, ms, pilotId, car, gpsQ }] }
+   * or sector=all → { trackId, sectors: [rows, rows, rows] }
+   */
+  async listSector(trackId, sector) {
+    if (!trackId) return { trackId: '', sector: 0, rows: [] };
+    let path = '/tops/sector/' + encodeURIComponent(trackId);
+    if (sector === 'all' || sector == null) {
+      path += '?sector=all';
+    } else {
+      path += '?sector=' + encodeURIComponent(String(Math.max(0, Math.min(2, Number(sector) | 0))));
+    }
+    const remoteRes = await remote(path);
+    if (remoteRes && (Array.isArray(remoteRes.rows) || Array.isArray(remoteRes.sectors))) {
+      return remoteRes;
+    }
+    // Offline / local: derive from local lap tops that carry sectors
+    const laps = localListLap(trackId);
+    const board = localBuildSectorBoard(laps, sector == null || sector === 'all' ? null : Number(sector) | 0);
+    return board;
+  },
+
   /** GET /session/today → { trackId, title, date, tops, attendees } */
   async getSessionToday() {
     const remoteRes = await remote('/session/today');

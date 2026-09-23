@@ -192,3 +192,13 @@ npx wrangler@3.114.17 deploy
 ```
 
 Then phone login sends a real SMS; demo path stays off while `SMS_DEMO=0`.
+
+## 17. Public sector tops (фото · никнейм · время)
+
+- Lap POST now persists cumulative `sectors: [s1,s2,s3]` ms (+ optional `ms`) for A/B rows.
+- Avatar thumb goes to KV `pilotmeta:<pilotId>` (not embedded on every lap row).
+- `GET /tops/sector/:trackId?sector=0|1|2` → `{ trackId, sector, rows: [{ name, avatar, t, ms, car, gpsQ, pilotId }] }`
+- `?sector=all` → `{ trackId, sectors: [S1rows, S2rows, S3rows] }`
+- Client: tops «Секторы» + Sector Battle «Открыть топ секторов»; row = photo | nick | time.
+- Empty state OK (no fake data). SW: `pitlane-v69`.
+

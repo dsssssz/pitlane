@@ -340,6 +340,7 @@
           <article class="card" id="sectorBattleCard">
             <h3>Sector Battle</h3>
             <div id="sectorBattlePanel" class="sector-battle-host"></div>
+            <button type="button" class="sector-tops-link" id="btnSectorTopsFromBattle">Открыть топ секторов</button>
           </article>
           <article class="card">
             <h3 data-i18n="lap.sess">Все круги</h3>
@@ -356,6 +357,7 @@
             <div class="tops-head-actions">
               <button type="button" class="duel-btn" id="btnDuelOpen">Дуэль</button>
               <button type="button" class="crew-btn" id="btnCrewOpen">Экипаж</button>
+              <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen">Секторы</button>
               <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
               <a class="method-link" href="./method.html" id="topsMethodLink">методика</a>
             </div>
@@ -389,6 +391,25 @@
               <button type="button" class="wx-chip" data-wx="wet">Мокро</button>
             </div>
           </div>
+          <article class="card sector-tops-card" id="sectorTopsCard">
+            <div class="sector-tops-head">
+              <h3>Топ секторов</h3>
+              <p class="tiny muted">Честные GPS A/B · фото · никнейм · время сектора</p>
+            </div>
+            <div class="sector-tops-controls">
+              <label class="tops-model">трасса
+                <select id="sectorTopTrackSelect"></select>
+              </label>
+              <div class="sector-chips" id="sectorTopChips" role="group" aria-label="Сектор">
+                <button type="button" class="sec-chip on" data-sector="0">S1</button>
+                <button type="button" class="sec-chip" data-sector="1">S2</button>
+                <button type="button" class="sec-chip" data-sector="2">S3</button>
+              </div>
+            </div>
+            <ol id="topSector" class="laps tops-pilot-list"></ol>
+            <p class="tiny muted" id="sectorTopsHint">Пока пусто — проедьте валидный круг с секторами</p>
+          </article>
+
           <div class="grid-2">
             <article class="card">
               <h3>Прямая 0–100 · <span id="topCarName">GT RS</span></h3>
