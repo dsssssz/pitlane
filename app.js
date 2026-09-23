@@ -551,54 +551,38 @@ function saveDynoEdit(ev) {
 
 
 
-/* -------- Garage hero: 3D | Фото -------- */
-let heroMode = (function () {
-  try { return localStorage.getItem('pitlane-hero-mode') || '3d'; } catch (_) { return '3d'; }
-})();
+/* -------- Garage hero: ALWAYS cinematic 3D podium (photo/empty UX removed) -------- */
+let heroMode = '3d'; // locked; photo mode retired
 
 function syncHeroModeUI() {
-  const mode = heroMode === 'photo' ? 'photo' : '3d';
-  document.querySelectorAll('[data-hero-mode]').forEach((b) => {
-    b.classList.toggle('on', b.dataset.heroMode === mode);
-  });
+  // no-op: podium is always the hero; never hide for empty garage or photo
   const podium = document.getElementById('podiumWrap');
   const photo = document.getElementById('photoStage');
-  const empty = !garageList().length;
-  if (podium) podium.classList.toggle('hidden', mode === 'photo' || empty);
-  if (photo) {
-    photo.classList.toggle('hidden', mode !== 'photo' || empty);
-    if (mode === 'photo') {
-      photo.classList.remove('hidden');
-      const img = document.getElementById('heroPhoto');
-      const scan = state.scans?.[state.carId];
-      if (img && scan) {
-        img.src = scan;
-        img.classList.remove('hidden');
-        photo.classList.add('has-cutout');
-      }
-    }
-  }
-  // Prefer photo as primary if user chose photo mode; keep 3D default when GLB exists
+  const emptyEl = document.getElementById('emptyGarage');
+  const mycar = document.querySelector('#view-garage .mycar');
+  if (podium) podium.classList.remove('hidden');
+  if (photo) photo.classList.add('hidden');
+  if (emptyEl) emptyEl.classList.add('hidden');
+  if (mycar) mycar.classList.remove('hidden');
+  document.getElementById('heroModeBar')?.classList.add('hidden');
 }
 
-function setHeroMode(mode) {
-  heroMode = mode === 'photo' ? 'photo' : '3d';
-  try { localStorage.setItem('pitlane-hero-mode', heroMode); } catch (_) {}
+function setHeroMode(_mode) {
+  // photo mode retired — always stay on 3D podium
+  heroMode = '3d';
+  try { localStorage.setItem('pitlane-hero-mode', '3d'); } catch (_) {}
   syncHeroModeUI();
-  if (heroMode === '3d') {
-    try { bootPodium?.(); } catch (_) {}
-  }
+  try { bootPodium?.(); } catch (_) {}
 }
-
-document.getElementById('btnHero3d')?.addEventListener('click', () => setHeroMode('3d'));
-document.getElementById('btnHeroPhoto')?.addEventListener('click', () => setHeroMode('photo'));
 
 function applyCarUI() {
-  const empty = !garageList().length;
-  document.getElementById('emptyGarage')?.classList.toggle('hidden', !empty);
+  // ALWAYS show 3D podium + mycar; NEVER surface empty garage / photo takeover
+  document.getElementById('emptyGarage')?.classList.add('hidden');
   document.getElementById('addWizard')?.classList.add('hidden');
-  document.querySelector('#view-garage .mycar')?.classList.toggle('hidden', empty);
-  document.getElementById('podiumWrap')?.classList.toggle('hidden', empty && !(state.scans && Object.keys(state.scans).length));
+  document.querySelector('#view-garage .mycar')?.classList.remove('hidden');
+  document.getElementById('podiumWrap')?.classList.remove('hidden');
+  document.getElementById('photoStage')?.classList.add('hidden');
+  document.getElementById('heroModeBar')?.classList.add('hidden');
   try { syncHeroModeUI(); } catch (_) {}
   applyPassportUI();
   const c = currentCar();
@@ -1560,7 +1544,10 @@ function clearDeepLinkUrl() {
     finished = true;
     el.classList.add('done');
     try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
-    setTimeout(() => { try { bootPodium(); } catch (_) {} }, 30);
+    setTimeout(() => {
+      try { bootPodium(); } catch (_) {}
+      try { startGlbPrefetch(podiumModelId || state.carId || 'g87-m2'); } catch (_) {}
+    }, 30);
     try { prefetchEngineStart(); } catch (_) {}
   };
   let seen = false;
@@ -4107,6 +4094,8 @@ function cyclePodiumModel(delta) {
 const GLB_CACHE_NAME = 'pitlane-glb-v1';
 let glbPrefetchStarted = false;
 let podiumLoadGen = 0;
+/** In-memory ArrayBuffer cache (url -> ArrayBuffer) ahead of Cache Storage / network. */
+const glbMemCache = new Map();
 
 function catalogModelUrl(m) {
   const base = document.querySelector('base')?.href || (location.origin + location.pathname.replace(/[^/]*$/, ''));
@@ -4122,14 +4111,16 @@ async function openGlbCache() {
   }
 }
 
-/** Store raw GLB bytes in Cache Storage (not decoded scenes). */
+/** Store raw GLB bytes in memory Map + Cache Storage (not decoded scenes). */
 async function putGlbBuffer(url, buf) {
+  if (!buf) return;
+  try { glbMemCache.set(url, buf); } catch (_) {}
   const cache = await openGlbCache();
-  if (!cache || !buf) return;
+  if (!cache) return;
   try {
     await cache.put(
       url,
-      new Response(buf, {
+      new Response(buf.slice ? buf.slice(0) : buf, {
         headers: {
           'Content-Type': 'model/gltf-binary',
           'Cache-Control': 'public, max-age=31536000, immutable',
@@ -4140,12 +4131,18 @@ async function putGlbBuffer(url, buf) {
 }
 
 async function matchGlbBuffer(url) {
+  try {
+    const mem = glbMemCache.get(url);
+    if (mem) return mem.slice ? mem.slice(0) : mem;
+  } catch (_) {}
   const cache = await openGlbCache();
   if (!cache) return null;
   try {
     const hit = await cache.match(url);
     if (!hit) return null;
-    return await hit.arrayBuffer();
+    const buf = await hit.arrayBuffer();
+    try { glbMemCache.set(url, buf); } catch (_) {}
+    return buf.slice ? buf.slice(0) : buf;
   } catch (_) {
     return null;
   }
@@ -4153,10 +4150,15 @@ async function matchGlbBuffer(url) {
 
 async function prefetchGlbUrl(url) {
   try {
+    if (glbMemCache.has(url)) return;
     const cache = await openGlbCache();
     if (cache) {
       const hit = await cache.match(url);
-      if (hit) return;
+      if (hit) {
+        const buf = await hit.arrayBuffer();
+        try { glbMemCache.set(url, buf); } catch (_) {}
+        return;
+      }
     }
     const res = await fetch(url, { credentials: 'same-origin', mode: 'cors' });
     if (!res.ok) return;
@@ -4165,7 +4167,7 @@ async function prefetchGlbUrl(url) {
   } catch (_) {}
 }
 
-/** Neighbors first, then the rest — concurrency 2, idle-friendly. */
+/** Prefetch ALL catalog GLBs (incl. current). Neighbors first. Concurrency 3. */
 function startGlbPrefetch(priorityId) {
   if (glbPrefetchStarted || !MODEL_CATALOG?.length) return;
   glbPrefetchStarted = true;
@@ -4175,10 +4177,12 @@ function startGlbPrefetch(priorityId) {
     const ordered = [];
     const seen = new Set();
     const push = (m) => {
-      if (!m || seen.has(m.id) || m.id === priorityId) return;
+      if (!m || seen.has(m.id)) return;
       seen.add(m.id);
       ordered.push(m);
     };
+    // current first (warm memory), then neighbors, then the rest
+    if (idx >= 0) push(cats[idx]);
     if (idx >= 0) {
       push(cats[(idx - 1 + cats.length) % cats.length]);
       push(cats[(idx + 1) % cats.length]);
@@ -4190,16 +4194,17 @@ function startGlbPrefetch(priorityId) {
       while (cursor < urls.length) {
         const u = urls[cursor++];
         await prefetchGlbUrl(u);
-        await new Promise((r) => setTimeout(r, 50));
+        await new Promise((r) => setTimeout(r, 40));
       }
     };
-    await Promise.all([worker(), worker()]);
+    await Promise.all([worker(), worker(), worker()]);
   };
   const kick = () => { try { run(); } catch (_) {} };
+  // Start ASAP (ahead of first paint / idle) — still yield once so first model can start
   if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(kick, { timeout: 2800 });
+    requestIdleCallback(kick, { timeout: 400 });
   } else {
-    setTimeout(kick, 900);
+    setTimeout(kick, 0);
   }
 }
 
@@ -4228,10 +4233,12 @@ function loadPodiumModel(id, animDir = 0) {
   const url = catalogModelUrl(m);
   const gen = ++podiumLoadGen;
 
+  // Kick catalog prefetch immediately (not only after first model paints)
+  try { startGlbPrefetch(m.id); } catch (_) {}
+
   const apply = (gltf) => {
     if (gen !== podiumLoadGen) return;
     fitGlb(gltf.scene);
-    startGlbPrefetch(m.id);
   };
 
   const fail = (err) => {
@@ -4268,6 +4275,7 @@ function loadDefaultGlb() {
 function bootPodium() {
   onResize();
   try { applyPassportUI(); } catch (_) {}
+  try { startGlbPrefetch(podiumModelId || 'g87-m2'); } catch (_) {}
   loadDefaultGlb();
   // second resize after fonts/layout
   requestAnimationFrame(() => { onResize(); requestAnimationFrame(onResize); });
@@ -4966,7 +4974,7 @@ async function runScan(file) {
     save();
     applyCarUI();
     document.getElementById('photoStage')?.classList.add('has-cutout');
-    setHeroMode('photo');
+    /* photo hero retired */ setHeroMode('3d');
     setScanStatus('Кузов на стенде. Ползунок — если фон съел машину или остался.');
   } catch (err) {
     console.warn(err);

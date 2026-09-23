@@ -99,12 +99,6 @@
             </span>
             <i data-i18n="nav.paddock">Paddock</i>
           </button>
-          <button class="nav-btn" data-view="cars" title="Парк">
-            <span class="nav-ico" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="ico"><path class="ico-body" fill="none" stroke="currentColor" stroke-width="1.6" d="M4 16h16M6 16l1.5-5h9L18 16M8 16v2M16 16v2M9 11l1-3h4l1 3"/></svg>
-            </span>
-            <i data-i18n="nav.park">Парк</i>
-          </button>
         </nav>
         
         <div class="rail-foot">TRACK ONLY</div>
@@ -143,7 +137,7 @@
           <div class="podium-wrap" id="podiumWrap">
             <canvas id="view3d" aria-label="3D подиум"></canvas>
           </div>
-          <div id="emptyGarage" class="empty-garage">
+          <div id="emptyGarage" class="empty-garage hidden" aria-hidden="true">
             <div class="empty-sil-stage" aria-hidden="true">
               <img id="emptySil" class="empty-sil empty-sil-dotted" src="./img/sil/empty-car.png" alt="" />
             </div>
@@ -213,20 +207,21 @@
             <span id="s0100" class="hidden">—</span>
             <span id="sLap" class="hidden">—</span>
             <span id="s100200" class="hidden">—</span>
-            <div class="hero-mode-bar" id="heroModeBar" role="tablist" aria-label="Вид гаража">
+            <!-- legacy photo/hero-mode ids kept hidden for JS refs; podium is sole hero -->
+            <div class="hero-mode-bar hidden" id="heroModeBar" hidden aria-hidden="true">
               <button type="button" class="hero-mode on" data-hero-mode="3d" id="btnHero3d">3D</button>
               <button type="button" class="hero-mode" data-hero-mode="photo" id="btnHeroPhoto">Фото</button>
             </div>
-            <div id="photoStage" class="photo-stage hero-photo-panel hidden">
-              <img id="heroPhoto" alt="Фото машины" />
+            <div id="photoStage" class="photo-stage hero-photo-panel hidden" hidden aria-hidden="true">
+              <img id="heroPhoto" alt="" class="hidden" />
               <img id="heroWheels" class="hidden" alt="" />
-              <div class="photo-actions">
-                <label class="go-btn file-btn" for="scanInput">Сканировать / загрузить фото</label>
+              <div class="photo-actions hidden">
+                <label class="go-btn file-btn hidden" for="scanInput">Сканировать / загрузить фото</label>
                 <input id="scanInput" type="file" accept="image/*" capture="environment" class="hidden" />
-                <button type="button" id="scanReset" class="dyno-ghost">сброс фото</button>
+                <button type="button" id="scanReset" class="dyno-ghost hidden">сброс фото</button>
               </div>
-              <label class="tiny scan-thresh-lab">порог выреза <input type="range" id="scanThresh" min="10" max="80" value="30" /></label>
-              <p id="scanStatus" class="tiny muted"></p>
+              <label class="tiny scan-thresh-lab hidden">порог выреза <input type="range" id="scanThresh" min="10" max="80" value="30" /></label>
+              <p id="scanStatus" class="tiny muted hidden"></p>
             </div>
             <button type="button" id="btnAddCar2" class="hidden">＋</button>
             <button type="button" id="btnRemoveCar" class="hidden">✕</button>

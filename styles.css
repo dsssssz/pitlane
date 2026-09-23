@@ -2142,6 +2142,15 @@ body.run-drive-on #app { visibility: hidden; }
 }
 .lap-drive-map .track-svg { height: auto; }
 
+/* —— Force cinematic podium; kill photo/empty takeover —— */
+#emptyGarage { display: none !important; }
+#heroModeBar,
+.hero-mode-bar { display: none !important; }
+#photoStage,
+.hero-photo-panel { display: none !important; }
+#podiumWrap { display: block !important; }
+#view-garage .mycar { display: block !important; }
+
 /* —— Audit gaps: hero photo / demo / park —— */
 .hero-mode-bar {
   display: flex;
