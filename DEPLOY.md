@@ -69,7 +69,7 @@ Allowed origins include `https://dsssssz.github.io` and local ports. Add more vi
 
 ## 9. Offline / SW
 
-- Service worker cache `pitlane-v65`: app shell + vendored `./vendor/three/*`.
+- Service worker cache `pitlane-v66`: app shell + vendored `./vendor/three/*`.
 - CDN Three URLs also cached in `pitlane-three-v1` on first load (fallback).
 - GLB models prefetch into `pitlane-glb-v1` on activate (same name the app already uses).
 
@@ -120,4 +120,18 @@ Duels routes live: POST/GET /duel, POST /duel/:id/run, GET /duels?mine=
 - Lap records already store cumulative `sectors: [s1,s2,s3]` ms; UI converts to splits.
 - Personal bests / «оптимал» (sum of best sectors) computed client-side from own history on the selected track.
 - A/B GPS required for win/lose emphasis; no Worker sector tops in this MVP.
-- SW cache: `pitlane-v65`.
+- SW cache: `pitlane-v66`.
+
+
+## 14. Crews / Экипажи MVP
+
+- `POST /crew` `{ name, trackId, createdBy?, nick? }` → crew + inviteCode (max 10 members)
+- `GET /crew/:id` → public crew
+- `POST /crew/:id/join` `{ nick, pilotId? }`
+- `POST /crew/join` `{ code, nick }` — join by invite code
+- `GET /crew/:id/board` — monthly A/B best lap per member on crew.trackId (from `lap:{trackId}` tops + memberBests)
+- `POST /crew/:id/best` — client push after publishing A/B lap on matching track
+- `GET /crews?mine=<pilotId>`
+- Client: tops button «Экипаж», deep link `?crew=ID`, auto-push best after lap
+- Rank: personal best A/B lap (lower better). Team badge = count with ≥1 A/B lap. Team avg = average of bests.
+- SW cache: `pitlane-v66`

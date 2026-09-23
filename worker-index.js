@@ -353,6 +353,142 @@ function pilotLabel(pilot, body) {
   return { id: id || ('guest:' + name.toLowerCase()), name };
 }
 
+
+const CREW_MAX = 10;
+
+function crewId() {
+  return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function inviteCode() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const a = new Uint8Array(6);
+  crypto.getRandomValues(a);
+  return [...a].map((b) => alphabet[b % alphabet.length]).join('');
+}
+
+function monthKey(ts = Date.now()) {
+  const d = new Date(ts);
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function monthStartMs(ts = Date.now()) {
+  const d = new Date(ts);
+  return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+}
+
+async function indexCrewMine(kv, pilotId, crewIdVal) {
+  if (!pilotId || !crewIdVal) return;
+  const ikey = 'crewidx:' + pilotId;
+  let idx = [];
+  try {
+    const raw = await kv.get(ikey);
+    if (raw) idx = JSON.parse(raw);
+    if (!Array.isArray(idx)) idx = [];
+  } catch {
+    idx = [];
+  }
+  idx.unshift(crewIdVal);
+  idx = [...new Set(idx)].slice(0, 40);
+  await kv.put(ikey, JSON.stringify(idx));
+}
+
+function publicCrew(c) {
+  if (!c) return null;
+  return {
+    id: c.id,
+    name: c.name,
+    trackId: c.trackId,
+    inviteCode: c.inviteCode,
+    createdBy: c.createdBy,
+    members: c.members || [],
+    createdAt: c.createdAt,
+    memberCount: (c.members || []).length,
+  };
+}
+
+async function buildCrewBoard(kv, crew) {
+  const trackId = crew.trackId;
+  const mk = monthKey();
+  const start = monthStartMs();
+  const rows = (await readList(kv, `lap:${trackId}`)).filter(isValidGpsRow);
+  const bestByPilot = {};
+  for (const r of rows) {
+    if (!r?.pilotId) continue;
+    if (r.gpsQ !== 'A' && r.gpsQ !== 'B') continue;
+    if (r.valid === false) continue;
+    const at = Number(r.at) || 0;
+    if (at && at < start) continue;
+    const ms = parseLapMs(r.t);
+    if (ms == null) continue;
+    const prev = bestByPilot[r.pilotId];
+    if (!prev || ms < prev.ms) {
+      bestByPilot[r.pilotId] = {
+        time: r.t,
+        ms,
+        gpsQ: r.gpsQ,
+        at: at || Date.now(),
+        car: r.car || '',
+        source: 'tops',
+      };
+    }
+  }
+  // merge stored memberBests for this month (client push)
+  const stored = crew.memberBests || {};
+  for (const [pid, b] of Object.entries(stored)) {
+    if (!b || b.monthKey !== mk) continue;
+    if (b.gpsQ !== 'A' && b.gpsQ !== 'B') continue;
+    const ms = parseLapMs(b.time);
+    if (ms == null) continue;
+    const prev = bestByPilot[pid];
+    if (!prev || ms < prev.ms) {
+      bestByPilot[pid] = {
+        time: b.time,
+        ms,
+        gpsQ: b.gpsQ,
+        at: b.at || Date.now(),
+        car: b.car || '',
+        source: 'member',
+      };
+    }
+  }
+
+  const ranked = (crew.members || []).map((m) => {
+    const best = bestByPilot[m.pilotId] || null;
+    return {
+      pilotId: m.pilotId,
+      nick: m.nick,
+      joinedAt: m.joinedAt,
+      best: best
+        ? { time: best.time, gpsQ: best.gpsQ, at: best.at, car: best.car, ms: best.ms }
+        : null,
+    };
+  });
+  ranked.sort((a, b) => {
+    if (a.best && b.best) return a.best.ms - b.best.ms;
+    if (a.best) return -1;
+    if (b.best) return 1;
+    return (a.joinedAt || 0) - (b.joinedAt || 0);
+  });
+  const withLap = ranked.filter((r) => r.best);
+  const avgMs = withLap.length
+    ? Math.round(withLap.reduce((s, r) => s + r.best.ms, 0) / withLap.length)
+    : null;
+  return {
+    id: crew.id,
+    name: crew.name,
+    trackId: crew.trackId,
+    month: mk,
+    members: ranked,
+    teamBadge: withLap.length,
+    teamAvgMs: avgMs,
+    memberCount: (crew.members || []).length,
+  };
+}
+
+
 export default {
   async fetch(req, env) {
     const headers = corsHeaders(req, env);
@@ -804,6 +940,190 @@ export default {
         await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: DUEL_TTL + 86400 });
         return json(d, 200, headers);
       }
+
+
+      // —— Crews / Экипажи ——
+      if (req.method === 'POST' && path === '/crew') {
+        const body = await req.json().catch(() => null);
+        const name = String(body?.name || '').trim().slice(0, 48);
+        const trackId = String(body?.trackId || '').trim().slice(0, 64);
+        if (!name) return json({ error: 'name required' }, 400, headers);
+        if (!trackId) return json({ error: 'trackId required' }, 400, headers);
+        const who = pilotLabel(pilot, {
+          pilotId: body?.pilotId,
+          name: body?.nick || body?.createdBy,
+          createdBy: body?.createdBy,
+        });
+        if (!who.id) return json({ error: 'pilot required' }, 400, headers);
+        const id = crewId();
+        let code = inviteCode();
+        // rare collision retry
+        for (let i = 0; i < 4; i++) {
+          const exists = await env.PITLANE.get('crewinv:' + code);
+          if (!exists) break;
+          code = inviteCode();
+        }
+        const now = Date.now();
+        const crew = {
+          id,
+          name,
+          trackId,
+          inviteCode: code,
+          createdAt: now,
+          createdBy: { id: who.id, name: who.name },
+          members: [{ pilotId: who.id, nick: who.name, joinedAt: now }],
+          memberBests: {},
+        };
+        await env.PITLANE.put('crew:' + id, JSON.stringify(crew));
+        await env.PITLANE.put('crewinv:' + code, id);
+        await indexCrewMine(env.PITLANE, who.id, id);
+        return json({ ...publicCrew(crew), inviteCode: code }, 200, headers);
+      }
+
+      if (req.method === 'GET' && path === '/crews') {
+        const mine = String(url.searchParams.get('mine') || '').trim().slice(0, 64);
+        if (!mine) return json({ error: 'mine= required' }, 400, headers);
+        let ids = [];
+        try {
+          const raw = await env.PITLANE.get('crewidx:' + mine);
+          if (raw) ids = JSON.parse(raw);
+          if (!Array.isArray(ids)) ids = [];
+        } catch { ids = []; }
+        const out = [];
+        for (const id of ids.slice(0, 40)) {
+          const raw = await env.PITLANE.get('crew:' + id);
+          if (!raw) continue;
+          try {
+            out.push(publicCrew(JSON.parse(raw)));
+          } catch (_) {}
+        }
+        return json(out, 200, headers);
+      }
+
+      // join by invite code
+      if (req.method === 'POST' && path === '/crew/join') {
+        const body = await req.json().catch(() => null);
+        const code = String(body?.code || body?.inviteCode || '').trim().toUpperCase().slice(0, 12);
+        if (!code) return json({ error: 'code required' }, 400, headers);
+        const cid = await env.PITLANE.get('crewinv:' + code);
+        if (!cid) return json({ error: 'invalid invite' }, 404, headers);
+        // fall through by rewriting to /crew/:id/join via internal hop — handled below by cloning logic
+        const raw = await env.PITLANE.get('crew:' + cid);
+        if (!raw) return json({ error: 'not found' }, 404, headers);
+        let crew;
+        try { crew = JSON.parse(raw); } catch { return json({ error: 'corrupt' }, 500, headers); }
+        const who = pilotLabel(pilot, body);
+        const nick = String(body?.nick || who.name || 'пилот').trim().slice(0, 48) || 'пилот';
+        const pilotId = String(body?.pilotId || who.id || '').trim().slice(0, 64);
+        if (!pilotId) return json({ error: 'pilotId required' }, 400, headers);
+        crew.members = Array.isArray(crew.members) ? crew.members : [];
+        const existing = crew.members.find((m) => m.pilotId === pilotId);
+        if (existing) {
+          existing.nick = nick;
+          await env.PITLANE.put('crew:' + crew.id, JSON.stringify(crew));
+          await indexCrewMine(env.PITLANE, pilotId, crew.id);
+          return json(publicCrew(crew), 200, headers);
+        }
+        if (crew.members.length >= CREW_MAX) return json({ error: 'crew full', max: CREW_MAX }, 409, headers);
+        crew.members.push({ pilotId, nick, joinedAt: Date.now() });
+        await env.PITLANE.put('crew:' + crew.id, JSON.stringify(crew));
+        await indexCrewMine(env.PITLANE, pilotId, crew.id);
+        return json(publicCrew(crew), 200, headers);
+      }
+
+      m = path.match(/^\/crew\/([^/]+)$/);
+      if (m) {
+        const id = decodeURIComponent(m[1]).slice(0, 64);
+        if (req.method === 'GET') {
+          const raw = await env.PITLANE.get('crew:' + id);
+          if (!raw) return json({ error: 'not found' }, 404, headers);
+          try {
+            return json(publicCrew(JSON.parse(raw)), 200, headers);
+          } catch {
+            return json({ error: 'corrupt' }, 500, headers);
+          }
+        }
+      }
+
+      m = path.match(/^\/crew\/([^/]+)\/join$/);
+      if (req.method === 'POST' && m) {
+        const id = decodeURIComponent(m[1]).slice(0, 64);
+        const body = await req.json().catch(() => null);
+        const raw = await env.PITLANE.get('crew:' + id);
+        if (!raw) return json({ error: 'not found' }, 404, headers);
+        let crew;
+        try { crew = JSON.parse(raw); } catch { return json({ error: 'corrupt' }, 500, headers); }
+        const who = pilotLabel(pilot, body);
+        const nick = String(body?.nick || who.name || 'пилот').trim().slice(0, 48) || 'пилот';
+        const pilotId = String(body?.pilotId || who.id || '').trim().slice(0, 64);
+        if (!pilotId) return json({ error: 'pilotId required' }, 400, headers);
+        crew.members = Array.isArray(crew.members) ? crew.members : [];
+        const existing = crew.members.find((x) => x.pilotId === pilotId);
+        if (existing) {
+          existing.nick = nick;
+          await env.PITLANE.put('crew:' + id, JSON.stringify(crew));
+          await indexCrewMine(env.PITLANE, pilotId, id);
+          return json(publicCrew(crew), 200, headers);
+        }
+        if (crew.members.length >= CREW_MAX) return json({ error: 'crew full', max: CREW_MAX }, 409, headers);
+        crew.members.push({ pilotId, nick, joinedAt: Date.now() });
+        await env.PITLANE.put('crew:' + id, JSON.stringify(crew));
+        await indexCrewMine(env.PITLANE, pilotId, id);
+        return json(publicCrew(crew), 200, headers);
+      }
+
+      m = path.match(/^\/crew\/([^/]+)\/board$/);
+      if (req.method === 'GET' && m) {
+        const id = decodeURIComponent(m[1]).slice(0, 64);
+        const raw = await env.PITLANE.get('crew:' + id);
+        if (!raw) return json({ error: 'not found' }, 404, headers);
+        let crew;
+        try { crew = JSON.parse(raw); } catch { return json({ error: 'corrupt' }, 500, headers); }
+        const board = await buildCrewBoard(env.PITLANE, crew);
+        return json(board, 200, headers);
+      }
+
+      m = path.match(/^\/crew\/([^/]+)\/best$/);
+      if (req.method === 'POST' && m) {
+        const id = decodeURIComponent(m[1]).slice(0, 64);
+        const body = await req.json().catch(() => null);
+        const raw = await env.PITLANE.get('crew:' + id);
+        if (!raw) return json({ error: 'not found' }, 404, headers);
+        let crew;
+        try { crew = JSON.parse(raw); } catch { return json({ error: 'corrupt' }, 500, headers); }
+        const who = pilotLabel(pilot, body);
+        const pilotId = String(body?.pilotId || who.id || '').trim().slice(0, 64);
+        if (!pilotId) return json({ error: 'pilotId required' }, 400, headers);
+        const member = (crew.members || []).find((x) => x.pilotId === pilotId);
+        if (!member) return json({ error: 'not a member' }, 403, headers);
+        const trackId = String(body?.trackId || crew.trackId || '').trim();
+        if (trackId !== crew.trackId) {
+          return json({ error: 'track mismatch', trackId: crew.trackId }, 400, headers);
+        }
+        const row = sanitizeLap(body, { id: pilotId, name: member.nick || who.name });
+        if (!row || !row.valid || (row.gpsQ !== 'A' && row.gpsQ !== 'B')) {
+          return json({ error: 'A/B lap required' }, 400, headers);
+        }
+        const ms = parseLapMs(row.t);
+        if (ms == null) return json({ error: 'bad time' }, 400, headers);
+        const mk = monthKey();
+        crew.memberBests = crew.memberBests || {};
+        const prev = crew.memberBests[pilotId];
+        if (!prev || prev.monthKey !== mk || (parseLapMs(prev.time) ?? Infinity) > ms) {
+          crew.memberBests[pilotId] = {
+            time: row.t,
+            gpsQ: row.gpsQ,
+            at: Date.now(),
+            car: row.car || '',
+            monthKey: mk,
+          };
+          if (body?.nick) member.nick = String(body.nick).trim().slice(0, 48);
+          await env.PITLANE.put('crew:' + id, JSON.stringify(crew));
+        }
+        const board = await buildCrewBoard(env.PITLANE, crew);
+        return json({ ok: true, best: crew.memberBests[pilotId], board }, 200, headers);
+      }
+
 
       return json({ error: 'not found', path }, 404, headers);
     } catch (err) {

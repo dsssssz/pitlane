@@ -376,6 +376,102 @@ export const api = {
       return [];
     }
   },
+
+  /** POST /crew { name, trackId, createdBy } */
+  async createCrew(payload) {
+    const body = {
+      name: payload?.name || '',
+      trackId: payload?.trackId || '',
+      createdBy: payload?.createdBy || undefined,
+      nick: payload?.nick || payload?.createdBy || undefined,
+      pilotId: payload?.pilotId || undefined,
+    };
+    const remoteRes = await remoteKeep('/crew', { method: 'POST', body: JSON.stringify(body) });
+    if (remoteRes && remoteRes.id) {
+      try {
+        const key = 'pitlane-crews-mine-v1';
+        const ids = JSON.parse(localStorage.getItem(key) || '[]');
+        const next = [remoteRes.id, ...(Array.isArray(ids) ? ids : [])].filter((x, i, a) => a.indexOf(x) === i).slice(0, 20);
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch (_) {}
+      return remoteRes;
+    }
+    return remoteRes;
+  },
+
+  async getCrew(id) {
+    if (!id) return null;
+    const remoteRes = await remote('/crew/' + encodeURIComponent(id));
+    if (remoteRes && remoteRes.id) return remoteRes;
+    return null;
+  },
+
+  async joinCrew(id, payload) {
+    if (!id) return null;
+    const body = {
+      pilotId: payload?.pilotId || undefined,
+      nick: payload?.nick || undefined,
+      name: payload?.nick || undefined,
+    };
+    return await remoteKeep('/crew/' + encodeURIComponent(id) + '/join', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async joinCrewByCode(code, payload) {
+    const body = {
+      code: String(code || '').trim(),
+      pilotId: payload?.pilotId || undefined,
+      nick: payload?.nick || undefined,
+      name: payload?.nick || undefined,
+    };
+    return await remoteKeep('/crew/join', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+  async getCrewBoard(id) {
+    if (!id) return null;
+    const remoteRes = await remote('/crew/' + encodeURIComponent(id) + '/board');
+    if (remoteRes && remoteRes.id) return remoteRes;
+    return null;
+  },
+
+  async pushCrewBest(id, row) {
+    if (!id) return null;
+    return await remoteKeep('/crew/' + encodeURIComponent(id) + '/best', {
+      method: 'POST',
+      body: JSON.stringify(row || {}),
+    });
+  },
+
+  async listMyCrews(mineId) {
+    const id = mineId || (() => {
+      try {
+        const auth = JSON.parse(localStorage.getItem('pitlane-auth-v2') || localStorage.getItem('pitlane-auth-v1') || '{}');
+        if (auth.session) return String(auth.session);
+      } catch (_) {}
+      return devicePilotId();
+    })();
+    const remoteRes = await remote('/crews?mine=' + encodeURIComponent(id));
+    if (Array.isArray(remoteRes)) return remoteRes;
+    try {
+      const ids = JSON.parse(localStorage.getItem('pitlane-crews-mine-v1') || '[]');
+      if (!Array.isArray(ids) || !ids.length) return [];
+      const out = [];
+      for (const cid of ids.slice(0, 12)) {
+        const c = await remote('/crew/' + encodeURIComponent(cid));
+        if (c && c.id) out.push(c);
+      }
+      return out;
+    } catch (_) {
+      return [];
+    }
+  },
+
+
 };
 
 export function isRemoteApi() {

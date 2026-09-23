@@ -1811,10 +1811,10 @@ function getDeepLinkView() {
     const skipFlag = params.get('skipIntro') === '1';
     const hash = location.hash || '';
     if (!view && hash) {
-      // Only #view=… — do not steal share/duel payloads #r= / #s= / #duel=
+      // Only #view=… — do not steal share/duel/crew payloads #r= / #s= / #duel= / #crew=
       if (/^#view=/i.test(hash)) {
         view = decodeURIComponent(hash.slice(6).split(/[&#]/)[0] || '').toLowerCase();
-      } else if (!/^#([rs]|duel)=/i.test(hash)) {
+      } else if (!/^#([rs]|duel|crew)=/i.test(hash)) {
         const m = hash.match(/[#&?]view=([a-z]+)/i);
         if (m) view = m[1].toLowerCase();
       }
@@ -1829,7 +1829,7 @@ function getDeepLinkView() {
 function clearDeepLinkUrl() {
   try {
     const hash = location.hash || '';
-    const keep = /^#([rs]|duel)=/i.test(hash) ? hash : '';
+    const keep = /^#([rs]|duel|crew)=/i.test(hash) ? hash : '';
     history.replaceState(null, '', location.pathname + keep);
   } catch (_) {}
 }
@@ -3465,6 +3465,17 @@ async function completeLapRun(how, atTs) {
         flags: rec.flags,
         weather: wx || undefined,
       });
+      try { void pushCrewBestAfterLap(trackId, {
+        t: typeof tStr !== 'undefined' ? tStr : undefined,
+        gpsQ: gq?.gpsQ,
+        car: currentCar()?.name,
+        flags: rec?.flags,
+        weather: typeof wx !== 'undefined' ? wx : undefined,
+        avgAcc: gq?.avgAcc,
+        hz: gq?.hz,
+        dist: rec?.dist,
+        slipAvg: rec?.slipAvg,
+      }); } catch (_) {}
     }
     const tr = TRACKS.find((t) => t.id === trackId);
     const wxShare = rec.weather || lapDrive.weather || weatherCategoryFromCode(lapDrive.weatherCode);
@@ -6664,3 +6675,338 @@ document.getElementById('shareCardDuel')?.addEventListener('click', () => {
 
 void bootDuelFromUrl();
 
+/* -------- Crews / Экипажи MVP -------- */
+let _activeCrew = null;
+let _pendingCrewId = null;
+
+function crewPilotNick() {
+  try {
+    const p = profile?.() || {};
+    if (p.nick) return String(p.nick);
+  } catch (_) {}
+  try {
+    const u = currentUser?.();
+    if (u?.nick) return String(u.nick);
+    if (u?.phone) return String(u.phone);
+  } catch (_) {}
+  return 'пилот';
+}
+
+function crewPilotId() {
+  try { if (authDb?.session) return String(authDb.session); } catch (_) {}
+  try { return devicePilotId(); } catch (_) { return 'guest'; }
+}
+
+function crewPublicUrl(id) {
+  const base = (typeof SHARE_ORIGIN === 'string' && SHARE_ORIGIN)
+    ? SHARE_ORIGIN
+    : (location.origin + location.pathname.replace(/\/[^/]*$/, '/'));
+  const root = base.endsWith('/') ? base : (base + '/');
+  return root + '?crew=' + encodeURIComponent(id);
+}
+
+function rememberCrewId(id) {
+  if (!id) return;
+  try {
+    const key = 'pitlane-crews-mine-v1';
+    const ids = JSON.parse(localStorage.getItem(key) || '[]');
+    const next = [id, ...(Array.isArray(ids) ? ids : [])].filter((x, i, a) => a.indexOf(x) === i).slice(0, 20);
+    localStorage.setItem(key, JSON.stringify(next));
+  } catch (_) {}
+}
+
+function fillCrewTrackSelect() {
+  const sel = document.getElementById('crewTrackSelect');
+  if (!sel) return;
+  const cur = state.trackId || document.getElementById('trackSelect')?.value || TRACKS[0]?.id;
+  const cult = TRACKS.filter((t) => t.cult);
+  const opts = cult.length ? cult : TRACKS;
+  sel.innerHTML = opts.map((tr) => `<option value="${esc(tr.id)}"${tr.id === cur ? ' selected' : ''}>${esc(tr.name)}</option>`).join('');
+}
+
+function openCrewSheet(opts = {}) {
+  const sheet = document.getElementById('crewSheet');
+  if (!sheet) return;
+  const nick = document.getElementById('crewNick');
+  if (nick && !nick.value) nick.value = crewPilotNick();
+  fillCrewTrackSelect();
+  sheet.classList.remove('hidden');
+  sheet.setAttribute('aria-hidden', 'false');
+  if (opts.crewId) {
+    void showCrewView(opts.crewId);
+  } else {
+    const createPane = document.getElementById('crewCreatePane');
+    const viewPane = document.getElementById('crewViewPane');
+    if (createPane) createPane.hidden = false;
+    if (viewPane) viewPane.hidden = true;
+  }
+  void refreshCrewList();
+}
+
+function closeCrewSheet() {
+  const sheet = document.getElementById('crewSheet');
+  if (!sheet) return;
+  sheet.classList.add('hidden');
+  sheet.setAttribute('aria-hidden', 'true');
+}
+
+function fmtAvgLap(ms) {
+  if (ms == null || !Number.isFinite(ms)) return '—';
+  try { return fmtLapTime(ms); } catch (_) {
+    const s = ms / 1000;
+    const m = Math.floor(s / 60);
+    const rest = (s - m * 60).toFixed(2).padStart(5, '0');
+    return m + ':' + rest;
+  }
+}
+
+async function showCrewView(id) {
+  const crew = await api.getCrew(id);
+  if (!crew || !crew.id) {
+    const hint = document.getElementById('crewHint');
+    if (hint) hint.textContent = 'Экипаж не найден или API недоступен.';
+    return;
+  }
+  _activeCrew = crew;
+  rememberCrewId(crew.id);
+  const createPane = document.getElementById('crewCreatePane');
+  const viewPane = document.getElementById('crewViewPane');
+  if (createPane) createPane.hidden = true;
+  if (viewPane) viewPane.hidden = false;
+  const trackName = TRACKS.find((x) => x.id === crew.trackId)?.name || crew.trackId;
+  const st = document.getElementById('crewStatusLine');
+  if (st) st.textContent = crew.name;
+  const meta = document.getElementById('crewMetaLine');
+  if (meta) meta.textContent = trackName + ' · ' + (crew.memberCount || crew.members?.length || 0) + '/10 · код ' + (crew.inviteCode || '—');
+
+  const board = await api.getCrewBoard(id);
+  const badge = document.getElementById('crewBadgeRow');
+  if (badge) {
+    const n = board?.teamBadge ?? 0;
+    const avg = fmtAvgLap(board?.teamAvgMs);
+    badge.innerHTML = `<span class="crew-pill">A/B кругов: ${n}</span><span class="crew-pill">средний бест: ${esc(avg)}</span><span class="crew-pill">${esc(board?.month || '')}</span>`;
+  }
+  const list = document.getElementById('crewBoardList');
+  const myId = crewPilotId();
+  if (list) {
+    const rows = board?.members || crew.members || [];
+    if (!rows.length) {
+      list.innerHTML = '<li><span class="who">пока пусто</span><span class="tm">—</span></li>';
+    } else {
+      list.innerHTML = rows.map((m, i) => {
+        const best = m.best;
+        const time = best ? esc(best.time) : 'нет круга';
+        const gq = best?.gpsQ ? `<span class="gq">${esc(best.gpsQ)}</span>` : '';
+        const car = best?.car ? esc(best.car) : '';
+        const me = m.pilotId === myId ? ' me' : '';
+        return `<li class="${me}"><span class="rk">${i + 1}</span><span><div class="who">${esc(m.nick || 'пилот')}</div><div class="sub">${car || '—'}</div></span><span class="tm">${time}${gq}</span></li>`;
+      }).join('');
+    }
+  }
+  const hint = document.getElementById('crewHint');
+  if (hint) {
+    if (!isRemoteApi()) hint.textContent = 'Нужен Worker API (meta pitlane-api).';
+    else hint.textContent = 'После круга A/B на треке экипажа результат попадает на борд автоматически.';
+  }
+  const joinHere = document.getElementById('crewJoinHere');
+  if (joinHere) {
+    const already = (crew.members || []).some((m) => m.pilotId === myId);
+    joinHere.disabled = already;
+    joinHere.textContent = already ? 'Ты уже в экипаже' : 'Вступить в этот';
+  }
+}
+
+async function refreshCrewList() {
+  const ul = document.getElementById('crewList');
+  if (!ul) return;
+  const rows = await api.listMyCrews(crewPilotId());
+  if (!rows || !rows.length) {
+    ul.innerHTML = '<li><span class="dl-main">пока пусто — создай экипаж</span><span class="dl-st">—</span></li>';
+    return;
+  }
+  ul.innerHTML = rows.slice(0, 12).map((c) => {
+    const trackName = TRACKS.find((x) => x.id === c.trackId)?.name || c.trackId || '';
+    const title = (c.name || 'экипаж') + (trackName ? ' · ' + trackName : '');
+    const st = (c.memberCount || c.members?.length || 0) + '/10';
+    return `<li data-crew-id="${esc(c.id)}"><span class="dl-main">${esc(title)}</span><span class="dl-st">${esc(st)}</span></li>`;
+  }).join('');
+}
+
+async function createCrewFromUi() {
+  if (!isRemoteApi()) {
+    const hint = document.getElementById('crewHint');
+    if (hint) hint.textContent = 'API не настроен — экипаж только онлайн.';
+    return;
+  }
+  const name = (document.getElementById('crewName')?.value || '').trim();
+  const nickEl = document.getElementById('crewNick');
+  const nick = (nickEl?.value || '').trim() || crewPilotNick();
+  if (nickEl) {
+    try { const p = profile() || {}; p.nick = nick; saveProf(p); } catch (_) {}
+  }
+  if (!name) {
+    const hint = document.getElementById('crewHint');
+    if (hint) hint.textContent = 'Укажи название экипажа.';
+    const createPane = document.getElementById('crewCreatePane');
+    const viewPane = document.getElementById('crewViewPane');
+    if (createPane) createPane.hidden = false;
+    if (viewPane) viewPane.hidden = true;
+    return;
+  }
+  const trackId = document.getElementById('crewTrackSelect')?.value || TRACKS[0]?.id;
+  const crew = await api.createCrew({
+    name,
+    trackId,
+    createdBy: nick,
+    nick,
+    pilotId: crewPilotId(),
+  });
+  if (!crew?.id) {
+    const hint = document.getElementById('crewHint');
+    const viewPane = document.getElementById('crewViewPane');
+    if (viewPane) viewPane.hidden = false;
+    if (hint) hint.textContent = 'Не удалось создать: ' + (crew?.error || 'сеть / Worker');
+    return;
+  }
+  rememberCrewId(crew.id);
+  hap(18);
+  await showCrewView(crew.id);
+  try { await navigator.clipboard.writeText(crewPublicUrl(crew.id)); } catch (_) {}
+  await refreshCrewList();
+}
+
+async function joinCrewByCodeUi() {
+  const code = (document.getElementById('crewJoinCode')?.value || '').trim();
+  if (!code) return;
+  const nick = (document.getElementById('crewNick')?.value || '').trim() || crewPilotNick();
+  const res = await api.joinCrewByCode(code, { nick, pilotId: crewPilotId() });
+  if (!res?.id) {
+    const hint = document.getElementById('crewHint');
+    const viewPane = document.getElementById('crewViewPane');
+    if (viewPane) viewPane.hidden = false;
+    if (hint) hint.textContent = 'Не удалось вступить: ' + (res?.error || 'код неверный');
+    return;
+  }
+  rememberCrewId(res.id);
+  hap(18);
+  await showCrewView(res.id);
+  await refreshCrewList();
+}
+
+async function joinActiveCrew() {
+  const c = _activeCrew;
+  if (!c?.id) return;
+  const nick = (document.getElementById('crewNick')?.value || '').trim() || crewPilotNick();
+  const res = await api.joinCrew(c.id, { nick, pilotId: crewPilotId() });
+  if (!res?.id) {
+    const hint = document.getElementById('crewHint');
+    if (hint) hint.textContent = 'Не удалось вступить: ' + (res?.error || 'ошибка');
+    return;
+  }
+  rememberCrewId(res.id);
+  hap(16);
+  await showCrewView(res.id);
+  await refreshCrewList();
+}
+
+async function pushCrewBestAfterLap(trackId, row) {
+  if (!trackId || !row?.t) return;
+  const q = row.gpsQ || row.gpsQ;
+  if (q !== 'A' && q !== 'B') return;
+  let crews = [];
+  try { crews = await api.listMyCrews(crewPilotId()); } catch (_) { crews = []; }
+  if (!Array.isArray(crews) || !crews.length) {
+    try {
+      const ids = JSON.parse(localStorage.getItem('pitlane-crews-mine-v1') || '[]');
+      crews = (Array.isArray(ids) ? ids : []).map((id) => ({ id, trackId: null }));
+    } catch (_) { return; }
+  }
+  for (const c of crews.slice(0, 8)) {
+    if (!c?.id) continue;
+    let track = c.trackId;
+    if (!track) {
+      try {
+        const full = await api.getCrew(c.id);
+        track = full?.trackId;
+        if (full?.trackId) c.trackId = full.trackId;
+      } catch (_) {}
+    }
+    if (track && track !== trackId) continue;
+    try {
+      await api.pushCrewBest(c.id, {
+        ...row,
+        trackId,
+        gps: true,
+        valid: true,
+        gpsQ: q,
+        nick: crewPilotNick(),
+        name: crewPilotNick(),
+        pilotId: crewPilotId(),
+      });
+    } catch (_) {}
+  }
+}
+
+async function bootCrewFromUrl() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const hash = location.hash || '';
+    let id = params.get('crew') || '';
+    const hm = hash.match(/[#&?]crew=([^&]+)/i);
+    if (hm) id = decodeURIComponent(hm[1]);
+    if (!id && hash.startsWith('#crew=')) id = decodeURIComponent(hash.slice(6));
+    if (!id) return;
+    _pendingCrewId = id;
+    setTimeout(() => openCrewSheet({ crewId: id }), 450);
+  } catch (err) {
+    console.warn('bootCrew', err);
+  }
+}
+
+document.getElementById('btnCrewOpen')?.addEventListener('click', () => openCrewSheet());
+document.getElementById('crewSheetClose')?.addEventListener('click', closeCrewSheet);
+document.getElementById('crewSheet')?.addEventListener('click', (e) => {
+  if (e.target?.id === 'crewSheet') closeCrewSheet();
+});
+document.getElementById('crewCreateBtn')?.addEventListener('click', () => { void createCrewFromUi(); });
+document.getElementById('crewJoinBtn')?.addEventListener('click', () => { void joinCrewByCodeUi(); });
+document.getElementById('crewCopyLink')?.addEventListener('click', async () => {
+  if (!_activeCrew?.id) return;
+  try { await navigator.clipboard.writeText(crewPublicUrl(_activeCrew.id)); hap(16); } catch (_) {}
+});
+document.getElementById('crewCopyCode')?.addEventListener('click', async () => {
+  if (!_activeCrew?.inviteCode) return;
+  try { await navigator.clipboard.writeText(String(_activeCrew.inviteCode)); hap(16); } catch (_) {}
+});
+document.getElementById('crewRefresh')?.addEventListener('click', async () => {
+  if (_activeCrew?.id) await showCrewView(_activeCrew.id);
+  await refreshCrewList();
+});
+document.getElementById('crewJoinHere')?.addEventListener('click', () => { void joinActiveCrew(); });
+document.getElementById('crewList')?.addEventListener('click', (e) => {
+  const li = e.target?.closest?.('[data-crew-id]');
+  if (!li) return;
+  void showCrewView(li.getAttribute('data-crew-id'));
+});
+document.getElementById('crewPasteOpen')?.addEventListener('click', async () => {
+  const raw = prompt('Вставь ссылку, id или код экипажа');
+  if (!raw) return;
+  let id = String(raw).trim();
+  const m = id.match(/[?&#]crew=([^&]+)/i) || id.match(/crew\/([^/?#]+)/i);
+  if (m) {
+    openCrewSheet({ crewId: decodeURIComponent(m[1]) });
+    return;
+  }
+  if (/^[A-Za-z0-9]{4,12}$/.test(id) && !id.startsWith('c')) {
+    const inp = document.getElementById('crewJoinCode');
+    if (inp) inp.value = id.toUpperCase();
+    openCrewSheet();
+    void joinCrewByCodeUi();
+    return;
+  }
+  id = id.replace(/^.*crew=/i, '').split(/[&#\s]/)[0];
+  if (!id) return;
+  openCrewSheet({ crewId: id });
+});
+
+void bootCrewFromUrl();

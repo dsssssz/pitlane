@@ -2784,3 +2784,229 @@ body.run-drive-on #app { visibility: hidden; }
   .sb-best { grid-area: best; font-size: 11px; }
   .sb-delta { grid-area: delta; }
 }
+
+
+/* —— Crews / Экипажи —— */
+.crew-btn {
+  appearance: none;
+  border: 1px solid rgba(57, 255, 20, 0.55);
+  background: linear-gradient(135deg, rgba(57, 255, 20, 0.18), rgba(0, 255, 200, 0.08));
+  color: #39FF14;
+  font: 700 12px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 0 18px rgba(57, 255, 20, 0.22);
+}
+.crew-btn:active { filter: brightness(1.12); transform: scale(0.97); }
+.tops-head-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.crew-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  padding: 16px;
+}
+.crew-sheet.hidden { display: none !important; }
+.crew-sheet-inner {
+  width: min(480px, 100%);
+  max-height: min(88vh, 720px);
+  overflow: auto;
+  background: #0b0f0c;
+  border: 1px solid rgba(57, 255, 20, 0.35);
+  border-radius: 18px;
+  padding: 18px 16px 22px;
+  box-shadow: 0 0 40px rgba(57, 255, 20, 0.12), 0 20px 60px rgba(0,0,0,.55);
+  position: relative;
+}
+.crew-title {
+  margin: 0 28px 6px 0;
+  font: 800 22px/1.1 "Barlow Condensed", sans-serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #39FF14;
+  text-shadow: 0 0 18px rgba(57, 255, 20, 0.35);
+}
+.crew-lead {
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: .75;
+}
+.crew-field {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  opacity: .85;
+}
+.crew-field input,
+.crew-field select {
+  appearance: none;
+  width: 100%;
+  box-sizing: border-box;
+  background: #111814;
+  border: 1px solid rgba(255,255,255,.12);
+  color: #eee;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: 600 14px/1.2 Manrope, sans-serif;
+}
+.crew-join-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 12px;
+}
+.crew-join-row input {
+  background: #111814;
+  border: 1px solid rgba(255,255,255,.12);
+  color: #eee;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font: 600 14px/1.2 Manrope, sans-serif;
+}
+.crew-join-row button {
+  appearance: none;
+  border: 1px solid rgba(57, 255, 20, 0.4);
+  background: rgba(57, 255, 20, 0.1);
+  color: #39FF14;
+  border-radius: 10px;
+  padding: 0 14px;
+  font: 700 12px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.crew-status {
+  margin: 0 0 4px;
+  font: 800 16px/1.2 "Barlow Condensed", sans-serif;
+  letter-spacing: .04em;
+  color: #39FF14;
+}
+.crew-meta { margin: 0 0 10px; font-size: 13px; opacity: .7; }
+.crew-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.crew-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(57, 255, 20, 0.35);
+  background: rgba(57, 255, 20, 0.08);
+  font: 700 11px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #b9ffb0;
+}
+.crew-board {
+  list-style: none;
+  margin: 0 0 12px;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.crew-board li {
+  display: grid;
+  grid-template-columns: 28px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+}
+.crew-board li.me {
+  border-color: rgba(57, 255, 20, 0.45);
+  box-shadow: 0 0 16px rgba(57, 255, 20, 0.12);
+}
+.crew-board .rk {
+  font: 800 16px/1 "Barlow Condensed", sans-serif;
+  color: #39FF14;
+}
+.crew-board .who { font: 600 13px/1.3 Manrope, sans-serif; }
+.crew-board .sub { font-size: 11px; opacity: .55; margin-top: 2px; }
+.crew-board .tm {
+  font: 800 15px/1 "Barlow Condensed", sans-serif;
+  color: #eee;
+  text-align: right;
+}
+.crew-board .tm .gq {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 10px;
+  opacity: .7;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+.crew-actions { display: grid; gap: 8px; margin: 12px 0 8px; }
+.crew-actions .go-btn,
+.crew-actions button {
+  width: 100%;
+}
+.crew-actions button:not(.go-btn) {
+  appearance: none;
+  border: 1px solid rgba(255,255,255,.14);
+  background: rgba(255,255,255,.04);
+  color: #ddd;
+  border-radius: 12px;
+  padding: 12px;
+  font: 600 13px/1 Manrope, sans-serif;
+  cursor: pointer;
+}
+.crew-list-title {
+  margin: 18px 0 8px;
+  font: 700 13px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  opacity: .7;
+}
+.crew-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.crew-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  cursor: pointer;
+}
+.crew-list li:active { border-color: #39FF14; }
+.crew-list .dl-main { font: 600 13px/1.3 Manrope, sans-serif; }
+.crew-list .dl-st {
+  font: 700 11px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .04em;
+  opacity: .65;
+  text-transform: uppercase;
+}
+.crew-linkish {
+  appearance: none;
+  background: none;
+  border: none;
+  color: #39FF14;
+  font: 600 12px/1.4 Manrope, sans-serif;
+  margin-top: 10px;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

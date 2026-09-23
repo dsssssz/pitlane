@@ -354,6 +354,7 @@
             <h2 data-i18n="top.title">Топы</h2>
             <div class="tops-head-actions">
               <button type="button" class="duel-btn" id="btnDuelOpen">Дуэль</button>
+              <button type="button" class="crew-btn" id="btnCrewOpen">Экипаж</button>
               <a class="method-link" href="./method.html" id="topsMethodLink">методика</a>
             </div>
           </div>
@@ -610,6 +611,52 @@
         }
       }
     </script>
+    
+    <div id="crewSheet" class="crew-sheet hidden" aria-hidden="true" role="dialog" aria-label="Экипаж">
+      <div class="crew-sheet-inner">
+        <button type="button" class="share-card-close" id="crewSheetClose" aria-label="Закрыть">×</button>
+        <h2 class="crew-title">Экипаж</h2>
+        <p class="crew-lead">Команда 3–10 пилотов. Месячный борд — лучший валидный круг A/B на культовом треке экипажа.</p>
+
+        <div id="crewCreatePane">
+          <label class="crew-field">Название
+            <input id="crewName" maxlength="48" placeholder="например Neon Pack" />
+          </label>
+          <label class="crew-field">Трек сезона
+            <select id="crewTrackSelect"></select>
+          </label>
+          <label class="crew-field">Ник
+            <input id="crewNick" maxlength="48" placeholder="твой ник" />
+          </label>
+          <button type="button" class="go-btn" id="crewCreateBtn">Создать экипаж</button>
+          <div class="crew-join-row">
+            <input id="crewJoinCode" maxlength="12" placeholder="код приглашения" />
+            <button type="button" id="crewJoinBtn">Вступить</button>
+          </div>
+        </div>
+
+        <div id="crewViewPane" hidden>
+          <p class="crew-status" id="crewStatusLine">—</p>
+          <p class="crew-meta" id="crewMetaLine">—</p>
+          <div class="crew-badge-row" id="crewBadgeRow"></div>
+          <ol class="crew-board" id="crewBoardList"></ol>
+          <div class="crew-actions">
+            <button type="button" class="go-btn" id="crewCopyLink">Копировать ссылку</button>
+            <button type="button" id="crewCopyCode">Код приглашения</button>
+            <button type="button" id="crewRefresh">Обновить борд</button>
+            <button type="button" id="crewJoinHere">Вступить в этот</button>
+          </div>
+          <p class="tiny" id="crewHint">После круга A/B на треке экипажа результат попадает на борд автоматически.</p>
+        </div>
+
+        <div id="crewListPane">
+          <h3 class="crew-list-title">Мои экипажи</h3>
+          <ul class="crew-list" id="crewList"></ul>
+          <button type="button" class="crew-linkish" id="crewPasteOpen">Открыть по ссылке / id…</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="./app.js"></script>
   </body>
 </html>
