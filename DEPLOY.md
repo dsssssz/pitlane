@@ -69,7 +69,7 @@ Allowed origins include `https://dsssssz.github.io` and local ports. Add more vi
 
 ## 9. Offline / SW
 
-- Service worker cache `pitlane-v63`: app shell + vendored `./vendor/three/*`.
+- Service worker cache `pitlane-v64`: app shell + vendored `./vendor/three/*`.
 - CDN Three URLs also cached in `pitlane-three-v1` on first load (fallback).
 - GLB models prefetch into `pitlane-glb-v1` on activate (same name the app already uses).
 
