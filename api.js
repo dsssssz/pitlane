@@ -29,6 +29,19 @@ export function setSessionToken(token) {
   } catch (_) {}
 }
 
+function devicePilotId() {
+  try {
+    let id = localStorage.getItem('pitlane-device-v1');
+    if (!id) {
+      id = 'dev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem('pitlane-device-v1', id);
+    }
+    return id;
+  } catch (_) {
+    return 'dev_anon';
+  }
+}
+
 function pilotHeaders() {
   const h = { 'Content-Type': 'application/json' };
   try {
@@ -38,8 +51,10 @@ function pilotHeaders() {
     const phone = auth.session || null;
     const prof = JSON.parse(localStorage.getItem('pitlane-prof-v1') || '{}');
     if (phone) h['X-Pilot-Id'] = String(phone);
+    else h['X-Pilot-Id'] = devicePilotId();
     if (prof.nick) h['X-Pilot-Name'] = String(prof.nick).slice(0, 48);
     else if (phone) h['X-Pilot-Name'] = '+' + String(phone).slice(-10);
+    else h['X-Pilot-Name'] = 'гость';
   } catch (_) {}
   return h;
 }
@@ -67,6 +82,31 @@ async function remote(path, opts = {}) {
   } catch (err) {
     console.warn('pitlane api remote fail', path, err);
     return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/** Like remote but returns { ok:false, error, ...body, status } on HTTP errors instead of null. */
+async function remoteKeep(path, opts = {}) {
+  const base = apiBase();
+  if (!base) return null;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(base + path, {
+      ...opts,
+      headers: { ...pilotHeaders(), ...(opts.headers || {}) },
+      signal: ctrl.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return { ok: false, status: res.status, error: data?.error || ('HTTP ' + res.status), ...data };
+    }
+    return data;
+  } catch (err) {
+    console.warn('pitlane api remoteKeep fail', path, err);
+    return { ok: false, error: String(err?.message || err) };
   } finally {
     clearTimeout(t);
   }
@@ -275,8 +315,71 @@ export const api = {
     saveDb(d);
     return { ok: true, ...d.garage };
   },
+
+  /** POST /duel { type, trackId?, createdBy, note? } */
+  async createDuel(payload) {
+    const body = {
+      type: payload?.type === 'lap' ? 'lap' : 'drag',
+      trackId: payload?.trackId || undefined,
+      createdBy: payload?.createdBy || undefined,
+      note: payload?.note || undefined,
+      name: payload?.name || payload?.createdBy || undefined,
+    };
+    const remoteRes = await remote('/duel', { method: 'POST', body: JSON.stringify(body) });
+    if (remoteRes && remoteRes.id) {
+      try {
+        const key = 'pitlane-duels-mine-v1';
+        const ids = JSON.parse(localStorage.getItem(key) || '[]');
+        const next = [remoteRes.id, ...(Array.isArray(ids) ? ids : [])].filter((x, i, a) => a.indexOf(x) === i).slice(0, 40);
+        localStorage.setItem(key, JSON.stringify(next));
+      } catch (_) {}
+      return remoteRes;
+    }
+    return null;
+  },
+
+  async getDuel(id) {
+    if (!id) return null;
+    const remoteRes = await remote('/duel/' + encodeURIComponent(id));
+    if (remoteRes && remoteRes.id) return remoteRes;
+    return null;
+  },
+
+  async submitDuelRun(id, run) {
+    if (!id) return null;
+    return await remoteKeep('/duel/' + encodeURIComponent(id) + '/run', {
+      method: 'POST',
+      body: JSON.stringify(run || {}),
+    });
+  },
+
+  async listMyDuels(mineId) {
+    const id = mineId || (() => {
+      try {
+        const auth = JSON.parse(localStorage.getItem('pitlane-auth-v2') || localStorage.getItem('pitlane-auth-v1') || '{}');
+        if (auth.session) return String(auth.session);
+      } catch (_) {}
+      return devicePilotId();
+    })();
+    const remoteRes = await remote('/duels?mine=' + encodeURIComponent(id));
+    if (Array.isArray(remoteRes)) return remoteRes;
+    try {
+      const ids = JSON.parse(localStorage.getItem('pitlane-duels-mine-v1') || '[]');
+      if (!Array.isArray(ids) || !ids.length) return [];
+      const out = [];
+      for (const did of ids.slice(0, 20)) {
+        const d = await remote('/duel/' + encodeURIComponent(did));
+        if (d && d.id) out.push(d);
+      }
+      return out;
+    } catch (_) {
+      return [];
+    }
+  },
 };
 
 export function isRemoteApi() {
   return Boolean(apiBase());
 }
+
+export { devicePilotId };

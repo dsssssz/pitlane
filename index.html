@@ -347,7 +347,10 @@
         <section id="view-tops" class="view">
           <div class="tops-head">
             <h2 data-i18n="top.title">Топы</h2>
-            <a class="method-link" href="./method.html" id="topsMethodLink">методика</a>
+            <div class="tops-head-actions">
+              <button type="button" class="duel-btn" id="btnDuelOpen">Дуэль</button>
+              <a class="method-link" href="./method.html" id="topsMethodLink">методика</a>
+            </div>
           </div>
           <p class="muted">Прямая — внутри одной модели. Кольцо — выбранный трек. Только валидные GPS A/B.</p>
           <div class="tops-filters card">
@@ -546,6 +549,49 @@
         <div class="share-card-actions">
           <button type="button" class="go-btn" id="shareCardBtn">Поделиться</button>
           <button type="button" id="shareCardCopy">Копировать ссылку</button>
+          <button type="button" class="duel-challenge-btn" id="shareCardDuel">Вызвать на дуэль</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="duelSheet" class="duel-sheet hidden" aria-hidden="true" role="dialog" aria-label="Дуэль">
+      <div class="duel-sheet-inner">
+        <button type="button" class="share-card-close" id="duelSheetClose" aria-label="Закрыть">×</button>
+        <p class="share-brand">ДУЭЛЬ</p>
+        <div id="duelCreatePane">
+          <p class="duel-lead">Личный вызов: 0–100 или круг. Только GPS A/B.</p>
+          <div class="duel-type-row" role="group" aria-label="Тип дуэли">
+            <button type="button" class="duel-chip on" data-duel-type="drag" id="duelTypeDrag">0–100</button>
+            <button type="button" class="duel-chip" data-duel-type="lap" id="duelTypeLap">Круг</button>
+          </div>
+          <label class="duel-field" id="duelTrackWrap" hidden>Трек
+            <select id="duelTrackSelect"></select>
+          </label>
+          <label class="duel-field">Заметка
+            <input id="duelNote" maxlength="140" placeholder="по желанию" />
+          </label>
+          <label class="duel-field" id="duelNickWrap">Ник
+            <input id="duelNick" maxlength="48" placeholder="твой ник" />
+          </label>
+          <button type="button" class="go-btn" id="duelCreateBtn">Создать дуэль</button>
+        </div>
+        <div id="duelViewPane" hidden>
+          <p class="duel-status" id="duelStatusLine">—</p>
+          <p class="duel-vs" id="duelVsLine">—</p>
+          <div class="duel-sides" id="duelSides"></div>
+          <p class="duel-result" id="duelResult" hidden></p>
+          <p class="duel-note" id="duelNoteView" hidden></p>
+          <div class="duel-actions">
+            <button type="button" class="go-btn" id="duelCopyLink">Копировать ссылку</button>
+            <button type="button" id="duelSubmitRun">Прикрепить мой заезд</button>
+            <button type="button" id="duelRefresh">Обновить</button>
+          </div>
+          <p class="tiny" id="duelHint">Нужен честный GPS A или B. C не принимается.</p>
+        </div>
+        <div id="duelListPane">
+          <h3 class="duel-list-title">Мои дуэли</h3>
+          <ul class="duel-list" id="duelList"></ul>
+          <button type="button" class="duel-linkish" id="duelPasteOpen">Открыть по ссылке / id…</button>
         </div>
       </div>
     </div>

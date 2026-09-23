@@ -5,7 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken } from './api.js';
+import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId } from './api.js';
 
 function hap(ms = 12) {
   try { navigator.vibrate?.(ms); } catch (_) {}
@@ -1601,10 +1601,10 @@ function getDeepLinkView() {
     const skipFlag = params.get('skipIntro') === '1';
     const hash = location.hash || '';
     if (!view && hash) {
-      // Only #view=… — do not steal share payloads #r= / #s=
+      // Only #view=… — do not steal share/duel payloads #r= / #s= / #duel=
       if (/^#view=/i.test(hash)) {
         view = decodeURIComponent(hash.slice(6).split(/[&#]/)[0] || '').toLowerCase();
-      } else if (!/^#[rs]=/i.test(hash)) {
+      } else if (!/^#([rs]|duel)=/i.test(hash)) {
         const m = hash.match(/[#&?]view=([a-z]+)/i);
         if (m) view = m[1].toLowerCase();
       }
@@ -1619,7 +1619,7 @@ function getDeepLinkView() {
 function clearDeepLinkUrl() {
   try {
     const hash = location.hash || '';
-    const keep = /^#[rs]=/i.test(hash) ? hash : '';
+    const keep = /^#([rs]|duel)=/i.test(hash) ? hash : '';
     history.replaceState(null, '', location.pathname + keep);
   } catch (_) {}
 }
@@ -3461,6 +3461,7 @@ function sharePublicUrl(payload, shareId) {
 
 function openShareCard(payload) {
   _sharePayload = payload;
+  try { rememberDuelCandidateFromShare(payload); } catch (_) {}
   const card = document.getElementById('shareCard');
   if (!card) return;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -5866,4 +5867,379 @@ document.getElementById('btnEnableImu')?.addEventListener('click', async () => {
     if (tip) tip.textContent = 'Не удалось запросить разрешение: ' + (err?.message || err);
   }
 });
+
+
+/* -------- Duels / Challenge MVP -------- */
+let _duelType = 'drag';
+let _activeDuel = null;
+let _pendingDuelId = null;
+let _lastDuelCandidate = null;
+
+function rememberDuelCandidateFromShare(payload) {
+  if (!payload) return;
+  const isLap = payload.type === 'lap' || payload.type === 'круг';
+  const gpsQ = payload.gpsQ;
+  if (gpsQ !== 'A' && gpsQ !== 'B') {
+    _lastDuelCandidate = null;
+    return;
+  }
+  if (payload.valid === false) {
+    _lastDuelCandidate = null;
+    return;
+  }
+  const cand = {
+    type: isLap ? 'lap' : 'drag',
+    trackId: null,
+    trackName: payload.track || '',
+    t: isLap ? String(payload.time || '') : Number(String(payload.time || '').replace(',', '.').replace(/[^\d.]/g, '')),
+    car: payload.car || currentCar()?.name || '',
+    gps: true,
+    valid: true,
+    gpsQ,
+    avgAcc: payload.avgAcc,
+    hz: payload.hz,
+    weather: payload.weather || null,
+    flags: [],
+    name: payload.nick || duelPilotNick(),
+    at: payload.at || Date.now(),
+  };
+  if (isLap) {
+    // resolve trackId from name
+    const tr = TRACKS.find((x) => x.name === payload.track || x.id === payload.track);
+    cand.trackId = tr?.id || state.trackId || document.getElementById('trackSelect')?.value || TRACKS[0]?.id;
+    if (!/^\d+:\d{2}/.test(String(cand.t))) {
+      // time may be already m:ss
+      cand.t = String(payload.time || '').trim();
+    }
+  } else {
+    const n = Number(cand.t);
+    if (!Number.isFinite(n) || n <= 0) {
+      _lastDuelCandidate = null;
+      return;
+    }
+    cand.t = Math.round(n * 1000) / 1000;
+  }
+  _lastDuelCandidate = cand;
+  try { localStorage.setItem('pitlane-duel-last-v1', JSON.stringify(cand)); } catch (_) {}
+}
+
+function loadLastDuelCandidate() {
+  if (_lastDuelCandidate) return _lastDuelCandidate;
+  try {
+    const raw = JSON.parse(localStorage.getItem('pitlane-duel-last-v1') || 'null');
+    if (raw && (raw.gpsQ === 'A' || raw.gpsQ === 'B')) _lastDuelCandidate = raw;
+  } catch (_) {}
+  return _lastDuelCandidate;
+}
+
+function duelPilotNick() {
+  return (profile()?.nick) || currentUser()?.nick || currentUser()?.phone || 'пилот';
+}
+
+function duelPilotId() {
+  try {
+    if (authDb?.session) return String(authDb.session);
+  } catch (_) {}
+  try { return devicePilotId(); } catch (_) { return 'guest'; }
+}
+
+function duelPublicUrl(id) {
+  return SHARE_ORIGIN + '?duel=' + encodeURIComponent(id);
+}
+
+function fillDuelTrackSelect() {
+  const sel = document.getElementById('duelTrackSelect');
+  if (!sel) return;
+  const cur = state.trackId || document.getElementById('trackSelect')?.value || TRACKS[0]?.id;
+  sel.innerHTML = TRACKS.map((tr) => `<option value="${esc(tr.id)}"${tr.id === cur ? ' selected' : ''}>${esc(tr.name)}</option>`).join('');
+}
+
+function setDuelType(type) {
+  _duelType = type === 'lap' ? 'lap' : 'drag';
+  document.querySelectorAll('[data-duel-type]').forEach((b) => {
+    b.classList.toggle('on', b.getAttribute('data-duel-type') === _duelType);
+  });
+  const wrap = document.getElementById('duelTrackWrap');
+  if (wrap) wrap.hidden = _duelType !== 'lap';
+}
+
+function openDuelSheet(opts = {}) {
+  const sheet = document.getElementById('duelSheet');
+  if (!sheet) return;
+  const nick = document.getElementById('duelNick');
+  if (nick && !nick.value) nick.value = duelPilotNick();
+  fillDuelTrackSelect();
+  setDuelType(opts.type || _duelType || 'drag');
+  if (opts.trackId) {
+    const sel = document.getElementById('duelTrackSelect');
+    if (sel) sel.value = opts.trackId;
+  }
+  sheet.classList.remove('hidden');
+  sheet.setAttribute('aria-hidden', 'false');
+  if (opts.duelId) {
+    void showDuelView(opts.duelId);
+  } else if (opts.createOnly) {
+    document.getElementById('duelCreatePane').hidden = false;
+    document.getElementById('duelViewPane').hidden = true;
+  } else {
+    document.getElementById('duelCreatePane').hidden = false;
+    document.getElementById('duelViewPane').hidden = true;
+  }
+  void refreshDuelList();
+}
+
+function closeDuelSheet() {
+  const sheet = document.getElementById('duelSheet');
+  if (!sheet) return;
+  sheet.classList.add('hidden');
+  sheet.setAttribute('aria-hidden', 'true');
+}
+
+function statusLabelRu(st) {
+  if (st === 'ready') return 'готово';
+  if (st === 'expired') return 'истекла';
+  return 'открыта';
+}
+
+function renderDuelSides(d) {
+  const box = document.getElementById('duelSides');
+  if (!box) return;
+  const sides = [
+    { key: 'creator', who: d.createdBy, run: d.creatorRun },
+    { key: 'challenger', who: d.challenger, run: d.challengerRun },
+  ];
+  box.innerHTML = sides.map((s) => {
+    const name = s.who?.name || (s.key === 'creator' ? 'создатель' : 'соперник');
+    const run = s.run;
+    const win = d.status === 'ready' && d.winner === s.key;
+    const time = run ? (d.type === 'drag' ? (Number(run.t).toFixed(2) + ' с') : String(run.t)) : 'ждём заезд';
+    const q = run?.gpsQ;
+    const badge = q === 'A' ? '<span class="duel-badge">A</span>' : (q === 'B' ? '<span class="duel-badge b">B</span>' : '');
+    const car = run?.car ? esc(run.car) : '—';
+    return `<div class="duel-side${win ? ' win' : ''}"><div class="who">${esc(name)}${win ? ' · победа' : ''}</div><div class="time">${esc(time)}${badge}</div><div class="meta">${car}</div></div>`;
+  }).join('');
+}
+
+async function showDuelView(id) {
+  const d = await api.getDuel(id);
+  if (!d || !d.id) {
+    const hint = document.getElementById('duelHint');
+    if (hint) hint.textContent = 'Дуэль не найдена или API недоступен.';
+    return;
+  }
+  _activeDuel = d;
+  document.getElementById('duelCreatePane').hidden = true;
+  document.getElementById('duelViewPane').hidden = false;
+  const trackName = d.trackId ? (TRACKS.find((x) => x.id === d.trackId)?.name || d.trackId) : '';
+  const typeLab = d.type === 'lap' ? ('круг' + (trackName ? ' · ' + trackName : '')) : '0–100';
+  const st = document.getElementById('duelStatusLine');
+  if (st) st.textContent = statusLabelRu(d.status) + ' · ' + typeLab;
+  const vs = document.getElementById('duelVsLine');
+  if (vs) {
+    const a = d.createdBy?.name || 'пилот';
+    const b = d.challenger?.name || 'ожидание соперника';
+    vs.textContent = a + '  vs  ' + b;
+  }
+  renderDuelSides(d);
+  const res = document.getElementById('duelResult');
+  if (res) {
+    if (d.status === 'ready') {
+      res.hidden = false;
+      if (d.winner === 'tie') res.textContent = 'Ничья';
+      else if (d.winner === 'creator') res.textContent = 'Победитель: ' + (d.createdBy?.name || 'создатель');
+      else if (d.winner === 'challenger') res.textContent = 'Победитель: ' + (d.challenger?.name || 'соперник');
+      else res.textContent = 'Результат';
+    } else if (d.status === 'expired') {
+      res.hidden = false;
+      res.textContent = 'Срок истёк (7 дней)';
+    } else {
+      res.hidden = true;
+      res.textContent = '';
+    }
+  }
+  const note = document.getElementById('duelNoteView');
+  if (note) {
+    if (d.note) { note.hidden = false; note.textContent = d.note; }
+    else { note.hidden = true; note.textContent = ''; }
+  }
+  const myId = duelPilotId();
+  const iAmCreator = d.createdBy?.id && d.createdBy.id === myId;
+  const iAmChallenger = d.challenger?.id && d.challenger.id === myId;
+  const myRun = iAmCreator ? d.creatorRun : (iAmChallenger ? d.challengerRun : null);
+  const submitBtn = document.getElementById('duelSubmitRun');
+  if (submitBtn) {
+    const locked = d.status === 'ready' || d.status === 'expired' || !!myRun;
+    submitBtn.disabled = locked;
+    submitBtn.textContent = myRun ? 'Заезд уже прикреплён' : 'Прикрепить мой заезд';
+  }
+  const hint = document.getElementById('duelHint');
+  if (hint) {
+    if (!isRemoteApi()) hint.textContent = 'Нужен Worker API (meta pitlane-api).';
+    else if (d.status === 'open') hint.textContent = 'Нужен честный GPS A или B. C не принимается. Ссылка действует 7 дней.';
+    else hint.textContent = 'Дуэль зафиксирована. C не может победить — такие заезды отклоняются.';
+  }
+}
+
+async function refreshDuelList() {
+  const ul = document.getElementById('duelList');
+  if (!ul) return;
+  const rows = await api.listMyDuels(duelPilotId());
+  if (!rows || !rows.length) {
+    ul.innerHTML = '<li><span class="dl-main">пока пусто — создай вызов</span><span class="dl-st">—</span></li>';
+    return;
+  }
+  ul.innerHTML = rows.slice(0, 12).map((d) => {
+    const typeLab = d.type === 'lap' ? 'круг' : '0–100';
+    const title = typeLab + ' · ' + (d.createdBy?.name || 'пилот');
+    return `<li data-duel-id="${esc(d.id)}"><span class="dl-main">${esc(title)}</span><span class="dl-st">${esc(statusLabelRu(d.status))}</span></li>`;
+  }).join('');
+}
+
+async function createDuelFromUi() {
+  if (!isRemoteApi()) {
+    const hint = document.getElementById('duelHint');
+    if (hint) hint.textContent = 'API не настроен — дуэль только онлайн.';
+    return;
+  }
+  const nickEl = document.getElementById('duelNick');
+  const nick = (nickEl?.value || '').trim() || duelPilotNick();
+  if (nickEl) {
+    const p = profile(); p.nick = nick; saveProf(p);
+  }
+  const note = (document.getElementById('duelNote')?.value || '').trim();
+  const trackId = _duelType === 'lap' ? (document.getElementById('duelTrackSelect')?.value || TRACKS[0]?.id) : undefined;
+  const duel = await api.createDuel({
+    type: _duelType,
+    trackId,
+    createdBy: nick,
+    name: nick,
+    note: note || undefined,
+  });
+  if (!duel?.id) {
+    const hint = document.getElementById('duelHint');
+    if (hint) hint.textContent = 'Не удалось создать дуэль. Проверь сеть / Worker.';
+    return;
+  }
+  try {
+    const ids = JSON.parse(localStorage.getItem('pitlane-duels-mine-v1') || '[]');
+    localStorage.setItem('pitlane-duels-mine-v1', JSON.stringify([duel.id, ...(Array.isArray(ids) ? ids : [])].filter((x, i, a) => a.indexOf(x) === i).slice(0, 40)));
+  } catch (_) {}
+  hap(18);
+  await showDuelView(duel.id);
+  // auto-attach last compatible run if matches type
+  const cand = loadLastDuelCandidate();
+  if (cand && cand.type === duel.type && (duel.type !== 'lap' || !duel.trackId || cand.trackId === duel.trackId)) {
+    // leave manual attach — user taps button; optional auto:
+  }
+  try {
+    await navigator.clipboard.writeText(duelPublicUrl(duel.id));
+  } catch (_) {}
+  await refreshDuelList();
+}
+
+async function submitMyRunToActiveDuel() {
+  const d = _activeDuel;
+  if (!d?.id) return;
+  let cand = loadLastDuelCandidate();
+  if (!cand || cand.type !== d.type) {
+    const hint = document.getElementById('duelHint');
+    if (hint) hint.textContent = d.type === 'lap'
+      ? 'Сначала проедь валидный круг A/B на этом треке, затем прикрепи.'
+      : 'Сначала сделай валидный 0–100 (GPS A/B), затем прикрепи.';
+    return;
+  }
+  if (d.type === 'lap' && d.trackId && cand.trackId && cand.trackId !== d.trackId) {
+    const hint = document.getElementById('duelHint');
+    if (hint) hint.textContent = 'Трек не совпадает с дуэлью.';
+    return;
+  }
+  const body = {
+    ...cand,
+    name: duelPilotNick(),
+    gps: true,
+    valid: true,
+    trackId: d.trackId || cand.trackId,
+  };
+  const res = await api.submitDuelRun(d.id, body);
+  if (!res || res.error) {
+    const hint = document.getElementById('duelHint');
+    const err = res?.error || 'ошибка';
+    if (hint) hint.textContent = 'Не принят: ' + err;
+    if (res?.duel) await showDuelView(res.duel.id || d.id);
+    return;
+  }
+  hap(20);
+  await showDuelView(res.id || d.id);
+  await refreshDuelList();
+}
+
+async function bootDuelFromUrl() {
+  try {
+    const params = new URLSearchParams(location.search);
+    const hash = location.hash || '';
+    let id = params.get('duel') || '';
+    const hm = hash.match(/[#&?]duel=([^&]+)/i);
+    if (hm) id = decodeURIComponent(hm[1]);
+    if (!id && hash.startsWith('#duel=')) id = decodeURIComponent(hash.slice(6));
+    if (!id) return;
+    _pendingDuelId = id;
+    const apply = () => {
+      openDuelSheet({ duelId: id });
+    };
+    // after intro: delay slightly so share boot doesn't conflict
+    setTimeout(apply, 400);
+  } catch (err) {
+    console.warn('bootDuel', err);
+  }
+}
+
+document.getElementById('btnDuelOpen')?.addEventListener('click', () => openDuelSheet());
+document.getElementById('duelSheetClose')?.addEventListener('click', closeDuelSheet);
+document.getElementById('duelSheet')?.addEventListener('click', (e) => {
+  if (e.target?.id === 'duelSheet') closeDuelSheet();
+});
+document.querySelectorAll('[data-duel-type]').forEach((b) => {
+  b.addEventListener('click', () => setDuelType(b.getAttribute('data-duel-type')));
+});
+document.getElementById('duelCreateBtn')?.addEventListener('click', () => { void createDuelFromUi(); });
+document.getElementById('duelCopyLink')?.addEventListener('click', async () => {
+  if (!_activeDuel?.id) return;
+  try {
+    await navigator.clipboard.writeText(duelPublicUrl(_activeDuel.id));
+    hap(16);
+  } catch (_) {}
+});
+document.getElementById('duelSubmitRun')?.addEventListener('click', () => { void submitMyRunToActiveDuel(); });
+document.getElementById('duelRefresh')?.addEventListener('click', async () => {
+  if (_activeDuel?.id) await showDuelView(_activeDuel.id);
+  await refreshDuelList();
+});
+document.getElementById('duelList')?.addEventListener('click', (e) => {
+  const li = e.target?.closest?.('[data-duel-id]');
+  if (!li) return;
+  void showDuelView(li.getAttribute('data-duel-id'));
+});
+document.getElementById('duelPasteOpen')?.addEventListener('click', async () => {
+  const raw = prompt('Вставь ссылку или id дуэли');
+  if (!raw) return;
+  let id = String(raw).trim();
+  const m = id.match(/[?&#]duel=([^&]+)/i) || id.match(/duel\/([^/?#]+)/i);
+  if (m) id = decodeURIComponent(m[1]);
+  id = id.replace(/^.*duel=/i, '').split(/[&#\s]/)[0];
+  if (!id) return;
+  openDuelSheet({ duelId: id });
+});
+document.getElementById('shareCardDuel')?.addEventListener('click', () => {
+  const p = _sharePayload;
+  const isLap = p && (p.type === 'lap' || p.type === 'круг');
+  try { rememberDuelCandidateFromShare(p); } catch (_) {}
+  closeShareCard();
+  openDuelSheet({
+    type: isLap ? 'lap' : 'drag',
+    trackId: isLap ? (TRACKS.find((x) => x.name === p?.track)?.id || state.trackId) : undefined,
+    createOnly: true,
+  });
+});
+
+void bootDuelFromUrl();
 

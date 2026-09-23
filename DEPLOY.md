@@ -69,7 +69,7 @@ Allowed origins include `https://dsssssz.github.io` and local ports. Add more vi
 
 ## 9. Offline / SW
 
-- Service worker cache `pitlane-v62`: app shell + vendored `./vendor/three/*`.
+- Service worker cache `pitlane-v63`: app shell + vendored `./vendor/three/*`.
 - CDN Three URLs also cached in `pitlane-three-v1` on first load (fallback).
 - GLB models prefetch into `pitlane-glb-v1` on activate (same name the app already uses).
 
@@ -99,3 +99,17 @@ If deploy fails, client still ships; Worker source in `worker-index.js` includes
 Deployed with wrangler@3.114.17 + `CLOUDFLARE_API_TOKEN` from box-secrets card.
 Version ID: `df7b9c5a-91f3-43d7-8a7f-c7249f34dd65` → https://pitlane-api.pitlane-taksimaga.workers.dev
 Weather field + `?weather=` filter live on Worker.
+
+
+## 12. Duels / Challenge
+
+- `POST /duel` `{ type: "drag"|"lap", trackId?, createdBy?, note? }` → duel JSON (`duel:<id>`, TTL ~8d)
+- `GET /duel/:id` → duel JSON (auto-expire after 7d if incomplete)
+- `POST /duel/:id/run` body like tops row — **A/B only**; each side one locked run; when both present → `status: ready` + `winner`
+- `GET /duels?mine=<pilotId>` → recent duels for pilot (KV index `duelidx:<id>`)
+- Client deep link: `?duel=ID` / `#duel=ID`. Guest ok via `X-Pilot-Id` device id + nick.
+
+### Worker deploy log (duels MVP 2026-09-23)
+
+Deployed with wrangler@3.114.17. Version ID: `83b8356b-4091-463a-b020-1af5ca3ef1c1` → https://pitlane-api.pitlane-taksimaga.workers.dev
+Duels routes live: POST/GET /duel, POST /duel/:id/run, GET /duels?mine=

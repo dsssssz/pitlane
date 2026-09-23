@@ -255,6 +255,104 @@ async function sendTwilioSms(env, phone, code) {
   return res.ok;
 }
 
+
+const DUEL_TTL = 7 * 24 * 60 * 60; // 7 days
+const DUEL_TTL_MS = DUEL_TTL * 1000;
+
+function duelId() {
+  return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+function parseLapMs(t) {
+  const m = String(t || '').trim().match(/^(\d+):(\d{2})(?:\.(\d+))?$/);
+  if (!m) return null;
+  const min = Number(m[1]);
+  const sec = Number(m[2]);
+  const frac = m[3] ? Number('0.' + m[3]) : 0;
+  if (!Number.isFinite(min) || !Number.isFinite(sec)) return null;
+  return (min * 60 + sec + frac) * 1000;
+}
+
+function runScoreMs(type, run) {
+  if (!run) return null;
+  if (type === 'drag') {
+    const t = Number(run.t);
+    return Number.isFinite(t) && t > 0 ? t * 1000 : null;
+  }
+  return parseLapMs(run.t);
+}
+
+function refreshDuelStatus(d) {
+  if (!d) return d;
+  const now = Date.now();
+  if (d.status !== 'ready' && d.expiresAt && now > d.expiresAt) {
+    d.status = 'expired';
+    d.winner = null;
+    return d;
+  }
+  if (d.creatorRun && d.challengerRun && d.status !== 'expired') {
+    d.status = 'ready';
+    const a = runScoreMs(d.type, d.creatorRun);
+    const b = runScoreMs(d.type, d.challengerRun);
+    if (a == null || b == null) d.winner = null;
+    else if (a < b) d.winner = 'creator';
+    else if (b < a) d.winner = 'challenger';
+    else d.winner = 'tie';
+  } else if (d.status !== 'expired') {
+    d.status = 'open';
+    d.winner = null;
+  }
+  return d;
+}
+
+function sanitizeDuelRun(body, pilot, type) {
+  if (type === 'drag') {
+    const row = sanitizeStraight(body, pilot);
+    if (!row || !row.valid || (row.gpsQ !== 'A' && row.gpsQ !== 'B')) return null;
+    return {
+      name: row.name,
+      car: row.car,
+      t: row.t,
+      gps: true,
+      valid: true,
+      gpsQ: row.gpsQ,
+      flags: row.flags || [],
+      avgAcc: row.avgAcc,
+      hz: row.hz,
+      weather: row.weather || null,
+      pilotId: pilot.id || null,
+      at: Date.now(),
+    };
+  }
+  if (type === 'lap') {
+    const row = sanitizeLap(body, pilot);
+    if (!row || !row.valid || (row.gpsQ !== 'A' && row.gpsQ !== 'B')) return null;
+    return {
+      name: row.name,
+      car: row.car,
+      t: row.t,
+      gps: true,
+      valid: true,
+      gpsQ: row.gpsQ,
+      flags: row.flags || [],
+      avgAcc: row.avgAcc,
+      hz: row.hz,
+      weather: row.weather || null,
+      dist: row.dist,
+      slipAvg: row.slipAvg,
+      pilotId: pilot.id || null,
+      at: Date.now(),
+    };
+  }
+  return null;
+}
+
+function pilotLabel(pilot, body) {
+  const id = String(pilot.id || body?.pilotId || '').trim().slice(0, 64);
+  const name = String(pilot.name || body?.name || body?.createdBy || 'пилот').trim().slice(0, 48) || 'пилот';
+  return { id: id || ('guest:' + name.toLowerCase()), name };
+}
+
 export default {
   async fetch(req, env) {
     const headers = corsHeaders(req, env);
@@ -546,6 +644,165 @@ export default {
         rows = rows.filter((x) => !(x.id === id && (x.who === who || x.pilotId === pilot.id)));
         await writeList(env.PITLANE, 'pulse', rows);
         return json(rows.slice(0, 200), 200, headers);
+      }
+
+
+      // —— Duels / Challenge ——
+      if (req.method === 'POST' && path === '/duel') {
+        const body = await req.json().catch(() => null);
+        const type = body?.type === 'lap' ? 'lap' : body?.type === 'drag' ? 'drag' : null;
+        if (!type) return json({ error: 'type must be drag|lap' }, 400, headers);
+        const trackId = type === 'lap' ? String(body?.trackId || '').trim().slice(0, 64) : null;
+        if (type === 'lap' && !trackId) return json({ error: 'trackId required for lap' }, 400, headers);
+        const who = pilotLabel(pilot, body);
+        if (!who.name) return json({ error: 'createdBy / nick required' }, 400, headers);
+        const note = body?.note != null ? String(body.note).trim().slice(0, 140) : '';
+        const id = duelId();
+        const now = Date.now();
+        const duel = {
+          id,
+          type,
+          trackId,
+          note,
+          status: 'open',
+          createdAt: now,
+          expiresAt: now + DUEL_TTL_MS,
+          createdBy: who,
+          challenger: null,
+          creatorRun: null,
+          challengerRun: null,
+          winner: null,
+        };
+        await env.PITLANE.put('duel:' + id, JSON.stringify(duel), { expirationTtl: DUEL_TTL + 86400 });
+        // index for mine list
+        const ikey = 'duelidx:' + who.id;
+        let idx = [];
+        try {
+          const raw = await env.PITLANE.get(ikey);
+          if (raw) idx = JSON.parse(raw);
+          if (!Array.isArray(idx)) idx = [];
+        } catch { idx = []; }
+        idx.unshift(id);
+        idx = [...new Set(idx)].slice(0, 40);
+        await env.PITLANE.put(ikey, JSON.stringify(idx), { expirationTtl: DUEL_TTL + 86400 });
+        return json(duel, 200, headers);
+      }
+
+      if (req.method === 'GET' && path === '/duels') {
+        const mine = String(url.searchParams.get('mine') || '').trim().slice(0, 64);
+        if (!mine) return json({ error: 'mine= required' }, 400, headers);
+        let ids = [];
+        try {
+          const raw = await env.PITLANE.get('duelidx:' + mine);
+          if (raw) ids = JSON.parse(raw);
+          if (!Array.isArray(ids)) ids = [];
+        } catch { ids = []; }
+        const out = [];
+        for (const id of ids.slice(0, 40)) {
+          const raw = await env.PITLANE.get('duel:' + id);
+          if (!raw) continue;
+          try {
+            let d = JSON.parse(raw);
+            const before = d.status;
+            d = refreshDuelStatus(d);
+            if (d.status !== before) {
+              await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: DUEL_TTL + 86400 });
+            }
+            out.push(d);
+          } catch (_) {}
+        }
+        return json(out, 200, headers);
+      }
+
+      m = path.match(/^\/duel\/([^/]+)$/);
+      if (req.method === 'GET' && m) {
+        const id = decodeURIComponent(m[1]).slice(0, 64);
+        const raw = await env.PITLANE.get('duel:' + id);
+        if (!raw) return json({ error: 'not found' }, 404, headers);
+        let d;
+        try { d = JSON.parse(raw); } catch { return json({ error: 'corrupt' }, 500, headers); }
+        const before = d.status;
+        d = refreshDuelStatus(d);
+        if (d.status !== before) {
+          await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: DUEL_TTL + 86400 });
+        }
+        return json(d, 200, headers);
+      }
+
+      m = path.match(/^\/duel\/([^/]+)\/run$/);
+      if (req.method === 'POST' && m) {
+        const id = decodeURIComponent(m[1]).slice(0, 64);
+        const raw = await env.PITLANE.get('duel:' + id);
+        if (!raw) return json({ error: 'not found' }, 404, headers);
+        let d;
+        try { d = JSON.parse(raw); } catch { return json({ error: 'corrupt' }, 500, headers); }
+        d = refreshDuelStatus(d);
+        if (d.status === 'expired') return json({ error: 'duel expired', duel: d }, 410, headers);
+        if (d.status === 'ready') return json({ error: 'duel locked', duel: d }, 409, headers);
+
+        const body = await req.json().catch(() => null);
+        const who = pilotLabel(pilot, body);
+        const run = sanitizeDuelRun(body, { id: who.id, name: who.name }, d.type);
+        if (!run) {
+          return json({ error: 'only A/B GPS runs accepted for duel' }, 400, headers);
+        }
+        if (d.type === 'lap' && d.trackId && body?.trackId && String(body.trackId) !== String(d.trackId)) {
+          return json({ error: 'track mismatch' }, 400, headers);
+        }
+
+        const isCreator = !!(who.id && d.createdBy?.id && who.id === d.createdBy.id);
+        const isChallenger = !!(who.id && d.challenger?.id && who.id === d.challenger.id);
+
+        async function indexMine(pid) {
+          if (!pid) return;
+          const ikey = 'duelidx:' + pid;
+          let idx = [];
+          try {
+            const iraw = await env.PITLANE.get(ikey);
+            if (iraw) idx = JSON.parse(iraw);
+            if (!Array.isArray(idx)) idx = [];
+          } catch { idx = []; }
+          idx.unshift(id);
+          idx = [...new Set(idx)].slice(0, 40);
+          await env.PITLANE.put(ikey, JSON.stringify(idx), { expirationTtl: DUEL_TTL + 86400 });
+        }
+
+        // Each side: one locked A/B run. Creator first match by id; else first other pilot = challenger.
+        if (isCreator) {
+          if (d.creatorRun) return json({ error: 'creator already submitted', duel: d }, 409, headers);
+          d.creatorRun = run;
+          d.createdBy = { id: who.id, name: who.name || d.createdBy?.name || 'пилот' };
+        } else if (isChallenger) {
+          if (d.challengerRun) return json({ error: 'challenger already submitted', duel: d }, 409, headers);
+          d.challengerRun = run;
+          d.challenger = { id: who.id, name: who.name };
+        } else if (!d.creatorRun && !d.challenger) {
+          // Creator attaching first run (same device/session)
+          if (isCreator || who.id === d.createdBy?.id) {
+            d.creatorRun = run;
+            d.createdBy = { id: who.id, name: who.name || d.createdBy?.name || 'пилот' };
+          } else {
+            // Friend accepts via link before creator attached — become challenger
+            d.challenger = { id: who.id, name: who.name };
+            d.challengerRun = run;
+            await indexMine(who.id);
+          }
+        } else if (!d.creatorRun && who.id === d.createdBy?.id) {
+          d.creatorRun = run;
+          d.createdBy = { id: who.id, name: who.name || d.createdBy?.name || 'пилот' };
+        } else if (!d.challengerRun && who.id !== d.createdBy?.id) {
+          d.challenger = { id: who.id, name: who.name };
+          d.challengerRun = run;
+          await indexMine(who.id);
+        } else if (who.id === d.createdBy?.id && d.creatorRun) {
+          return json({ error: 'creator already submitted', duel: d }, 409, headers);
+        } else {
+          return json({ error: 'slot unavailable', duel: d }, 409, headers);
+        }
+
+        d = refreshDuelStatus(d);
+        await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: DUEL_TTL + 86400 });
+        return json(d, 200, headers);
       }
 
       return json({ error: 'not found', path }, 404, headers);
