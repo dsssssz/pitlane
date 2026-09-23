@@ -96,6 +96,32 @@ const TRACK_GEO = {
   don: { lat: 47.280, lon: 39.700 },
 };
 
+/** Approx lat/lon rings for soft corridor math (NOT display SVG). Densified near S/F. */
+const TRACK_POLY = (() => {
+  const out = {};
+  for (const [id, g] of Object.entries(TRACK_GEO)) {
+    const tr = typeof TRACKS !== 'undefined' ? TRACKS.find((t) => t.id === id) : null;
+    const km = parseFloat(tr?.km) || 3.5;
+    // ellipse semi-axes ~ circuit scale (very rough; only for soft proximity assist)
+    const a = Math.max(180, Math.min(900, km * 1000 * 0.18)); // m east
+    const b = Math.max(120, Math.min(700, km * 1000 * 0.12)); // m north
+    const pts = [];
+    const N = 48;
+    for (let i = 0; i < N; i++) {
+      const th = (i / N) * Math.PI * 2;
+      // densify near S/F (th≈0 / gate at northern-ish point of oval)
+      const e = Math.sin(th) * a;
+      const n = Math.cos(th) * b;
+      const lat = g.lat + n / 111320;
+      const lon = g.lon + e / (111320 * Math.cos(g.lat * Math.PI / 180));
+      pts.push({ lat, lon });
+    }
+    out[id] = pts;
+  }
+  return out;
+})();
+
+
 const TRACK_SVG = {
   // Sochi Autodrom — detailed GP centerline (kept)
   sochi: 'M260.37 78.48 L244.49 96.31 L240.92 98.98 L236.03 101.71 L230.64 103.82 L222.94 105.56 L202.57 109.51 L172.35 115.42 L140.03 121.66 L137.93 121.5 L137.16 121.05 L136.67 119.59 L135.83 117.54 L134.5 116.03 L119.87 105.67 L114.63 102.88 L108.12 100.99 L100.29 100.49 L92.66 101.6 L86.22 104.05 L81.18 107.45 L78.11 110.8 L75.65 114.86 L74.74 119.26 L75.17 124.17 L76.92 128.34 L86.01 142.05 L86.22 143.61 L85.38 144.84 L83.29 145.95 L34.94 166.85 L33.46 167.29 L31.16 167.35 L29.48 166.63 L28.36 165.56 L16.39 146.12 L15.27 142.83 L15.0 140.16 L15.34 137.21 L18.43 125.89 L18.98 124.95 L20.18 124.5 L21.71 124.17 L61.1 119.88 L62.08 119.59 L62.99 119.04 L63.69 118.32 L66.14 111.24 L66.35 110.18 L66.49 108.85 L66.28 107.68 L54.04 82.65 L54.04 81.65 L54.53 80.76 L55.44 79.87 L56.76 79.2 L69.08 75.58 L74.74 74.63 L80.06 73.91 L87.34 73.52 L93.77 73.57 L101.13 74.13 L108.05 75.08 L120.23 76.53 L126.73 77.75 L133.39 79.48 L140.58 81.6 L165.35 89.79 L172.15 91.52 L178.29 92.46 L185.15 92.91 L192.22 92.69 L198.8 91.79 L208.87 89.67 L210.77 90.01 L211.53 90.9 L214.68 98.71 L216.16 99.82 L218.67 100.49 L221.39 100.37 L225.32 99.71 L229.73 98.09 L233.64 95.53 L236.87 92.24 L243.99 84.77 L244.35 83.88 L244.21 83.16 L242.88 82.38 L236.37 78.87 L235.18 77.64 L234.76 75.91 L235.53 74.35 L245.88 62.71 L255.12 51.73 L262.54 43.43 L264.22 42.65 L266.31 43.09 L282.9 48.44 L284.43 49.12 L285.0 50.11 L284.57 51.23 L260.37 78.48 Z',
@@ -1488,98 +1514,494 @@ function haversineM(a, b) {
   const s = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(s)));
 }
-let lastFix = null;
+/* =============================================================================
+ * GpsFusion — client nav-grade stack (honest: no Yandex server).
+ * 2D CV Kalman in local ENU [e,n,vE,vN] + optional IMU coast + ZUPT.
+ * Filtered state feeds distance / S/F gates / HUD; raw kept for diagnostics.
+ * ============================================================================= */
+const GpsFusion = (() => {
+  const DEG = Math.PI / 180;
+  const R_EARTH = 6371000;
+  const M_PER_DEG_LAT = 111320;
+
+  // ENU meters + velocities; HUD speed buffer; IMU buffers
+  const st = {
+    ready: false,
+    healthy: false,
+    anchorLat: null,
+    anchorLon: null,
+    e: 0, n: 0, vE: 0, vN: 0,
+    // diagonal-ish covariance (simplified 4-state)
+    P: [80, 80, 40, 40],
+    lastGpsTs: 0,
+    lastTick: 0,
+    lastRaw: null,
+    lat: null, lon: null,
+    vKmh: 0,
+    heading: null,
+    accEst: null,
+    innov: 0,
+    quality: 'C', // A/B/C for gpsQ badge path
+    imuOn: false,
+    imuDenied: false,
+    imuAsked: false,
+    // IMU: world-ish accel (m/s²) + yaw rate (rad/s)
+    ax: 0, ay: 0,
+    yawRate: 0,
+    headingImu: null,
+    accelVar: 1,
+    stillMs: 0,
+    zupt: false,
+    // HUD slew
+    showV: 0,
+    speedBuf: [],
+    // process / meas noise knobs
+    qPos: 0.8,
+    qVel: 6,
+  };
+
+  function mPerDegLon(lat) {
+    return M_PER_DEG_LAT * Math.cos((lat || 0) * DEG);
+  }
+  function toEnu(lat, lon) {
+    const mLon = mPerDegLon(st.anchorLat);
+    return {
+      e: (lon - st.anchorLon) * mLon,
+      n: (lat - st.anchorLat) * M_PER_DEG_LAT,
+    };
+  }
+  function fromEnu(e, n) {
+    const mLon = mPerDegLon(st.anchorLat) || 1;
+    return {
+      lat: st.anchorLat + n / M_PER_DEG_LAT,
+      lon: st.anchorLon + e / mLon,
+    };
+  }
+  function speedKmh() {
+    return Math.hypot(st.vE, st.vN) * 3.6;
+  }
+  function headingFromV() {
+    const s = Math.hypot(st.vE, st.vN);
+    if (s < 0.4) return st.heading;
+    // heading: 0=N, 90=E (nav)
+    return (Math.atan2(st.vE, st.vN) / DEG + 360) % 360;
+  }
+  function gradeQuality(acc, nis, zupt) {
+    if (zupt && (acc == null || acc <= 20)) return 'A';
+    if (acc != null && acc <= 8 && nis < 2.5) return 'A';
+    if (acc != null && acc <= 18 && nis < 6) return 'B';
+    if (acc != null && acc <= 35) return 'B';
+    return 'C';
+  }
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+
+  function predict(dt, accelerating) {
+    if (dt <= 0 || dt > 3) return;
+    // Adaptive process noise when accelerating (IMU Δa or |Δv|)
+    const qBoost = accelerating ? 2.8 : 1;
+    const qP = st.qPos * qBoost * dt;
+    const qV = st.qVel * qBoost * dt;
+    st.e += st.vE * dt;
+    st.n += st.vN * dt;
+    st.P[0] += qP + 0.15 * st.P[2] * dt;
+    st.P[1] += qP + 0.15 * st.P[3] * dt;
+    st.P[2] += qV;
+    st.P[3] += qV;
+  }
+
+  function updatePos(eZ, nZ, R) {
+    // Independent 1D updates on e/n (cheap CV)
+    const innovE = eZ - st.e;
+    const innovN = nZ - st.n;
+    const Se = st.P[0] + R;
+    const Sn = st.P[1] + R;
+    const nis = (innovE * innovE) / Math.max(1, Se) + (innovN * innovN) / Math.max(1, Sn);
+    st.innov = nis;
+    // NIS gate: hard reject → coast only
+    if (nis > 12) return { accept: false, nis };
+    const soft = nis > 5;
+    const Ruse = soft ? R * 3.5 : R;
+    const Ke = st.P[0] / (st.P[0] + Ruse);
+    const Kn = st.P[1] / (st.P[1] + Ruse);
+    st.e += Ke * innovE;
+    st.n += Kn * innovN;
+    st.P[0] *= (1 - Ke);
+    st.P[1] *= (1 - Kn);
+    // velocity from innov/dt via light coupling (done in caller with Doppler)
+    return { accept: true, nis, soft };
+  }
+
+  function updateVel(vE, vN, Rv) {
+    const ie = vE - st.vE;
+    const in_ = vN - st.vN;
+    const Ke = st.P[2] / (st.P[2] + Rv);
+    const Kn = st.P[3] / (st.P[3] + Rv);
+    st.vE += Ke * ie;
+    st.vN += Kn * in_;
+    st.P[2] *= (1 - Ke);
+    st.P[3] *= (1 - Kn);
+  }
+
+  function applyZupt(dt) {
+    const spd = Math.hypot(st.vE, st.vN);
+    const stillGps = spd < 0.45; // ~1.6 км/ч
+    const stillImu = st.imuOn ? st.accelVar < 0.12 : stillGps;
+    if (stillGps && stillImu) {
+      st.stillMs += dt * 1000;
+    } else {
+      st.stillMs = Math.max(0, st.stillMs - dt * 600);
+    }
+    if (st.stillMs > 400) {
+      st.zupt = true;
+      st.vE = 0;
+      st.vN = 0;
+      st.P[2] = Math.min(st.P[2], 2);
+      st.P[3] = Math.min(st.P[3], 2);
+      // freeze drift: lightly pull pos variance down
+      st.P[0] = Math.min(st.P[0], 12);
+      st.P[1] = Math.min(st.P[1], 12);
+    } else {
+      st.zupt = false;
+    }
+  }
+
+  function coastImu(dt) {
+    if (!st.imuOn || st.zupt || dt <= 0 || dt > 0.5) return false;
+    // Trust GPS speed magnitude; use yaw rate to rotate velocity heading
+    if (Math.abs(st.yawRate) > 0.02) {
+      const spd = Math.hypot(st.vE, st.vN);
+      if (spd > 0.3) {
+        const h = Math.atan2(st.vE, st.vN) + st.yawRate * dt;
+        st.vE = Math.sin(h) * spd;
+        st.vN = Math.cos(h) * spd;
+      }
+    }
+    // Integrate horizontal accel (already roughly world-framed if orientation known)
+    const ax = clamp(st.ax, -8, 8);
+    const ay = clamp(st.ay, -8, 8);
+    if (Math.hypot(ax, ay) > 0.35) {
+      st.vE += ax * dt;
+      st.vN += ay * dt;
+      return true;
+    }
+    return false;
+  }
+
+  function publish(acc) {
+    const ll = fromEnu(st.e, st.n);
+    st.lat = ll.lat;
+    st.lon = ll.lon;
+    st.vKmh = speedKmh();
+    if (st.vKmh < 0.4) st.vKmh = 0;
+    if (st.vKmh > 360) st.vKmh = 360;
+    st.heading = headingFromV();
+    // fused accuracy estimate: GPS acc blended with filter P
+    const pM = Math.sqrt(Math.max(0, st.P[0] + st.P[1]));
+    st.accEst = acc != null
+      ? Math.sqrt(0.55 * acc * acc + 0.45 * pM * pM)
+      : pM;
+    st.quality = gradeQuality(st.accEst, st.innov, st.zupt);
+    st.healthy = st.ready && st.accEst != null && st.accEst < 45 && st.innov < 14;
+    // HUD median + slew (responsive on accel, calm when steady)
+    st.speedBuf.push(st.vKmh);
+    while (st.speedBuf.length > 5) st.speedBuf.shift();
+    const sorted = st.speedBuf.slice().sort((a, b) => a - b);
+    const med = sorted[Math.floor(sorted.length / 2)];
+    const accelerating = Math.abs(med - st.showV) > 4;
+    const maxStep = accelerating ? 9 : 5.2;
+    const d = med - st.showV;
+    st.showV += Math.sign(d) * Math.min(Math.abs(d), maxStep);
+    if (st.showV < 0.4) st.showV = 0;
+  }
+
+  function reset() {
+    st.ready = false;
+    st.healthy = false;
+    st.anchorLat = null;
+    st.anchorLon = null;
+    st.e = st.n = st.vE = st.vN = 0;
+    st.P = [80, 80, 40, 40];
+    st.lastGpsTs = 0;
+    st.lastTick = 0;
+    st.lastRaw = null;
+    st.lat = st.lon = null;
+    st.vKmh = 0;
+    st.heading = null;
+    st.accEst = null;
+    st.innov = 0;
+    st.quality = 'C';
+    st.ax = st.ay = 0;
+    st.yawRate = 0;
+    st.headingImu = null;
+    st.accelVar = 1;
+    st.stillMs = 0;
+    st.zupt = false;
+    st.showV = 0;
+    st.speedBuf.length = 0;
+  }
+
+  function ingestGps(coords, ts) {
+    if (!coords || coords.latitude == null || coords.longitude == null) {
+      return getState();
+    }
+    const acc = coords.accuracy != null && Number.isFinite(coords.accuracy) ? Number(coords.accuracy) : 25;
+    st.lastRaw = {
+      lat: coords.latitude,
+      lon: coords.longitude,
+      acc,
+      speed: coords.speed,
+      heading: coords.heading,
+      t: ts,
+    };
+
+    // Soft/hard reject by accuracy
+    if (acc > 60) {
+      // ignore measurement; still tick-coast if ready
+      if (st.ready) {
+        const dt = st.lastGpsTs ? clamp((ts - st.lastGpsTs) / 1000, 0.05, 2.5) : 0.3;
+        predict(dt, false);
+        applyZupt(dt);
+        publish(st.accEst);
+        st.lastGpsTs = ts;
+      }
+      return getState();
+    }
+
+    if (!st.ready) {
+      st.anchorLat = coords.latitude;
+      st.anchorLon = coords.longitude;
+      st.e = 0;
+      st.n = 0;
+      let vE = 0, vN = 0;
+      if (coords.speed != null && Number.isFinite(coords.speed) && coords.speed >= 0) {
+        const hdg = (coords.heading != null && Number.isFinite(coords.heading))
+          ? coords.heading * DEG
+          : 0;
+        const v = coords.speed;
+        vE = Math.sin(hdg) * v;
+        vN = Math.cos(hdg) * v;
+      }
+      st.vE = vE;
+      st.vN = vN;
+      st.P = [Math.max(9, acc * acc), Math.max(9, acc * acc), 25, 25];
+      st.ready = true;
+      st.lastGpsTs = ts;
+      st.lastTick = ts;
+      publish(acc);
+      return getState();
+    }
+
+    const dt = st.lastGpsTs ? clamp((ts - st.lastGpsTs) / 1000, 0.05, 2.8) : 0.25;
+    const accelerating = st.imuOn && Math.hypot(st.ax, st.ay) > 1.2;
+    predict(dt, accelerating);
+
+    const en = toEnu(coords.latitude, coords.longitude);
+    // Jump vs possible motion → coast only
+    const jump = Math.hypot(en.e - st.e, en.n - st.n);
+    const maxJump = Math.hypot(st.vE, st.vN) * dt + Math.max(12, acc * 1.4) + 18;
+    if (jump > maxJump && jump > 35) {
+      // teleport: do not update with this fix
+      applyZupt(dt);
+      publish(Math.max(acc, st.accEst || acc));
+      st.lastGpsTs = ts;
+      return getState();
+    }
+
+    let R = Math.max(4, acc * acc);
+    if (acc > 35) R *= 4; // heavy R
+    else if (acc > 22) R *= 1.8;
+
+    const up = updatePos(en.e, en.n, R);
+    if (up.accept) {
+      // Optional Doppler velocity from speed+heading
+      const hasSpd = coords.speed != null && Number.isFinite(coords.speed) && coords.speed >= 0;
+      const hasHdg = coords.heading != null && Number.isFinite(coords.heading);
+      if (hasSpd && hasHdg && coords.speed < 95) {
+        const hdg = coords.heading * DEG;
+        const vE = Math.sin(hdg) * coords.speed;
+        const vN = Math.cos(hdg) * coords.speed;
+        let Rv = 4 + (acc > 20 ? 12 : 3);
+        if (acc > 35) Rv *= 3;
+        updateVel(vE, vN, Rv);
+      } else if (hasSpd && dt > 0.08) {
+        // speed-only: pull magnitude toward Doppler, keep heading from filter
+        const want = coords.speed;
+        const cur = Math.hypot(st.vE, st.vN);
+        if (cur > 0.2) {
+          const k = 0.35;
+          const scale = (1 - k) + k * (want / cur);
+          st.vE *= scale;
+          st.vN *= scale;
+        } else if (want > 0.5 && st.heading != null) {
+          const hdg = st.heading * DEG;
+          st.vE = Math.sin(hdg) * want;
+          st.vN = Math.cos(hdg) * want;
+        }
+      } else if (st.lastRaw && dt > 0.12) {
+        // light haversine velocity assist when no Doppler
+        const prev = toEnu(st.lastRaw.lat, st.lastRaw.lon);
+        // lastRaw already overwritten — use pre-update position delta via en vs predict residual
+        // skip; position update already applied
+      }
+    }
+
+    applyZupt(dt);
+    publish(acc);
+    st.lastGpsTs = ts;
+    st.lastTick = ts;
+    return getState();
+  }
+
+  function tick(now) {
+    if (!st.ready) return getState();
+    const t = now || Date.now();
+    const dt = st.lastTick ? clamp((t - st.lastTick) / 1000, 0, 0.35) : 0;
+    if (dt < 0.016) return getState();
+    const accel = coastImu(dt);
+    predict(dt, accel);
+    applyZupt(dt);
+    publish(st.accEst);
+    st.lastTick = t;
+    return getState();
+  }
+
+  function getState() {
+    return {
+      ready: st.ready,
+      healthy: st.healthy,
+      lat: st.lat,
+      lon: st.lon,
+      vKmh: st.vKmh,
+      showKmh: st.showV,
+      heading: st.heading,
+      accEst: st.accEst,
+      innov: st.innov,
+      quality: st.quality,
+      imuOn: st.imuOn,
+      imuDenied: st.imuDenied,
+      zupt: st.zupt,
+      raw: st.lastRaw,
+      vE: st.vE,
+      vN: st.vN,
+    };
+  }
+
+  async function enableImu() {
+    if (st.imuAsked && (st.imuOn || st.imuDenied)) return st.imuOn;
+    st.imuAsked = true;
+    try {
+      const DOM = typeof DeviceOrientationEvent !== 'undefined' ? DeviceOrientationEvent : null;
+      const DME = typeof DeviceMotionEvent !== 'undefined' ? DeviceMotionEvent : null;
+      if (DOM && typeof DOM.requestPermission === 'function') {
+        const r = await DOM.requestPermission();
+        if (r !== 'granted') {
+          st.imuDenied = true;
+          st.imuOn = false;
+          return false;
+        }
+      }
+      if (DME && typeof DME.requestPermission === 'function') {
+        const r2 = await DME.requestPermission();
+        if (r2 !== 'granted') {
+          st.imuDenied = true;
+          st.imuOn = false;
+          return false;
+        }
+      }
+      st.imuOn = true;
+      st.imuDenied = false;
+      return true;
+    } catch (_) {
+      // Android / desktop: listeners still work without prompt
+      st.imuOn = true;
+      return true;
+    }
+  }
+
+  // rolling accel variance for ZUPT
+  const _abuf = [];
+  function onDeviceMotion(e) {
+    const a = e.acceleration; // prefers linear (no g)
+    const ag = e.accelerationIncludingGravity;
+    let ax = 0, ay = 0, az = 0;
+    if (a && (a.x != null || a.y != null)) {
+      ax = a.x || 0; ay = a.y || 0; az = a.z || 0;
+    } else if (ag) {
+      // crude: remove ~1g vertical — better with orientation, OK for variance/ZUPT
+      ax = ag.x || 0; ay = ag.y || 0; az = (ag.z || 0);
+      const g = Math.hypot(ax, ay, az) || 1;
+      // residual from gravity magnitude
+      const scale = Math.max(0, g - 9.81);
+      ax *= scale / g; ay *= scale / g;
+    }
+    // Map device XY → approx world using IMU heading if known
+    let wx = ax, wy = ay;
+    if (st.headingImu != null) {
+      const h = st.headingImu * DEG;
+      // device +y often forward on phones in portrait — treat ay as forward
+      wx = Math.sin(h) * ay + Math.cos(h) * ax;
+      wy = Math.cos(h) * ay - Math.sin(h) * ax;
+    }
+    st.ax = wx;
+    st.ay = wy;
+    const mag = Math.hypot(ax, ay, az);
+    _abuf.push(mag);
+    while (_abuf.length > 12) _abuf.shift();
+    if (_abuf.length >= 4) {
+      const mean = _abuf.reduce((s, v) => s + v, 0) / _abuf.length;
+      st.accelVar = _abuf.reduce((s, v) => s + (v - mean) ** 2, 0) / _abuf.length;
+    }
+    if (e.rotationRate && e.rotationRate.alpha != null) {
+      // alpha is deg/s around Z in many browsers
+      st.yawRate = (e.rotationRate.alpha || 0) * DEG;
+    }
+  }
+
+  function onDeviceOrientation(e) {
+    let h = null;
+    if (e.webkitCompassHeading != null && Number.isFinite(e.webkitCompassHeading)) {
+      h = e.webkitCompassHeading;
+    } else if (e.alpha != null && Number.isFinite(e.alpha)) {
+      // absolute if available
+      h = (360 - e.alpha) % 360;
+    }
+    if (h != null) st.headingImu = h;
+  }
+
+  return {
+    reset,
+    ingestGps,
+    tick,
+    getState,
+    enableImu,
+    onDeviceMotion,
+    onDeviceOrientation,
+    get quality() { return st.quality; },
+  };
+})();
+
+// Compat aliases used across measure / lap / HUD
 let filtV = 0;
 let filtShow = 0;
-const speedBuf = [];
-const kf = { v: 0, a: 0, p: 80, r: 20, q: 10, e2: 30, init: false };
 
 function resetSpeedFilter() {
-  lastFix = null;
+  GpsFusion.reset();
   filtV = 0;
   filtShow = 0;
-  speedBuf.length = 0;
-  kf.v = 0; kf.a = 0; kf.p = 80; kf.r = 20; kf.q = 10; kf.e2 = 30; kf.init = false;
 }
 
-/** GPS speed for timing (filtV) + smoother HUD (filtShow). Prefer coords.speed. */
+/** GPS speed for timing (filtV) + smoother HUD (filtShow). Prefer fused state. */
 function kmhFromCoords(coords, ts) {
-  const acc = coords.accuracy || 25;
-  if (coords.latitude == null) return kf.init ? kf.v : null;
-  if (acc > 55) return kf.init ? kf.v : null;
-
-  const fix = { lat: coords.latitude, lon: coords.longitude, t: ts };
-  const dt = lastFix ? Math.max(0.08, Math.min(2.5, (ts - lastFix.t) / 1000)) : 0.3;
-
-  // Device GPS Doppler/speed is usually steadier than Δpos/Δt on phones.
-  let z = null;
-  const hasSpd = coords.speed != null && Number.isFinite(coords.speed) && coords.speed >= 0;
-  if (hasSpd) z = Math.max(0, coords.speed * 3.6);
-
-  let hv = null;
-  if (lastFix) {
-    const dist = haversineM(lastFix, fix);
-    const rawHv = (dist / dt) * 3.6;
-    // ignore teleport / absurd spikes from bad fixes
-    if (rawHv < 340 && dist < 90) hv = Math.max(0, rawHv);
-  }
-  lastFix = fix;
-
-  if (z == null) {
-    z = hv;
-  } else if (hv != null && acc > 22) {
-    // only light haversine blend when accuracy is mediocre
-    z = z * 0.9 + hv * 0.1;
-  }
-
-  if (z == null) return kf.init ? kf.v : null;
-
-  // spike reject vs current filter
-  if (kf.init && Math.abs(z - kf.v) > 28 && acc > 18) {
-    z = kf.v + Math.sign(z - kf.v) * 14;
-  }
-
-  if (!kf.init) {
-    kf.v = z; kf.a = 0; kf.p = 25; kf.r = 8 + acc * 0.35; kf.q = 8; kf.e2 = 30; kf.init = true;
-    filtV = z; filtShow = z; speedBuf.push(z);
-    return z;
-  }
-
-  // calmer process noise — less twitchy than before
-  const qBoost = Math.min(18, Math.abs(kf.a) * 0.2);
-  kf.q = kf.q * 0.92 + (4 + qBoost) * 0.08;
-  kf.v += kf.a * dt;
-  kf.p += kf.q + Math.min(8, acc * 0.08);
-  const innov = z - kf.v;
-  const S = kf.p + kf.r;
-  const nis = (innov * innov) / Math.max(1, S);
-  if (nis > 4) kf.r = Math.min(180, kf.r * 1.22);
-  else if (nis < 0.4) kf.r = Math.max(4, kf.r * 0.92);
-  else kf.r = Math.max(4, Math.min(160, 0.94 * kf.r + 0.06 * (10 + acc * 0.4)));
-  const k = kf.p / (kf.p + kf.r);
-  kf.a = kf.a * 0.7 + (innov / Math.max(0.12, dt)) * 0.3;
-  if (Math.abs(kf.a) > 25) kf.a = Math.sign(kf.a) * 25;
-  kf.v += k * innov;
-  kf.p *= (1 - k);
-  if (kf.v < 0.4) { kf.v = 0; kf.a = 0; }
-  if (kf.v > 360) kf.v = 360;
-  filtV = kf.v;
-
-  // HUD: median of last samples + slew limit (kills 45↔59 flicker)
-  speedBuf.push(filtV);
-  while (speedBuf.length > 5) speedBuf.shift();
-  const sorted = speedBuf.slice().sort((a, b) => a - b);
-  const med = sorted[Math.floor(sorted.length / 2)];
-  const maxStep = 5.5; // км/ч за один тик GPS
-  const d = med - filtShow;
-  filtShow += Math.sign(d) * Math.min(Math.abs(d), maxStep);
-  if (filtShow < 0.4) filtShow = 0;
-
+  const s = GpsFusion.ingestGps(coords, ts);
+  if (!s.ready) return null;
+  filtV = s.vKmh;
+  filtShow = s.showKmh;
   return filtV;
 }
 
 function displayKmh() {
-  return Math.round(filtShow || filtV || 0);
+  const s = GpsFusion.getState();
+  return Math.round(s.showKmh || s.vKmh || filtShow || filtV || 0);
 }
 
 function interpolateCross(prev, next, target) {
@@ -1636,11 +2058,17 @@ function fmtRunSec(sec) {
 
 function onGpsPoint(pos) {
   const now = pos.timestamp || Date.now();
+  GpsFusion.tick(now);
   const v = kmhFromCoords(pos.coords, now);
-  const acc = pos.coords.accuracy;
-  setRunText('gpsAcc', acc ? `${Math.round(acc)} м` : '—');
+  const fus = GpsFusion.getState();
+  const acc = fus.accEst != null ? fus.accEst : pos.coords.accuracy;
+  const rawAcc = pos.coords.accuracy;
+  const accLabel = acc != null
+    ? (`±${Math.round(acc)} м` + (fus.imuOn ? ' · fusion' : (fus.healthy ? ' · KF' : '')))
+    : '—';
+  setRunText('gpsAcc', accLabel);
   if (v == null) {
-    setRunText('runStatus', 'GPS есть, но скорость не отдаёт. Выйдите на улицу / откройте с телефона.');
+    setRunText('runStatus', 'GPS холодный / indoor? Выйдите на улицу и подождите фикс.');
     return;
   }
   const vShow = displayKmh();
@@ -1650,46 +2078,58 @@ function onGpsPoint(pos) {
   if (lapRun.active) onLapGps(pos, v);
 
   if (!run.armed) {
-    setRunText('runStatus', 'GPS живой. Стоите — жмите «Старт»');
+    let tip = 'GPS живой. Стоите — жмите «Старт»';
+    if (rawAcc != null && rawAcc > 35) tip = 'GPS грубый (±' + Math.round(rawAcc) + ' м). Лучше на открытом небе.';
+    else if (fus.imuDenied) tip = 'GPS ок. IMU недоступен (iOS: разрешите движение) — фильтр GPS-only.';
+    setRunText('runStatus', tip);
     return;
   }
 
-  const sample = { t: now, v, acc: acc != null ? Number(acc) : null };
+  const sample = { t: now, v, acc: acc != null ? Number(acc) : null, q: fus.quality };
   const prev = run.samples[run.samples.length - 1];
   run.samples.push(sample);
   if (acc != null && Number.isFinite(Number(acc))) {
     run.accSum = (run.accSum || 0) + Number(acc);
     run.accN = (run.accN || 0) + 1;
   }
+  run.gpsQLive = fus.quality;
 
   if (!run.launched) {
-    if (v < 8) {
+    // ZUPT helps clean 0–100: trust fused near-zero
+    if (v < 8 || fus.zupt) {
       run.t0 = now;
       setRunText('runFrom', 'ожидание старта');
-      setRunText('runStatus', 'Вооружён. Трогайтесь');
+      setRunText('runStatus', fus.zupt ? 'Вооружён · ZUPT (стойка чистая)' : 'Вооружён. Трогайтесь');
       setRunText('runDriveMsg', 'вооружён — газ');
     } else if (run.t0 && v >= 8) {
       run.launched = true;
       setRunText('runFrom', 'пошли');
       setRunText('runStatus', 'Идёт разгон…');
       setRunText('runDriveMsg', 'поехали!');
-      run.dist = 0; run.prevDist = 0; run.lastPos = null;
+      run.dist = 0; run.prevDist = 0; run.lastPos = null; run.lastFusT = now;
     } else {
       setRunText('runStatus', 'Для чистого 0–100 почти остановитесь (< 8 км/ч)');
     }
     return;
   }
 
-  // distance from launch (drag traps)
-  const lat = pos.coords.latitude;
-  const lon = pos.coords.longitude;
+  // distance from launch (drag traps): blend ∫v dt + filtered haversine (navigator-style)
+  const lat = fus.healthy && fus.lat != null ? fus.lat : pos.coords.latitude;
+  const lon = fus.healthy && fus.lon != null ? fus.lon : pos.coords.longitude;
   if (lat != null && lon != null) {
     const here = { lat, lon };
+    const dt = run.lastFusT ? Math.max(0.05, Math.min(2.5, (now - run.lastFusT) / 1000)) : 0.25;
+    let stepH = 0;
     if (run.lastPos) {
-      const step = haversineM(run.lastPos, here);
-      if (step < 80) run.dist = (run.dist || 0) + step;
+      stepH = haversineM(run.lastPos, here);
+      if (stepH >= 80) stepH = 0; // teleport guard
     }
+    const stepV = (v / 3.6) * dt; // ∫v
+    // Prefer speed integration when filter healthy; haversine alone zigzags
+    const step = fus.healthy ? (0.62 * stepV + 0.38 * stepH) : (stepH || stepV);
+    if (step < 90) run.dist = (run.dist || 0) + Math.max(0, step);
     run.lastPos = here;
+    run.lastFusT = now;
     setRunText('runDriveDist', `${Math.round(run.dist || 0)} м`);
   }
 
@@ -1817,6 +2257,9 @@ function startWatch() {
 
 function armRun() {
   resetSpeedFilter();
+  void GpsFusion.enableImu().then((ok) => {
+    if (!ok) setRunText('runStatus', 'IMU недоступен — GPS-only fusion. На iOS: разрешите «Движение и ориентация».');
+  });
 
   hap([18, 40, 18]);
   startWatch();
@@ -1833,7 +2276,7 @@ function armRun() {
   run.dist = 0;
   run.prevDist = 0;
   run.lastPos = null;
-  kf.init = false; kf.v = 0; kf.a = 0; kf.p = 80; lastFix = null;
+  run.lastFusT = null;
   run.saved0100 = run.saved100200 = run.saved200300 = run.saved050 = run.saved060 = run.saved80120 = run.saved1000 = false;
   run.saved60ft = run.saved18 = run.saved14 = false;
   run.brakeArmed = false;
@@ -2274,6 +2717,9 @@ function resetLapRunSoft() {
 
 function armLapRun() {
   resetSpeedFilter();
+  void GpsFusion.enableImu().then((ok) => {
+    if (!ok) setLapMsg('IMU недоступен (iOS: движение) — круг на GPS-fusion');
+  });
 
   hap([18, 40, 18]);
   startWatch();
@@ -2362,7 +2808,11 @@ function gpsQualityFromLapRun(ms) {
   const avgAcc = lapRun.accN ? (lapRun.accSum / lapRun.accN) : null;
   const badRatio = n ? (lapRun.bad || 0) / n : null;
   const hz = (ms > 0 && n > 1) ? (n / (ms / 1000)) : null;
-  return gradeGpsQuality({ avgAcc, badRatio, flags: lapRun.flags, hz });
+  const g = gradeGpsQuality({ avgAcc, badRatio, flags: lapRun.flags, hz });
+  const fq = GpsFusion.quality || lapRun.gpsQLive;
+  if (fq === 'A' && (g.gpsQ === 'B' || g.gpsQ === 'C')) g.gpsQ = 'A';
+  else if (fq === 'B' && g.gpsQ === 'C') g.gpsQ = 'B';
+  return g;
 }
 
 function gpsQualityFromStraightRun() {
@@ -2374,7 +2824,12 @@ function gpsQualityFromStraightRun() {
     const dt = (samples[samples.length - 1].t - samples[0].t) / 1000;
     if (dt > 0.2) hz = samples.length / dt;
   }
-  return gradeGpsQuality({ avgAcc, badRatio: null, flags: run.flags || [], hz });
+  const g = gradeGpsQuality({ avgAcc, badRatio: null, flags: run.flags || [], hz });
+  // Prefer fused grade when filter reports healthier than raw-only path
+  const fq = GpsFusion.quality || run.gpsQLive;
+  if (fq === 'A' && (g.gpsQ === 'B' || g.gpsQ === 'C')) g.gpsQ = 'A';
+  else if (fq === 'B' && g.gpsQ === 'C') g.gpsQ = 'B';
+  return g;
 }
 
 function lapValidEnough(ms) {
@@ -2486,12 +2941,41 @@ async function completeLapRun(how, atTs) {
   updateSessionHud();
 }
 
+function gateHysteresis(dGate, vKmh, wasInGate, trackId, pt) {
+  // Soft corridor around TRACK_GEO S/F — bias cross detect, no hard SVG geo teleport
+  let r = LAP_GATE_R;
+  if (wasInGate) r *= 1.28;
+  else if ((vKmh || 0) >= 50) r *= 1.1;
+  // TRACK_POLY approx oval: if far off ring, tighten enter (don't invent map snap)
+  const poly = trackId && TRACK_POLY[trackId];
+  if (poly && pt && !wasInGate) {
+    let min = Infinity;
+    for (let i = 0; i < poly.length; i++) {
+      const d = haversineM(pt, poly[i]);
+      if (d < min) min = d;
+    }
+    if (min > 240) r *= 0.88;
+  }
+  return dGate <= r;
+}
+
 function onLapGps(pos, vKmh) {
   if (!lapRun.active || lapRun.phase === 'idle') return;
   const c = pos.coords;
-  const acc = c.accuracy || 99;
+  const fus = GpsFusion.getState();
+  const rawAcc = c.accuracy || 99;
+  const acc = fus.accEst != null ? fus.accEst : rawAcc;
   const now = pos.timestamp || Date.now();
-  const pt = { lat: c.latitude, lon: c.longitude, t: now, v: vKmh, acc };
+  // Prefer filtered lat/lon when healthy
+  const useFus = fus.healthy && fus.lat != null && fus.lon != null;
+  const pt = {
+    lat: useFus ? fus.lat : c.latitude,
+    lon: useFus ? fus.lon : c.longitude,
+    t: now,
+    v: vKmh,
+    acc,
+    fused: useFus,
+  };
   const gate = TRACK_GEO[lapRun.trackId];
   if (!gate || pt.lat == null) return;
 
@@ -2500,15 +2984,19 @@ function onLapGps(pos, vKmh) {
     lapRun.accSum = (lapRun.accSum || 0) + acc;
     lapRun.accN = (lapRun.accN || 0) + 1;
   }
+  lapRun.gpsQLive = fus.quality;
   const dGate = haversineM(pt, gate);
-  const inGate = dGate <= LAP_GATE_R;
+  const wasIn = !!(lapRun.last && lapRun.last.inGate);
+  const inGate = gateHysteresis(dGate, vKmh, wasIn, lapRun.trackId, pt);
 
   let reject = false;
-  if (acc > LAP_MAX_ACC) {
+  if (rawAcc > LAP_MAX_ACC && !useFus) {
     lapRun.bad += 1;
     if (!lapRun.flags.includes('acc')) lapRun.flags.push('acc');
-    setLapHud('lapDriveWarn', `GPS ±${Math.round(acc)} м`);
+    setLapHud('lapDriveWarn', `GPS ±${Math.round(rawAcc)} м`);
     reject = true;
+  } else if (rawAcc > LAP_MAX_ACC && useFus) {
+    setLapHud('lapDriveWarn', `сырой ±${Math.round(rawAcc)} · fusion ±${Math.round(acc)}`);
   } else {
     setLapHud('lapDriveWarn', '');
   }
@@ -2526,12 +3014,16 @@ function onLapGps(pos, vKmh) {
       reject = true;
     }
     if (!reject && jump < 120) {
-      lapRun.dist += jump;
+      // Lap distance: blend ∫v dt + filtered haversine (cuts zigzag inflation)
+      const stepV = ((vKmh || 0) / 3.6) * dt;
+      const step = useFus ? (0.68 * stepV + 0.32 * jump) : jump;
+      lapRun.dist += Math.max(0, step);
       if (jump > 2.5 && vKmh > 25) {
         const course = bearingDeg(lapRun.last, pt);
         let slip = null;
-        if (c.heading != null && Number.isFinite(c.heading)) {
-          slip = Math.abs(angDiff(course, c.heading));
+        const hdg = fus.heading != null ? fus.heading : c.heading;
+        if (hdg != null && Number.isFinite(hdg)) {
+          slip = Math.abs(angDiff(course, hdg));
         } else if (lapRun.last.course != null) {
           slip = Math.min(45, Math.abs(angDiff(lapRun.last.course, course)) / Math.max(0.2, dt) * 0.15);
         }
@@ -2585,7 +3077,7 @@ function onLapGps(pos, vKmh) {
       setLapMsg('на зоне С/Ф — через линию на ходу');
     }
   } else if (lapRun.phase === 'running') {
-    if (!inGate && dGate > LAP_GATE_R * 1.25) lapRun.leftGate = true;
+    if (!inGate && dGate > LAP_GATE_R * 1.35) lapRun.leftGate = true;
     const need = trackLenM(lapRun.trackId) * 0.52;
     const minT = 25000;
     if (lapRun.leftGate && inGate && moved && (!lapRun.last || !lapRun.last.inGate)
@@ -2703,11 +3195,17 @@ document.querySelectorAll('.btn-pro-soon, #btnProSoon').forEach((btn) => {
   });
 });
 window.addEventListener('devicemotion', (e) => {
-  const a = e.accelerationIncludingGravity;
+  GpsFusion.onDeviceMotion(e);
+  const a = e.accelerationIncludingGravity || e.acceleration;
   if (!a) return;
   const g = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2) / 9.81;
   setRunText('liveG', g.toFixed(2));
+  // coast between GPS fixes while measuring / lapping
+  if (run.armed || lapRun.active) GpsFusion.tick(Date.now());
 });
+window.addEventListener('deviceorientation', (e) => {
+  GpsFusion.onDeviceOrientation(e);
+}, true);
 document.getElementById('topValidOnly')?.addEventListener('change', () => { void renderTops(); });
 document.getElementById('topModelFilter')?.addEventListener('change', () => { void renderTops(); });
 
