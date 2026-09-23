@@ -241,14 +241,15 @@
               </header>
 
               <div id="dynoView" class="dyno-rows">
-                <div class="dyno-row"><span>0–100</span><strong id="d0100">—</strong></div>
-                <div class="dyno-row"><span>100–200</span><strong id="d100200">—</strong></div>
-                <div class="dyno-row"><span>200–300</span><strong id="d200300">—</strong></div>
-                <div class="dyno-row"><span>80–120</span><strong id="d80120">—</strong></div>
+                <div class="dyno-row dyno-row-marks"><span>0–100</span><strong id="d0100" class="dyno-val-cell">—</strong></div>
+                <div class="dyno-row dyno-row-marks"><span>100–200</span><strong id="d100200" class="dyno-val-cell">—</strong></div>
+                <div class="dyno-row dyno-row-marks"><span>200–300</span><strong id="d200300" class="dyno-val-cell">—</strong></div>
+                <div class="dyno-row dyno-row-marks"><span>80–120</span><strong id="d80120" class="dyno-val-cell">—</strong></div>
                 <div class="dyno-row"><span>мощность</span><strong id="dHp">—</strong></div>
                 <div class="dyno-row"><span>момент</span><strong id="dNm">—</strong></div>
                 <div class="dyno-row"><span>масса</span><strong id="dKg">—</strong></div>
                 <div class="dyno-row"><span>л.с. / тонна</span><strong id="dPt">—</strong></div>
+                <p class="dyno-gps-note muted tiny" id="dynoGpsNote" hidden></p>
               </div>
 
               <form id="dynoEditForm" class="dyno-edit hidden" autocomplete="off">
