@@ -74,6 +74,124 @@ function tracksOrdered() {
 }
 
 
+/** Rich discovery cards for cult autodromes. Honest copy; only real official URLs. */
+const AUTODROME_INFO = {
+  sochi: {
+    blurb: 'Единственный российский трек, принимавший Ф1. Сейчас — Сириус Автодром в Олимпийском парке. Длинная финишная, жёсткое торможение в T2, техничная финальная связка.',
+    configs: 'Исторически GP ~5.8 км / 18 пов.; актуальная конфигурация — уточняйте на сайте (есть укороченные варианты).',
+    site: 'https://siriusautodrom.ru',
+    buy: 'Календарь сессий и трек-дней — на сайте автодрома.',
+  },
+  moscow: {
+    blurb: 'Флагман Подмосковья у Волоколамского. Несколько конфигураций, открытый питлейн и регулярные трек-дни.',
+    configs: 'Полная ~3.9 км / 13 пов.; укороченные варианты срезают связки.',
+    site: 'https://moscowraceway.ru',
+    buy: 'Трек-дни и открытый питлейн — расписание на moscowraceway.ru.',
+  },
+  igora: {
+    blurb: 'Современный комплекс Ленобласти: длинная С/Ф, перепад на спуске, много средних поворотов против часовой.',
+    configs: 'Шоссейно-кольцевая ~5.2 км / ~20 пов.; плюс картинг и контраварийка на территории.',
+    site: 'https://drive-igora.ru',
+    buy: 'Сессии и курсы — на сайте Игора Драйв.',
+  },
+  kazan: {
+    blurb: 'KazanRing Canyon: слепые вершины, уклоны, длинная прямая ~800 м. Движение против часовой.',
+    configs: 'Основное кольцо ~3.5 км / 12 пов.',
+    site: 'https://kznring.ru',
+    buy: 'Расписание и запись — на сайте автодрома.',
+  },
+  smolensk: {
+    blurb: 'Техничное кольцо Смоленской области: средние радиусы, мало мест «отдохнуть».',
+    configs: 'Типичная GP-конфигурация ~3.3–3.4 км / ~14 пов.',
+    site: null,
+    buy: 'Сессии и цены — уточняйте на сайте автодрома.',
+  },
+  nring: {
+    blurb: 'Короткое плотное кольцо у Нижнего: мало времени на ошибку, плотная нарезка.',
+    configs: '~3.1 км / ~12 пов.',
+    site: null,
+    buy: 'Трек-дни — уточняйте на сайте автодрома.',
+  },
+  adm: {
+    blurb: 'Мячково: старое техничное кольцо Подмосковья, короткие прямые, частая смена направления.',
+    configs: '~3.2 км / много поворотов; конфигурации менялись — смотрите актуальную карту.',
+    site: null,
+    buy: 'Сессии — уточняйте на сайте автодрома.',
+  },
+  grozny: {
+    blurb: 'Fort Grozny: относительно короткий GP, понятные зоны торможения, крепостная атмосфера.',
+    configs: '~3.1 км / ~11 пов.',
+    site: null,
+    buy: 'Расписание — уточняйте на сайте автодрома.',
+  },
+  redring: {
+    blurb: 'Красное Кольцо у Красноярска: компактное кольцо, акцент на ритм, меньше поворотов.',
+    configs: '~2.8 км / ~10 пов.',
+    site: null,
+    buy: 'Сессии — уточняйте на сайте автодрома.',
+  },
+};
+
+function moscowDateKeyClient(ms = Date.now()) {
+  try {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Moscow',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(ms));
+  } catch (_) {
+    const d = new Date(ms);
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+function dayHashClient(key) {
+  let h = 2166136261;
+  const s = String(key);
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function cultTracksList() {
+  return TRACKS.filter((t) => t.cult);
+}
+
+function pickSessionTrackClient() {
+  const cult = cultTracksList();
+  const list = cult.length ? cult : TRACKS;
+  const date = moscowDateKeyClient();
+  const idx = dayHashClient(date) % list.length;
+  const t = list[idx];
+  return { trackId: t.id, title: t.name, date, source: 'hash' };
+}
+
+function filterTopsToday(rows, dateKey) {
+  const key = dateKey || moscowDateKeyClient();
+  return (rows || []).filter((r) => {
+    if (!r || !r.gps || r.valid === false) return false;
+    if (Array.isArray(r.flags) && r.flags.includes('teleport')) return false;
+    if (r.gpsQ !== 'A' && r.gpsQ !== 'B') return false;
+    if (!r.at) return false;
+    return moscowDateKeyClient(Number(r.at)) === key;
+  });
+}
+
+function parseLapMsClient(t) {
+  const m = String(t || '').match(/^(\d+):(\d{2})(?:\.(\d+))?$/);
+  if (!m) return null;
+  const min = Number(m[1]);
+  const sec = Number(m[2]);
+  const frac = m[3] ? Number('0.' + m[3]) : 0;
+  return Math.round((min * 60 + sec + frac) * 1000);
+}
+
+
+
+
 
 // Approximate S/F gate points (WGS84). Cult tracks: tightened to known paddock/S-F areas.
 // Sochi ≈ main straight S/F; Moscow Raceway ≈ pit straight; Igora ≈ long S/F;
@@ -1099,6 +1217,7 @@ function pickDefaultWeatherFilter(lapRows) {
 }
 
 async function renderTops() {
+  try { void renderSessionOfDay(); } catch (_) {}
   const c = currentCar();
   const trackId = document.getElementById('topTrackSelect')?.value || state.trackId || c.lap.track;
   const nameEl = document.getElementById('topCarName');
@@ -6963,7 +7082,211 @@ async function bootCrewFromUrl() {
   }
 }
 
+
+/* —— Session of the day + autodrome discovery —— */
+let _sessionTodayCache = null;
+
+async function renderSessionOfDay() {
+  const titleEl = document.getElementById('sessionDayTitle');
+  const dateEl = document.getElementById('sessionDayDate');
+  const listEl = document.getElementById('sessionDayTops');
+  const attEl = document.getElementById('sessionDayAtt');
+  if (!titleEl || !listEl) return;
+
+  let data = null;
+  try {
+    data = await api.getSessionToday();
+  } catch (_) {
+    data = null;
+  }
+
+  if (!data || !data.trackId) {
+    const picked = pickSessionTrackClient();
+    let rows = [];
+    try {
+      const all = await api.listLap(picked.trackId);
+      rows = filterTopsToday(all, picked.date);
+      rows.sort((a, b) => (parseLapMsClient(a.t) ?? 1e15) - (parseLapMsClient(b.t) ?? 1e15));
+    } catch (_) {}
+    data = {
+      trackId: picked.trackId,
+      title: picked.title,
+      date: picked.date,
+      source: 'client',
+      tops: rows.slice(0, 15),
+      attendees: [],
+    };
+  } else if (!Array.isArray(data.tops) || !data.tops.length) {
+    // Worker returned track but empty tops — client may filter if timestamps exist locally/remotely
+    try {
+      const all = await api.listLap(data.trackId);
+      const rows = filterTopsToday(all, data.date || moscowDateKeyClient());
+      rows.sort((a, b) => (parseLapMsClient(a.t) ?? 1e15) - (parseLapMsClient(b.t) ?? 1e15));
+      data = { ...data, tops: rows.slice(0, 15) };
+    } catch (_) {}
+  }
+
+  _sessionTodayCache = data;
+  const tr = TRACKS.find((t) => t.id === data.trackId);
+  titleEl.textContent = data.title || tr?.name || data.trackId;
+  if (dateEl) {
+    const src = data.source === 'kv' ? ' · вручную' : (data.source === 'client' ? ' · офлайн' : '');
+    dateEl.textContent = (data.date || moscowDateKeyClient()) + ' · топ дня A/B' + src;
+  }
+  const tops = Array.isArray(data.tops) ? data.tops : [];
+  listEl.innerHTML = tops.length
+    ? tops.map((r, i) => `<li><span>${i + 1}. ${esc(r.name)} · ${esc(r.car || '')}</span><strong class="tops-time">${esc(String(r.t))}${topsGpsBadge(r)}</strong></li>`).join('')
+    : '<li><span>пока нет кругов A/B за сегодня</span><strong>—</strong></li>';
+
+  const atts = Array.isArray(data.attendees) ? data.attendees : [];
+  if (attEl) {
+    attEl.textContent = atts.length
+      ? 'на месте: ' + atts.slice(0, 8).map((a) => a.nick).filter(Boolean).join(', ') + (atts.length > 8 ? '…' : '')
+      : 'никто ещё не отметился';
+  }
+}
+
+function sessionPilotNick() {
+  try {
+    const u = typeof currentUser === 'function' ? currentUser() : null;
+    if (u?.nick) return String(u.nick).slice(0, 48);
+  } catch (_) {}
+  try {
+    const n = localStorage.getItem('pitlane-nick') || localStorage.getItem('pitlane-duel-nick');
+    if (n) return String(n).slice(0, 48);
+  } catch (_) {}
+  return '';
+}
+
+async function sessionCheckinClick() {
+  let nick = sessionPilotNick();
+  if (!nick) {
+    nick = String(prompt('Твой ник для «я на месте»', 'пилот') || '').trim().slice(0, 48);
+  }
+  if (!nick) return;
+  const res = await api.sessionCheckin({ nick, pilotId: (() => { try { return devicePilotId(); } catch (_) { return undefined; } })() });
+  if (res && res.ok) {
+    if (_sessionTodayCache) _sessionTodayCache.attendees = res.attendees || [];
+    await renderSessionOfDay();
+    try { hap(18); } catch (_) {}
+  } else {
+    alert(res?.error || 'Не удалось отметиться. Нужен Worker.');
+  }
+}
+
+function openSessionTrack() {
+  const id = _sessionTodayCache?.trackId;
+  if (!id) return;
+  state.trackId = id;
+  save();
+  const sel = document.getElementById('trackSelect');
+  const topSel = document.getElementById('topTrackSelect');
+  if (sel) {
+    sel.value = id;
+    sel.dispatchEvent(new Event('change'));
+  }
+  if (topSel) {
+    topSel.value = id;
+    topSel.dispatchEvent(new Event('change'));
+  }
+  goToView('lap');
+}
+
+function openAutodromeSheet(focusId) {
+  const sheet = document.getElementById('autodromeSheet');
+  if (!sheet) return;
+  sheet.classList.remove('hidden');
+  sheet.setAttribute('aria-hidden', 'false');
+  renderAutodromeList();
+  if (focusId) showAutodromeDetail(focusId);
+  else {
+    document.getElementById('autodromeListPane')?.removeAttribute('hidden');
+    document.getElementById('autodromeDetailPane')?.setAttribute('hidden', '');
+  }
+}
+
+function closeAutodromeSheet() {
+  const sheet = document.getElementById('autodromeSheet');
+  if (!sheet) return;
+  sheet.classList.add('hidden');
+  sheet.setAttribute('aria-hidden', 'true');
+}
+
+function renderAutodromeList() {
+  const ul = document.getElementById('autodromeList');
+  if (!ul) return;
+  const cult = cultTracksList();
+  ul.innerHTML = cult.map((t) => {
+    const info = AUTODROME_INFO[t.id] || {};
+    const short = (info.blurb || t.corners || '').slice(0, 72);
+    return `<li data-ad-id="${esc(t.id)}"><span class="dl-main">${esc(t.name)}</span><span class="dl-st">${esc(short)}${short.length >= 72 ? '…' : ''}</span></li>`;
+  }).join('') || '<li><span class="dl-main">нет культовых треков</span></li>';
+}
+
+function showAutodromeDetail(id) {
+  const t = TRACKS.find((x) => x.id === id);
+  const info = AUTODROME_INFO[id] || {};
+  const listPane = document.getElementById('autodromeListPane');
+  const detail = document.getElementById('autodromeDetailPane');
+  if (!detail || !t) return;
+  listPane?.setAttribute('hidden', '');
+  detail.removeAttribute('hidden');
+  const nameEl = document.getElementById('autodromeDetailName');
+  const bodyEl = document.getElementById('autodromeDetailBody');
+  if (nameEl) nameEl.textContent = t.name;
+  const km = t.km ? `${t.km} км` : '';
+  const turns = t.turns ? `${t.turns} пов.` : '';
+  const meta = [km, turns, t.ref ? `реф ${t.ref}` : ''].filter(Boolean).join(' · ');
+  const site = info.site
+    ? `<p class="ad-link"><a href="${esc(info.site)}" target="_blank" rel="noopener noreferrer">Официальный сайт</a></p>`
+    : `<p class="tiny muted">Официальный сайт — уточняйте на сайте автодрома</p>`;
+  bodyEl.innerHTML = `
+    <p class="ad-meta">${esc(meta)}</p>
+    <p class="ad-blurb">${esc(info.blurb || t.corners || 'Культовый автодром России.')}</p>
+    <p class="ad-cfg"><strong>Конфигурации:</strong> ${esc(info.configs || 'уточняйте на месте')}</p>
+    <p class="ad-buy"><strong>Сессии:</strong> ${esc(info.buy || 'уточняйте на сайте автодрома')}</p>
+    ${site}
+    <p class="tiny muted">Бронирование в Pitlane не встроено — только справочник.</p>
+  `;
+  const goBtn = document.getElementById('autodromeSelectBtn');
+  if (goBtn) goBtn.dataset.trackId = id;
+}
+
+
 document.getElementById('btnCrewOpen')?.addEventListener('click', () => openCrewSheet());
+
+document.getElementById('btnSessionGoTrack')?.addEventListener('click', () => openSessionTrack());
+document.getElementById('btnSessionCheckin')?.addEventListener('click', () => { void sessionCheckinClick(); });
+document.getElementById('btnSessionTrackInfo')?.addEventListener('click', () => {
+  const id = _sessionTodayCache?.trackId;
+  if (id) openAutodromeSheet(id);
+  else openAutodromeSheet();
+});
+document.getElementById('btnAutodromesOpen')?.addEventListener('click', () => openAutodromeSheet());
+document.getElementById('btnAutodromesLap')?.addEventListener('click', () => openAutodromeSheet());
+document.getElementById('autodromeSheetClose')?.addEventListener('click', () => closeAutodromeSheet());
+document.getElementById('autodromeBackBtn')?.addEventListener('click', () => {
+  document.getElementById('autodromeDetailPane')?.setAttribute('hidden', '');
+  document.getElementById('autodromeListPane')?.removeAttribute('hidden');
+});
+document.getElementById('autodromeList')?.addEventListener('click', (e) => {
+  const li = e.target.closest('[data-ad-id]');
+  if (!li) return;
+  showAutodromeDetail(li.dataset.adId);
+});
+document.getElementById('autodromeSelectBtn')?.addEventListener('click', () => {
+  const id = document.getElementById('autodromeSelectBtn')?.dataset?.trackId;
+  if (!id) return;
+  state.trackId = id;
+  save();
+  const sel = document.getElementById('trackSelect');
+  const topSel = document.getElementById('topTrackSelect');
+  if (sel) { sel.value = id; sel.dispatchEvent(new Event('change')); }
+  if (topSel) { topSel.value = id; topSel.dispatchEvent(new Event('change')); }
+  closeAutodromeSheet();
+  goToView('lap');
+});
+
 document.getElementById('crewSheetClose')?.addEventListener('click', closeCrewSheet);
 document.getElementById('crewSheet')?.addEventListener('click', (e) => {
   if (e.target?.id === 'crewSheet') closeCrewSheet();

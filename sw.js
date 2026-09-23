@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v66';
+const CACHE = 'pitlane-v67';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -104,7 +104,9 @@ self.addEventListener('fetch', (e) => {
     p.includes('/pulse') ||
     p.includes('/garage') ||
     p.includes('/share') ||
-    p.includes('/duel')
+    p.includes('/duel') ||
+    p.includes('/crew') ||
+    p.includes('/session')
   ) {
     return;
   }

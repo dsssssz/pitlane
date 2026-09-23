@@ -306,6 +306,7 @@
               <select id="trackSelect" class="sr-select"></select>
               <div class="wheel" id="trackWheel"></div>
               <div class="track-map" id="trackMap"></div>
+              <button type="button" class="ad-linkish" id="btnAutodromesLap">Автодромы · справочник</button>
               <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
               <div class="lap-track-actions">
                 <button type="button" id="btnLapStart" class="lap-start-hero" data-i18n="lap.start">Старт круга</button>
@@ -355,10 +356,26 @@
             <div class="tops-head-actions">
               <button type="button" class="duel-btn" id="btnDuelOpen">Дуэль</button>
               <button type="button" class="crew-btn" id="btnCrewOpen">Экипаж</button>
+              <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
               <a class="method-link" href="./method.html" id="topsMethodLink">методика</a>
             </div>
           </div>
           <p class="muted">Прямая — внутри одной модели. Кольцо — выбранный трек. Только валидные GPS A/B.</p>
+
+          <article class="card session-day-card" id="sessionDayCard">
+            <div class="session-day-head">
+              <span class="session-day-badge">сессия дня</span>
+              <button type="button" class="session-day-info" id="btnSessionTrackInfo" title="Об автодроме" aria-label="Об автодроме">i</button>
+            </div>
+            <h3 id="sessionDayTitle">—</h3>
+            <p class="tiny muted" id="sessionDayDate">—</p>
+            <ol id="sessionDayTops" class="laps"></ol>
+            <div class="session-day-actions">
+              <button type="button" class="go-btn" id="btnSessionGoTrack">Открыть трек</button>
+              <button type="button" id="btnSessionCheckin">Я на месте</button>
+            </div>
+            <p class="tiny muted" id="sessionDayAtt">—</p>
+          </article>
           <div class="tops-filters card">
             <label class="tops-check"><input type="checkbox" id="topValidOnly" checked /> только валидные GPS</label>
             <label class="tops-model">модель
@@ -653,6 +670,26 @@
           <h3 class="crew-list-title">Мои экипажи</h3>
           <ul class="crew-list" id="crewList"></ul>
           <button type="button" class="crew-linkish" id="crewPasteOpen">Открыть по ссылке / id…</button>
+        </div>
+      </div>
+    </div>
+
+
+    <div id="autodromeSheet" class="crew-sheet hidden" aria-hidden="true" role="dialog" aria-label="Автодромы">
+      <div class="crew-sheet-inner ad-sheet-inner">
+        <button type="button" class="share-card-close" id="autodromeSheetClose" aria-label="Закрыть">×</button>
+        <h2 class="crew-title">Автодромы</h2>
+        <p class="crew-lead">Культовые кольца России: кратко, честно, без фейкового бронирования.</p>
+
+        <div id="autodromeListPane">
+          <ul class="crew-list" id="autodromeList"></ul>
+        </div>
+
+        <div id="autodromeDetailPane" hidden>
+          <button type="button" class="ad-back" id="autodromeBackBtn">← к списку</button>
+          <h3 class="ad-detail-name" id="autodromeDetailName">—</h3>
+          <div id="autodromeDetailBody" class="ad-detail-body"></div>
+          <button type="button" class="go-btn" id="autodromeSelectBtn">Выбрать этот трек</button>
         </div>
       </div>
     </div>

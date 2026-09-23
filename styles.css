@@ -3010,3 +3010,161 @@ body.run-drive-on #app { visibility: hidden; }
   text-decoration: underline;
   text-underline-offset: 3px;
 }
+
+/* —— Session of the day + autodrome discovery —— */
+.session-day-card {
+  margin: 0 0 12px;
+  border: 1px solid rgba(57, 255, 20, 0.28);
+  box-shadow: 0 0 24px rgba(57, 255, 20, 0.08), inset 0 0 40px rgba(57, 255, 20, 0.03);
+  background: linear-gradient(165deg, rgba(57, 255, 20, 0.06), rgba(10, 12, 14, 0.92) 42%);
+}
+.session-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.session-day-badge {
+  display: inline-block;
+  font: 800 11px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #39FF14;
+  border: 1px solid rgba(57, 255, 20, 0.45);
+  border-radius: 999px;
+  padding: 5px 10px;
+  background: rgba(57, 255, 20, 0.08);
+  text-shadow: 0 0 12px rgba(57, 255, 20, 0.35);
+}
+.session-day-info {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid rgba(57, 255, 20, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  color: #39FF14;
+  font: 800 13px/1 "Barlow Condensed", sans-serif;
+  cursor: pointer;
+}
+.session-day-info:active { transform: scale(0.94); }
+.session-day-card h3 {
+  margin: 6px 0 2px;
+  font: 800 20px/1.15 "Barlow Condensed", sans-serif;
+  letter-spacing: .02em;
+  color: #f2f2f2;
+}
+.session-day-card #sessionDayTops {
+  margin: 8px 0 10px;
+  max-height: 180px;
+  overflow: auto;
+}
+.session-day-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.session-day-actions .go-btn,
+.session-day-actions button {
+  width: 100%;
+  min-height: 42px;
+}
+.session-day-actions button:not(.go-btn) {
+  appearance: none;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ddd;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: 600 13px/1 Manrope, sans-serif;
+  cursor: pointer;
+}
+.session-day-actions button:not(.go-btn):active {
+  border-color: #39FF14;
+}
+.ad-btn {
+  appearance: none;
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  background: rgba(0, 229, 255, 0.08);
+  color: #7DF9FF;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font: 700 12px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.ad-btn:active { filter: brightness(1.12); transform: scale(0.97); }
+.ad-linkish {
+  appearance: none;
+  background: none;
+  border: none;
+  color: #7DF9FF;
+  font: 600 12px/1.4 Manrope, sans-serif;
+  margin: 8px 0 4px;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  display: block;
+  text-align: left;
+}
+.ad-sheet-inner .ad-back {
+  appearance: none;
+  background: none;
+  border: none;
+  color: #39FF14;
+  font: 600 13px/1.3 Manrope, sans-serif;
+  margin: 0 0 10px;
+  padding: 0;
+  cursor: pointer;
+}
+.ad-detail-name {
+  margin: 0 0 8px;
+  font: 800 22px/1.15 "Barlow Condensed", sans-serif;
+  color: #eee;
+}
+.ad-detail-body {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.ad-detail-body .ad-meta {
+  font: 700 12px/1.3 "Barlow Condensed", sans-serif;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: rgba(125, 249, 255, 0.85);
+  margin: 0;
+}
+.ad-detail-body .ad-blurb,
+.ad-detail-body .ad-cfg,
+.ad-detail-body .ad-buy {
+  margin: 0;
+  font: 500 13px/1.45 Manrope, sans-serif;
+  color: #ddd;
+}
+.ad-detail-body .ad-link a {
+  color: #39FF14;
+  font-weight: 600;
+}
+.ad-detail-body .ad-link {
+  margin: 0;
+}
+#autodromeList .dl-st {
+  display: block;
+  margin-top: 4px;
+  font: 500 11px/1.35 Manrope, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: .62;
+  max-width: 100%;
+}
+#autodromeList li {
+  flex-direction: column;
+  align-items: flex-start;
+}
+@media (max-width: 420px) {
+  .session-day-actions { grid-template-columns: 1fr; }
+  .session-day-card h3 { font-size: 18px; }
+}
+

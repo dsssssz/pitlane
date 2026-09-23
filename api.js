@@ -472,6 +472,28 @@ export const api = {
   },
 
 
+
+  /** GET /session/today → { trackId, title, date, tops, attendees } */
+  async getSessionToday() {
+    const remoteRes = await remote('/session/today');
+    if (remoteRes && remoteRes.trackId) return remoteRes;
+    return null;
+  },
+
+  /** POST /session/today/checkin { nick, pilotId? } */
+  async sessionCheckin(payload) {
+    const body = {
+      nick: payload?.nick || undefined,
+      pilotId: payload?.pilotId || undefined,
+      name: payload?.nick || undefined,
+    };
+    return await remoteKeep('/session/today/checkin', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+  },
+
+
 };
 
 export function isRemoteApi() {

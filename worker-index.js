@@ -489,6 +489,64 @@ async function buildCrewBoard(kv, crew) {
 }
 
 
+
+/** Cult RU tracks for session-of-day rotation (keep in sync with app.js TRACKS.cult). */
+const CULT_SESSION_TRACKS = [
+  { id: 'sochi', title: 'Сочи Автодром' },
+  { id: 'moscow', title: 'Moscow Raceway' },
+  { id: 'igora', title: 'Игора Драйв' },
+  { id: 'kazan', title: 'Казань Ринг' },
+  { id: 'smolensk', title: 'Смоленское кольцо' },
+  { id: 'nring', title: 'NRING Нижний Новгород' },
+  { id: 'adm', title: 'ADM Raceway Мячково' },
+  { id: 'grozny', title: 'Fort Grozny Autodrom' },
+  { id: 'redring', title: 'Красное Кольцо Красноярск' },
+];
+
+function moscowDateKey(ms = Date.now()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Moscow',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(ms));
+}
+
+function dayHash(key) {
+  let h = 2166136261;
+  for (let i = 0; i < String(key).length; i++) {
+    h ^= String(key).charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function pickSessionOfDay(manual) {
+  const date = moscowDateKey();
+  const mid = manual && typeof manual === 'object' ? String(manual.trackId || '').trim() : '';
+  if (mid) {
+    const found = CULT_SESSION_TRACKS.find((t) => t.id === mid);
+    if (found) {
+      return {
+        trackId: found.id,
+        title: String(manual.title || found.title).slice(0, 80),
+        date,
+        source: 'kv',
+      };
+    }
+  }
+  const idx = dayHash(date) % CULT_SESSION_TRACKS.length;
+  const t = CULT_SESSION_TRACKS[idx];
+  return { trackId: t.id, title: t.title, date, source: 'hash' };
+}
+
+function isAbLapRow(r) {
+  if (!r || !r.gps || r.valid === false) return false;
+  if (Array.isArray(r.flags) && r.flags.includes('teleport')) return false;
+  return r.gpsQ === 'A' || r.gpsQ === 'B';
+}
+
+
 export default {
   async fetch(req, env) {
     const headers = corsHeaders(req, env);
@@ -1122,6 +1180,105 @@ export default {
         }
         const board = await buildCrewBoard(env.PITLANE, crew);
         return json({ ok: true, best: crew.memberBests[pilotId], board }, 200, headers);
+      }
+
+
+
+      // —— Session of the day (track-day soft) ——
+      if (req.method === 'GET' && path === '/session/today') {
+        let manual = null;
+        const mraw = await env.PITLANE.get('session:day');
+        if (mraw) {
+          try { manual = JSON.parse(mraw); } catch { manual = null; }
+        }
+        const picked = pickSessionOfDay(manual);
+        const rows = (await readList(env.PITLANE, `lap:${picked.trackId}`))
+          .filter(isAbLapRow)
+          .filter((r) => r && r.at && moscowDateKey(Number(r.at)) === picked.date);
+        rows.sort((a, b) => (parseLapMs(a.t) ?? 1e15) - (parseLapMs(b.t) ?? 1e15));
+        const tops = rows.slice(0, 25).map((r) => ({
+          name: r.name,
+          car: r.car,
+          t: r.t,
+          gpsQ: r.gpsQ,
+          weather: r.weather || null,
+          at: r.at || null,
+        }));
+        let attendees = [];
+        const akey = `session:att:${picked.date}:${picked.trackId}`;
+        const araw = await env.PITLANE.get(akey);
+        if (araw) {
+          try {
+            const arr = JSON.parse(araw);
+            if (Array.isArray(arr)) attendees = arr;
+          } catch (_) {}
+        }
+        return json(
+          {
+            trackId: picked.trackId,
+            title: picked.title,
+            date: picked.date,
+            source: picked.source,
+            tops,
+            attendees: attendees.slice(0, 40).map((a) => ({
+              nick: String(a.nick || '').slice(0, 48),
+              at: a.at || null,
+            })),
+          },
+          200,
+          headers
+        );
+      }
+
+      if (req.method === 'POST' && path === '/session/today/checkin') {
+        const body = await req.json().catch(() => null);
+        let manual = null;
+        const mraw = await env.PITLANE.get('session:day');
+        if (mraw) {
+          try { manual = JSON.parse(mraw); } catch { manual = null; }
+        }
+        const picked = pickSessionOfDay(manual);
+        const who = pilotLabel(pilot, body);
+        const nick = String(body?.nick || who.name || 'пилот').trim().slice(0, 48) || 'пилот';
+        const pilotId = String(body?.pilotId || who.id || '').trim().slice(0, 64);
+        const akey = `session:att:${picked.date}:${picked.trackId}`;
+        let attendees = [];
+        const araw = await env.PITLANE.get(akey);
+        if (araw) {
+          try {
+            const arr = JSON.parse(araw);
+            if (Array.isArray(arr)) attendees = arr;
+          } catch (_) {}
+        }
+        const now = Date.now();
+        const existing = pilotId
+          ? attendees.find((a) => a && a.pilotId === pilotId)
+          : attendees.find((a) => a && a.nick === nick);
+        if (existing) {
+          existing.nick = nick;
+          existing.at = now;
+        } else {
+          attendees.push({ nick, pilotId: pilotId || null, at: now });
+        }
+        attendees = attendees
+          .slice()
+          .sort((a, b) => (b.at || 0) - (a.at || 0))
+          .slice(0, 60);
+        // expire ~36h after midnight Moscow roughly via TTL 2d
+        await env.PITLANE.put(akey, JSON.stringify(attendees), { expirationTtl: 172800 });
+        return json(
+          {
+            ok: true,
+            trackId: picked.trackId,
+            date: picked.date,
+            attendees: attendees.slice(0, 40).map((a) => ({
+              nick: String(a.nick || '').slice(0, 48),
+              at: a.at || null,
+            })),
+          },
+          200,
+          headers
+        );
       }
 
 

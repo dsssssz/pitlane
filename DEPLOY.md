@@ -69,7 +69,7 @@ Allowed origins include `https://dsssssz.github.io` and local ports. Add more vi
 
 ## 9. Offline / SW
 
-- Service worker cache `pitlane-v66`: app shell + vendored `./vendor/three/*`.
+- Service worker cache `pitlane-v67`: app shell + vendored `./vendor/three/*`.
 - CDN Three URLs also cached in `pitlane-three-v1` on first load (fallback).
 - GLB models prefetch into `pitlane-glb-v1` on activate (same name the app already uses).
 
@@ -120,7 +120,7 @@ Duels routes live: POST/GET /duel, POST /duel/:id/run, GET /duels?mine=
 - Lap records already store cumulative `sectors: [s1,s2,s3]` ms; UI converts to splits.
 - Personal bests / «оптимал» (sum of best sectors) computed client-side from own history on the selected track.
 - A/B GPS required for win/lose emphasis; no Worker sector tops in this MVP.
-- SW cache: `pitlane-v66`.
+- SW cache: `pitlane-v67`.
 
 
 ## 14. Crews / Экипажи MVP
@@ -134,11 +134,23 @@ Duels routes live: POST/GET /duel, POST /duel/:id/run, GET /duels?mine=
 - `GET /crews?mine=<pilotId>`
 - Client: tops button «Экипаж», deep link `?crew=ID`, auto-push best after lap
 - Rank: personal best A/B lap (lower better). Team badge = count with ≥1 A/B lap. Team avg = average of bests.
-- SW cache: `pitlane-v66`
+- SW cache: `pitlane-v67`
 
 
 ### Worker deploy log (crews MVP 2026-09-23)
 
 Deployed with wrangler@3.114.17. Version ID: `81960051-1c84-497d-a568-b7a4df2b4906` → https://pitlane-api.pitlane-taksimaga.workers.dev
 Crews live: POST/GET /crew, join, board, best, GET /crews?mine=
-Client SW: `pitlane-v66`. Ship SHA `a03b2b5eddbf`.
+Client SW: `pitlane-v67`. Ship SHA `a03b2b5eddbf`.
+
+
+## 15. Session of the day + autodrome discovery
+
+- Soft feature: one cult track as «сессия дня».
+- Pick order: Worker KV `session:day` `{ "trackId": "moscow", "title?": "…" }` → else date-hash (Europe/Moscow) over cult tracks.
+- `GET /session/today` → `{ trackId, title, date, source, tops, attendees }` — tops = A/B laps on that track with `at` in today's Moscow date.
+- `POST /session/today/checkin` `{ nick, pilotId? }` → KV `session:att:{date}:{trackId}` (TTL ~2d).
+- Client fallback: same date-hash + filter `listLap` by day if Worker empty/offline.
+- Discovery: tops «Автодромы» + lap «Автодромы · справочник» → RU cards (blurb / configs / real site or «уточняйте…»). No booking integration.
+- SW cache: `pitlane-v67`. Completes «Делай» roadmap (no Pro monetization).
+
