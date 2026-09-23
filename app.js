@@ -237,11 +237,12 @@ function drawTrack(id, elId, opts) {
 
 const storeKey = 'pitlane-v1';
 const state = loadState();
+if (!state.passportGps) state.passportGps = {};
 let podiumModelId = null;
 
 function loadState() {
   try {
-    const s = JSON.parse(localStorage.getItem(storeKey)) || { carId: null, garage: [], meas: {}, laps: {}, scans: {}, passport: {} };
+    const s = JSON.parse(localStorage.getItem(storeKey)) || { carId: null, garage: [], meas: {}, laps: {}, scans: {}, passport: {}, passportGps: {} };
     const inCars = !!(s.carId && CARS.some((c) => c.id === s.carId));
     const inGarage = !!(s.carId && (s.garage || []).some((c) => c.id === s.carId));
     // Catalog / stock ids must resolve; unknown ids fall back to G87 M2 (not M3).
@@ -444,11 +445,157 @@ function getPassport(id) {
   return out;
 }
 
+/** Pure catalog/OEM stock (no manual overrides). */
+function getPassportStock(id) {
+  const key = id || passportId();
+  const stock = PASSPORT_STOCK[key] || {};
+  const car = CARS.find((c) => c.id === key) || garageList().find((c) => c.id === key) || {};
+  return {
+    v0100: stock.v0100 ?? car.v0100 ?? null,
+    v100200: stock.v100200 ?? car.v100200 ?? null,
+    v200300: stock.v200300 ?? car.v200300 ?? null,
+    v80120: stock.v80120 ?? car.v80120 ?? null,
+    hp: stock.hp ?? car.hp ?? null,
+    nm: stock.nm ?? car.nm ?? null,
+    kg: stock.kg ?? car.kg ?? null,
+  };
+}
+
+/** Manual overrides only (state.passport[id]). */
+function getPassportManual(id) {
+  const key = id || passportId();
+  return (state.passport && state.passport[key]) || {};
+}
+
+const PASSPORT_GPS_N = 5;
+const PASSPORT_GPS_MARKS = ['v0100', 'v100200', 'v200300', 'v80120'];
+
+function medianNums(arr) {
+  const a = (arr || []).map(Number).filter((n) => Number.isFinite(n)).sort((x, y) => x - y);
+  if (!a.length) return null;
+  const mid = Math.floor(a.length / 2);
+  return a.length % 2 ? a[mid] : (a[mid - 1] + a[mid]) / 2;
+}
+
+function ensurePassportGps(id) {
+  const key = id || passportId();
+  state.passportGps = state.passportGps || {};
+  if (!state.passportGps[key] || typeof state.passportGps[key] !== 'object') {
+    state.passportGps[key] = {};
+  }
+  return state.passportGps[key];
+}
+
+/** Aggregate view: { v0100: { median, n, runs }, … } — empty until honest A/B runs. */
+function getPassportGps(id) {
+  const key = id || passportId();
+  const raw = (state.passportGps && state.passportGps[key]) || {};
+  // Also accept garage-car mirror
+  const gCar = (state.garage || []).find((c) => c.id === key);
+  const fromCar = (gCar && gCar.passportGps) || {};
+  const out = {};
+  for (const mark of PASSPORT_GPS_MARKS) {
+    const runs = Array.isArray(raw[mark])
+      ? raw[mark]
+      : Array.isArray(fromCar[mark])
+        ? fromCar[mark]
+        : [];
+    const times = runs
+      .filter((r) => r && (r.gpsQ === 'A' || r.gpsQ === 'B') && Number.isFinite(Number(r.t)))
+      .map((r) => Number(r.t));
+    const lastN = times.slice(-PASSPORT_GPS_N);
+    out[mark] = {
+      median: medianNums(lastN),
+      n: lastN.length,
+      runs: runs.slice(-PASSPORT_GPS_N),
+    };
+  }
+  return out;
+}
+
+function mirrorPassportGpsToGarage(id) {
+  const key = id || passportId();
+  const list = state.garage || [];
+  const car = list.find((c) => c.id === key);
+  if (!car) return;
+  car.passportGps = JSON.parse(JSON.stringify(ensurePassportGps(key)));
+}
+
+/** Hydrate state.passportGps from garage cars (after remote merge). */
+function hydratePassportGpsFromGarage() {
+  state.passportGps = state.passportGps || {};
+  for (const car of state.garage || []) {
+    if (!car?.id || !car.passportGps || typeof car.passportGps !== 'object') continue;
+    const cur = state.passportGps[car.id] || {};
+    const merged = { ...cur };
+    for (const mark of PASSPORT_GPS_MARKS) {
+      const a = Array.isArray(cur[mark]) ? cur[mark] : [];
+      const b = Array.isArray(car.passportGps[mark]) ? car.passportGps[mark] : [];
+      if (!b.length) continue;
+      // union by at+t, keep newest last
+      const map = new Map();
+      for (const r of [...a, ...b]) {
+        if (!r || !Number.isFinite(Number(r.t))) continue;
+        const k = `${r.at || 0}|${r.t}|${r.gpsQ || ''}`;
+        map.set(k, r);
+      }
+      merged[mark] = [...map.values()]
+        .sort((x, y) => (x.at || 0) - (y.at || 0))
+        .slice(-PASSPORT_GPS_N * 2);
+    }
+    state.passportGps[car.id] = merged;
+  }
+}
+
+/**
+ * Fold A/B GPS marks into living passport. Ignores C/invalid.
+ * marks: { v0100?, v100200?, v200300?, v80120? } seconds
+ */
+function foldPassportGps(marks, gpsQ, carId) {
+  const q = gpsQ || (typeof gpsQualityFromStraightRun === 'function' ? gpsQualityFromStraightRun().gpsQ : null);
+  if (q !== 'A' && q !== 'B') return false;
+  const id = carId || state.carId || passportId();
+  if (!id || !marks) return false;
+  const bucket = ensurePassportGps(id);
+  const at = Date.now();
+  // Dedup within the same straight run (publishGps may re-pass marks)
+  let foldedOnce = null;
+  try {
+    if (typeof run !== 'undefined' && run && run.armed != null) {
+      run.passportFolded = run.passportFolded || {};
+      foldedOnce = run.passportFolded;
+    }
+  } catch (_) {}
+  let folded = false;
+  for (const mark of PASSPORT_GPS_MARKS) {
+    const raw = marks[mark];
+    if (raw == null) continue;
+    if (foldedOnce && foldedOnce[mark]) continue;
+    const t = Number(Number(raw).toFixed(2));
+    if (!Number.isFinite(t) || t <= 0) continue;
+    const list = Array.isArray(bucket[mark]) ? bucket[mark].slice() : [];
+    list.push({ t, at, gpsQ: q });
+    bucket[mark] = list.slice(-PASSPORT_GPS_N * 2); // keep a bit of history; UI uses last N
+    if (foldedOnce) foldedOnce[mark] = true;
+    folded = true;
+  }
+  if (!folded) return false;
+  state.passportGps[id] = bucket;
+  mirrorPassportGpsToGarage(id);
+  return true;
+}
+
 function fmtPass(v, unit) {
   if (v == null || v === '' || Number.isNaN(Number(v))) return '—';
   const n = Number(v);
   const s = Number.isInteger(n) ? String(n) : n.toFixed(2);
   return unit ? `${s} ${unit}` : s;
+}
+
+function fmtPassShort(v) {
+  if (v == null || v === '' || Number.isNaN(Number(v))) return '—';
+  const n = Number(v);
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
 }
 
 
@@ -476,25 +623,68 @@ function applyBrandMark(name) {
   img.alt = key.toUpperCase();
 }
 
+function renderDynoMarkRow(elId, stockVal, factObj, manualVal) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  const hasStock = stockVal != null && Number.isFinite(Number(stockVal));
+  const fact = factObj?.median;
+  const hasFact = fact != null && Number.isFinite(Number(fact));
+  const hasManual = manualVal != null && Number.isFinite(Number(manualVal))
+    && (!hasStock || Number(manualVal) !== Number(stockVal));
+  const n = factObj?.n || 0;
+
+  let html = '<span class="dyno-split">';
+  html += `<em class="dyno-stock" title="Сток (каталог)">сток <b>${hasStock ? fmtPassShort(stockVal) : '—'}</b></em>`;
+  html += `<em class="dyno-fact${hasFact ? ' has-fact' : ''}" title="Факт — медиана честных A/B GPS">факт <b>${hasFact ? fmtPassShort(fact) : '—'}</b></em>`;
+  html += '</span>';
+  if (hasFact || hasManual) {
+    const bits = [];
+    if (hasFact) bits.push(`из ${n} честных`);
+    if (hasManual) bits.push(`правка ${fmtPassShort(manualVal)}`);
+    html += `<small class="dyno-meta">${bits.join(' · ')}</small>`;
+  }
+  el.innerHTML = html;
+  el.classList.add('dyno-val-cell');
+}
+
 function applyPassportUI() {
   const id = passportId();
   const p = getPassport(id);
+  const stock = getPassportStock(id);
+  const manual = getPassportManual(id);
+  const gps = getPassportGps(id);
   const setTxt = (elId, val) => { const el = document.getElementById(elId); if (el) el.textContent = val; };
   setTxt('boxName', p.name);
   setTxt('boxTrim', p.trim || '');
   applyBrandMark(p.name);
-  setTxt('dynoHint', p.note || 'можно править под себя');
-  // GPS meas overlay for times if present
-  const meas = state.meas[id] || state.meas[state.carId] || {};
-  setTxt('d0100', fmtPass(meas.v0100 ?? p.v0100, 'с'));
-  setTxt('d100200', fmtPass(meas.v100200 ?? p.v100200, 'с'));
-  setTxt('d200300', fmtPass(meas.v200300 ?? p.v200300, 'с'));
-  setTxt('d80120', fmtPass(meas.v80120 ?? p.v80120, 'с'));
+
+  const anyFact = PASSPORT_GPS_MARKS.some((m) => (gps[m]?.n || 0) > 0);
+  const anyManual = PASSPORT_GPS_MARKS.some((m) => {
+    const v = manual[m];
+    return v != null && Number.isFinite(Number(v)) && Number(v) !== Number(stock[m]);
+  });
+  let hint = stock.note || p.note || 'сток каталога';
+  if (anyFact) hint = 'сток vs факт GPS · только A/B';
+  else if (anyManual) hint = 'ручная правка · факт появится после A/B замеров';
+  else hint = (PASSPORT_STOCK[id]?.note) || 'сток каталога · замерь A/B для факта';
+  setTxt('dynoHint', hint);
+
+  renderDynoMarkRow('d0100', stock.v0100, gps.v0100, manual.v0100);
+  renderDynoMarkRow('d100200', stock.v100200, gps.v100200, manual.v100200);
+  renderDynoMarkRow('d200300', stock.v200300, gps.v200300, manual.v200300);
+  renderDynoMarkRow('d80120', stock.v80120, gps.v80120, manual.v80120);
+
   setTxt('dHp', fmtPass(p.hp, 'л.с.'));
   setTxt('dNm', fmtPass(p.nm, 'Н·м'));
   setTxt('dKg', fmtPass(p.kg, 'кг'));
   const pt = (p.hp && p.kg) ? Math.round((p.hp / p.kg) * 1000) : null;
   setTxt('dPt', pt != null ? String(pt) : '—');
+
+  const noteEl = document.getElementById('dynoGpsNote');
+  if (noteEl) {
+    noteEl.hidden = !anyFact;
+    noteEl.textContent = anyFact ? 'Факт — медиана последних честных A/B · C не считаем' : '';
+  }
 }
 
 function setDynoEditMode(on) {
@@ -503,15 +693,22 @@ function setDynoEditMode(on) {
   document.getElementById('btnDynoEdit')?.classList.toggle('hidden', on);
   if (!on) return;
   const p = getPassport();
-  const meas = state.meas[passportId()] || state.meas[state.carId] || {};
-  const fill = (id, v) => { const el = document.getElementById(id); if (el) el.value = v != null ? v : ''; };
-  fill('e0100', meas.v0100 ?? p.v0100);
-  fill('e100200', meas.v100200 ?? p.v100200);
-  fill('e200300', meas.v200300 ?? p.v200300);
-  fill('e80120', meas.v80120 ?? p.v80120);
-  fill('eHp', p.hp);
-  fill('eNm', p.nm);
-  fill('eKg', p.kg);
+  const stock = getPassportStock();
+  const manual = getPassportManual();
+  // Edit = manual override fields (not GPS fact). Prefill manual if set, else stock.
+  const fill = (id, mark) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const v = manual[mark] != null ? manual[mark] : stock[mark];
+    el.value = v != null ? v : '';
+  };
+  fill('e0100', 'v0100');
+  fill('e100200', 'v100200');
+  fill('e200300', 'v200300');
+  fill('e80120', 'v80120');
+  fill('eHp', 'hp');
+  fill('eNm', 'nm');
+  fill('eKg', 'kg');
 }
 
 function saveDynoEdit(ev) {
@@ -533,20 +730,14 @@ function saveDynoEdit(ev) {
     v100200: num('e100200'),
     v200300: num('e200300'),
     v80120: num('e80120'),
-    note: 'твои цифры',
+    note: 'ручная правка',
+    manualAt: Date.now(),
   };
-  // also mirror accel into meas so GPS card stays consistent
-  state.meas = state.meas || {};
-  state.meas[id] = {
-    ...(state.meas[id] || {}),
-    v0100: num('e0100'),
-    v100200: num('e100200'),
-    v200300: num('e200300'),
-    v80120: num('e80120'),
-  };
+  // Do NOT write into meas / passportGps — GPS fact stays the phone truth.
   save();
   setDynoEditMode(false);
   applyPassportUI();
+  try { applyCarUI(); } catch (_) {}
   hap(14);
 }
 
@@ -593,7 +784,26 @@ function applyCarUI() {
   setTxt('carClass', c.cls);
   setTxt('lapDriveCar', c.name);
   setTxt('runCarName', c.name);
-  setTxt('hdr0100', fmt(m.v0100, 'с'));
+  {
+    const gpsH = getPassportGps(c.id);
+    const stockH = getPassportStock(c.id);
+    const fact = gpsH.v0100?.median;
+    const stockV = stockH.v0100;
+    const hdrEl = document.getElementById('hdr0100');
+    if (fact != null) {
+      setTxt('hdr0100', fmt(fact, 'с'));
+      if (hdrEl) {
+        hdrEl.title = stockV != null
+          ? `0–100 факт ${fmtPassShort(fact)} (сток ${fmtPassShort(stockV)}) · из ${gpsH.v0100.n} честных`
+          : `0–100 факт ${fmtPassShort(fact)} · из ${gpsH.v0100.n} честных`;
+      }
+    } else {
+      const manual = getPassportManual(c.id);
+      const show = manual.v0100 ?? m.v0100 ?? stockV;
+      setTxt('hdr0100', fmt(show, 'с'));
+      if (hdrEl) hdrEl.title = show != null ? 'сток / правка (факта GPS ещё нет)' : '';
+    }
+  }
   const track = TRACKS.find((t) => t.id === (state.trackId || c.lap?.track)) || TRACKS[0];
   const mine = bestLapDisplay(track.id);
   setTxt('sLap', mine || 'нет заезда');
@@ -2353,6 +2563,13 @@ function onGpsPoint(pos) {
     setRunText('slip80120', `${s.toFixed(2)}s`);
     revealRunMark('80120', '80–120', fmtRunSec(s));
     run.saved80120 = true;
+    try {
+      const gq80120 = gpsQualityFromStraightRun();
+      if (foldPassportGps({ v80120: Number(s.toFixed(2)) }, gq80120.gpsQ)) {
+        save();
+        try { applyPassportUI(); } catch (_) {}
+      }
+    } catch (_) {}
   }
   if (t100 && !run.saved0100) {
     const sec = (t100 - run.t0) / 1000;
@@ -2444,6 +2661,7 @@ function armRun() {
   run.lastFusT = null;
   run.saved0100 = run.saved100200 = run.saved200300 = run.saved050 = run.saved060 = run.saved80120 = run.saved1000 = false;
   run.saved60ft = run.saved18 = run.saved14 = false;
+  run.passportFolded = {};
   run.brakeArmed = false;
   run.brakeT0 = null;
   ['run050', 'run0100', 'run100200', 'run80120', 'run200300', 'run1000'].forEach((id) => setRunText(id, '—'));
@@ -2476,6 +2694,14 @@ async function publishGps(v0100, v100200, v200300) {
     if (v100200 != null) rec0.v100200 = Number(v100200.toFixed(2));
     if (v200300 != null) rec0.v200300 = Number(v200300.toFixed(2));
     state.meas[state.carId] = rec0;
+    try {
+      const gq0 = gpsQualityFromStraightRun();
+      foldPassportGps({
+        v0100: v0100 != null ? Number(v0100.toFixed(2)) : null,
+        v100200: v100200 != null ? Number(v100200.toFixed(2)) : null,
+        v200300: v200300 != null ? Number(v200300.toFixed(2)) : null,
+      }, gq0.gpsQ);
+    } catch (_) {}
     save();
     applyCarUI();
     if (v0100 != null) {
@@ -2500,6 +2726,14 @@ async function publishGps(v0100, v100200, v200300) {
   if (v100200 != null) rec.v100200 = Number(v100200.toFixed(2));
   if (v200300 != null) rec.v200300 = Number(v200300.toFixed(2));
   state.meas[state.carId] = rec;
+  try {
+    const gqFold = gpsQualityFromStraightRun();
+    foldPassportGps({
+      v0100: v0100 != null ? Number(v0100.toFixed(2)) : null,
+      v100200: v100200 != null ? Number(v100200.toFixed(2)) : null,
+      v200300: v200300 != null ? Number(v200300.toFixed(2)) : null,
+    }, gqFold.gpsQ);
+  } catch (_) {}
   save();
   const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
   if (v0100 != null) {
@@ -3985,9 +4219,11 @@ async function mergeGarageOnLogin() {
     if ((!state.garage || !state.garage.length) && remoteCars.length) {
       state.garage = remoteCars;
       state.carId = remote.carId || remoteCars[0]?.id || null;
+      try { hydratePassportGpsFromGarage(); } catch (_) {}
       save();
       try { applyCarUI(); } catch (_) {}
     } else if (state.garage?.length) {
+      try { hydratePassportGpsFromGarage(); } catch (_) {}
       await api.putGarage({ cars: state.garage, carId: state.carId || null });
     }
   } catch (err) {
@@ -5809,6 +6045,7 @@ document.getElementById('pulseFeed')?.addEventListener('click', async (e) => {
 });
 document.querySelector('[data-view="pulse"]')?.addEventListener('click', renderPulse);
 
+try { hydratePassportGpsFromGarage(); } catch (_) {}
 void bootShareFromUrl();
 try { renderCompare(); renderLaps(); renderTrackDays(); } catch (_) {}
 try {
