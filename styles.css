@@ -87,10 +87,13 @@
   left: 0;
   top: 78%;
   height: 2px;
-  width: 0;
+  width: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
   background: linear-gradient(90deg, transparent, #39FF14 12%, #39FF14 88%, transparent);
   box-shadow: 0 0 16px rgba(57,255,20,.55), 0 0 40px rgba(57,255,20,.25);
   animation: drawHLine 1.6s 0.35s cubic-bezier(.2,.8,.2,1) forwards;
+  will-change: transform;
 }
 .intro-mark-wrap {
   position: absolute;
@@ -100,18 +103,21 @@
   height: auto;
   animation: carSlide 2.35s 0.18s cubic-bezier(.16,.82,.18,1) forwards;
   opacity: 0;
+  will-change: transform, opacity;
+  contain: layout style;
 }
 .intro-trail {
   position: absolute;
   right: 58%;
   top: 50%;
   width: min(48vw, 420px);
-  height: 6px;
+  height: 10px;
   border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(57,255,20,.06) 15%, rgba(57,255,20,.4) 65%, rgba(57,255,20,.9));
-  filter: blur(5px);
+  /* No CSS filter blur while parent translates — soft falloff via gradient only */
+  background: linear-gradient(90deg, transparent, rgba(57,255,20,.04) 10%, rgba(57,255,20,.22) 45%, rgba(57,255,20,.55) 75%, rgba(57,255,20,.85));
   transform: translateY(-50%);
   opacity: .9;
+  pointer-events: none;
 }
 .intro-speed-lines {
   position: absolute;
@@ -138,7 +144,8 @@
   display: block;
   width: 100%;
   height: auto;
-  filter: drop-shadow(0 0 14px rgba(57,255,20,.55)) drop-shadow(0 0 32px rgba(57,255,20,.25));
+  /* Single drop-shadow (cheaper than stacked) — neon still reads */
+  filter: drop-shadow(0 0 16px rgba(57,255,20,.5));
 }
 .intro-brand {
   position: relative;
@@ -178,7 +185,7 @@
   100% { transform: translateX(125vw); opacity: .15; }
 }
 @keyframes drawHLine {
-  to { width: 100%; }
+  to { transform: scaleX(1); }
 }
 @keyframes logoReveal {
   to { opacity: 1; clip-path: inset(0 0 0 0); }

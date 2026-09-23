@@ -1179,26 +1179,36 @@ try {
   scene.add(softB);
 } catch (_) { /* RectAreaLight optional on constrained GPUs */ }
 
-try {
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-  scene.environmentIntensity = 0.88;
-  pmrem.dispose();
-} catch (_) { /* reflections optional */ }
+/* PMREM + Reflector deferred until intro ends — avoids main-thread jank on entry */
+let floor = null;
+let podiumEnvReady = false;
+let introBlocking3d = true;
+let podiumBooted = false;
 
-/* Dark reflective stand floor (mobile-friendly Reflector res) */
-const _dpr = Math.min(window.devicePixelRatio || 1, 1.75);
-const _reflRes = Math.min(1024, Math.max(512, Math.floor(512 * _dpr)));
-const floor = new Reflector(new THREE.CircleGeometry(7, 72), {
-  clipBias: 0.003,
-  textureWidth: _reflRes,
-  textureHeight: _reflRes,
-  color: 0x1a1a1e,
-  multisample: 0,
-});
-floor.rotation.x = -Math.PI / 2;
-floor.position.y = 0;
-scene.add(floor);
+function ensurePodiumEnv() {
+  if (podiumEnvReady) return;
+  podiumEnvReady = true;
+  try {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environmentIntensity = 0.88;
+    pmrem.dispose();
+  } catch (_) { /* reflections optional */ }
+  try {
+    const _dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+    const _reflRes = Math.min(1024, Math.max(512, Math.floor(512 * _dpr)));
+    floor = new Reflector(new THREE.CircleGeometry(7, 72), {
+      clipBias: 0.003,
+      textureWidth: _reflRes,
+      textureHeight: _reflRes,
+      color: 0x1a1a1e,
+      multisample: 0,
+    });
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = 0;
+    scene.add(floor);
+  } catch (_) { /* reflector optional */ }
+}
 
 /* Soft contact-shadow disk under the car (cinema stand) */
 const contactShadow = new THREE.Mesh(
@@ -1486,6 +1496,9 @@ if (typeof ResizeObserver !== 'undefined') {
 
 let last = performance.now();
 function tick(now) {
+  requestAnimationFrame(tick);
+  // Keep CSS intro buttery: no WebGL render / controls while intro owns the screen
+  if (introBlocking3d) return;
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (moving.hood) lerpAngle(moving.hood, 'z', -moving.tHood * 1.05, dt);
@@ -1496,7 +1509,6 @@ function tick(now) {
   });
   controls.update();
   renderer.render(scene, camera);
-  requestAnimationFrame(tick);
 }
 
 
@@ -1535,7 +1547,7 @@ function clearDeepLinkUrl() {
 
 (function setupIntro() {
   const el = document.getElementById('intro');
-  if (!el) return;
+  if (!el) { introBlocking3d = false; return; }
   const KEY = 'pitlane-intro-seen';
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let finished = false;
@@ -1544,6 +1556,7 @@ function clearDeepLinkUrl() {
     finished = true;
     el.classList.add('done');
     try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
+    introBlocking3d = false;
     setTimeout(() => {
       try { bootPodium(); } catch (_) {}
       try { startGlbPrefetch(podiumModelId || state.carId || 'g87-m2'); } catch (_) {}
@@ -4273,17 +4286,18 @@ function loadDefaultGlb() {
 
 
 function bootPodium() {
+  if (introBlocking3d) return; // intro still visible — no GLB decode / PMREM yet
   onResize();
   try { applyPassportUI(); } catch (_) {}
+  if (podiumBooted) return;
+  podiumBooted = true;
+  ensurePodiumEnv();
   try { startGlbPrefetch(podiumModelId || 'g87-m2'); } catch (_) {}
   loadDefaultGlb();
   // second resize after fonts/layout
   requestAnimationFrame(() => { onResize(); requestAnimationFrame(onResize); });
 }
-if (document.readyState === 'complete') setTimeout(bootPodium, 50);
-else window.addEventListener('load', () => setTimeout(bootPodium, 50));
-// intro finish also boots podium; keep early boot so podium is never blocked
-setTimeout(bootPodium, 500);
+// Podium boots only after intro finish (or immediate finish when skipped).
 
 document.getElementById('btnDynoEdit')?.addEventListener('click', () => setDynoEditMode(true));
 document.getElementById('btnDynoCancel')?.addEventListener('click', () => setDynoEditMode(false));
@@ -4365,7 +4379,7 @@ const PAINT_SKIP_TOKENS = new Set([
   'badge', 'badges', 'emblem', 'emblems', 'number', 'plate', 'plates', 'text',
   'textured', 'rotor', 'spoke', 'spokes', 'hub', 'salon', 'engine', 'engines',
   'seatbelt', 'belt', 'torpeda', 'steering', 'potolok', 'koleso', 'misc', 'cab',
-  'shadow', 'occlusion',
+  'shadow', 'occlusion', 'plastic', 'plastics', 'unpainted', 'cladding',
 ]);
 /** Substring include (material name) — Forza / FH style */
 const PAINT_INCLUDE_RE = /carpaint|car_paint|(?:^|[^a-z])paint(?:[^a-z]|$)|coloured|colored|bodykit|(?:^|[^a-z])body(?:[^a-z]|$)|exterior|bamper|bumper/i;
@@ -4375,29 +4389,64 @@ const PAINT_INCLUDE_RE = /carpaint|car_paint|(?:^|[^a-z])paint(?:[^a-z]|$)|colou
  * include/exclude test against material.name (not mesh path junk).
  */
 const PAINT_MAT_OVERRIDES = {
+  /* M2: Paint + Coloured bodykit panels; Base/Carbon black plastics stay */
+  'g87-m2': {
+    strict: true,
+    include: [/Paint/i, /Coloured/i],
+    exclude: [/Interior/i, /Carbon/i, /Light/i, /Wheel/i, /Tire/i, /Rim/i, /Base_/i, /Engine/i, /Window/i, /Grille/i, /Calliper/i, /Badge/i, /Plate/i],
+    meshExclude: [/SeatBelt/i, /seat.?belt/i],
+  },
+  /* GT3 RS: ONLY Paint_Material. Coloured=bumper/fender plastics; Carbon=spoiler.
+     Roof shares Paint_Material with body on this GLB (residual). */
+  gt3rs: {
+    strict: true,
+    include: [/Paint_Material/i],
+    exclude: [/Coloured/i, /Carbon/i, /Base_/i, /Textured/i, /Window/i, /Grille/i, /Wheel/i, /Interior/i, /Light/i, /Badge/i, /Calliper/i, /Plate/i, /Manufacturer/i],
+    meshExclude: [/SeatBelt/i, /polySurface/i],
+  },
+  /* G63: Paint_Material body only. Coloured = cladding / bullbar plastics. */
   g63: {
-    include: [/Paint_Material/i, /Coloured_Material/i],
-    exclude: [/Interior/i, /Window/i, /Grille/i, /Wheel/i, /Carbon/i, /Light/i, /Badge/i, /Engine/i, /Base_Material/i, /Calliper/i, /calip/i, /Textured/i, /Plate/i, /Manufacturer/i],
+    strict: true,
+    include: [/Paint_Material/i],
+    exclude: [/Coloured/i, /Carbon/i, /Base_/i, /Textured/i, /Interior/i, /Window/i, /Grille/i, /Wheel/i, /Light/i, /Badge/i, /Engine/i, /Calliper/i, /calip/i, /Plate/i, /Manufacturer/i],
+    meshExclude: [/SeatBelt/i],
+  },
+  /* McLaren: Paint_Material body (solid). Coloured is near-black plastic/trim. */
+  'mclaren-765lt': {
+    strict: true,
+    include: [/Paint_Material/i],
+    exclude: [/Coloured/i, /Carbon/i, /Base_/i, /Window/i, /Grille/i, /Wheel/i, /Interior/i, /Light/i, /Badge/i, /Calliper/i, /SeatBelt/i, /Specular/i, /Manufacturer/i],
+    meshExclude: [/SeatBelt/i],
   },
   x6: {
+    strict: true,
     include: [/^CarPaint$/i, /bamper/i, /bumper/i],
     exclude: [/^chassis$/i, /plastic/i, /baked/i, /Salon/i, /Koleso/i, /chrome/i, /Chrome/i, /glass/i, /light/i, /ligts/i, /Mirror/i, /badge/i, /plate/i, /Emblema/i, /Windows/i],
   },
   isf: {
+    strict: true,
     include: [/Exterior_mm_ext/i],
     exclude: [/Interior/i, /windows/i, /lights/i, /wheel/i, /tyre/i, /chassis/i, /_cab$/i, /badges/i, /misc/i, /rotor/i, /Glass/i],
   },
-  'g87-m2': {
-    include: [/Paint/i, /Coloured/i],
-    exclude: [/Interior/i, /Carbon/i, /Light/i, /Wheel/i, /Tire/i, /Rim/i, /Base_/i, /Engine/i, /Window/i, /Grille/i],
-  },
   m4: {
-    include: [/car_body\d/i, /bodykit\d/i, /hood\d/i, /spoiler\d/i, /bodykit_plast/i],
-    exclude: [/interior/i, /glass/i, /rim/i, /Tire/i, /caliper/i, /Capiler/i, /^m4car_plast1$/i],
+    strict: true,
+    include: [/car_body\d/i, /bodykit\d/i, /hood\d/i, /spoiler\d/i],
+    exclude: [/interior/i, /glass/i, /rim/i, /Tire/i, /caliper/i, /Capiler/i, /^m4car_plast1$/i, /bodykit_plast/i, /emissive/i, /grill/i],
   },
   m3: {
-    include: [/phong5SG/i, /phong2SG/i], // body lacquer + related panels (verified by verts)
+    strict: true,
+    include: [/phong5SG/i, /phong2SG/i],
     exclude: [/phong8SG/i, /phong3SG/i, /phong4SG/i, /phong6SG/i, /phong14SG/i, /phong11SG/i],
+  },
+  'c63-ed507': {
+    strict: true,
+    include: [/Paint_Material/i],
+    exclude: [/Coloured/i, /Base_/i, /Carbon/i, /Interior/i, /Window/i, /Grille/i, /Wheel/i, /Light/i, /Badge/i, /Engine/i, /Calliper/i, /Plate/i],
+  },
+  spark: {
+    strict: true,
+    include: [/^Carpaint$/i, /^CarPaint$/i],
+    exclude: [/Plastic/i, /Chrome/i, /chassis/i, /glass/i, /Light/i, /mirror/i],
   },
 };
 
@@ -4446,11 +4495,20 @@ function tokensHitSet(tokens, set) {
   return false;
 }
 
+function isPaintMeshExcluded(meshName) {
+  if (/seat.?belt|seatbelt/i.test(meshName || '')) return true;
+  const ov = PAINT_MAT_OVERRIDES[podiumModelId || state.carId] || null;
+  if (ov?.meshExclude?.some((re) => re.test(meshName || ''))) return true;
+  return false;
+}
+
 function scoreBodyPaintMaterial(matName, meshName, mat, size) {
   const matTok = paintNameTokens(matName);
   const meshTok = paintNameTokens(meshName);
   const ov = PAINT_MAT_OVERRIDES[podiumModelId || state.carId] || null;
   let score = 0;
+
+  if (isPaintMeshExcluded(meshName)) return -10000;
 
   if (ov) {
     if (ov.exclude?.some((re) => re.test(matName))) return -10000;
@@ -4458,6 +4516,8 @@ function scoreBodyPaintMaterial(matName, meshName, mat, size) {
       // Explicit allow-list wins over generic skip tokens (e.g. bodykit_plast, Recycled*Paint)
       return 500 + (size >= 0.08 ? 20 : 0);
     }
+    // strict: only the include list is paintable for this car
+    if (ov.strict) return -10000;
   }
 
   // Skip tokens: material name is authoritative (mesh paths often contain "interior" junk)
@@ -4561,11 +4621,12 @@ function restorePaintOrig(mat) {
   mat.needsUpdate = true;
 }
 
-/** Solid lacquer: hue only in color factor — never multiply with original albedo map. */
+/** Solid lacquer: pure color replace — never multiply with original albedo map. */
 function applySolidBodyColor(mat, color) {
   rememberPaintOrig(mat);
-  // Strip baseColor / albedo map that encodes the factory paint hue
-  if (mat.map) mat.map = null;
+  // MUST strip baseColor/albedo map (factory hue lives there on Forza atlases)
+  mat.map = null;
+  if ('vertexColors' in mat) mat.vertexColors = false;
   mat.color.copy(color);
   // Modern automotive lacquer response (keep normal/roughness/metalness/ao maps)
   if (mat.metalness != null) {
@@ -4594,6 +4655,10 @@ function applyGlbBodyPaint(hex) {
   if (!hex) {
     glbRoot.traverse((o) => {
       if (!o.isMesh) return;
+      if (o.userData.__paintMatBackup !== undefined) {
+        o.material = o.userData.__paintMatBackup;
+        delete o.userData.__paintMatBackup;
+      }
       const list = Array.isArray(o.material) ? o.material : [o.material];
       list.forEach((mat) => restorePaintOrig(mat));
     });
@@ -4601,9 +4666,38 @@ function applyGlbBodyPaint(hex) {
   }
   let color;
   try { color = new THREE.Color(hex); } catch (_) { return; }
-  // sRGB color factor — Three Color from hex is sRGB-encoded values in r/g/b
-  const mats = collectBodyPaintMats();
-  mats.forEach((mat) => applySolidBodyColor(mat, color));
+  // Mesh walk + clone: shared Coloured on seatbelts must not receive body paint
+  glbRoot.traverse((o) => {
+    if (!o.isMesh) return;
+    if (isPaintMeshExcluded(o.name || '')) return;
+    const size = meshSizeHint(o);
+    const isArr = Array.isArray(o.material);
+    const mats = isArr ? o.material : [o.material];
+    let mutated = false;
+    const next = mats.map((mat) => {
+      if (!mat || !mat.color || !mat.color.isColor) return mat;
+      const sc = scoreBodyPaintMaterial(mat.name || '', o.name || '', mat, size);
+      if (sc < 80) return mat;
+      let dest = mat;
+      if (!mat.userData.__isPaintClone) {
+        dest = mat.clone();
+        dest.name = mat.name || '';
+        dest.userData.__isPaintClone = true;
+        delete dest.userData.__paintOrig;
+        rememberPaintOrig(dest);
+        mutated = true;
+      }
+      applySolidBodyColor(dest, color);
+      dest.map = null;
+      dest.color.copy(color);
+      dest.needsUpdate = true;
+      return dest;
+    });
+    if (mutated) {
+      if (o.userData.__paintMatBackup === undefined) o.userData.__paintMatBackup = o.material;
+      o.material = isArr ? next : next[0];
+    }
+  });
 }
 
 function syncPaintSwatches(hex) {
