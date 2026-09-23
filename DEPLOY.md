@@ -69,7 +69,7 @@ Allowed origins include `https://dsssssz.github.io` and local ports. Add more vi
 
 ## 9. Offline / SW
 
-- Service worker cache `pitlane-v64`: app shell + vendored `./vendor/three/*`.
+- Service worker cache `pitlane-v65`: app shell + vendored `./vendor/three/*`.
 - CDN Three URLs also cached in `pitlane-three-v1` on first load (fallback).
 - GLB models prefetch into `pitlane-glb-v1` on activate (same name the app already uses).
 
@@ -113,3 +113,11 @@ Weather field + `?weather=` filter live on Worker.
 
 Deployed with wrangler@3.114.17. Version ID: `83b8356b-4091-463a-b020-1af5ca3ef1c1` → https://pitlane-api.pitlane-taksimaga.workers.dev
 Duels routes live: POST/GET /duel, POST /duel/:id/run, GET /duels?mine=
+
+
+## 13. Sector Battle (client MVP)
+
+- Lap records already store cumulative `sectors: [s1,s2,s3]` ms; UI converts to splits.
+- Personal bests / «оптимал» (sum of best sectors) computed client-side from own history on the selected track.
+- A/B GPS required for win/lose emphasis; no Worker sector tops in this MVP.
+- SW cache: `pitlane-v65`.
