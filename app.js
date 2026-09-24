@@ -7111,15 +7111,17 @@ async function showCrewView(id) {
   if (list) {
     const rows = board?.members || crew.members || [];
     if (!rows.length) {
-      list.innerHTML = '<li><span class="who">пока пусто</span><span class="tm">—</span></li>';
+      list.innerHTML = '<li><span class="rk">·</span><span class="tops-av"><span class="tops-av-ini">?</span></span><span><div class="who">пока пусто</div><div class="sub">ждите первый A/B круг</div></span><span class="tm">—</span></li>';
     } else {
       list.innerHTML = rows.map((m, i) => {
         const best = m.best;
-        const time = best ? esc(best.time) : 'нет круга';
+        const time = best ? esc(best.time) : '—';
         const gq = best?.gpsQ ? `<span class="gq">${esc(best.gpsQ)}</span>` : '';
         const car = best?.car ? esc(best.car) : '';
         const me = m.pilotId === myId ? ' me' : '';
-        return `<li class="${me}"><span class="rk">${i + 1}</span><span><div class="who">${esc(m.nick || 'пилот')}</div><div class="sub">${car || '—'}</div></span><span class="tm">${time}${gq}</span></li>`;
+        const nick = m.nick || 'пилот';
+        const av = topsAvatarHtml(nick, m.avatar || best?.avatar);
+        return `<li class="${me}"><span class="rk">${i + 1}</span>${av}<span><div class="who">${esc(nick)}</div><div class="sub">${car || 'нет круга'}</div></span><span class="tm">${time}${gq}</span></li>`;
       }).join('');
     }
   }
@@ -7335,9 +7337,16 @@ async function renderSessionOfDay() {
     dateEl.textContent = (data.date || moscowDateKeyClient()) + ' · топ дня A/B' + src;
   }
   const tops = Array.isArray(data.tops) ? data.tops : [];
+  listEl.classList.add('tops-pilot-list');
   listEl.innerHTML = tops.length
-    ? tops.map((r, i) => `<li><span>${i + 1}. ${esc(r.name)} · ${esc(r.car || '')}</span><strong class="tops-time">${esc(String(r.t))}${topsGpsBadge(r)}</strong></li>`).join('')
-    : '<li><span>пока нет кругов A/B за сегодня</span><strong>—</strong></li>';
+    ? tops.map((r, i) => topsPilotRowHtml({
+        rank: i + 1,
+        name: r.name,
+        avatar: r.avatar,
+        sub: r.car || '',
+        timeHtml: `${esc(String(r.t))}${topsGpsBadge(r)}`,
+      })).join('')
+    : '<li class="tp-empty"><span class="tp-who"><span class="tp-nick">пока нет кругов A/B за сегодня</span></span><span class="tp-time">—</span></li>';
 
   const atts = Array.isArray(data.attendees) ? data.attendees : [];
   if (attEl) {
@@ -7419,8 +7428,9 @@ function renderAutodromeList() {
   const cult = cultTracksList();
   ul.innerHTML = cult.map((t) => {
     const info = AUTODROME_INFO[t.id] || {};
-    const short = (info.blurb || t.corners || '').slice(0, 72);
-    return `<li data-ad-id="${esc(t.id)}"><span class="dl-main">${esc(t.name)}</span><span class="dl-st">${esc(short)}${short.length >= 72 ? '…' : ''}</span></li>`;
+    const short = (info.blurb || t.corners || '').slice(0, 48);
+    const meta = [t.km ? t.km + ' км' : '', t.ref ? 'реф ' + t.ref : ''].filter(Boolean).join(' · ');
+    return `<li data-ad-id="${esc(t.id)}"><span class="dl-main">${esc(t.name)}</span><span class="dl-st">${esc(meta || short)}${(!meta && short.length >= 48) ? '…' : ''}</span></li>`;
   }).join('') || '<li><span class="dl-main">нет культовых треков</span></li>';
 }
 

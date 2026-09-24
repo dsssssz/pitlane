@@ -342,8 +342,9 @@
               <button type="button" class="pit-info-btn" data-help="sectorBattle" title="Справка" aria-label="Справка: Sector Battle">i</button>
               <h3>Sector Battle</h3>
             </div>
+            <p class="tiny muted race-sheet-sub">Этот круг vs твои лучшие секторы</p>
             <div id="sectorBattlePanel" class="sector-battle-host"></div>
-            <button type="button" class="sector-tops-link" id="btnSectorTopsFromBattle">Открыть топ секторов</button>
+            <button type="button" class="sector-tops-link" id="btnSectorTopsFromBattle">Топ секторов</button>
           </article>
           <article class="card">
             <h3 data-i18n="lap.sess">Все круги</h3>
@@ -357,7 +358,7 @@
         <section id="view-tops" class="view">
           <div class="tops-head">
             <h2 data-i18n="top.title">Топы</h2>
-            <div class="tops-head-actions">
+            <div class="tops-head-actions race-toolbar">
               <button type="button" class="duel-btn" id="btnDuelOpen">Дуэль</button>
               <button type="button" class="crew-btn" id="btnCrewOpen">Экипаж</button>
               <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen">Секторы</button>
@@ -369,15 +370,15 @@
 
           <article class="card session-day-card" id="sessionDayCard">
             <div class="session-day-head">
-              <span class="session-day-badge">сессия дня</span>
               <button type="button" class="session-day-info pit-info-btn" id="btnSessionTrackInfo" data-help="session" title="Справка" aria-label="Справка: сессия дня">i</button>
+              <span class="session-day-badge">сессия дня</span>
             </div>
             <h3 id="sessionDayTitle">—</h3>
-            <p class="tiny muted" id="sessionDayDate">—</p>
-            <ol id="sessionDayTops" class="laps"></ol>
+            <p class="tiny muted session-day-sub" id="sessionDayDate">—</p>
+            <ol id="sessionDayTops" class="laps tops-pilot-list"></ol>
             <div class="session-day-actions">
               <button type="button" class="go-btn" id="btnSessionGoTrack">Открыть трек</button>
-              <button type="button" id="btnSessionCheckin">Я на месте</button>
+              <button type="button" class="btn-secondary" id="btnSessionCheckin">Я на месте</button>
             </div>
             <p class="tiny muted" id="sessionDayAtt">—</p>
           </article>
@@ -400,16 +401,16 @@
                 <button type="button" class="pit-info-btn" data-help="sectorTops" title="Справка" aria-label="Справка: топ секторов">i</button>
                 <h3>Топ секторов</h3>
               </div>
-              <p class="tiny muted">Честные GPS A/B · фото · никнейм · время сектора</p>
+              <p class="tiny muted race-sheet-sub">GPS A/B · фото · ник · время</p>
             </div>
             <div class="sector-tops-controls">
               <label class="tops-model">трасса
                 <select id="sectorTopTrackSelect"></select>
               </label>
-              <div class="sector-chips" id="sectorTopChips" role="group" aria-label="Сектор">
-                <button type="button" class="sec-chip on" data-sector="0">S1</button>
-                <button type="button" class="sec-chip" data-sector="1">S2</button>
-                <button type="button" class="sec-chip" data-sector="2">S3</button>
+              <div class="sector-chips seg-control" id="sectorTopChips" role="group" aria-label="Сектор">
+                <button type="button" class="sec-chip seg-btn on" data-sector="0">S1</button>
+                <button type="button" class="sec-chip seg-btn" data-sector="1">S2</button>
+                <button type="button" class="sec-chip seg-btn" data-sector="2">S3</button>
               </div>
             </div>
             <ol id="topSector" class="laps tops-pilot-list"></ol>
@@ -605,16 +606,19 @@
       </div>
     </div>
 
-    <div id="duelSheet" class="duel-sheet hidden" aria-hidden="true" role="dialog" aria-label="Дуэль">
-      <div class="duel-sheet-inner">
+    <div id="duelSheet" class="duel-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Дуэль">
+      <div class="duel-sheet-inner race-sheet-inner">
         <button type="button" class="pit-info-btn sheet-info" data-help="duel" title="Справка" aria-label="Справка: дуэль">i</button>
         <button type="button" class="share-card-close" id="duelSheetClose" aria-label="Закрыть">×</button>
-        <p class="share-brand">ДУЭЛЬ</p>
-        <div id="duelCreatePane">
-          <p class="duel-lead">Личный вызов: 0–100 или круг. Только GPS A/B.</p>
-          <div class="duel-type-row" role="group" aria-label="Тип дуэли">
-            <button type="button" class="duel-chip on" data-duel-type="drag" id="duelTypeDrag">0–100</button>
-            <button type="button" class="duel-chip" data-duel-type="lap" id="duelTypeLap">Круг</button>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <h2 class="race-sheet-title">Дуэль</h2>
+          <p class="race-sheet-sub">Личный вызов · только GPS A/B</p>
+        </header>
+        <div id="duelCreatePane" class="race-sheet-body">
+          <div class="duel-type-row seg-control" role="group" aria-label="Тип дуэли">
+            <button type="button" class="duel-chip seg-btn on" data-duel-type="drag" id="duelTypeDrag">0–100</button>
+            <button type="button" class="duel-chip seg-btn" data-duel-type="lap" id="duelTypeLap">Круг</button>
           </div>
           <label class="duel-field" id="duelTrackWrap" hidden>Трек
             <select id="duelTrackSelect"></select>
@@ -625,24 +629,24 @@
           <label class="duel-field" id="duelNickWrap">Ник
             <input id="duelNick" maxlength="48" placeholder="твой ник" />
           </label>
-          <button type="button" class="go-btn" id="duelCreateBtn">Создать дуэль</button>
+          <button type="button" class="go-btn race-cta" id="duelCreateBtn">Создать дуэль</button>
         </div>
-        <div id="duelViewPane" hidden>
+        <div id="duelViewPane" class="race-sheet-body" hidden>
           <p class="duel-status" id="duelStatusLine">—</p>
           <p class="duel-vs" id="duelVsLine">—</p>
           <div class="duel-sides" id="duelSides"></div>
           <p class="duel-result" id="duelResult" hidden></p>
           <p class="duel-note" id="duelNoteView" hidden></p>
           <div class="duel-actions">
-            <button type="button" class="go-btn" id="duelCopyLink">Копировать ссылку</button>
-            <button type="button" id="duelSubmitRun">Прикрепить мой заезд</button>
-            <button type="button" id="duelRefresh">Обновить</button>
+            <button type="button" class="go-btn race-cta" id="duelCopyLink">Копировать ссылку</button>
+            <button type="button" class="btn-secondary" id="duelSubmitRun">Прикрепить мой заезд</button>
+            <button type="button" class="btn-ghost" id="duelRefresh">Обновить</button>
           </div>
-          <p class="tiny" id="duelHint">Нужен честный GPS A или B. C не принимается.</p>
+          <p class="tiny muted" id="duelHint">Только GPS A или B · C не принимается</p>
         </div>
-        <div id="duelListPane">
-          <h3 class="duel-list-title">Мои дуэли</h3>
-          <ul class="duel-list" id="duelList"></ul>
+        <div id="duelListPane" class="race-sheet-body">
+          <h3 class="duel-list-title race-list-title">Мои дуэли</h3>
+          <ul class="duel-list race-list" id="duelList"></ul>
           <button type="button" class="duel-linkish" id="duelPasteOpen">Открыть по ссылке / id…</button>
         </div>
       </div>
@@ -657,14 +661,17 @@
       }
     </script>
     
-    <div id="crewSheet" class="crew-sheet hidden" aria-hidden="true" role="dialog" aria-label="Экипаж">
-      <div class="crew-sheet-inner">
+    <div id="crewSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Экипаж">
+      <div class="crew-sheet-inner race-sheet-inner">
         <button type="button" class="pit-info-btn sheet-info" data-help="crew" title="Справка" aria-label="Справка: экипаж">i</button>
         <button type="button" class="share-card-close" id="crewSheetClose" aria-label="Закрыть">×</button>
-        <h2 class="crew-title">Экипаж</h2>
-        <p class="crew-lead">Команда 3–10 пилотов. Месячный борд — лучший валидный круг A/B на культовом треке экипажа.</p>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <h2 class="race-sheet-title crew-title">Экипаж</h2>
+          <p class="race-sheet-sub crew-lead">Команда 3–10 · месячный борд A/B на треке сезона</p>
+        </header>
 
-        <div id="crewCreatePane">
+        <div id="crewCreatePane" class="race-sheet-body">
           <label class="crew-field">Название
             <input id="crewName" maxlength="48" placeholder="например Neon Pack" />
           </label>
@@ -674,65 +681,71 @@
           <label class="crew-field">Ник
             <input id="crewNick" maxlength="48" placeholder="твой ник" />
           </label>
-          <button type="button" class="go-btn" id="crewCreateBtn">Создать экипаж</button>
+          <button type="button" class="go-btn race-cta" id="crewCreateBtn">Создать экипаж</button>
           <div class="crew-join-row">
             <input id="crewJoinCode" maxlength="12" placeholder="код приглашения" />
-            <button type="button" id="crewJoinBtn">Вступить</button>
+            <button type="button" class="btn-secondary" id="crewJoinBtn">Вступить</button>
           </div>
         </div>
 
-        <div id="crewViewPane" hidden>
+        <div id="crewViewPane" class="race-sheet-body" hidden>
           <p class="crew-status" id="crewStatusLine">—</p>
           <p class="crew-meta" id="crewMetaLine">—</p>
           <div class="crew-badge-row" id="crewBadgeRow"></div>
-          <ol class="crew-board" id="crewBoardList"></ol>
+          <ol class="crew-board race-list" id="crewBoardList"></ol>
           <div class="crew-actions">
-            <button type="button" class="go-btn" id="crewCopyLink">Копировать ссылку</button>
-            <button type="button" id="crewCopyCode">Код приглашения</button>
-            <button type="button" id="crewRefresh">Обновить борд</button>
-            <button type="button" id="crewJoinHere">Вступить в этот</button>
+            <button type="button" class="go-btn race-cta" id="crewCopyLink">Копировать ссылку</button>
+            <button type="button" class="btn-secondary" id="crewCopyCode">Код приглашения</button>
+            <button type="button" class="btn-ghost" id="crewRefresh">Обновить борд</button>
+            <button type="button" class="btn-ghost" id="crewJoinHere">Вступить в этот</button>
           </div>
-          <p class="tiny" id="crewHint">После круга A/B на треке экипажа результат попадает на борд автоматически.</p>
+          <p class="tiny muted" id="crewHint">Круг A/B на треке экипажа → борд сам</p>
         </div>
 
-        <div id="crewListPane">
-          <h3 class="crew-list-title">Мои экипажи</h3>
-          <ul class="crew-list" id="crewList"></ul>
+        <div id="crewListPane" class="race-sheet-body">
+          <h3 class="crew-list-title race-list-title">Мои экипажи</h3>
+          <ul class="crew-list race-list" id="crewList"></ul>
           <button type="button" class="crew-linkish" id="crewPasteOpen">Открыть по ссылке / id…</button>
         </div>
       </div>
     </div>
 
 
-    <div id="autodromeSheet" class="crew-sheet hidden" aria-hidden="true" role="dialog" aria-label="Автодромы">
-      <div class="crew-sheet-inner ad-sheet-inner">
+    <div id="autodromeSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Автодромы">
+      <div class="crew-sheet-inner ad-sheet-inner race-sheet-inner">
         <button type="button" class="pit-info-btn sheet-info" data-help="autodrome" title="Справка" aria-label="Справка: автодромы">i</button>
         <button type="button" class="share-card-close" id="autodromeSheetClose" aria-label="Закрыть">×</button>
-        <h2 class="crew-title">Автодромы</h2>
-        <p class="crew-lead">Культовые кольца России: кратко, честно, без фейкового бронирования.</p>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <h2 class="race-sheet-title crew-title">Автодромы</h2>
+          <p class="race-sheet-sub crew-lead">Культовые кольца РФ · без фейкового бронирования</p>
+        </header>
 
-        <div id="autodromeListPane">
-          <ul class="crew-list" id="autodromeList"></ul>
+        <div id="autodromeListPane" class="race-sheet-body">
+          <ul class="crew-list race-list" id="autodromeList"></ul>
         </div>
 
-        <div id="autodromeDetailPane" hidden>
+        <div id="autodromeDetailPane" class="race-sheet-body" hidden>
           <button type="button" class="ad-back" id="autodromeBackBtn">← к списку</button>
           <h3 class="ad-detail-name" id="autodromeDetailName">—</h3>
           <div id="autodromeDetailBody" class="ad-detail-body"></div>
-          <button type="button" class="go-btn" id="autodromeSelectBtn">Выбрать этот трек</button>
+          <button type="button" class="go-btn race-cta" id="autodromeSelectBtn">Выбрать этот трек</button>
         </div>
       </div>
     </div>
 
 
-    <div id="pitHelpSheet" class="pit-help hidden" aria-hidden="true" role="dialog" aria-label="Справка">
-      <div class="pit-help-inner">
+    <div id="pitHelpSheet" class="pit-help race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Справка">
+      <div class="pit-help-inner race-sheet-inner">
         <button type="button" class="share-card-close" id="pitHelpClose" aria-label="Закрыть">×</button>
-        <p class="share-brand">СПРАВКА</p>
-        <h2 class="pit-help-title" id="pitHelpTitle">—</h2>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <p class="race-sheet-kicker">Справка</p>
+          <h2 class="pit-help-title race-sheet-title" id="pitHelpTitle">—</h2>
+        </header>
         <div class="pit-help-body" id="pitHelpBody"></div>
         <div class="pit-help-extra" id="pitHelpExtra" hidden></div>
-        <button type="button" class="go-btn" id="pitHelpOk">Понятно</button>
+        <button type="button" class="go-btn race-cta" id="pitHelpOk">Понятно</button>
       </div>
     </div>
 

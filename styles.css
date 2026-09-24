@@ -3064,9 +3064,13 @@ body.run-drive-on #app { visibility: hidden; }
   z-index: 2;
 }
 .duel-sheet-inner > .share-brand,
-.crew-sheet-inner > .crew-title {
+.crew-sheet-inner > .crew-title:not(.race-sheet-title) {
   padding-left: 36px;
   padding-right: 36px;
+}
+.race-sheet-inner > .race-sheet-head .race-sheet-title {
+  padding-left: 0;
+  padding-right: 0;
 }
 .card-head-row {
   display: flex;
@@ -3399,4 +3403,395 @@ body.run-drive-on #app { visibility: hidden; }
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
+}
+
+/* —— Race-app UX polish (Dragy / RaceChrono spirit) —— */
+
+/* Shared bottom-sheet chrome — sticky title, handle, cinema dark */
+.race-sheet-inner {
+  display: flex;
+  flex-direction: column;
+  padding-top: 12px !important;
+  background: linear-gradient(165deg, #242424 0%, #1a1a1a 48%, #161616 100%) !important;
+  border-color: rgba(57, 255, 20, 0.32) !important;
+  color: #f0f0f0;
+}
+.duel-sheet-inner.race-sheet-inner,
+.crew-sheet-inner.race-sheet-inner,
+.pit-help-inner.race-sheet-inner {
+  max-height: min(92vh, 760px);
+  padding: 10px 16px 22px !important;
+}
+.race-sheet-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  margin: 0 -4px 12px;
+  padding: 4px 40px 10px 40px;
+  background: linear-gradient(180deg, #242424 70%, rgba(26, 26, 26, 0.92) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.race-sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: #696969;
+  margin: 0 auto 10px;
+  opacity: 0.85;
+}
+.race-sheet-kicker {
+  margin: 0 0 2px;
+  font: 800 11px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: #696969;
+  text-align: center;
+}
+.race-sheet-title {
+  margin: 0 !important;
+  padding: 0 !important;
+  text-align: center;
+  font: 800 24px/1.1 "Barlow Condensed", sans-serif !important;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: #39FF14 !important;
+  text-shadow: 0 0 18px rgba(57, 255, 20, 0.28);
+}
+.race-sheet-sub,
+.race-sheet-sub.crew-lead {
+  margin: 6px 0 0 !important;
+  text-align: center;
+  font: 500 12px/1.35 Manrope, sans-serif !important;
+  color: #a8a8a8 !important;
+  opacity: 1 !important;
+  letter-spacing: 0.01em;
+  text-transform: none !important;
+}
+.race-sheet-body { margin: 0; }
+.race-cta {
+  width: 100%;
+  min-height: 48px !important;
+  margin-top: 4px;
+  font-size: 15px !important;
+  letter-spacing: .08em;
+}
+.race-list-title {
+  margin: 18px 0 8px !important;
+  font: 800 12px/1 "Barlow Condensed", sans-serif !important;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: #888 !important;
+  opacity: 1 !important;
+}
+
+/* Connected segment control (0–100 / круг, S1/S2/S3) */
+.seg-control {
+  display: flex !important;
+  gap: 0 !important;
+  padding: 3px;
+  border-radius: 12px;
+  background: #121212;
+  border: 1px solid #404040;
+  margin-bottom: 12px;
+}
+.seg-control .seg-btn,
+.seg-control .duel-chip,
+.seg-control .sec-chip {
+  flex: 1;
+  min-height: 40px;
+  border-radius: 9px !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: #b0b0b0 !important;
+  box-shadow: none !important;
+  font: 800 13px/1 "Barlow Condensed", sans-serif !important;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.seg-control .seg-btn.on,
+.seg-control .duel-chip.on,
+.seg-control .sec-chip.on {
+  background: rgba(57, 255, 20, 0.16) !important;
+  color: #39FF14 !important;
+  box-shadow: inset 0 0 0 1px rgba(57, 255, 20, 0.45), 0 0 14px rgba(57, 255, 20, 0.12) !important;
+}
+.sector-tops-controls .seg-control {
+  margin-bottom: 0;
+  min-width: min(220px, 100%);
+}
+
+/* Secondary / ghost buttons — one primary CTA, quieter rest */
+.btn-secondary {
+  appearance: none;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(57, 255, 20, 0.35);
+  background: rgba(57, 255, 20, 0.06);
+  color: #39FF14;
+  font: 700 13px/1 "Barlow Condensed", sans-serif;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0 14px;
+}
+.btn-secondary:active { filter: brightness(1.1); }
+.btn-ghost {
+  appearance: none;
+  width: 100%;
+  min-height: 42px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: #c8c8c8;
+  font: 600 13px/1 Manrope, sans-serif;
+  cursor: pointer;
+  padding: 0 14px;
+}
+.btn-ghost:active { border-color: rgba(57, 255, 20, 0.4); color: #eee; }
+.btn-ghost:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Tops toolbar chips — uniform race-app entry points */
+.race-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px !important;
+  align-items: center;
+}
+.race-toolbar .duel-btn,
+.race-toolbar .crew-btn,
+.race-toolbar .sector-tops-btn,
+.race-toolbar .ad-btn {
+  min-height: 36px;
+  padding: 0 12px !important;
+  border-radius: 999px;
+  font: 800 11px/1 "Barlow Condensed", sans-serif !important;
+  letter-spacing: .1em;
+  box-shadow: none !important;
+  background: rgba(57, 255, 20, 0.08) !important;
+  border: 1px solid rgba(57, 255, 20, 0.42) !important;
+  color: #39FF14 !important;
+}
+.race-toolbar .ad-btn {
+  border-color: rgba(125, 249, 255, 0.4) !important;
+  background: rgba(0, 229, 255, 0.07) !important;
+  color: #7DF9FF !important;
+}
+.race-toolbar .method-link {
+  margin-left: 2px;
+  opacity: 0.7;
+}
+
+/* Dense pilot rows — Dragy/RaceChrono leaderboard feel */
+.tops-pilot-list > li,
+.laps.tops-pilot-list > li {
+  grid-template-columns: 26px 44px minmax(0, 1fr) auto;
+  gap: 10px;
+  min-height: 56px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.tops-pilot-list .tp-rank {
+  font-size: 14px;
+  color: #777;
+}
+.tops-pilot-list li:nth-child(1) .tp-rank { color: #39FF14; }
+.tops-pilot-list li:nth-child(2) .tp-rank { color: #c8c8c8; }
+.tops-pilot-list li:nth-child(3) .tp-rank { color: #c49a6c; }
+.tops-av {
+  width: 44px;
+  height: 44px;
+  border-width: 1.5px;
+}
+.tops-pilot-list .tp-nick {
+  font-size: 15px;
+  letter-spacing: .02em;
+}
+.tops-pilot-list .tp-time {
+  font-size: 20px !important;
+  letter-spacing: .01em;
+  text-shadow: 0 0 12px rgba(57, 255, 20, 0.22);
+}
+
+/* Session of the day */
+.session-day-head {
+  justify-content: flex-start !important;
+  gap: 10px;
+  align-items: center;
+}
+.session-day-card h3 {
+  font-size: 22px !important;
+  margin-top: 8px !important;
+}
+.session-day-sub {
+  margin: 0 0 8px !important;
+}
+.session-day-card #sessionDayTops {
+  max-height: 220px;
+}
+.session-day-actions {
+  grid-template-columns: 1.35fr 1fr;
+  gap: 8px;
+  margin-top: 4px;
+}
+.session-day-actions .btn-secondary {
+  width: 100%;
+}
+
+/* Crew board rows → avatar | nick | big time */
+.crew-board li {
+  grid-template-columns: 26px 40px minmax(0, 1fr) auto !important;
+  gap: 8px !important;
+  min-height: 54px;
+  padding: 8px 10px !important;
+  border-radius: 14px !important;
+}
+.crew-board .rk {
+  font-size: 14px !important;
+  color: #777 !important;
+  text-align: center;
+}
+.crew-board li:nth-child(1) .rk { color: #39FF14 !important; }
+.crew-board .tm {
+  font-size: 18px !important;
+  color: #39FF14 !important;
+  font-variant-numeric: tabular-nums;
+}
+.crew-board .who {
+  font: 700 14px/1.2 "Barlow Condensed", sans-serif !important;
+  letter-spacing: .02em;
+}
+.crew-join-row button.btn-secondary {
+  width: auto;
+  min-width: 96px;
+  padding: 0 14px;
+}
+
+/* Race list rows — denser tap targets */
+.race-list li,
+.duel-list li,
+.crew-list li {
+  min-height: 52px;
+  padding: 12px 14px !important;
+  border-radius: 14px !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  background: rgba(255, 255, 255, 0.035) !important;
+}
+.duel-list .dl-main,
+.crew-list .dl-main {
+  font: 600 14px/1.35 Manrope, sans-serif !important;
+}
+.duel-list .dl-st,
+.crew-list .dl-st {
+  font-size: 12px !important;
+  color: #39FF14 !important;
+  opacity: 1 !important;
+}
+
+/* Duel sides: bigger times like race result cards */
+.duel-side .time {
+  font-size: 32px !important;
+  font-variant-numeric: tabular-nums;
+  color: #39FF14 !important;
+  text-shadow: 0 0 16px rgba(57, 255, 20, 0.25);
+}
+.duel-side.win .time { color: #39FF14 !important; }
+.duel-actions {
+  gap: 8px !important;
+}
+.duel-actions .btn-secondary,
+.duel-actions .btn-ghost,
+.crew-actions .btn-secondary,
+.crew-actions .btn-ghost {
+  width: 100%;
+}
+
+/* Autodrome list rows */
+#autodromeList li {
+  min-height: 58px;
+  gap: 4px !important;
+}
+#autodromeList .dl-main {
+  font: 700 15px/1.25 "Barlow Condensed", sans-serif !important;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+  color: #f0f0f0;
+}
+#autodromeList .dl-st {
+  color: #888 !important;
+}
+.ad-detail-name {
+  font-size: 24px !important;
+  color: #39FF14 !important;
+}
+
+/* Sector Battle denser + clearer CTA */
+.sector-battle {
+  padding: 10px !important;
+}
+.sb-row {
+  min-height: 40px;
+  padding: 8px 10px !important;
+}
+.sb-time {
+  font-size: 16px !important;
+  font-variant-numeric: tabular-nums;
+}
+.sector-tops-link {
+  margin-top: 12px;
+  min-height: 44px;
+  border-style: solid !important;
+  border-color: rgba(57, 255, 20, 0.4) !important;
+  background: rgba(57, 255, 20, 0.06) !important;
+  font-size: 13px !important;
+}
+
+/* Help sheet */
+.pit-help-inner.race-sheet-inner {
+  padding-bottom: 18px !important;
+}
+.pit-help-title.race-sheet-title {
+  margin-top: 0 !important;
+}
+.pit-help-body {
+  font-size: 13.5px !important;
+  line-height: 1.45 !important;
+  color: #c8c8c8 !important;
+}
+
+/* Keep sheet «i» left / close right above sticky head */
+.race-sheet-inner > .sheet-info {
+  top: 14px;
+  left: 14px;
+}
+.race-sheet-inner > .share-card-close {
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+}
+
+/* Hide legacy padded title offset when race-sheet-head is present */
+.duel-sheet-inner.race-sheet-inner > .share-brand { display: none; }
+.crew-sheet-inner.race-sheet-inner > .crew-title:not(.race-sheet-title) {
+  padding-left: 0;
+}
+
+@media (max-width: 420px) {
+  .session-day-actions { grid-template-columns: 1fr; }
+  .tops-pilot-list .tp-time { font-size: 18px !important; }
+  .race-sheet-title { font-size: 22px !important; }
+  .race-toolbar .duel-btn,
+  .race-toolbar .crew-btn,
+  .race-toolbar .sector-tops-btn,
+  .race-toolbar .ad-btn {
+    min-height: 34px;
+    font-size: 10px !important;
+    padding: 0 10px !important;
+  }
 }
