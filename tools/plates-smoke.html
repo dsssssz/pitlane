@@ -1,0 +1,64 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>plates smoke</title>
+<style>html,body{margin:0;background:#1a1a1a;overflow:hidden}canvas{display:block}</style>
+<script type="importmap">{"imports":{"three":"../vendor/three/three.module.js","three/addons/":"../vendor/three/addons/"}}</script>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { attachPitlanePlates, _debugPlacements } from '../plates.js';
+const q = new URLSearchParams(location.search);
+const car = q.get('car') || 'g87-m2';
+const view = q.get('view') || 'front';
+const W = +(q.get('w') || 1200), H = +(q.get('h') || 800);
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H); renderer.setPixelRatio(1);
+renderer.setClearColor(0x1a1a1a, 1);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x222222, 0.6));
+const dl = new THREE.DirectionalLight(0xffffff, 1.4); dl.position.set(4, 8, 5); scene.add(dl);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(6, 64), new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 }));
+floor.rotation.x = -Math.PI / 2; scene.add(floor);
+const camera = new THREE.PerspectiveCamera(q.get('fov') ? +q.get('fov') : 30, W / H, 0.05, 100);
+const t0 = performance.now();
+new GLTFLoader().load('../models/' + car + '.glb', (gltf) => {
+  const tParse = performance.now();
+  const root = cloneSkinned(gltf.scene);
+  root.traverse((o) => { if (o.isMesh) { const ms = Array.isArray(o.material) ? o.material : [o.material]; ms.forEach((m) => { if (!m) return; m.side = THREE.DoubleSide; if (m.transparent || m.opacity < 0.999 || m.transmission > 0.01 || m.alphaMap) { m.transparent = true; if (m.transmission > 0.01 || m.opacity < 0.95) m.depthWrite = false; } }); } });
+  const ta = performance.now();
+  const n = q.get('noplates') ? 0 : attachPitlanePlates(root, car, renderer, { useBaked: !!q.get('baked') });
+  const tb = performance.now();
+  // second attach timing (cached path) on another clone
+  const root2 = cloneSkinned(gltf.scene); const tc = performance.now(); attachPitlanePlates(root2, car, renderer, { useBaked: !!q.get('baked') }); const td = performance.now();
+  let box = new THREE.Box3().setFromObject(root); const size = box.getSize(new THREE.Vector3());
+  root.scale.setScalar(4.8 / Math.max(size.x, size.y, size.z)); root.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(root); box.getSize(size); const mid = box.getCenter(new THREE.Vector3());
+  root.position.x -= mid.x; root.position.z -= mid.z; root.position.y -= box.min.y;
+  scene.add(root);
+  const h = size.y;
+  const plates = _debugPlacements().get(car) || [];
+  const findEnd = (e) => { let g = null; root.traverse((o) => { if (o.name === 'PITLANE_plate_' + e) g = o; }); return g; };
+  const vw = { front: [0.75, 0.32, 1], rear: [-0.75, 0.32, -1], frontclose: [0.25, 0.1, 1], rearclose: [-0.25, 0.1, -1], side: [1, 0.3, 0] }[view] || [0.9, 0.55, 1];
+  const close = /close/.test(view);
+  const end = /rear/.test(view) ? 'rear' : 'front';
+  const g = findEnd(end);
+  const target = new THREE.Vector3(0, h * 0.4, 0);
+  if (close && g) g.getWorldPosition(target);
+  const dist = close ? 2.2 : 7.2;
+  const dir = new THREE.Vector3(vw[0], vw[1], vw[2]).normalize();
+  if (!close) target.z = 0;
+  camera.position.copy(target).addScaledVector(dir, dist);
+  camera.lookAt(target);
+  renderer.render(scene, camera);
+  window.__info = { car, n, parseMs: Math.round(tParse - t0), firstAttachMs: +(tb - ta).toFixed(1), cachedAttachMs: +(td - tc).toFixed(2), plates: plates.map((p) => ({ end: p.end, hide: p.hideMesh, ps: p.plateScale })) , size: size.toArray().map((v)=>+v.toFixed(2)) };
+  window.__bake = plates.map((p) => [p.end, p.pos.toArray().map((v) => +v.toPrecision(6)), p.quat.toArray().map((v) => +v.toFixed(5)), +p.scale.toPrecision(6), p.hideMesh || null]);
+  if (q.get('probe')) { const g2 = findEnd(q.get('probe')); const wp = new THREE.Vector3(); g2.getWorldPosition(wp); const rc = new THREE.Raycaster(); const out = []; for (const dy of [-0.03,-0.015,0,0.015,0.03]) { rc.set(new THREE.Vector3(wp.x, wp.y+dy, wp.z + (q.get('probe')==='front'?3:-3)), new THREE.Vector3(0,0,q.get('probe')==='front'?-1:1)); rc.intersectObject(root, true).slice(0,6).forEach((h) => out.push([dy, h.object.name.slice(0,60), (h.material||h.object.material)?.name, h.object.material?.transparent, +h.distance.toFixed(3)])); } window.__info.probe = out; }
+  window.__done = true;
+}, undefined, (e) => { window.__err = String(e); window.__done = true; });
+</script></body></html>

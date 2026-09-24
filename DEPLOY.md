@@ -217,3 +217,11 @@ Lap-drive map uses **Leaflet + Esri World Imagery** (no API key). Outline overla
 - Offline: dark canvas + neon outline + status «офлайн».
 - No Mapbox/MapTiler key required. Maga does not need to add secrets for this.
 - Worker untouched.
+
+## 18. PITLANE license plates on the 3D podium (SW v73)
+
+- `plates.js`: one shared canvas texture (white Euro-style plate, neon strip + checkered mark, black **PITLANE**, dark frame) + shared materials/geometries for every plate.
+- Placement per model is **baked** (`PLATE_BAKED`, glbRoot-local) → zero raycast cost on car switch. `PLATE_CONFIG` (+ bumper raycast) is the re-bake source / fallback.
+- Existing GLB plate meshes (Forza `ManufacturerPlate`, M3 `licenseplate`, X6 `plate`, Spark `plateholder`) are hidden and the PITLANE plate is mounted in their place; others get a new plate on the bumper.
+- Plate meshes are named `PITLANE_plate_*` / `userData.__pitlanePlate` → excluded from body paint, forceBlackTrim and GLB dispose.
+- Re-bake / visual check: `tools/plates-smoke.html?car=<id>&view=front|rear|frontclose|rearclose` (omit `&baked=1` to recompute from `PLATE_CONFIG`, read `window.__bake`).

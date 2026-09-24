@@ -5,6 +5,7 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
+import { attachPitlanePlates, isPitlanePlate } from './plates.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId } from './api.js';
 import {
   mountLapSatMap,
@@ -4913,6 +4914,7 @@ function disposeGlbTree(root, { sharedFromCache = false } = {}) {
   if (!root) return;
   root.traverse((o) => {
     if (!o.isMesh) return;
+    if (isPitlanePlate(o)) return; // shared plate geo/mat/texture live across switches
     if (!sharedFromCache) {
       try { o.geometry?.dispose?.(); } catch (_) {}
     }
@@ -5019,6 +5021,11 @@ function fitGlb(obj) {
   glbRoot.position.z -= mid.z;
   glbRoot.position.y -= box.min.y;
   glbRoot.rotation.y = Math.PI * 0.2;
+  // PITLANE license plates (baked per-model placement, shared texture/material)
+  try {
+    const plateModel = obj.userData?.__plateModel;
+    if (plateModel) attachPitlanePlates(glbRoot, plateModel, renderer);
+  } catch (err) { console.warn('plates', err); }
   scene.add(glbRoot);
   if (prevRoot && prevRoot !== glbRoot) {
     try { scene.remove(prevRoot); } catch (_) {}
@@ -5292,6 +5299,7 @@ function loadPodiumModel(id, animDir = 0) {
   const applyScene = (scene) => {
     if (gen !== podiumLoadGen) return;
     if (!scene) return;
+    if (scene.userData) scene.userData.__plateModel = m.id;
     fitGlb(scene);
   };
 
@@ -5588,6 +5596,7 @@ function tokensHitSet(tokens, set) {
 }
 
 function isPaintMeshExcluded(meshName) {
+  if (/^PITLANE_plate/.test(meshName || '')) return true; // license plates never take body paint
   if (/seat.?belt|seatbelt/i.test(meshName || '')) return true;
   const ov = PAINT_MAT_OVERRIDES[podiumModelId || state.carId] || null;
   if (ov?.meshExclude?.some((re) => re.test(meshName || ''))) return true;
@@ -5754,7 +5763,7 @@ function forceBlackTrim() {
   const ov = PAINT_MAT_OVERRIDES[podiumModelId || state.carId] || null;
   if (!ov?.forceBlackMesh?.length && !ov?.forceBlackMat?.length) return;
   glbRoot.traverse((o) => {
-    if (!o.isMesh) return;
+    if (!o.isMesh || isPitlanePlate(o)) return;
     const meshName = o.name || '';
     const forceMesh = !!(ov.forceBlackMesh && ov.forceBlackMesh.some((re) => re.test(meshName)));
     const mats = Array.isArray(o.material) ? o.material : [o.material];

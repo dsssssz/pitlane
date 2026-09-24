@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v72';
+const CACHE = 'pitlane-v73';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -9,6 +9,7 @@ const CORE = [
   './method.html',
   './styles.css',
   './app.js',
+  './plates.js',
   './track-sat-map.js',
   './geo/outlines.js',
   './vendor/leaflet/leaflet.js',
