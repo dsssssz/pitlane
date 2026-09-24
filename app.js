@@ -7459,9 +7459,7 @@ document.getElementById('btnCrewOpen')?.addEventListener('click', () => openCrew
 document.getElementById('btnSessionGoTrack')?.addEventListener('click', () => openSessionTrack());
 document.getElementById('btnSessionCheckin')?.addEventListener('click', () => { void sessionCheckinClick(); });
 document.getElementById('btnSessionTrackInfo')?.addEventListener('click', () => {
-  const id = _sessionTodayCache?.trackId;
-  if (id) openAutodromeSheet(id);
-  else openAutodromeSheet();
+  openPitHelp('session');
 });
 document.getElementById('btnAutodromesOpen')?.addEventListener('click', () => openAutodromeSheet());
 document.getElementById('btnAutodromesLap')?.addEventListener('click', () => openAutodromeSheet());
@@ -7534,3 +7532,110 @@ document.getElementById('crewPasteOpen')?.addEventListener('click', async () => 
 });
 
 void bootCrewFromUrl();
+
+
+/* -------- Feature help (i) — reuse session-day «i» look -------- */
+const FEATURE_HELP = {
+  duel: {
+    title: 'Дуэль',
+    lines: [
+      'Личный вызов 1 на 1: <strong>0–100</strong> или <strong>круг</strong> на выбранном треке.',
+      '<strong>Как:</strong> создай дуэль → скопируй ссылку другу → оба прикрепляют свой валидный заезд GPS A/B. C не принимается.',
+      '<strong>Где:</strong> Топы → «Дуэль». Список своих — внизу этого листа. Из карточки результата — «Вызвать на дуэль».',
+    ],
+  },
+  crew: {
+    title: 'Экипаж',
+    lines: [
+      'Команда <strong>3–10</strong> пилотов. Месячный борд — лучший валидный круг A/B на треке сезона экипажа.',
+      '<strong>Как:</strong> создай экипаж или вступи по коду/ссылке. После круга A/B на треке экипажа результат попадает на борд сам.',
+      '<strong>Где:</strong> Топы → «Экипаж». Код и ссылка — в карточке экипажа.',
+    ],
+  },
+  autodrome: {
+    title: 'Автодромы',
+    lines: [
+      'Справочник культовых колец России: длина, повороты, конфигурации, сайт.',
+      '<strong>Как:</strong> открой трек в списке → «Выбрать этот трек» переключает Кольцо на него.',
+      'Бронирование сессий в Pitlane не встроено — только справка.',
+    ],
+  },
+  session: {
+    title: 'Сессия дня',
+    lines: [
+      'Каждый день — один культовый трек. Здесь топ кругов за сегодня и чекин «Я на месте».',
+      '<strong>Как:</strong> «Открыть трек» ведёт в Кольцо на этот автодром. «Я на месте» — короткая отметка, что ты на треке.',
+      'Нужна карточка автодрома — кнопка ниже.',
+    ],
+    extra: 'session-track',
+  },
+  sectorBattle: {
+    title: 'Sector Battle',
+    lines: [
+      'Личный разбор круга по секторам: этот круг vs твои лучшие секторы на этой трассе.',
+      'Зелёный — быстрее PB сектора, красный — медленнее. «Оптимал» — сумма лучших секторов.',
+      '<strong>Как:</strong> проедь 2+ валидных круга с секторами на выбранной трассе (экран Кольцо).',
+    ],
+  },
+  sectorTops: {
+    title: 'Топ секторов',
+    lines: [
+      'Публичный рейтинг по секторам трассы: фото, ник, время. Только GPS A/B.',
+      '<strong>Как:</strong> выбери трассу и сектор (S1/S2/S3). Чтобы попасть — валидный круг с секторами.',
+      '<strong>Где:</strong> Топы → «Секторы» или кнопка под Sector Battle.',
+    ],
+  },
+};
+
+function closePitHelp() {
+  const sheet = document.getElementById('pitHelpSheet');
+  if (!sheet) return;
+  sheet.classList.add('hidden');
+  sheet.setAttribute('aria-hidden', 'true');
+}
+
+function openPitHelp(key) {
+  const data = FEATURE_HELP[key];
+  const sheet = document.getElementById('pitHelpSheet');
+  if (!data || !sheet) return;
+  const title = document.getElementById('pitHelpTitle');
+  const body = document.getElementById('pitHelpBody');
+  const extra = document.getElementById('pitHelpExtra');
+  if (title) title.textContent = data.title;
+  if (body) {
+    body.innerHTML = (data.lines || []).map((l) => `<p>${l}</p>`).join('');
+  }
+  if (extra) {
+    if (data.extra === 'session-track') {
+      extra.hidden = false;
+      extra.innerHTML = '<button type="button" id="pitHelpOpenTrack">Об этом автодроме</button>';
+      document.getElementById('pitHelpOpenTrack')?.addEventListener('click', () => {
+        closePitHelp();
+        const id = _sessionTodayCache?.trackId;
+        if (id) openAutodromeSheet(id);
+        else openAutodromeSheet();
+      }, { once: true });
+    } else {
+      extra.hidden = true;
+      extra.innerHTML = '';
+    }
+  }
+  sheet.classList.remove('hidden');
+  sheet.setAttribute('aria-hidden', 'false');
+  try { hap(10); } catch (_) {}
+}
+
+document.getElementById('pitHelpClose')?.addEventListener('click', closePitHelp);
+document.getElementById('pitHelpOk')?.addEventListener('click', closePitHelp);
+document.getElementById('pitHelpSheet')?.addEventListener('click', (e) => {
+  if (e.target?.id === 'pitHelpSheet') closePitHelp();
+});
+document.addEventListener('click', (e) => {
+  const btn = e.target?.closest?.('[data-help]');
+  if (!btn) return;
+  // session button has its own listener → skip double-open via bubble if already handled
+  if (btn.id === 'btnSessionTrackInfo') return;
+  const key = btn.getAttribute('data-help');
+  if (key) openPitHelp(key);
+});
+

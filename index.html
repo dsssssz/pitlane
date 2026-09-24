@@ -338,7 +338,10 @@
             </div>
           </article>
           <article class="card" id="sectorBattleCard">
-            <h3>Sector Battle</h3>
+            <div class="card-head-row">
+              <button type="button" class="pit-info-btn" data-help="sectorBattle" title="Справка" aria-label="Справка: Sector Battle">i</button>
+              <h3>Sector Battle</h3>
+            </div>
             <div id="sectorBattlePanel" class="sector-battle-host"></div>
             <button type="button" class="sector-tops-link" id="btnSectorTopsFromBattle">Открыть топ секторов</button>
           </article>
@@ -367,7 +370,7 @@
           <article class="card session-day-card" id="sessionDayCard">
             <div class="session-day-head">
               <span class="session-day-badge">сессия дня</span>
-              <button type="button" class="session-day-info" id="btnSessionTrackInfo" title="Об автодроме" aria-label="Об автодроме">i</button>
+              <button type="button" class="session-day-info pit-info-btn" id="btnSessionTrackInfo" data-help="session" title="Справка" aria-label="Справка: сессия дня">i</button>
             </div>
             <h3 id="sessionDayTitle">—</h3>
             <p class="tiny muted" id="sessionDayDate">—</p>
@@ -393,7 +396,10 @@
           </div>
           <article class="card sector-tops-card" id="sectorTopsCard">
             <div class="sector-tops-head">
-              <h3>Топ секторов</h3>
+              <div class="card-head-row">
+                <button type="button" class="pit-info-btn" data-help="sectorTops" title="Справка" aria-label="Справка: топ секторов">i</button>
+                <h3>Топ секторов</h3>
+              </div>
               <p class="tiny muted">Честные GPS A/B · фото · никнейм · время сектора</p>
             </div>
             <div class="sector-tops-controls">
@@ -601,6 +607,7 @@
 
     <div id="duelSheet" class="duel-sheet hidden" aria-hidden="true" role="dialog" aria-label="Дуэль">
       <div class="duel-sheet-inner">
+        <button type="button" class="pit-info-btn sheet-info" data-help="duel" title="Справка" aria-label="Справка: дуэль">i</button>
         <button type="button" class="share-card-close" id="duelSheetClose" aria-label="Закрыть">×</button>
         <p class="share-brand">ДУЭЛЬ</p>
         <div id="duelCreatePane">
@@ -652,6 +659,7 @@
     
     <div id="crewSheet" class="crew-sheet hidden" aria-hidden="true" role="dialog" aria-label="Экипаж">
       <div class="crew-sheet-inner">
+        <button type="button" class="pit-info-btn sheet-info" data-help="crew" title="Справка" aria-label="Справка: экипаж">i</button>
         <button type="button" class="share-card-close" id="crewSheetClose" aria-label="Закрыть">×</button>
         <h2 class="crew-title">Экипаж</h2>
         <p class="crew-lead">Команда 3–10 пилотов. Месячный борд — лучший валидный круг A/B на культовом треке экипажа.</p>
@@ -698,6 +706,7 @@
 
     <div id="autodromeSheet" class="crew-sheet hidden" aria-hidden="true" role="dialog" aria-label="Автодромы">
       <div class="crew-sheet-inner ad-sheet-inner">
+        <button type="button" class="pit-info-btn sheet-info" data-help="autodrome" title="Справка" aria-label="Справка: автодромы">i</button>
         <button type="button" class="share-card-close" id="autodromeSheetClose" aria-label="Закрыть">×</button>
         <h2 class="crew-title">Автодромы</h2>
         <p class="crew-lead">Культовые кольца России: кратко, честно, без фейкового бронирования.</p>
@@ -712,6 +721,18 @@
           <div id="autodromeDetailBody" class="ad-detail-body"></div>
           <button type="button" class="go-btn" id="autodromeSelectBtn">Выбрать этот трек</button>
         </div>
+      </div>
+    </div>
+
+
+    <div id="pitHelpSheet" class="pit-help hidden" aria-hidden="true" role="dialog" aria-label="Справка">
+      <div class="pit-help-inner">
+        <button type="button" class="share-card-close" id="pitHelpClose" aria-label="Закрыть">×</button>
+        <p class="share-brand">СПРАВКА</p>
+        <h2 class="pit-help-title" id="pitHelpTitle">—</h2>
+        <div class="pit-help-body" id="pitHelpBody"></div>
+        <div class="pit-help-extra" id="pitHelpExtra" hidden></div>
+        <button type="button" class="go-btn" id="pitHelpOk">Понятно</button>
       </div>
     </div>
 

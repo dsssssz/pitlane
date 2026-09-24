@@ -80,7 +80,7 @@ Allowed origins include `https://dsssssz.github.io` and local ports. Add more vi
 
 ## 9. Offline / SW
 
-- Service worker cache `pitlane-v68`: app shell + vendored `./vendor/three/*`.
+- Service worker cache `pitlane-v70`: app shell + vendored `./vendor/three/*`.
 - CDN Three URLs also cached in `pitlane-three-v1` on first load (fallback).
 - GLB models prefetch into `pitlane-glb-v1` on activate (same name the app already uses).
 
@@ -131,7 +131,7 @@ Duels routes live: POST/GET /duel, POST /duel/:id/run, GET /duels?mine=
 - Lap records already store cumulative `sectors: [s1,s2,s3]` ms; UI converts to splits.
 - Personal bests / «оптимал» (sum of best sectors) computed client-side from own history on the selected track.
 - A/B GPS required for win/lose emphasis; no Worker sector tops in this MVP.
-- SW cache: `pitlane-v68`.
+- SW cache: `pitlane-v70`.
 
 
 ## 14. Crews / Экипажи MVP
@@ -145,14 +145,14 @@ Duels routes live: POST/GET /duel, POST /duel/:id/run, GET /duels?mine=
 - `GET /crews?mine=<pilotId>`
 - Client: tops button «Экипаж», deep link `?crew=ID`, auto-push best after lap
 - Rank: personal best A/B lap (lower better). Team badge = count with ≥1 A/B lap. Team avg = average of bests.
-- SW cache: `pitlane-v68`
+- SW cache: `pitlane-v70`
 
 
 ### Worker deploy log (crews MVP 2026-09-23)
 
 Deployed with wrangler@3.114.17. Version ID: `81960051-1c84-497d-a568-b7a4df2b4906` → https://pitlane-api.pitlane-taksimaga.workers.dev
 Crews live: POST/GET /crew, join, board, best, GET /crews?mine=
-Client SW: `pitlane-v68`. Ship SHA `a03b2b5eddbf`.
+Client SW: `pitlane-v70`. Ship SHA `a03b2b5eddbf`.
 
 
 ## 15. Session of the day + autodrome discovery
@@ -163,13 +163,13 @@ Client SW: `pitlane-v68`. Ship SHA `a03b2b5eddbf`.
 - `POST /session/today/checkin` `{ nick, pilotId? }` → KV `session:att:{date}:{trackId}` (TTL ~2d).
 - Client fallback: same date-hash + filter `listLap` by day if Worker empty/offline.
 - Discovery: tops «Автодромы» + lap «Автодромы · справочник» → RU cards (blurb / configs / real site or «уточняйте…»). No booking integration.
-- SW cache: `pitlane-v68`. Completes «Делай» roadmap (no Pro monetization).
+- SW cache: `pitlane-v70`. Completes «Делай» roadmap (no Pro monetization).
 
 ### Worker deploy log (session-of-day 2026-09-23)
 
 Deployed with wrangler@3.114.17. Version ID: `ebd5e335-1c02-43ff-8f2d-90e2caa81234` → https://pitlane-api.pitlane-taksimaga.workers.dev
 Routes live: GET /session/today, POST /session/today/checkin
-Client SW: `pitlane-v68`. Ship SHA `cced8b543fd9`. Completes «Делай» roadmap.
+Client SW: `pitlane-v70`. Ship SHA `cced8b543fd9`. Completes «Делай» roadmap.
 
 
 ## 16. Real SMS login (Twilio) — 2026-09-24
@@ -177,7 +177,7 @@ Client SW: `pitlane-v68`. Ship SHA `cced8b543fd9`. Completes «Делай» road
 - Worker hardened: RU `normPhone`, OTP store-after-send, 5 verify attempts, `SMS_DEMO=0` in `[vars]`.
 - Deployed wrangler@3.114.17. Version ID: `7c45750a-8bec-45eb-873d-e58fe0e985e7` → https://pitlane-api.pitlane-taksimaga.workers.dev
 - Live `/auth/otp` returns **503** `{ error: "SMS not configured" }` until Maga sets Twilio secrets (none present yet).
-- Client: clearer SMS errors; local code wiped when remote SMS path used; SW cache `pitlane-v68`.
+- Client: clearer SMS errors; local code wiped when remote SMS path used; SW cache `pitlane-v70`.
 
 ### Maga next step (Twilio secrets)
 
@@ -200,5 +200,10 @@ Then phone login sends a real SMS; demo path stays off while `SMS_DEMO=0`.
 - `GET /tops/sector/:trackId?sector=0|1|2` → `{ trackId, sector, rows: [{ name, avatar, t, ms, car, gpsQ, pilotId }] }`
 - `?sector=all` → `{ trackId, sectors: [S1rows, S2rows, S3rows] }`
 - Client: tops «Секторы» + Sector Battle «Открыть топ секторов»; row = photo | nick | time.
-- Empty state OK (no fake data). SW: `pitlane-v69`.
+- Empty state OK (no fake data). SW: `pitlane-v70`.
 
+### Worker deploy log (sector tops 2026-09-24)
+
+Deployed with wrangler@3.114.17. Version ID: `39a175de-23bc-4afc-ba60-9ed559b6f451` → https://pitlane-api.pitlane-taksimaga.workers.dev
+Routes live: GET `/tops/sector/:trackId?sector=0|1|2|all`. Lap POST persists `sectors` + `pilotmeta` avatar.
+Client SW: `pitlane-v70`. Ship SHA `580e87222d7b908d2f4c644687a49aeb8aa9a58c` (+ worker/src sync `af85a31fd9ad85b2fcbda9567c788cce6ffc322d`).

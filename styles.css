@@ -3037,7 +3037,8 @@ body.run-drive-on #app { visibility: hidden; }
   background: rgba(57, 255, 20, 0.08);
   text-shadow: 0 0 12px rgba(57, 255, 20, 0.35);
 }
-.session-day-info {
+.session-day-info,
+.pit-info-btn {
   width: 28px;
   height: 28px;
   border-radius: 999px;
@@ -3046,8 +3047,109 @@ body.run-drive-on #app { visibility: hidden; }
   color: #39FF14;
   font: 800 13px/1 "Barlow Condensed", sans-serif;
   cursor: pointer;
+  flex-shrink: 0;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  box-shadow: 0 0 12px rgba(57, 255, 20, 0.12);
 }
-.session-day-info:active { transform: scale(0.94); }
+.session-day-info:active,
+.pit-info-btn:active { transform: scale(0.94); }
+.sheet-info {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  z-index: 2;
+}
+.duel-sheet-inner > .share-brand,
+.crew-sheet-inner > .crew-title {
+  padding-left: 36px;
+  padding-right: 36px;
+}
+.card-head-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 6px;
+}
+.card-head-row h3 {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+}
+.sector-tops-head .card-head-row { margin-bottom: 4px; }
+
+/* —— Feature help sheet (reuse sheet look) —— */
+.pit-help {
+  position: fixed;
+  inset: 0;
+  z-index: 13000;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+}
+.pit-help.hidden { display: none !important; }
+.pit-help-inner {
+  width: min(420px, 100%);
+  max-height: min(78vh, 560px);
+  overflow: auto;
+  position: relative;
+  border-radius: 18px;
+  border: 1px solid rgba(57, 255, 20, 0.35);
+  background: linear-gradient(165deg, #2a2a2a 0%, #1a1a1a 55%, #222 100%);
+  padding: 26px 18px 22px;
+  box-shadow: 0 0 40px rgba(57, 255, 20, 0.12), 0 20px 60px rgba(0,0,0,.55);
+  color: #f0f0f0;
+}
+.pit-help-title {
+  margin: 0 28px 10px 0;
+  font: 800 22px/1.15 "Barlow Condensed", sans-serif;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: #39FF14;
+  text-shadow: 0 0 16px rgba(57, 255, 20, 0.3);
+}
+.pit-help-body {
+  margin: 0 0 14px;
+  font: 500 14px/1.5 Manrope, sans-serif;
+  color: #d0d0d0;
+}
+.pit-help-body p {
+  margin: 0 0 10px;
+}
+.pit-help-body p:last-child { margin-bottom: 0; }
+.pit-help-body strong {
+  color: #39FF14;
+  font-weight: 700;
+}
+.pit-help-extra {
+  margin: 0 0 14px;
+}
+.pit-help-extra .go-btn,
+.pit-help-inner > .go-btn {
+  width: 100%;
+  min-height: 44px;
+}
+.pit-help-extra button:not(.go-btn) {
+  appearance: none;
+  width: 100%;
+  min-height: 42px;
+  margin-top: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ddd;
+  font: 600 13px/1 Manrope, sans-serif;
+  cursor: pointer;
+}
+.pit-help-extra button:not(.go-btn):active {
+  border-color: #39FF14;
+}
 .session-day-card h3 {
   margin: 6px 0 2px;
   font: 800 20px/1.15 "Barlow Condensed", sans-serif;
