@@ -225,3 +225,23 @@ Lap-drive map uses **Leaflet + Esri World Imagery** (no API key). Outline overla
 - Existing GLB plate meshes (Forza `ManufacturerPlate`, M3 `licenseplate`, X6 `plate`, Spark `plateholder`) are hidden and the PITLANE plate is mounted in their place; others get a new plate on the bumper.
 - Plate meshes are named `PITLANE_plate_*` / `userData.__pitlanePlate` → excluded from body paint, forceBlackTrim and GLB dispose.
 - Re-bake / visual check: `tools/plates-smoke.html?car=<id>&view=front|rear|frontclose|rearclose` (omit `&baked=1` to recompute from `PLATE_CONFIG`, read `window.__bake`).
+
+## 19. Adaptive 3D quality on the podium (SW v75)
+
+Goal: weak/mid Android GPUs (e.g. Honor 50, Adreno 642L @120 Hz) stop lagging; **high tier = the original podium, unchanged** (iPhone etc.).
+
+| tier | pixel ratio | fps cap | mirror floor (Reflector) | shadows | MSAA |
+|---|---|---|---|---|---|
+| `high` | min(DPR, 2) — as before | none (every rAF, as before) | full res (512–1024), every frame | 1536/1024 PCFSoft, every frame | on |
+| `medium` | min(DPR, 1.5) | 60 (so 120 Hz phones don't render 120 fps) | 512 px, refreshed every 2nd frame (+ exact refresh when the camera stops) | 1024, map re-rendered only on scene change / 1×s | on |
+| `low` | min(DPR, 1.25) | 60 while touching, 30 while auto-rotating | off → flat black floor (neon ring kept neon, see below) | off | off (from next load; context flag) |
+
+- Same on every tier: lights (incl. softbox RectAreaLights), RoomEnvironment env map, paint gloss/matte, PITLANE plates, intro, car switch, preload.
+- Low tier ring: no mirror → the neon ring is drawn un-tonemapped (opacity 0.55) so it keeps its neon green.
+- Auto-rotate on capped tiers is time-based, so rotation speed looks like 60 Hz (no more 2× speed on 120 Hz Android).
+- **Initial tier**: `?quality=` → fresh `localStorage['pitlane-quality-v1']` (< 7 days) → GPU heuristic (`WEBGL_debug_renderer_info`: Adreno 3xx–6xx, Mali-T/G3x–G7x (2-digit), PowerVR → `medium`) → `high`.
+- **FPS decides**: once the podium is visible, a GLB is loaded, the env is built and background GLB prefetch/parse finished (max 20 s wait), 1.5 s warm-up + 2 s sampling. If avg < 45 fps (Apple GPUs: < 24 fps, so iOS Low Power Mode's 30 fps cap is not mistaken for a weak GPU) → step down one tier, persist, re-measure. Never steps up within a session (no oscillation). Model swap / tab switch restarts the window. Stale (> 7 days) record → re-check from the heuristic tier.
+- **Render on demand** (all tiers): renders only while the camera moves (auto-rotate, drag, damping), during 0.3–1.2 s after car load / paint / taps in the garage / resize, plus a 1 fps safety repaint when idle. Loop fully stops when the tab is hidden or the podium canvas is off-screen (other tabs: Замер, Круг, Топы…).
+- Testing: `?quality=high|medium|low` forces a tier (not persisted, no measurement). Console logs `[pitlane] 3D quality: …`. Debug: `window.__pitlane3d.quality()` / `.frames()`.
+- Reset a device: `localStorage.removeItem('pitlane-quality-v1')`.
+- Also fixed: `Cannot access '_sectorTopIdx' before initialization` (declaration hoisted to the top of `app.js`).

@@ -365,6 +365,7 @@ const storeKey = 'pitlane-v1';
 const state = loadState();
 if (!state.passportGps) state.passportGps = {};
 let podiumModelId = null;
+let _sectorTopIdx = 0; // sector tops chip index (hoisted: renderTops() may run before its section)
 
 function loadState() {
   try {
@@ -1527,15 +1528,85 @@ if (document.getElementById('lapForm')) document.getElementById('lapForm').onsub
 };
 
 /* ---------------- 3D ---------------- */
+/* ---- Adaptive 3D quality tiers (high / medium / low) ----
+ * high   = original podium, untouched (iPhone etc.)
+ * medium = DPR ≤1.5, 60 fps cap, reflection 512px @ every 2nd frame, static 1024 shadow map
+ * low    = DPR ≤1.25, no MSAA (from next load), no realtime mirror/shadow maps (flat black floor, ring glow compensated), 30 fps while idle-rotating
+ * Initial tier: ?quality= override → fresh localStorage → GPU heuristic → high.
+ * Then FPS on the podium decides (down-only, never back up within a session). */
+const Q_KEY = 'pitlane-quality-v1';
+const Q_TIERS = ['high', 'medium', 'low'];
+const Q_STALE_MS = 7 * 24 * 3600 * 1000;
+const Q_TARGET_FPS = 45;
+const Q_PRESETS = {
+  high: { dprCap: 2, maxFps: 0, idleFps: 0, aa: true, shadow: true, shadowRes: 0, shadowStatic: false, refl: 'full', reflEvery: 1, areaLights: true },
+  medium: { dprCap: 1.5, maxFps: 60, idleFps: 60, aa: true, shadow: true, shadowRes: 1024, shadowStatic: true, refl: 'half', reflEvery: 2, areaLights: true },
+  low: { dprCap: 1.25, maxFps: 60, idleFps: 30, aa: false, shadow: false, shadowRes: 0, shadowStatic: true, refl: 'off', reflEvery: 0, areaLights: true },
+};
+function qGpuString() {
+  try {
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+    if (!gl) return '';
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    const s = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER) || '');
+    try { gl.getExtension('WEBGL_lose_context')?.loseContext(); } catch (_) {}
+    return s;
+  } catch (_) { return ''; }
+}
+/** Low/mid mobile GPUs start at medium; FPS measurement still decides. */
+function qTierFromGpu(gpu) {
+  const g = String(gpu || '');
+  if (/Adreno[^0-9]*([3-6]\d\d)/i.test(g)) return 'medium';
+  if (/Mali-(T|G[3-7]\d)\b/i.test(g)) return 'medium';
+  if (/PowerVR/i.test(g)) return 'medium';
+  return 'high';
+}
+const Q = (() => {
+  const st = { tier: 'high', source: 'default', gpu: '', locked: false, stored: null, measured: [] };
+  let url = '';
+  try { url = (new URLSearchParams(location.search).get('quality') || '').toLowerCase(); } catch (_) {}
+  if (Q_TIERS.includes(url)) { st.tier = url; st.source = 'url'; st.locked = true; return st; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(Q_KEY) || 'null');
+    if (raw && Q_TIERS.includes(raw.tier)) st.stored = raw;
+  } catch (_) {}
+  const fresh = st.stored && (Date.now() - (Number(st.stored.at) || 0) < Q_STALE_MS);
+  if (fresh) { st.tier = st.stored.tier; st.source = 'stored'; return st; }
+  st.gpu = qGpuString();
+  st.tier = qTierFromGpu(st.gpu);
+  st.source = st.stored ? 'stale→gpu' : 'gpu';
+  return st;
+})();
+function qPreset() { return Q_PRESETS[Q.tier] || Q_PRESETS.high; }
+/** Apple GPUs (iPhone/iPad/Mac) are strong; iOS Low Power Mode caps rAF at 30 fps — don't mistake that for a slow GPU. */
+function qTargetFps() {
+  const g = Q.gpu || (Q.stored && Q.stored.gpu) || '';
+  const apple = /Apple/i.test(g) || /iPhone|iPad|iPod/i.test(navigator.userAgent || '') || (/Macintosh/i.test(navigator.userAgent || '') && navigator.maxTouchPoints > 1);
+  return apple ? 24 : Q_TARGET_FPS;
+}
+function qPersist() {
+  if (Q.locked) return;
+  try { localStorage.setItem(Q_KEY, JSON.stringify({ tier: Q.tier, at: Date.now(), gpu: Q.gpu || (Q.stored && Q.stored.gpu) || '' })); } catch (_) {}
+}
+console.info(`[pitlane] 3D quality: ${Q.tier} (${Q.source}${Q.gpu ? ', ' + Q.gpu : ''})`);
+
 const canvas = document.getElementById('view3d');
 const renderer = new THREE.WebGLRenderer({
   canvas,
-  antialias: true,
+  antialias: qPreset().aa,
   alpha: false,
   powerPreference: 'high-performance',
 });
 renderer.setClearColor(0x1a1a1a, 1);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qPreset().dprCap));
+if (!Q.gpu) {
+  try {
+    const gl = renderer.getContext();
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    Q.gpu = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '');
+  } catch (_) {}
+}
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1597,6 +1668,7 @@ bounce.position.set(0.2, -0.7, 2.4);
 scene.add(bounce);
 
 /* Soft ceiling softboxes — lights only, no visible lamp meshes */
+const areaLights = [];
 try {
   RectAreaLightUniformsLib.init();
   const softA = new THREE.RectAreaLight(0xeef2fa, 3.4, 5.8, 1.5);
@@ -1607,6 +1679,7 @@ try {
   softB.position.set(2.6, 5.0, -1.8);
   softB.lookAt(0, 0.5, 0);
   scene.add(softB);
+  areaLights.push(softA, softB);
 } catch (_) { /* RectAreaLight optional on constrained GPUs */ }
 
 /* PMREM + Reflector deferred until intro ends — avoids main-thread jank on entry */
@@ -1625,20 +1698,97 @@ function ensurePodiumEnv() {
     pmrem.dispose();
   } catch (_) { /* reflections optional */ }
   try {
-    const _dpr = Math.min(window.devicePixelRatio || 1, 1.75);
-    const _reflRes = Math.min(1024, Math.max(512, Math.floor(512 * _dpr)));
-    floor = new Reflector(new THREE.CircleGeometry(7, 72), {
-      clipBias: 0.003,
-      textureWidth: _reflRes,
-      textureHeight: _reflRes,
-      color: 0x1a1a1e,
-      multisample: 0,
-    });
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = 0;
-    scene.add(floor);
+    if (qPreset().refl !== 'off') createPodiumReflector();
   } catch (_) { /* reflector optional */ }
+  applyQualityTier(true);
 }
+
+const REFL_RES_HIGH = Math.min(1024, Math.max(512, Math.floor(512 * Math.min(window.devicePixelRatio || 1, 1.75))));
+let reflFrame = 0;
+let reflForce = true;
+function createPodiumReflector() {
+  if (floor) return floor;
+  const res = qPreset().refl === 'half' ? 512 : REFL_RES_HIGH;
+  floor = new Reflector(new THREE.CircleGeometry(7, 72), {
+    clipBias: 0.003,
+    textureWidth: res,
+    textureHeight: res,
+    color: 0x1a1a1e,
+    multisample: 0,
+  });
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = 0;
+  // medium tier: refresh mirror every Nth frame (texture keeps last image in between)
+  const origBefore = floor.onBeforeRender;
+  floor.onBeforeRender = function (r, s, c) {
+    const every = qPreset().reflEvery || 1;
+    if (every > 1 && !reflForce && (reflFrame++ % every) !== 0) return;
+    reflForce = false;
+    return origBefore.call(this, r, s, c);
+  };
+  scene.add(floor);
+  return floor;
+}
+
+/* low tier: static matte-black floor instead of realtime mirror (same dark look, zero extra passes) */
+let floorFlat = null;
+function ensureFlatFloor() {
+  if (floorFlat) return floorFlat;
+  floorFlat = new THREE.Mesh(
+    new THREE.CircleGeometry(7, 72),
+    new THREE.MeshBasicMaterial({ color: 0x030304 })
+  );
+  floorFlat.rotation.x = -Math.PI / 2;
+  floorFlat.position.y = 0;
+  scene.add(floorFlat);
+  return floorFlat;
+}
+
+/** Apply current Q.tier to renderer/scene. Safe to call repeatedly. */
+function applyQualityTier(fromEnv = false) {
+  const p = qPreset();
+  try {
+    const dpr = Math.min(window.devicePixelRatio || 1, p.dprCap);
+    if (renderer.getPixelRatio() !== dpr) { renderer.setPixelRatio(dpr); onResize(); }
+  } catch (_) {}
+  try {
+    const wantRes = p.shadowRes || shadowRes;
+    if (key.shadow.mapSize.x !== wantRes) {
+      key.shadow.mapSize.set(wantRes, wantRes);
+      if (key.shadow.map) { key.shadow.map.dispose(); key.shadow.map = null; }
+    }
+    key.castShadow = !!p.shadow;
+    renderer.shadowMap.enabled = !!p.shadow;
+    renderer.shadowMap.autoUpdate = !p.shadowStatic;
+    renderer.shadowMap.needsUpdate = true;
+  } catch (_) {}
+  try { areaLights.forEach((l) => { l.visible = !!p.areaLights; }); } catch (_) {}
+  // no mirror on low → the neon ring loses its reflected green; render it un-tonemapped so it stays neon
+  try {
+    const flat = p.refl === 'off';
+    if (ring.material.toneMapped === flat) { ring.material.toneMapped = !flat; ring.material.needsUpdate = true; }
+    ring.material.opacity = flat ? 0.55 : 0.5;
+  } catch (_) {}
+  if (podiumEnvReady) {
+    try {
+      if (p.refl === 'off') {
+        if (floor) floor.visible = false;
+        ensureFlatFloor().visible = true;
+      } else {
+        if (!floor) createPodiumReflector();
+        if (floor) {
+          floor.visible = true;
+          const want = p.refl === 'half' ? 512 : REFL_RES_HIGH;
+          const rt = floor.getRenderTarget?.();
+          if (rt && rt.width !== want) rt.setSize(want, want);
+        }
+        if (floorFlat) floorFlat.visible = false;
+      }
+    } catch (_) {}
+  }
+  if (!fromEnv) podiumInvalidate(400, true);
+}
+
 
 /* Soft contact-shadow disk under the car (cinema stand) */
 const contactShadow = new THREE.Mesh(
@@ -1681,6 +1831,7 @@ const ring = new THREE.Mesh(
 ring.rotation.x = -Math.PI / 2;
 ring.position.y = 0.012;
 scene.add(ring);
+applyQualityTier(true); // module-time: shadows / area lights / ring for the initial tier (podium env not built yet)
 
 const car = new THREE.Group();
 car.visible = false;
@@ -1917,6 +2068,7 @@ function onResize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  try { podiumInvalidate(200, true); } catch (_) {}
 }
 window.addEventListener('resize', onResize);
 if (typeof ResizeObserver !== 'undefined') {
@@ -1924,22 +2076,164 @@ if (typeof ResizeObserver !== 'undefined') {
   if (wrap) new ResizeObserver(() => onResize()).observe(wrap);
 }
 
+/* ---- Render loop: render-on-demand + pause when hidden + adaptive tier check ---- */
 let last = performance.now();
+let loopRaf = 0;
+let lastRenderAt = 0;
+let lastProcAt = 0;
+let renderUntil = 0;
+let needFrame = true;
+let settleNeeded = false;
+let lastShadowAt = 0;
+let userInteracting = false;
+let interactUntil = 0;
+let podiumInView = true;
+const IDLE_SAFETY_MS = 1000; // idle safety-net repaint (1 fps) in case something changed silently
+let renderedFrames = 0;
+
+/** Ask the podium to repaint (and keep painting for `ms`). hard = scene changed (refresh mirror/shadow now). */
+function podiumInvalidate(ms = 0, hard = false) {
+  const now = performance.now();
+  if (ms > 0) renderUntil = Math.max(renderUntil, now + ms);
+  needFrame = true;
+  if (hard) { reflForce = true; try { renderer.shadowMap.needsUpdate = true; } catch (_) {} }
+  kickLoop();
+}
+function podiumShouldRun() {
+  return !document.hidden && podiumInView;
+}
+function kickLoop() {
+  if (!loopRaf && podiumShouldRun()) loopRaf = requestAnimationFrame(tick);
+}
+controls.addEventListener('start', () => { userInteracting = true; podiumInvalidate(300); });
+controls.addEventListener('end', () => { userInteracting = false; interactUntil = performance.now() + 1500; podiumInvalidate(300); });
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { last = performance.now(); podiumInvalidate(300, true); qMeasureReset(); } else qMeasureReset();
+});
+try {
+  if (typeof IntersectionObserver !== 'undefined' && canvas) {
+    new IntersectionObserver((entries) => {
+      const e = entries[entries.length - 1];
+      const vis = !!(e && e.isIntersecting);
+      if (vis === podiumInView) return;
+      podiumInView = vis;
+      qMeasureReset();
+      if (vis) { last = performance.now(); podiumInvalidate(300, true); }
+    }).observe(canvas);
+  }
+} catch (_) {}
+// Any tap / input inside the garage (paint picker, finish, ◀ ▶, doors…) → repaint immediately
+['pointerdown', 'click', 'input', 'change'].forEach((ev) => {
+  document.getElementById('view-garage')?.addEventListener(ev, () => podiumInvalidate(800, true), { capture: true, passive: true });
+});
+
+/* Adaptive tier measurement: ~2s of frame times after warm-up; step down only (hysteresis). */
+const qm = { phase: 'idle', t0: 0, frames: 0, deltas: [], lastT: 0, stalls: 0, done: Q.locked || Q.tier === 'low' };
+function qMeasureReset() {
+  if (qm.phase !== 'idle' && qm.phase !== 'done') { qm.phase = 'idle'; }
+}
+function qMeasureStep(now, rendered) {
+  if (qm.done || introBlocking3d || !glbRoot || !podiumEnvReady) return false;
+  // "after models warm up": wait for catalog prefetch/parse (or 20 s max) so parse jank isn't read as a slow GPU
+  if (!glbPrefetchDone && (!glbPrefetchT0 || now - glbPrefetchT0 < 20000)) return false;
+  if (qm.phase === 'idle') { qm.phase = 'warm'; qm.t0 = now; return true; }
+  if (qm.phase === 'warm') {
+    if (now - qm.t0 >= 1500) { qm.phase = 'sample'; qm.t0 = now; qm.frames = 0; qm.deltas = []; qm.lastT = 0; }
+    return true;
+  }
+  if (qm.phase === 'sample') {
+    if (rendered) {
+      if (qm.lastT) {
+        const d = now - qm.lastT;
+        if (d > 3000 && qm.stalls < 2) { qm.stalls++; qm.phase = 'idle'; return true; } // long stall (GC / decode) — retry, max 2×
+        qm.deltas.push(d);
+      }
+      qm.lastT = now;
+      qm.frames++;
+    }
+    const el = now - qm.t0;
+    if (el < 2000) return true;
+    const ds = qm.deltas.slice().sort((a, b) => a - b);
+    const med = ds.length ? ds[ds.length >> 1] : 1000;
+    const fps = qm.frames / (el / 1000);
+    const slow = fps < qTargetFps();
+    const from = Q.tier;
+    Q.measured.push({ tier: from, fps: +fps.toFixed(1), medMs: +med.toFixed(1) });
+    if (slow) {
+      const i = Q_TIERS.indexOf(Q.tier);
+      Q.tier = Q_TIERS[Math.min(Q_TIERS.length - 1, i + 1)];
+      Q.source = 'measured';
+      console.info(`[pitlane] 3D quality: ${from} ${fps.toFixed(1)} fps (median ${med.toFixed(1)} ms) → ${Q.tier}`);
+      qPersist();
+      applyQualityTier();
+      if (Q.tier === 'low') { qm.done = true; qm.phase = 'done'; } else { qm.phase = 'warm'; qm.t0 = now; }
+    } else {
+      console.info(`[pitlane] 3D quality: ${Q.tier} ok — ${fps.toFixed(1)} fps (median ${med.toFixed(1)} ms)`);
+      if (Q.source !== 'measured') Q.source = Q.source + '+measured';
+      qPersist();
+      qm.done = true; qm.phase = 'done';
+    }
+    return !qm.done;
+  }
+  return false;
+}
+
+function podiumRender(now) {
+  const p = qPreset();
+  if (p.shadow && p.shadowStatic && now - lastShadowAt > 1000) { renderer.shadowMap.needsUpdate = true; }
+  if (renderer.shadowMap.needsUpdate) lastShadowAt = now;
+  renderer.render(scene, camera);
+  lastRenderAt = now;
+  renderedFrames++;
+}
+
 function tick(now) {
-  requestAnimationFrame(tick);
+  loopRaf = 0;
+  if (!podiumShouldRun()) return; // paused (tab hidden / podium off-screen); kickLoop() resumes
+  loopRaf = requestAnimationFrame(tick);
   // Keep CSS intro buttery: no WebGL render / controls while intro owns the screen
   if (introBlocking3d) return;
+  const p = qPreset();
+  const interactive = userInteracting || now < interactUntil || now < renderUntil;
+  const cap = interactive ? p.maxFps : (p.idleFps || p.maxFps);
+  if (cap && lastProcAt && now - lastProcAt < 1000 / cap - 3) return;
+  const dtRaw = (now - (lastProcAt || now)) / 1000;
+  lastProcAt = now;
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  if (moving.hood) lerpAngle(moving.hood, 'z', -moving.tHood * 1.05, dt);
-  if (moving.trunk) lerpAngle(moving.trunk, 'z', moving.tTrunk * 1.05, dt);
+  let animating = false;
+  const lerp = (obj, axis, target) => {
+    if (Math.abs(obj.rotation[axis] - target) > 1e-3) animating = true;
+    lerpAngle(obj, axis, target, dt);
+  };
+  if (moving.hood) lerp(moving.hood, 'z', -moving.tHood * 1.05);
+  if (moving.trunk) lerp(moving.trunk, 'z', moving.tTrunk * 1.05);
   (moving.doorList || []).forEach((d) => {
     const dir = Math.sign(d.position.z) || 1;
-    lerpAngle(d, 'y', dir * moving.tDoors * 1.1, dt);
+    lerp(d, 'y', dir * moving.tDoors * 1.1);
   });
-  controls.update();
-  renderer.render(scene, camera);
+  // high: exact original per-frame update; capped tiers: time-based so rotation speed matches 60 Hz
+  const changed = p.maxFps ? controls.update(Math.min(0.1, Math.max(0.001, dtRaw || 1 / 60))) : controls.update();
+  const measuring = qMeasureStep(now, false);
+  const active = changed || animating || needFrame || now < renderUntil || measuring || userInteracting;
+  if (!active) {
+    if (settleNeeded) { reflForce = true; settleNeeded = false; podiumRender(now); }
+    else if (now - lastRenderAt > IDLE_SAFETY_MS) podiumRender(now);
+    return;
+  }
+  needFrame = false;
+  settleNeeded = true;
+  podiumRender(now);
+  if (measuring) qMeasureStep(now, true);
 }
+
+try {
+  window.__pitlane3d = {
+    quality: () => ({ tier: Q.tier, source: Q.source, gpu: Q.gpu, locked: Q.locked, measured: Q.measured.slice(), dpr: renderer.getPixelRatio() }),
+    frames: () => renderedFrames,
+    invalidate: () => podiumInvalidate(300, true),
+  };
+} catch (_) {}
 
 
 const DEEP_VIEWS = new Set(['garage', 'run', 'lap', 'tops', 'pulse', 'account', 'cars']);
@@ -1987,6 +2281,7 @@ function clearDeepLinkUrl() {
     el.classList.add('done');
     try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
     introBlocking3d = false;
+    try { podiumInvalidate(1000, true); } catch (_) {}
     setTimeout(() => {
       try { bootPodium(); } catch (_) {}
       try { startGlbPrefetch(podiumModelId || state.carId || 'g87-m2'); } catch (_) {}
@@ -2011,7 +2306,7 @@ function clearDeepLinkUrl() {
 renderTracks();
 applyCarUI();
 onResize();
-requestAnimationFrame(tick);
+kickLoop();
 
 /* -------- GPS acceleration run -------- */
 const run = {
@@ -3087,7 +3382,7 @@ function renderSectorBattlePanel() {
 
 
 /* -------- Public sector tops (photo | nick | time) -------- */
-let _sectorTopIdx = 0;
+// _sectorTopIdx declared near the top of the file (avoids TDZ when renderTops runs early)
 
 function nickInitials(name) {
   const s = String(name || 'пилот').trim();
@@ -5040,6 +5335,8 @@ function fitGlb(obj) {
   controls.update();
   onResize();
   try { applyStoredBodyPaint(); } catch (err) { console.warn('paint after fitGlb', err); }
+  podiumInvalidate(1200, true);
+  if (qm.phase === 'sample' || qm.phase === 'warm') { qm.phase = 'warm'; qm.t0 = performance.now(); } // model swap hitch ≠ slow device
 }
 
 let heroTitleAnimLock = false;
@@ -5109,6 +5406,8 @@ function cyclePodiumModel(delta) {
 
 const GLB_CACHE_NAME = 'pitlane-glb-v1';
 let glbPrefetchStarted = false;
+let glbPrefetchDone = false; // adaptive-quality FPS check waits for background GLB parsing (main-thread jank)
+let glbPrefetchT0 = 0;
 let podiumLoadGen = 0;
 /** In-memory raw bytes (url -> ArrayBuffer). */
 const glbMemCache = new Map();
@@ -5242,6 +5541,7 @@ async function prefetchGlbUrl(url, { parse = true } = {}) {
 function startGlbPrefetch(priorityId) {
   if (glbPrefetchStarted || !MODEL_CATALOG?.length) return;
   glbPrefetchStarted = true;
+  glbPrefetchT0 = performance.now();
   const run = async () => {
     const cats = MODEL_CATALOG.slice();
     const idx = cats.findIndex((x) => x.id === priorityId);
@@ -5270,6 +5570,7 @@ function startGlbPrefetch(priorityId) {
       }
     };
     await Promise.all([worker(), worker()]);
+    glbPrefetchDone = true;
   };
   const kick = () => { try { run(); } catch (_) {} };
   if (typeof requestIdleCallback === 'function') {
@@ -5785,6 +6086,7 @@ function forceBlackTrim() {
 
 function applyGlbBodyPaint(hex) {
   if (!glbRoot || typeof THREE === 'undefined') return;
+  try { podiumInvalidate(600, true); } catch (_) {}
   const finish = currentPaintFinish();
   if (!hex) {
     glbRoot.traverse((o) => {
