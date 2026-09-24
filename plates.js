@@ -73,7 +73,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-/** Canvas art: dark frame, white Euro-style plate, dark left strip with checker + neon mark, black PITLANE. */
+/** Canvas art: all-black plate + frame, big centred neon PITLANE with a crisp glow, small neon PITLANE on the frame bottom. */
 export function drawPlateCanvas(canvas) {
   const W = TEX_W;
   const H = TEX_H;
@@ -82,71 +82,63 @@ export function drawPlateCanvas(canvas) {
   const ctx = canvas.getContext('2d');
   const px = W / FACE_W; // pixels per metre
   const b = Math.round(FRAME_B * px);
-  // frame
-  ctx.fillStyle = '#121212';
+  const NEON = '#39FF14';
+  // frame (black)
+  ctx.fillStyle = '#0a0a0a';
   ctx.fillRect(0, 0, W, H);
-  const fg = ctx.createLinearGradient(0, 0, 0, H);
-  fg.addColorStop(0, 'rgba(255,255,255,0.10)');
-  fg.addColorStop(0.5, 'rgba(255,255,255,0.0)');
-  fg.addColorStop(1, 'rgba(255,255,255,0.06)');
-  ctx.fillStyle = fg;
-  ctx.fillRect(0, 0, W, H);
-  // plate body
+  // plate body (black, a hair lighter so the edge reads)
   const pw = W - b * 2;
   const ph = H - b * 2;
   const r = Math.round(ph * 0.08);
   roundRect(ctx, b, b, pw, ph, r);
-  ctx.fillStyle = '#f4f4f1';
+  ctx.fillStyle = '#0d0d0d';
   ctx.fill();
-  ctx.save();
-  roundRect(ctx, b, b, pw, ph, r);
-  ctx.clip();
-  // left strip
-  const sw = Math.round(pw * 0.085);
-  ctx.fillStyle = '#39FF14';
-  ctx.fillRect(b, b, sw, ph);
-  // checkered flag mark (no country code)
-  const cols = 4;
-  const rows = 5;
-  const cell = Math.floor(Math.min((sw * 0.78) / cols, (ph * 0.74) / rows));
-  const gx = b + Math.round((sw - cols * cell) / 2);
-  const gy = b + Math.round((ph - rows * cell) / 2);
-  drawChecker(ctx, gx, gy, cell, cols, rows, '#f4f4f1', '#111111');
-  ctx.strokeStyle = '#111111';
-  ctx.lineWidth = 2;
-  ctx.strokeRect(gx, gy, cols * cell, rows * cell);
-  // subtle inner stamp line
-  ctx.strokeStyle = 'rgba(0,0,0,0.55)';
-  ctx.lineWidth = Math.max(2, Math.round(ph * 0.022));
-  roundRect(ctx, b + sw + ph * 0.04, b + ph * 0.06, pw - sw - ph * 0.08, ph * 0.88, r * 0.7);
+  ctx.strokeStyle = '#1a1a1a';
+  ctx.lineWidth = Math.max(2, Math.round(ph * 0.02));
+  roundRect(ctx, b + 1, b + 1, pw - 2, ph - 2, r);
   ctx.stroke();
-  ctx.restore();
-  // main text, condensed to fit
-  const tx0 = b + sw;
-  const tw = pw - sw;
-  const fs = Math.round(ph * 0.78);
+  // main text: bold condensed, evenly spaced, centred, fills ~84% width
+  const text = 'PITLANE';
+  const fs = Math.round(ph * 0.72);
   ctx.font = `bold ${fs}px "DIN Condensed", "Roboto Condensed", "Arial Narrow", "Liberation Sans Narrow", "Helvetica Neue", Arial, sans-serif`;
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  const text = 'PITLANE';
-  const spacing = fs * 0.06;
-  let natural = 0;
-  for (const ch of text) natural += ctx.measureText(ch).width;
-  natural += spacing * (text.length - 1);
-  const maxW = tw * 0.84;
-  const sx = Math.min(1, maxW / natural);
-  ctx.save();
-  ctx.translate(tx0 + (tw - natural * sx) / 2, b + ph / 2 + ph * 0.03);
-  ctx.scale(sx, 1);
-  ctx.fillStyle = '#0d0d0d';
-  let cx = 0;
-  for (const ch of text) {
-    ctx.fillText(ch, cx, 0);
-    cx += ctx.measureText(ch).width + spacing;
-  }
-  ctx.restore();
+  ctx.textBaseline = 'alphabetic';
+  const widths = [...text].map((ch) => ctx.measureText(ch).width);
+  const glyphW = widths.reduce((acc, w) => acc + w, 0);
+  const target = pw * 0.8;
+  // mild horizontal scale (never stretched much), remaining width goes into even letter spacing
+  const sx = Math.min(1.32, Math.max(0.7, target / (glyphW * 1.1)));
+  const spacing = Math.max(0, (target / sx - glyphW) / (text.length - 1));
+  const natural = glyphW + spacing * (text.length - 1);
+  // vertical centring from real glyph metrics
+  const m = ctx.measureText(text);
+  const asc = m.actualBoundingBoxAscent || fs * 0.72;
+  const desc = m.actualBoundingBoxDescent || 0;
+  const baseY = Math.round(b + ph / 2 + (asc - desc) / 2);
+  const x0 = b + (pw - natural * sx) / 2;
+  const drawText = () => {
+    ctx.save();
+    ctx.translate(x0, baseY);
+    ctx.scale(sx, 1);
+    let cx = 0;
+    [...text].forEach((ch, i) => {
+      ctx.fillText(ch, Math.round(cx * 100) / 100, 0);
+      cx += widths[i] + spacing;
+    });
+    ctx.restore();
+  };
+  ctx.fillStyle = NEON;
+  // glow passes (same green), then a crisp top pass with no blur
+  ctx.shadowColor = 'rgba(57,255,20,0.85)';
+  ctx.shadowBlur = Math.round(ph * 0.16);
+  drawText();
+  ctx.shadowBlur = Math.round(ph * 0.06);
+  drawText();
+  ctx.shadowBlur = 0;
+  ctx.shadowColor = 'transparent';
+  drawText();
   // tiny frame text (bottom) in neon
-  ctx.fillStyle = 'rgba(57,255,20,0.85)';
+  ctx.fillStyle = NEON;
   ctx.font = `bold ${Math.max(9, Math.round(b * 0.62))}px Arial, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -163,22 +155,21 @@ function getShared(renderer) {
   tex.generateMipmaps = true;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.needsUpdate = true;
-  const faceMat = new THREE.MeshStandardMaterial({
+  // Unlit face: plate stays true black and PITLANE reads as neon #39FF14 (no ACES wash, no env grey-out)
+  const faceMat = new THREE.MeshBasicMaterial({
     name: 'PITLANE_plate_face',
     map: tex,
-    roughness: 0.38,
-    metalness: 0.0,
-    envMapIntensity: 0.55,
+    toneMapped: false,
     polygonOffset: true,
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -2,
   });
   const backMat = new THREE.MeshStandardMaterial({
     name: 'PITLANE_plate_frame',
-    color: 0x111111,
-    roughness: 0.55,
+    color: 0x080808,
+    roughness: 0.6,
     metalness: 0.1,
-    envMapIntensity: 0.6,
+    envMapIntensity: 0.3,
   });
   [faceMat, backMat].forEach((m) => { m.userData.__pitlaneShared = true; });
   const faceGeo = new THREE.PlaneGeometry(FACE_W, FACE_H);
