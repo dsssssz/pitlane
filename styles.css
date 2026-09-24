@@ -2192,6 +2192,168 @@ body.run-drive-on #app { visibility: hidden; }
 }
 
 
+
+/* —— Lap satellite map (Leaflet + Esri) —— */
+.lap-drive-map.sat-map-host,
+#lapDriveMap.sat-map-host {
+  padding: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: stretch;
+  background: #1a1a1a;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  align-self: stretch;
+}
+.sat-map-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+  border-radius: 0;
+  overflow: hidden;
+}
+.sat-map-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: #1a1a1a;
+  z-index: 0;
+}
+.sat-map-cap {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 6px 10px 8px;
+  background: linear-gradient(180deg, rgba(26,26,26,.0), rgba(26,26,26,.92));
+  position: relative;
+  z-index: 2;
+  pointer-events: none;
+}
+.sat-map-status {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  margin: 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(26,26,26,.82);
+  border: 1px solid rgba(57,255,20,.35);
+  color: #f0f0f0;
+  font: 600 11px/1.2 Manrope, sans-serif;
+  letter-spacing: .02em;
+  pointer-events: none;
+  max-width: 90%;
+  text-align: center;
+}
+.sat-map-status[data-kind="warn"] {
+  border-color: rgba(246,193,119,.55);
+  color: #f6c177;
+}
+.sat-map-status:empty,
+.sat-map-status[hidden] { display: none; }
+
+.sat-sf-icon { background: none !important; border: none !important; }
+.sat-sf {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.75));
+}
+.sat-sf-flag {
+  width: 14px;
+  height: 18px;
+  background:
+    linear-gradient(90deg, #111 50%, #eee 50%) 0 0 / 100% 50%,
+    linear-gradient(90deg, #eee 50%, #111 50%) 0 100% / 100% 50%;
+  background-size: 14px 9px;
+  background-repeat: repeat-y;
+  border: 1px solid #fff;
+  box-shadow: 0 0 0 1px #111;
+}
+.sat-sf-lab {
+  font: 800 12px/1 "Barlow Condensed", sans-serif;
+  color: #39FF14;
+  letter-spacing: .06em;
+  text-shadow: 0 0 6px rgba(57,255,20,.55), 0 1px 2px #000;
+}
+
+.sat-car-icon { background: none !important; border: none !important; }
+.sat-car {
+  width: 28px;
+  height: 28px;
+  position: relative;
+  transform-origin: 50% 50%;
+}
+.sat-car-glow {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(57,255,20,.55) 0%, rgba(57,255,20,0) 70%);
+  animation: sat-pulse 1.6s ease-in-out infinite;
+}
+.sat-car-dot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  border-radius: 50%;
+  background: #39FF14;
+  border: 2px solid #0a0a0a;
+  box-shadow: 0 0 10px rgba(57,255,20,.85), 0 0 0 3px rgba(57,255,20,.25);
+}
+.sat-car-nose {
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 9px solid #39FF14;
+  filter: drop-shadow(0 0 3px rgba(57,255,20,.9));
+}
+.sat-car-waiting .sat-car-dot {
+  background: #6a6a6a;
+  box-shadow: none;
+}
+.sat-car-waiting .sat-car-nose { border-bottom-color: #888; }
+.sat-car-waiting .sat-car-glow { animation: none; opacity: .35; }
+@keyframes sat-pulse {
+  0%, 100% { transform: scale(1); opacity: .9; }
+  50% { transform: scale(1.25); opacity: .45; }
+}
+
+/* Leaflet chrome inside dark theme */
+.sat-map-canvas .leaflet-control-attribution {
+  background: rgba(26,26,26,.72) !important;
+  color: rgba(240,240,240,.65) !important;
+  font-size: 9px !important;
+  max-width: 70%;
+}
+.sat-map-canvas .leaflet-control-attribution a {
+  color: #39FF14 !important;
+}
+.sat-map-canvas .leaflet-container {
+  background: #1a1a1a;
+  font: inherit;
+}
+
+@media (max-width: 720px) {
+  #lapDriveMap.sat-map-host {
+    min-height: 42dvh;
+  }
+  .sat-map-cap { font-size: 13px; padding-bottom: 6px; }
+}
+
 /* Autodrome map layers */
 .track-map {
   background:

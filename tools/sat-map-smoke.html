@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>sat map smoke</title>
+<link rel="stylesheet" href="../vendor/leaflet/leaflet.css"/>
+<link rel="stylesheet" href="../styles.css"/>
+<style>
+  html,body{margin:0;height:100%;background:#1a1a1a;color:#f0f0f0;font-family:sans-serif}
+  #lapDriveMap{position:fixed;inset:40px 0 0 0}
+  #hud{position:fixed;z-index:999;left:8px;top:8px;background:rgba(0,0,0,.7);padding:8px 12px;border-radius:8px;font-size:13px;color:#39FF14}
+</style>
+</head>
+<body>
+<div id="hud">smoke…</div>
+<div id="lapDriveMap" class="lap-drive-map"></div>
+<script src="../vendor/leaflet/leaflet.js"></script>
+<script type="module">
+import { mountLapSatMap, updateLapSatMapGps } from '../track-sat-map.js';
+import { TRACK_OUTLINES } from '../geo/outlines.js';
+const id = new URLSearchParams(location.search).get('t') || 'sochi';
+const ok = mountLapSatMap(id, document.getElementById('lapDriveMap'), {
+  trackName: id,
+  meta: 'smoke · ' + (TRACK_OUTLINES[id]?.quality || '?'),
+  mode: 'overview',
+});
+document.getElementById('hud').textContent = (ok ? 'OK ' : 'FAIL ') + id + ' L=' + !!window.L;
+setTimeout(() => {
+  const o = TRACK_OUTLINES[id];
+  if (o?.sf) {
+    updateLapSatMapGps({ lat: o.sf[1] + 0.0008, lon: o.sf[0] + 0.0005, course: 45 });
+    document.getElementById('hud').textContent += ' · gps';
+  }
+}, 1500);
+</script>
+</body>
+</html>

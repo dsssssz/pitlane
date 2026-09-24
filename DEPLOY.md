@@ -207,3 +207,13 @@ Then phone login sends a real SMS; demo path stays off while `SMS_DEMO=0`.
 Deployed with wrangler@3.114.17. Version ID: `39a175de-23bc-4afc-ba60-9ed559b6f451` → https://pitlane-api.pitlane-taksimaga.workers.dev
 Routes live: GET `/tops/sector/:trackId?sector=0|1|2|all`. Lap POST persists `sectors` + `pilotmeta` avatar.
 Client SW: `pitlane-v70`. Ship SHA `580e87222d7b908d2f4c644687a49aeb8aa9a58c` (+ worker/src sync `af85a31fd9ad85b2fcbda9567c788cce6ffc322d`).
+
+
+## 16. Satellite lap map (SW v72)
+
+Lap-drive map uses **Leaflet + Esri World Imagery** (no API key). Outline overlays from `geo/outlines.js` (Sochi racing line; cult tracks = OSM facility footprints; others = SVG→WGS84 approx).
+
+- Tiles: online-first; SW does **not** cache Esri/OSM tiles.
+- Offline: dark canvas + neon outline + status «офлайн».
+- No Mapbox/MapTiler key required. Maga does not need to add secrets for this.
+- Worker untouched.

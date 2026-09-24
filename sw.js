@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v71';
+const CACHE = 'pitlane-v72';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -9,6 +9,10 @@ const CORE = [
   './method.html',
   './styles.css',
   './app.js',
+  './track-sat-map.js',
+  './geo/outlines.js',
+  './vendor/leaflet/leaflet.js',
+  './vendor/leaflet/leaflet.css',
   './api.js',
   './manifest.json',
   './favicon.svg',
@@ -98,6 +102,7 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   const p = url.pathname;
+  // API + live map tiles: never SW-cache (online-first; graceful app fallback offline)
   if (
     p.includes('/auth/') ||
     p.includes('/tops/') ||
@@ -106,7 +111,10 @@ self.addEventListener('fetch', (e) => {
     p.includes('/share') ||
     p.includes('/duel') ||
     p.includes('/crew') ||
-    p.includes('/session')
+    p.includes('/session') ||
+    url.hostname.includes('arcgisonline.com') ||
+    url.hostname.includes('tile.openstreetmap.org') ||
+    url.hostname.includes('server.arcgisonline.com')
   ) {
     return;
   }

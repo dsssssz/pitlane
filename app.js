@@ -6,6 +6,14 @@ import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId } from './api.js';
+import {
+  mountLapSatMap,
+  unmountLapSatMap,
+  isLapSatMapActive,
+  setLapSatMapMode,
+  updateLapSatMapGps,
+  trackOutlineQuality,
+} from './track-sat-map.js';
 
 function hap(ms = 12) {
   try { navigator.vibrate?.(ms); } catch (_) {}
@@ -197,24 +205,23 @@ function parseLapMsClient(t) {
 // Sochi ≈ main straight S/F; Moscow Raceway ≈ pit straight; Igora ≈ long S/F;
 // Kazan/Smolensk/NRING/ADM/Grozny/RedRing ≈ circuit S/F vicinity. Others are rough.
 const TRACK_GEO = {
-  // Cult: tightened toward known pit/S-F areas (still ±tens of meters — phone GPS is coarser).
+  // Cult: S/F aligned to OSM facility / Sochi racing-line (phone GPS ±tens of m).
   sochi: { lat: 43.4055, lon: 39.9578 },      // Sochi Autodrom main S/F ~pit straight
-  moscow: { lat: 55.8819, lon: 36.5436 },     // MRW pit straight
-  igora: { lat: 60.6885, lon: 30.1462 },
-  kazan: { lat: 55.6531, lon: 49.2629 },
-  smolensk: { lat: 54.6212, lon: 32.2792 },
-  nring: { lat: 56.1820, lon: 43.5218 },
-  adm: { lat: 55.5590, lon: 37.9782 },
-  grozny: { lat: 43.3410, lon: 45.7390 },
-  redring: { lat: 56.0613, lon: 92.9025 },
-  // Rough club / street-ish — UI marks «С/Ф приблизителен»
-  spb: { lat: 59.970, lon: 30.240, rough: true },
-  tlt: { lat: 53.530, lon: 49.350, rough: true },
-  lipetsk: { lat: 52.560, lon: 39.520, rough: true },
-  'auto-msk': { lat: 55.700, lon: 37.400, rough: true },
-  neva: { lat: 59.900, lon: 30.400, rough: true },
-  ufa: { lat: 54.700, lon: 56.000, rough: true },
-  don: { lat: 47.280, lon: 39.700, rough: true },
+  moscow: { lat: 55.99543, lon: 36.26303 },     // MRW — OSM facility
+  igora: { lat: 60.51142, lon: 30.19689 },      // Игора Драйв — OSM facility
+  kazan: { lat: 55.86744, lon: 49.26034 },      // KazanRing — OSM facility
+  smolensk: { lat: 54.98902, lon: 33.36762 },   // Смоленское кольцо — OSM
+  nring: { lat: 56.12047, lon: 43.60267 },      // Нижегородское кольцо — OSM
+  adm: { lat: 55.559, lon: 37.9782 },        // ADM Myachkovo (outline approx)
+  grozny: { lat: 43.3051, lon: 45.65818 },     // Fort Grozny — OSM
+  redring: { lat: 56.12732, lon: 92.74132 },    // Красное Кольцо — OSM
+  spb: { lat: 59.97, lon: 30.24, rough: true }, // club / street-ish
+  tlt: { lat: 53.53, lon: 49.35, rough: true }, // club / street-ish
+  lipetsk: { lat: 52.56, lon: 39.52, rough: true }, // club / street-ish
+  'auto-msk': { lat: 55.7, lon: 37.4, rough: true }, // club / street-ish
+  neva: { lat: 59.9, lon: 30.4, rough: true }, // club / street-ish
+  ufa: { lat: 54.7, lon: 56.0, rough: true }, // club / street-ish
+  don: { lat: 47.28, lon: 39.7, rough: true }, // club / street-ish
 };
 
 /** Approx lat/lon rings for soft corridor math (NOT display SVG). Densified near S/F. */
@@ -3255,6 +3262,9 @@ function setLapMapMode(mode) {
   root?.classList.toggle('mode-overview', lapDrive.mapMode === 'overview');
   document.getElementById('btnMapOverview')?.classList.toggle('on', lapDrive.mapMode === 'overview');
   document.getElementById('btnMapNav')?.classList.toggle('on', lapDrive.mapMode === 'nav');
+  try {
+    if (isLapSatMapActive()) setLapSatMapMode(lapDrive.mapMode);
+  } catch (_) {}
   updateLapCarOnMap();
 }
 
@@ -3302,6 +3312,8 @@ function lerpAngDeg(a, b, t) {
 }
 
 function updateLapCarOnMap() {
+  // Satellite map drives the live car from real GPS — skip abstract SVG strip.
+  if (isLapSatMapActive()) return;
   const trackId = lapRun.trackId || document.getElementById('trackSelect')?.value || TRACKS[0].id;
   if (lapMapSmooth.trackId && lapMapSmooth.trackId !== trackId) resetLapMapSmooth(trackId);
   lapMapSmooth.trackId = trackId;
@@ -3418,7 +3430,24 @@ function openLapDrive() {
   setLapHud('lapDriveSlip', 'слип ~—°');
   updateSessionHud();
   setLapMsg('GPS… подъезжайте к линии С/Ф');
-  drawTrack(trackId, 'lapDriveMap', { compact: true, live: true });
+  try { unmountLapSatMap(); } catch (_) {}
+  {
+    const geo = TRACK_GEO[trackId];
+    const q = trackOutlineQuality(trackId);
+    const sfLabel = geo?.rough ? 'С/Ф приблизителен' : (track.cult && geo ? 'проверен С/Ф' : '');
+    const metaBits = [track.km && (track.km + ' км'), track.turns && (track.turns + ' пов.'), sfLabel].filter(Boolean);
+    const qLab = q === 'full' ? 'спутник · линия трассы'
+      : q === 'footprint' ? 'спутник · контур автодрома'
+      : q === 'approx' ? 'спутник · схема'
+      : 'спутник';
+    const okSat = mountLapSatMap(trackId, document.getElementById('lapDriveMap'), {
+      trackName: track.name,
+      meta: metaBits.concat([qLab]).join(' · '),
+      mode: lapDrive.mapMode || 'overview',
+      svgFallback: (id) => drawTrack(id, 'lapDriveMap', { compact: true, live: true }),
+    });
+    if (!okSat) drawTrack(trackId, 'lapDriveMap', { compact: true, live: true });
+  }
   setLapMapMode(lapDrive.mapMode || 'overview');
   updateLapCarOnMap();
   el.classList.remove('hidden');
@@ -3436,6 +3465,7 @@ function openLapDrive() {
 function closeLapDrive() {
   const el = document.getElementById('lapDrive');
   if (!el) return;
+  try { unmountLapSatMap(); } catch (_) {}
   el.classList.add('hidden');
   el.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('lap-drive-on');
@@ -3902,7 +3932,21 @@ function onLapGps(pos, vKmh) {
 
   document.getElementById('lapDriveSpeed').textContent = String(displayKmh());
   setLapHud('lapDriveDist', `${Math.round(lapRun.dist)} м`);
-  if (lapDrive.open) updateLapCarOnMap();
+  if (lapDrive.open) {
+    try {
+      if (isLapSatMapActive()) {
+        updateLapSatMapGps({
+          lat: pt.lat,
+          lon: pt.lon,
+          course: pt.course != null ? pt.course : (fus.heading != null ? fus.heading : c.heading),
+        });
+      } else {
+        updateLapCarOnMap();
+      }
+    } catch (_) {
+      updateLapCarOnMap();
+    }
+  }
 
   if (lapRun.phase === 'running' && lapRun.t0) {
     const len = trackLenM(lapRun.trackId);
