@@ -6,7 +6,11 @@ import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { attachPitlanePlates, isPitlanePlate } from './plates.js';
-import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId } from './api.js';
+import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId } from './api.js';
+// Telegram login redirect result must be read before any deep-link URL cleanup runs.
+const TG_RETURN = captureTelegramReturn();
+let _authCfg; // /auth/config cache (undefined = not loaded yet)
+let _authCfgAt = 0;
 import {
   mountLapSatMap,
   unmountLapSatMap,
@@ -392,7 +396,7 @@ function save() {
       const nick = JSON.parse(localStorage.getItem('pitlane-prof-v1') || '{}').nick;
       if (nick) u.nick = nick;
     } catch (_) {}
-    authDb.users[u.phone] = u;
+    authDb.users[authDb.session] = u;
     localStorage.setItem('pitlane-auth-v1', JSON.stringify(authDb));
     localStorage.setItem('pitlane-auth-v1:bak', JSON.stringify(authDb));
   } catch (_) {}
@@ -3171,7 +3175,7 @@ async function publishGps(v0100, v100200, v200300) {
     }, gqFold.gpsQ);
   } catch (_) {}
   save();
-  const who = (profile()?.nick) || (JSON.parse(localStorage.getItem('pitlane-auth-v1') || '{}').phone) || 'пилот';
+  const who = (profile()?.nick) || currentUser()?.nick || 'пилот';
   if (v0100 != null) {
     const gq = gpsQualityFromStraightRun();
     const flags = (run.flags || []).slice(0, 8);
@@ -4036,7 +4040,7 @@ async function completeLapRun(how, atTs) {
   }
 
   if (valid) {
-    const who = (profile()?.nick) || currentUser()?.nick || currentUser()?.phone || 'пилот';
+    const who = (profile()?.nick) || currentUser()?.nick || 'пилот';
     const gq = gpsQualityFromLapRun(ms);
     rec.gpsQ = gq.gpsQ;
     rec.avgAcc = gq.avgAcc;
@@ -4354,7 +4358,7 @@ function renderTrackDays() {
 }
 
 document.getElementById('btnLapStart')?.addEventListener('click', () => { openLapDrivePreview(); });
-document.getElementById('btnLapArmedStart')?.addEventListener('click', () => { armLapRun(); });
+document.getElementById('btnLapArmedStart')?.addEventListener('click', () => { withSafety(armLapRun)(); });
 document.getElementById('btnLapStop')?.addEventListener('click', () => {
   if (lapRun.active && lapRun.phase === 'running') {
     void completeLapRun('manual');
@@ -4382,7 +4386,7 @@ document.getElementById('lapDriveCancel')?.addEventListener('click', () => {
 
 
 document.getElementById('btnGps')?.addEventListener('click', startWatch);
-document.getElementById('btnArm')?.addEventListener('click', armRun);
+document.getElementById('btnArm')?.addEventListener('click', () => { withSafety(armRun)(); });
 document.getElementById('btnStop')?.addEventListener('click', stopRun);
 document.getElementById('runDriveStop')?.addEventListener('click', () => { stopRun(); closeRunDrive(); });
 function pushSlip() {
@@ -4484,7 +4488,7 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
   const payload = {
     brand: 'PITLANE',
     car: car || c?.name || '—',
-    nick: nick || profile()?.nick || u?.nick || u?.phone || 'пилот',
+    nick: nick || profile()?.nick || u?.nick || 'пилот',
     type: type || '0-100',
     track: trackName || '',
     time: time != null ? String(time) : '—',
@@ -4881,7 +4885,9 @@ function refreshAccount() {
   const demoBan = document.getElementById('accDemoBanner');
   if (demoBan) demoBan.classList.toggle('hidden', !(authDb.demoSms && u));
   if (!u) {
+    document.getElementById('btnDeleteAccount')?.classList.add('hidden');
     phones.forEach((el) => { el.textContent = 'гость'; });
+    void refreshAuthProviders();
     if (demoBan) demoBan.classList.add('hidden');
     const plan = document.getElementById('accPlan');
     if (plan) plan.textContent = '';
@@ -4890,7 +4896,8 @@ function refreshAccount() {
     try { renderCompare(); } catch (_) {}
     return;
   }
-  phones.forEach((el) => { el.textContent = '+' + u.phone + (u.nick ? (' · ' + u.nick) : ''); });
+  phones.forEach((el) => { el.textContent = accountLabel(u); });
+  document.getElementById('btnDeleteAccount')?.classList.toggle('hidden', !getSessionToken() || String(getSessionToken()).startsWith('local-'));
   const plan = document.getElementById('accPlan');
   if (plan) {
     plan.textContent = (isPro(u) ? ('Pro · ') : ('trial · ')) + 'аккаунт сохранён';
@@ -4975,6 +4982,7 @@ async function verifySmsCode(phone, code, nick) {
 
   let ok = false;
   let remoteTried = false;
+  let remoteData = null;
   // Prefer remote verify when Worker configured (issues real session token)
   try {
     if (isRemoteApi()) {
@@ -4997,14 +5005,7 @@ async function verifySmsCode(phone, code, nick) {
       }
       if (res.ok && data?.ok) {
         ok = true;
-        if (data?.token) {
-          setSessionToken(data.token);
-          authDb.token = data.token;
-        }
-        if (data?.user) {
-          authDb.users[p] = { ...authDb.users[p], ...data.user, phone: p };
-        }
-        if (data?.nick && authDb.users[p]) authDb.users[p].nick = data.nick;
+        remoteData = data;
       }
     }
   } catch (err) {
@@ -5013,57 +5014,112 @@ async function verifySmsCode(phone, code, nick) {
   // Local OTP fallback only for offline/demo path (never override a failed remote verify)
   if (!ok && !remoteTried) ok = c === String(otp.code);
   else if (!ok && authDb.demoSms && otp?.code) ok = c === String(otp.code);
-  // Local demo verify still issues a local pseudo-token so Bearer path works offline
-  if (ok && !getSessionToken()) {
-    const localTok = 'local-' + p + '-' + Date.now().toString(36);
-    setSessionToken(localTok);
-    authDb.token = localTok;
-  }
 
   if (!ok) {
     saveAuth();
     throw new Error('Неверный код');
   }
-
   delete authDb.otps[p];
-  const existing = authDb.users[p];
-  const n = (nick || '').trim() || existing?.nick || ('пилот' + p.slice(-4));
-  if (existing) {
-    existing.nick = n;
-    existing.lastLogin = Date.now();
-    if (Array.isArray(state.garage) && state.garage.length) {
-      existing.garage = state.garage;
-      existing.carId = state.carId || null;
-    }
-  } else {
-    authDb.users[p] = {
+
+  if (remoteData?.token && remoteData?.pilotId) {
+    return completeLogin({
+      pilotId: remoteData.pilotId,
+      token: remoteData.token,
+      user: remoteData.user,
+      nick: (nick || '').trim() || remoteData.nick,
+      provider: 'phone',
       phone: p,
-      nick: n,
-      createdAt: Date.now(),
-      lastLogin: Date.now(),
-      trialEnds: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      paidUntil: null,
-      plan: 'trial',
-      firstPaid: false,
-      garage: state.garage || [],
-      carId: state.carId || null,
-    };
+    });
   }
-  authDb.session = p;
-  saveProf({ ...profile(), nick: n });
-  // restore garage from account if local empty
-  const u = authDb.users[p];
+  // Offline / local demo: device-only account keyed by phone (never sent to the server as an id)
+  if (!getSessionToken()) {
+    const localTok = 'local-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    setSessionToken(localTok);
+    authDb.token = localTok;
+  }
+  return completeLogin({ pilotId: null, localKey: p, nick: (nick || '').trim(), provider: 'phone', phone: p });
+}
+
+/** Human label for the account line: own phone (local only) / Telegram @username. */
+function accountLabel(u) {
+  if (!u) return 'гость';
+  let who = 'аккаунт';
+  if (u.phone) who = '+' + u.phone;
+  else if (u.tgUsername) who = 'Telegram @' + u.tgUsername;
+  else if (u.provider === 'telegram') who = 'Telegram';
+  return who + (u.nick ? (' · ' + u.nick) : '');
+}
+
+/**
+ * Store a successful login. Accounts are keyed by the opaque server id (p_<uuid>);
+ * a legacy phone-keyed local record for the same phone is folded in.
+ */
+function completeLogin({ pilotId, localKey, token, user, nick, provider, phone, tgUsername, photoUrl }) {
+  const key = pilotId || localKey;
+  if (token) {
+    setSessionToken(token);
+    authDb.token = token;
+  }
+  if (pilotId && phone && authDb.users[phone] && !authDb.users[pilotId]) authDb.users[pilotId] = authDb.users[phone];
+  if (pilotId && phone) delete authDb.users[phone];
+  const existing = authDb.users[key];
+  const n = (nick || '').trim() || user?.nick || existing?.nick || 'пилот';
+  const base = existing || {
+    createdAt: Date.now(),
+    paidUntil: null,
+    plan: 'trial',
+    firstPaid: false,
+    garage: state.garage || [],
+    carId: state.carId || null,
+  };
+  const u = {
+    ...base,
+    pilotId: pilotId || null,
+    provider: provider || base.provider || 'phone',
+    phone: phone || (provider === 'telegram' ? null : base.phone) || null,
+    tgUsername: tgUsername || user?.telegram?.username || (provider === 'telegram' ? base.tgUsername : null) || null,
+    nick: n,
+    lastLogin: Date.now(),
+    trialEnds: user?.trialEnds || base.trialEnds || Date.now() + 7 * 24 * 60 * 60 * 1000,
+    plan: user?.plan || base.plan || 'trial',
+    paidUntil: user?.paidUntil ?? base.paidUntil ?? null,
+  };
+  if (Array.isArray(state.garage) && state.garage.length) {
+    u.garage = state.garage;
+    u.carId = state.carId || null;
+  }
+  authDb.users[key] = u;
+  authDb.session = key;
+  const prof = profile();
+  const nextProf = { ...prof, nick: n };
+  if (!prof.avatar && photoUrl && /^https:\/\//.test(photoUrl)) nextProf.avatar = photoUrl;
+  saveProf(nextProf);
+  try { loadProfUI(); } catch (_) {}
   if ((!state.garage || !state.garage.length) && Array.isArray(u.garage) && u.garage.length) {
     state.garage = u.garage;
     state.carId = u.carId || u.garage[0]?.id || null;
     save();
-  } else if (state.garage?.length) {
-    u.garage = state.garage;
-    u.carId = state.carId || null;
   }
   saveAuth();
   void mergeGarageOnLogin();
   return u;
+}
+
+/** Pre-v76 sessions were keyed by phone: ask the server for the opaque id and re-key locally. */
+async function upgradeLegacySession() {
+  try {
+    const sid = String(authDb.session || '');
+    const tok = getSessionToken();
+    if (!sid || sid.startsWith('p_') || !tok || tok.startsWith('local-') || !isRemoteApi()) return;
+    const me = await api.me();
+    if (!me || !me.ok || !me.pilotId) return;
+    const u = authDb.users[sid] || {};
+    authDb.users[me.pilotId] = { ...u, pilotId: me.pilotId, nick: u.nick || me.nick, phone: u.phone || (/^\d{10,15}$/.test(sid) ? sid : null) };
+    delete authDb.users[sid];
+    authDb.session = me.pilotId;
+    saveAuth();
+    refreshAccount();
+  } catch (_) {}
 }
 
 async function mergeGarageOnLogin() {
@@ -5185,8 +5241,267 @@ document.querySelectorAll('[data-buy]').forEach((b) => {
   b.addEventListener('click', () => buyPlan(b.dataset.buy));
 });
 
-void restoreAuthIfNeeded();
+void restoreAuthIfNeeded().then(() => upgradeLegacySession());
 refreshAccount();
+
+/* -------- v76: login providers (Telegram / SMS), account deletion, safety notice -------- */
+
+/**
+ * Telegram login result. Redirect flow (robust in standalone PWAs: same window, no popup/postMessage):
+ * oauth.telegram.org/auth?bot_id=…&origin=…&return_to=<app> → back to <app>#tgAuthResult=<base64 JSON>.
+ * Also accepts the Login Widget data-auth-url style (?id=…&auth_date=…&hash=…).
+ */
+function captureTelegramReturn() {
+  try {
+    const hash = location.hash || '';
+    const q = new URLSearchParams(location.search);
+    let payload = null;
+    let seen = false;
+    const m = hash.match(/tgAuthResult=([^&]*)/);
+    if (m) {
+      seen = true;
+      try {
+        let b = decodeURIComponent(m[1]).replace(/-/g, '+').replace(/_/g, '/');
+        while (b.length % 4) b += '=';
+        const bin = atob(b);
+        const bytes = Uint8Array.from(bin, (ch) => ch.charCodeAt(0));
+        const obj = JSON.parse(new TextDecoder().decode(bytes));
+        if (obj && typeof obj === 'object' && obj.hash) payload = obj;
+      } catch (_) { payload = null; }
+    } else if (q.get('hash') && q.get('id') && q.get('auth_date')) {
+      seen = true;
+      payload = {};
+      const appParams = new Set(['view', 'skipIntro', 'duel', 'crew', 's', 'r', 'quality']);
+      q.forEach((v, k) => { if (!appParams.has(k)) payload[k] = v; });
+    }
+    if (!seen) return null;
+    history.replaceState(null, '', location.pathname + '?view=account&skipIntro=1');
+    return { payload };
+  } catch (_) {
+    return null;
+  }
+}
+
+function setAuthTopMsg(text) {
+  const el = document.getElementById('authMsgTop');
+  if (el) el.textContent = text || '';
+}
+
+async function refreshAuthProviders(force) {
+  const tgBtn = document.getElementById('btnTgLogin');
+  const smsBtn = document.getElementById('btnSmsToggle');
+  const smsBox = document.getElementById('authSmsBox');
+  const none = document.getElementById('authNone');
+  if (!tgBtn || !smsBtn || !smsBox || !none) return;
+  if (!isRemoteApi()) {
+    // No Worker configured → legacy device-only demo login
+    tgBtn.classList.add('hidden');
+    smsBtn.classList.add('hidden');
+    none.classList.add('hidden');
+    smsBox.classList.remove('hidden');
+    return;
+  }
+  if (force || _authCfg === undefined || Date.now() - _authCfgAt > 60000) {
+    _authCfgAt = Date.now();
+    _authCfg = await api.authConfig();
+  }
+  const cfg = _authCfg;
+  if (!cfg) {
+    tgBtn.classList.add('hidden');
+    smsBtn.classList.add('hidden');
+    smsBox.classList.add('hidden');
+    none.textContent = 'Нет связи с сервером — вход сейчас недоступен. Замеры, гараж и история работают офлайн.';
+    none.classList.remove('hidden');
+    _authCfg = undefined; // retry next time
+    return;
+  }
+  const tg = !!(cfg.telegram && cfg.telegramBotId);
+  const sms = !!cfg.sms;
+  tgBtn.classList.toggle('hidden', !tg);
+  if (tg && sms) {
+    smsBtn.classList.remove('hidden');
+  } else if (sms) {
+    smsBtn.classList.add('hidden');
+    smsBox.classList.remove('hidden');
+  } else {
+    smsBtn.classList.add('hidden');
+    smsBox.classList.add('hidden');
+  }
+  if (!tg && !sms) {
+    none.textContent = 'Вход временно недоступен: сервер входа ещё не настроен. Замеры, гараж и история работают без аккаунта.';
+    none.classList.remove('hidden');
+  } else {
+    none.classList.add('hidden');
+  }
+}
+
+document.getElementById('btnSmsToggle')?.addEventListener('click', () => {
+  const box = document.getElementById('authSmsBox');
+  if (!box) return;
+  box.classList.toggle('hidden');
+  if (!box.classList.contains('hidden')) {
+    showAuthStep('phone');
+    try { document.getElementById('authPhone')?.focus(); } catch (_) {}
+  }
+});
+
+document.getElementById('btnTgLogin')?.addEventListener('click', () => {
+  const id = _authCfg && _authCfg.telegramBotId;
+  if (!id) { void refreshAuthProviders(true); return; }
+  const back = new URL(location.href);
+  back.search = '?view=account&skipIntro=1';
+  back.hash = '';
+  const url = 'https://oauth.telegram.org/auth?bot_id=' + encodeURIComponent(id) +
+    '&origin=' + encodeURIComponent(location.origin) +
+    '&embed=0&request_access=write&return_to=' + encodeURIComponent(back.toString());
+  setAuthTopMsg('Открываем Telegram…');
+  location.href = url;
+});
+
+async function finishTelegramReturn() {
+  if (!TG_RETURN) return;
+  try { goToView('account', { sfx: false }); } catch (_) {}
+  if (!TG_RETURN.payload) {
+    setAuthTopMsg('Вход через Telegram отменён.');
+    return;
+  }
+  setAuthTopMsg('Входим через Telegram…');
+  const res = await api.telegramLogin(TG_RETURN.payload);
+  if (res && res.ok && res.token && res.pilotId) {
+    completeLogin({
+      pilotId: res.pilotId,
+      token: res.token,
+      user: res.user,
+      nick: res.nick,
+      provider: 'telegram',
+      tgUsername: TG_RETURN.payload.username || res.user?.telegram?.username || null,
+      photoUrl: res.user?.photoUrl || null,
+    });
+    setAuthTopMsg('');
+    refreshAccount();
+    try { applyCarUI(); } catch (_) {}
+    return;
+  }
+  const err = String(res?.error || '');
+  if (res?.status === 503) setAuthTopMsg('Вход через Telegram пока не настроен на сервере.');
+  else if (err === 'auth expired') setAuthTopMsg('Данные входа устарели — нажмите «Войти через Telegram» ещё раз.');
+  else if (res?.status === 429) setAuthTopMsg('Слишком много попыток — подождите 15 минут.');
+  else if (res?.status) setAuthTopMsg('Telegram не подтвердил вход — попробуйте ещё раз.');
+  else setAuthTopMsg('Нет связи с сервером — вход не завершён.');
+}
+void finishTelegramReturn();
+void refreshAuthProviders();
+document.querySelector('[data-view="account"]')?.addEventListener('click', () => { void refreshAuthProviders(); });
+
+/* —— account deletion —— */
+function openDeleteSheet() {
+  const sheet = document.getElementById('deleteSheet');
+  if (!sheet) return;
+  const inp = document.getElementById('deleteConfirmInput');
+  const btn = document.getElementById('deleteConfirmBtn');
+  if (inp) inp.value = '';
+  if (btn) btn.disabled = true;
+  const msg = document.getElementById('deleteMsg');
+  if (msg) msg.textContent = '';
+  sheet.classList.remove('hidden');
+  sheet.setAttribute('aria-hidden', 'false');
+}
+function closeDeleteSheet() {
+  const sheet = document.getElementById('deleteSheet');
+  if (!sheet) return;
+  sheet.classList.add('hidden');
+  sheet.setAttribute('aria-hidden', 'true');
+}
+
+/**
+ * After server-side deletion: forget the session and account-linked data on this device.
+ * Kept on purpose (device-only, never tied to the account): garage cars/paint/plates, 3D quality tier,
+ * local run/lap history, language, sound.
+ */
+function clearLocalAccountData() {
+  const sid = authDb.session;
+  const u = sid ? authDb.users[sid] : null;
+  if (sid) delete authDb.users[sid];
+  if (u?.phone) delete authDb.users[u.phone];
+  authDb.session = null;
+  authDb.token = null;
+  authDb.otps = {};
+  authDb.demoSms = false;
+  setSessionToken('');
+  saveAuth();
+  ['pitlane-prof-v1', 'pitlane-duels-mine-v1', 'pitlane-crews-mine-v1', 'pitlane-duel-last-v1',
+    'pitlane-nick', 'pitlane-duel-nick', 'pitlane-api-v1', 'pitlane-device-v1'].forEach((k) => {
+    try { localStorage.removeItem(k); } catch (_) {}
+  });
+  const img = document.getElementById('accAvatar');
+  if (img) img.removeAttribute('src');
+  const nick = document.getElementById('accNick');
+  if (nick) nick.value = '';
+  refreshAccount();
+}
+
+document.getElementById('btnDeleteAccount')?.addEventListener('click', openDeleteSheet);
+document.getElementById('deleteClose')?.addEventListener('click', closeDeleteSheet);
+document.getElementById('deleteSheet')?.addEventListener('click', (e) => {
+  if (e.target?.id === 'deleteSheet') closeDeleteSheet();
+});
+document.getElementById('deleteConfirmInput')?.addEventListener('input', (e) => {
+  const btn = document.getElementById('deleteConfirmBtn');
+  if (btn) btn.disabled = String(e.target.value || '').trim().toUpperCase() !== 'УДАЛИТЬ';
+});
+document.getElementById('deleteConfirmBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('deleteConfirmBtn');
+  const msg = document.getElementById('deleteMsg');
+  const inp = document.getElementById('deleteConfirmInput');
+  if (String(inp?.value || '').trim().toUpperCase() !== 'УДАЛИТЬ') return;
+  if (btn) btn.disabled = true;
+  if (msg) msg.textContent = 'Удаляем…';
+  const res = await api.deleteAccount();
+  if (res && res.ok) {
+    clearLocalAccountData();
+    closeDeleteSheet();
+    setAuthTopMsg('Аккаунт и данные на сервере удалены.');
+    return;
+  }
+  if (btn) btn.disabled = false;
+  if (!msg) return;
+  if (res?.status === 401) msg.textContent = 'Сессия истекла — войдите снова и повторите удаление.';
+  else msg.textContent = 'Не удалось удалить: нет связи с сервером. Попробуйте позже.';
+});
+
+/* —— one-time safety notice before the first measurement —— */
+const SAFETY_KEY = 'pitlane-safety-ok-v1';
+let _safetyPending = null;
+function withSafety(fn) {
+  return () => {
+    let seen = false;
+    try { seen = !!localStorage.getItem(SAFETY_KEY); } catch (_) { seen = true; }
+    if (seen) return fn();
+    const sheet = document.getElementById('safetySheet');
+    if (!sheet) return fn();
+    _safetyPending = fn;
+    sheet.classList.remove('hidden');
+    sheet.setAttribute('aria-hidden', 'false');
+  };
+}
+function closeSafety() {
+  const sheet = document.getElementById('safetySheet');
+  if (sheet) {
+    sheet.classList.add('hidden');
+    sheet.setAttribute('aria-hidden', 'true');
+  }
+}
+document.getElementById('safetyOk')?.addEventListener('click', () => {
+  try { localStorage.setItem(SAFETY_KEY, String(Date.now())); } catch (_) {}
+  closeSafety();
+  const fn = _safetyPending;
+  _safetyPending = null;
+  if (fn) fn();
+});
+document.getElementById('safetyCancel')?.addEventListener('click', () => {
+  _safetyPending = null;
+  closeSafety();
+});
 
 const gltfLoader = new GLTFLoader();
 let glbRoot = null;
@@ -6753,7 +7068,7 @@ const I18N = {
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Что сделал с машиной…','pad.empty':'Пока тихо. Напиши первый пост после входа.',
-    'acc.title':'Аккаунт','acc.login':'Вход по SMS','acc.hint':'Телефон → код. Аккаунт сохраняется.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
+    'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Аккаунт хранит ник, гараж и результаты в топах.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
     'nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock','nav.park':'Park',
@@ -6762,7 +7077,7 @@ const I18N = {
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
     'lap.title':'Lap','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start lap','lap.finish':'Finish lap',
     'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'What did you do to the car…','pad.empty':'Quiet for now. Sign in and write the first post.',
-    'acc.title':'Account','acc.login':'Sign in','acc.hint':'Phone and password.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
+    'acc.title':'Account','acc.login':'Sign in','acc.hint':'Keeps your nickname, garage and results in tops.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
   },
   zh: {
     'nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单','nav.paddock':'Paddock',
@@ -6835,21 +7150,22 @@ function esc(s) {
   return String(s || '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function pulseWho() {
-  return (profile()?.nick) || currentUser()?.phone || '';
+  return (profile()?.nick) || currentUser()?.nick || '';
 }
 async function renderPulse() {
   const feed = document.getElementById('pulseFeed');
   if (!feed) return;
   const rows = await api.listPulse();
+  const myPid = accountPilotId();
   feed.innerHTML = rows.map((p) => {
     const likes = (p.likes || []).length;
-    return `<article class="pulse-card" data-id="${p.id}">
-      <header><b>${p.who || 'пилот'}</b><span>${new Date(p.at).toLocaleString('ru-RU')}</span></header>
-      <p>${(p.text || '').replace(/[<>]/g, '')}</p>
-      ${p.img ? `<img src="${p.img}" alt="">` : ''}
+    return `<article class="pulse-card" data-id="${esc(p.id)}">
+      <header><b>${esc(p.who || 'Пилот')}</b><span>${new Date(p.at).toLocaleString('ru-RU')}</span></header>
+      <p>${esc(p.text || '')}</p>
+      ${p.img && /^(data:image\/|https:\/\/)/.test(String(p.img)) ? `<img src="${esc(p.img)}" alt="">` : ''}
       <div class="pulse-actions">
-        <button type="button" data-like="${p.id}">♥ ${likes}</button>
-        <button type="button" data-del="${p.id}">удалить</button>
+        <button type="button" data-like="${esc(p.id)}">♥ ${likes}</button>
+        ${(!p.pilotId || (myPid && p.pilotId === myPid)) ? `<button type="button" data-del="${esc(p.id)}">удалить</button>` : ''}
       </div>
     </article>`;
   }).join('') || '<p class="muted">пока тихо</p>';
@@ -7040,14 +7356,12 @@ function loadLastDuelCandidate() {
 }
 
 function duelPilotNick() {
-  return (profile()?.nick) || currentUser()?.nick || currentUser()?.phone || 'пилот';
+  return (profile()?.nick) || currentUser()?.nick || 'пилот';
 }
 
+/** Account uuid (p_…) when logged in, else device guest id — never a phone number. */
 function duelPilotId() {
-  try {
-    if (authDb?.session) return String(authDb.session);
-  } catch (_) {}
-  try { return devicePilotId(); } catch (_) { return 'guest'; }
+  try { return actingPilotId(); } catch (_) { return 'guest'; }
 }
 
 function duelPublicUrl(id) {
@@ -7362,14 +7676,12 @@ function crewPilotNick() {
   try {
     const u = currentUser?.();
     if (u?.nick) return String(u.nick);
-    if (u?.phone) return String(u.phone);
   } catch (_) {}
   return 'пилот';
 }
 
 function crewPilotId() {
-  try { if (authDb?.session) return String(authDb.session); } catch (_) {}
-  try { return devicePilotId(); } catch (_) { return 'guest'; }
+  try { return actingPilotId(); } catch (_) { return 'guest'; }
 }
 
 function crewPublicUrl(id) {
@@ -7729,7 +8041,7 @@ async function sessionCheckinClick() {
     nick = String(prompt('Твой ник для «я на месте»', 'пилот') || '').trim().slice(0, 48);
   }
   if (!nick) return;
-  const res = await api.sessionCheckin({ nick, pilotId: (() => { try { return devicePilotId(); } catch (_) { return undefined; } })() });
+  const res = await api.sessionCheckin({ nick, pilotId: (() => { try { return actingPilotId(); } catch (_) { return undefined; } })() });
   if (res && res.ok) {
     if (_sessionTodayCache) _sessionTodayCache.attendees = res.attendees || [];
     await renderSessionOfDay();

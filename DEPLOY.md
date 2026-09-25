@@ -245,3 +245,70 @@ Goal: weak/mid Android GPUs (e.g. Honor 50, Adreno 642L @120 Hz) stop lagging; *
 - Testing: `?quality=high|medium|low` forces a tier (not persisted, no measurement). Console logs `[pitlane] 3D quality: …`. Debug: `window.__pitlane3d.quality()` / `.frames()`.
 - Reset a device: `localStorage.removeItem('pitlane-quality-v1')`.
 - Also fixed: `Cannot access '_sectorTopIdx' before initialization` (declaration hoisted to the top of `app.js`).
+
+## 20. Приватность, удаление аккаунта, юр. страницы, вход через Telegram (SW v76)
+
+### 20.1 Непрозрачные ID пилотов (телефон больше нигде не публикуется)
+- Каждый аккаунт получает случайный ID `p_<uuid>`. KV:
+  - `pilot:<uuid>` → `{ id, createdAt, providers:[{type:'phone'|'tg', id}], nick, photoRef, trialEnds, plan, paidUntil }` (приватно, наружу не отдаётся)
+  - `auth:phone:<7XXXXXXXXXX>` → `<uuid>`, `auth:tg:<telegramId>` → `<uuid>`
+  - `sess:<token>` → `{ pilotId, nick, provider, at }` (TTL 90 дн.), `sessidx:<uuid>` → список токенов (для удаления)
+  - старые сессии `{ phone }` автоматически переводятся на uuid при первом запросе; `user:<phone>` сворачивается в `pilot:<uuid>`.
+- Все публичные ответы (`/tops/straight|lap|sector`, `/pulse`, `/duel*`, `/crew*`, `/session/today`, `/share/:id`) проходят через белые списки полей (`publicTopRow`, `publicPulse`, `publicDuel`, `publicCrew`): телефоноподобные ID/имена вырезаются (`pilotId:null`, имя → «пилот»). Фолбэк имени в Пульсе — «Пилот».
+- Гости (без входа) — только `dev_…` ID устройства; телефон или чужой `p_…` в `X-Pilot-Id`/`body.pilotId` игнорируются. Для вошедших `pilotId` в теле запроса не может подменить сессию.
+- Лайки Пульса хранятся по uuid; удалить пост может только автор (по uuid).
+- Исправлено попутно: клиент слал кириллический ник в заголовке `X-Pilot-Name` → `fetch()` падал, и **все** запросы к топам/пульсу/дуэлям/экипажам молча уходили в localStorage. Теперь заголовок URI-кодируется, и приложение реально ходит в Worker.
+- Новые эндпоинты: `GET /auth/config` → `{ sms, telegram, telegramBotId }`, `GET|PUT /me`, `DELETE /account`, `POST /auth/telegram`, `POST /admin/migrate-pilots`.
+
+### 20.2 Миграция (идемпотентная)
+`POST /admin/migrate-pilots` (`?dry=1` — только отчёт) с заголовком `X-Admin-Token`. Эндпоинт отвечает 404, пока не задан секрет `ADMIN_TOKEN` (≥ 24 символа). Находит телефонные ID в сессиях, `user:*`, `straight:*`, `lap:*`, `pulse` (посты и лайки), `crew:*` (участники, создатель, memberBests), `duel:*`, `pilotmeta:*`/`garage:*`/`crewidx:*`/`duelidx:*`, `session:att:*`; создаёт/находит аккаунт и переписывает на uuid (TTL ключей сохраняется), ники вида «пилот»+4 последних цифры телефона заменяются. Повторный запуск = все счётчики 0.
+```bash
+cd worker
+openssl rand -hex 24 | npx wrangler@3.114.17 secret put ADMIN_TOKEN   # запомните значение
+curl -X POST -H "X-Admin-Token: <значение>" https://pitlane-api.pitlane-taksimaga.workers.dev/admin/migrate-pilots
+npx wrangler@3.114.17 secret delete ADMIN_TOKEN                        # выключить эндпоинт
+```
+
+### 20.3 Удаление аккаунта
+- Worker `DELETE /account` (нужна сессия) удаляет: `pilot:<uuid>`, привязки `auth:*`, все сессии (`sessidx`), `pilotmeta`/аватар, `garage`, строки в `straight:*`/`lap:*` (секторы считаются из кругов), посты Пульса и лайки, участие в экипажах, дуэли, отметки «я на месте»; для телефона — ещё `otp:`/`rl:otp:ph:`/`user:`.
+- Экипаж: если удаляемый — создатель и в экипаже есть другие, права переходят участнику, вступившему раньше всех; если никого не осталось — экипаж и инвайт удаляются. Дуэли с участием пилота удаляются целиком (живут 7 дней).
+- Не удаляется: анонимные карточки `share:*` (без привязки к аккаунту, TTL 30 дн.), счётчики rate-limit по IP (15 мин).
+- Клиент: Аккаунт → «Удалить аккаунт» → шторка, ввод «УДАЛИТЬ» → после успеха стираются токен, сессия и запись аккаунта (localStorage + IndexedDB), профиль (ник/аватар), списки дуэлей/экипажей, локальный кэш API и guest-ID устройства. **Остаются** (они локальные и к аккаунту не привязаны): гараж, покраска/номера, 3D-тир качества, история замеров, язык, звук.
+- Страница для Google Play: `delete-account.html` — описание + кнопка удаления для вошедшего в этом браузере, для остальных — инструкция и email-заглушка.
+
+### 20.4 Юридические страницы — ШАБЛОНЫ, нужна проверка юристом
+`privacy.html`, `terms.html`, `offer.html`, `delete-account.html` (стиль `legal.css`, в precache SW). Ссылки: экран входа («Входя, вы принимаете Соглашение и Политику»), вкладка Аккаунт (блок документов), шторка безопасности, страница удаления.
+Заглушки (подсвечены жёлтым `<mark class="ph">`), заполнить перед публикацией:
+| Заглушка | Где |
+|---|---|
+| `[ФИО самозанятого]` | privacy, terms, offer, delete-account |
+| `[ИНН]` | privacy, terms, offer |
+| `[email для связи]` | privacy, terms, offer, delete-account |
+| `[дата редакции]` | privacy, terms, offer |
+| `[цена в месяц]`, `[цена в год]` | offer (в `app.js` сейчас `PRICE = { month: 390, year: 2990 }` — сверить) |
+Что проверить юристу: хранение данных в Cloudflare (вне РФ) vs требование локализации (ч. 5 ст. 18 152-ФЗ) и уведомление Роскомнадзора об обработке/трансграничной передаче; условия возврата/автопродления в оферте (ЮKassa рекуррентные платежи); возрастное ограничение 18+.
+
+### 20.5 Безопасность замеров
+Одноразовая шторка перед первым «Старт» (разгон и круг), флаг `localStorage['pitlane-safety-ok-v1']`; строка на экране Замер: «Только треки и закрытые площадки. Не отвлекайтесь на телефон за рулём.»
+
+### 20.6 Вход через Telegram — что сделать Маге
+1. В Telegram открыть **@BotFather** → `/newbot` → имя (например «Pitlane») → username бота, оканчивающийся на `bot` (например `pitlane_login_bot`). BotFather пришлёт **токен** вида `123456789:AA…` — никому не показывать.
+2. Там же: `/setdomain` → выбрать бота → отправить `dsssssz.github.io` (без https и пути). Без этого Telegram откажет с «Bot domain invalid».
+   (В новом интерфейсе BotFather это может называться Bot Settings → Web Login / Allowed URLs — добавить `https://dsssssz.github.io`.)
+3. Задать секрет Worker (токен вводится в терминал, не в чат):
+   ```bash
+   cd worker
+   npx wrangler@3.114.17 secret put TELEGRAM_BOT_TOKEN
+   ```
+4. (Необязательно) в `worker/wrangler.toml` заменить `TELEGRAM_BOT_USERNAME = "YOUR_BOT_USERNAME"` на username бота и `npx wrangler@3.114.17 deploy`.
+5. Проверка: `curl https://pitlane-api.pitlane-taksimaga.workers.dev/auth/config` → `"telegram":true`. В приложении на вкладке Аккаунт появится «Войти через Telegram».
+- Пока секрета нет: `/auth/telegram` → 503 `Telegram not configured`, `/auth/config` → `telegram:false`, кнопка скрыта. Если выключены и SMS, и Telegram — показывается «Вход временно недоступен…».
+- Проверка подписи: `data_check_string` (все поля кроме `hash`, по алфавиту, `key=value` через `\n`), ключ = SHA-256(bot_token), HMAC-SHA256 == `hash`; `auth_date` не старше 24 ч.
+- Почему редирект, а не всплывающее окно: стандартный виджет открывает popup и передаёт результат через `postMessage` в iframe — в установленном PWA (iOS «На экран Домой», Android standalone) popup открывается в отдельном браузере/Custom Tab, связь с приложением теряется. Поэтому кнопка делает переход в том же окне на `oauth.telegram.org/auth?bot_id=…&origin=…&return_to=<app>`, Telegram возвращает на приложение с `#tgAuthResult=<base64 JSON>` (тот же подписанный payload, что у виджета). Также принимается формат `data-auth-url` (`?id=…&hash=…`). Риск: на iOS standalone переход на чужой домен показывается внутри приложения с панелью «Готово» — вход проходит в том же окне; если пользователь закроет панель до возврата, вход не завершится (нажать кнопку ещё раз).
+
+### 20.7 Деплой Worker
+Каноничный конфиг — `worker/wrangler.toml` (KV + `SMS_DEMO="0"`), исходник — `worker/src/index.js`; корневой `worker-index.js` теперь просто `export { default } from './worker/src/index.js'`, корневой `wrangler.toml` указывает на тот же файл.
+```bash
+cd worker && npm test          # офлайн-тесты (mock KV): миграция, публичные ответы без телефонов, DELETE /account, Telegram HMAC
+npx wrangler@3.114.17 deploy
+```

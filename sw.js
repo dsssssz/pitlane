@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v75';
+const CACHE = 'pitlane-v76';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -7,6 +7,11 @@ const CORE = [
   './index.html',
   './zamer.html',
   './method.html',
+  './privacy.html',
+  './terms.html',
+  './offer.html',
+  './delete-account.html',
+  './legal.css',
   './styles.css',
   './app.js',
   './plates.js',
@@ -113,6 +118,7 @@ self.addEventListener('fetch', (e) => {
     p.includes('/duel') ||
     p.includes('/crew') ||
     p.includes('/session') ||
+    (url.origin !== self.location.origin && (p === '/me' || p === '/account' || p.startsWith('/admin'))) ||
     url.hostname.includes('arcgisonline.com') ||
     url.hostname.includes('tile.openstreetmap.org') ||
     url.hostname.includes('server.arcgisonline.com')

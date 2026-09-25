@@ -1,5 +1,7 @@
+# Same Worker as worker/wrangler.toml (canonical). Kept so `npx wrangler deploy` from repo root
+# (or /workspace/pitlane-auth) keeps working. Source of truth: worker/src/index.js
 name = "pitlane-api"
-main = "worker-index.js"
+main = "worker/src/index.js"
 compatibility_date = "2024-09-01"
 account_id = "dc344532c11330ddd28198123f1bf95f"
 workers_dev = true
@@ -10,3 +12,4 @@ id = "fc7e076d77824da184e7314c2fb3ff1b"
 
 [vars]
 SMS_DEMO = "0"
+TELEGRAM_BOT_USERNAME = "YOUR_BOT_USERNAME"

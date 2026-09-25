@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1a1a1a" />
+    <meta name="description" content="Pitlane — как удалить аккаунт и данные" />
+    <meta name="pitlane-api" content="https://pitlane-api.pitlane-taksimaga.workers.dev" />
+    <title>Удаление аккаунта — Pitlane</title>
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="./legal.css" />
+  </head>
+  <body>
+    <main class="legal">
+      <a class="back" href="./index.html?view=account&amp;skipIntro=1">← Pitlane</a>
+      <h1>Удаление аккаунта</h1>
+      <p class="meta">Pitlane · разработчик: <mark class="ph">[ФИО самозанятого]</mark></p>
+
+      <section class="card" id="delLoggedIn" hidden>
+        <p>Вы вошли как <strong id="delWho">—</strong>.</p>
+        <label class="field">Чтобы удалить аккаунт навсегда, введите <b>УДАЛИТЬ</b>
+          <input id="delInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="УДАЛИТЬ" />
+        </label>
+        <button type="button" class="btn btn-danger" id="delBtn" disabled>Удалить аккаунт и данные</button>
+        <p class="muted" id="delMsg" role="status"></p>
+      </section>
+
+      <section class="card" id="delDone" hidden>
+        <p><strong>Готово.</strong> Аккаунт и связанные с ним данные удалены с сервера, сессия на этом устройстве завершена.</p>
+      </section>
+
+      <section class="card" id="delGuest">
+        <p><strong>Как удалить аккаунт:</strong></p>
+        <ol>
+          <li>Откройте Pitlane → вкладка «Аккаунт» → кнопка <strong>«Удалить аккаунт»</strong> и подтвердите словом «УДАЛИТЬ». Или войдите в <a href="./index.html?view=account&amp;skipIntro=1">приложение</a> в этом браузере и вернитесь на эту страницу — появится кнопка удаления.</li>
+          <li>Не получается войти? Напишите на <mark class="ph">[email для связи]</mark> с темой «Удаление аккаунта» и укажите способ входа (номер телефона или Telegram @username). Мы удалим данные в течение 10 рабочих дней и подтвердим ответным письмом.</li>
+        </ol>
+      </section>
+
+      <h2>Что удаляется</h2>
+      <ul>
+        <li>аккаунт и способы входа (связка с номером телефона и/или Telegram ID);</li>
+        <li>все сессии входа на всех устройствах;</li>
+        <li>ник и фото профиля;</li>
+        <li>ваши результаты в публичных топах: разгоны, круги и секторы;</li>
+        <li>ваши посты в Пэддоке и ваши лайки под чужими постами;</li>
+        <li>участие в экипажах и ваши лучшие круги в них; если экипаж создали вы — права создателя переходят участнику, который вступил раньше всех, а если в экипаже больше никого нет — экипаж удаляется;</li>
+        <li>дуэли, в которых вы участвовали;</li>
+        <li>синхронизированная копия гаража.</li>
+      </ul>
+      <p>Удаление происходит сразу и необратимо — восстановить данные нельзя. При следующем входе с тем же номером или Telegram будет создан новый пустой аккаунт.</p>
+
+      <h2>Что остаётся</h2>
+      <ul>
+        <li>На вашем устройстве: гараж, 3D-настройки, история замеров, язык и звук — они хранятся только локально и к аккаунту не привязаны. Их можно удалить, очистив данные сайта в браузере или удалив приложение.</li>
+        <li>Анонимные карточки «поделиться результатом» (без привязки к аккаунту) — удаляются автоматически через 30 дней.</li>
+        <li>Технические журналы инфраструктуры (Cloudflare) без номера телефона — хранятся по правилам провайдера, обычно не более нескольких дней.</li>
+      </ul>
+      <p>Подробнее — в <a href="./privacy.html">Политике конфиденциальности</a>.</p>
+
+      <footer>
+        <a href="./privacy.html">Политика конфиденциальности</a>
+        <a href="./terms.html">Пользовательское соглашение</a>
+        <a href="./offer.html">Публичная оферта</a>
+      </footer>
+    </main>
+    <script>
+      (function () {
+        var API = (document.querySelector('meta[name="pitlane-api"]') || {}).content || '';
+        var TOKEN_KEY = 'pitlane-token-v1';
+        var $ = function (id) { return document.getElementById(id); };
+        function readAuth() {
+          try { return JSON.parse(localStorage.getItem('pitlane-auth-v2') || localStorage.getItem('pitlane-auth-v1') || '{}') || {}; } catch (e) { return {}; }
+        }
+        var token = '';
+        try { token = localStorage.getItem(TOKEN_KEY) || ''; } catch (e) {}
+        var auth = readAuth();
+        var user = auth.session && auth.users ? auth.users[auth.session] : null;
+        if (!token || token.indexOf('local-') === 0 || !API) return;
+        var who = user && user.nick ? user.nick : 'пилот';
+        if (user && user.tgUsername) who += ' (Telegram @' + user.tgUsername + ')';
+        else if (user && user.phone) who += ' (+' + String(user.phone).slice(0, 1) + ' ••• ' + String(user.phone).slice(-4) + ')';
+        $('delWho').textContent = who;
+        $('delLoggedIn').hidden = false;
+        $('delInput').addEventListener('input', function (e) {
+          $('delBtn').disabled = String(e.target.value || '').trim().toUpperCase() !== 'УДАЛИТЬ';
+        });
+        function clearLocal() {
+          var sid = auth.session;
+          if (auth.users && sid) {
+            var u = auth.users[sid];
+            delete auth.users[sid];
+            if (u && u.phone) delete auth.users[u.phone];
+          }
+          auth.session = null; auth.token = null; auth.otps = {};
+          var dump = JSON.stringify(auth);
+          ['pitlane-auth-v2', 'pitlane-auth-v2:bak', 'pitlane-auth-v1', 'pitlane-auth-v1:bak'].forEach(function (k) { try { localStorage.setItem(k, dump); } catch (e) {} });
+          [TOKEN_KEY, 'pitlane-auth-v2:session', 'pitlane-auth-v1:session', 'pitlane-prof-v1', 'pitlane-duels-mine-v1',
+            'pitlane-crews-mine-v1', 'pitlane-duel-last-v1', 'pitlane-nick', 'pitlane-duel-nick', 'pitlane-api-v1', 'pitlane-device-v1']
+            .forEach(function (k) { try { localStorage.removeItem(k); } catch (e) {} });
+          try {
+            var req = indexedDB.open('pitlane-auth', 1);
+            req.onupgradeneeded = function () { if (!req.result.objectStoreNames.contains('kv')) req.result.createObjectStore('kv'); };
+            req.onsuccess = function () { try { var tx = req.result.transaction('kv', 'readwrite'); tx.objectStore('kv').put(auth, 'authDb'); tx.oncomplete = function () { req.result.close(); }; } catch (e) {} };
+          } catch (e) {}
+        }
+        $('delBtn').addEventListener('click', function () {
+          if (String($('delInput').value || '').trim().toUpperCase() !== 'УДАЛИТЬ') return;
+          $('delBtn').disabled = true;
+          $('delMsg').textContent = 'Удаляем…';
+          fetch(API + '/account', { method: 'DELETE', headers: { Authorization: 'Bearer ' + token } })
+            .then(function (res) { return res.json().catch(function () { return {}; }).then(function (d) { return { status: res.status, d: d }; }); })
+            .then(function (r) {
+              if (r.status === 200 && r.d && r.d.ok) {
+                clearLocal();
+                $('delLoggedIn').hidden = true;
+                $('delGuest').hidden = true;
+                $('delDone').hidden = false;
+              } else if (r.status === 401) {
+                $('delMsg').textContent = 'Сессия истекла — войдите в приложение снова и повторите.';
+                $('delBtn').disabled = false;
+              } else {
+                $('delMsg').textContent = 'Не удалось удалить (' + r.status + '). Попробуйте позже или напишите нам.';
+                $('delBtn').disabled = false;
+              }
+            })
+            .catch(function () {
+              $('delMsg').textContent = 'Нет связи с сервером. Попробуйте позже.';
+              $('delBtn').disabled = false;
+            });
+        });
+      })();
+    </script>
+  </body>
+</html>

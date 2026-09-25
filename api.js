@@ -42,19 +42,33 @@ function devicePilotId() {
   }
 }
 
+/** Opaque account id (p_<uuid>) of the logged-in pilot, or '' (never a phone number). */
+export function accountPilotId() {
+  try {
+    const auth = JSON.parse(localStorage.getItem('pitlane-auth-v2') || localStorage.getItem('pitlane-auth-v1') || '{}');
+    const sid = String(auth.session || '');
+    return /^p_[0-9a-f-]{36}$/.test(sid) ? sid : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+/** Id used for duels / crews: account uuid when logged in, else the device guest id. */
+export function actingPilotId() {
+  return accountPilotId() || devicePilotId();
+}
+
 function pilotHeaders() {
   const h = { 'Content-Type': 'application/json' };
   try {
     const token = getSessionToken();
-    if (token) h['Authorization'] = 'Bearer ' + token;
-    const auth = JSON.parse(localStorage.getItem('pitlane-auth-v2') || localStorage.getItem('pitlane-auth-v1') || '{}');
-    const phone = auth.session || null;
+    if (token && !token.startsWith('local-')) h['Authorization'] = 'Bearer ' + token;
     const prof = JSON.parse(localStorage.getItem('pitlane-prof-v1') || '{}');
-    if (phone) h['X-Pilot-Id'] = String(phone);
-    else h['X-Pilot-Id'] = devicePilotId();
-    if (prof.nick) h['X-Pilot-Name'] = String(prof.nick).slice(0, 48);
-    else if (phone) h['X-Pilot-Name'] = '+' + String(phone).slice(-10);
-    else h['X-Pilot-Name'] = 'гость';
+    // Guest id only; the session (Bearer) identifies logged-in pilots. Never send the phone.
+    if (!h['Authorization']) h['X-Pilot-Id'] = devicePilotId();
+    const nick = String(prof.nick || '').slice(0, 48);
+    // Header values must be ISO-8859-1 → URI-encode (Cyrillic nicks used to make fetch() throw).
+    h['X-Pilot-Name'] = encodeURIComponent(nick && !/(?:\+?\d[\s\-()]?){10,}/.test(nick) ? nick : 'гость');
   } catch (_) {}
   return h;
 }
@@ -354,13 +368,7 @@ export const api = {
   },
 
   async listMyDuels(mineId) {
-    const id = mineId || (() => {
-      try {
-        const auth = JSON.parse(localStorage.getItem('pitlane-auth-v2') || localStorage.getItem('pitlane-auth-v1') || '{}');
-        if (auth.session) return String(auth.session);
-      } catch (_) {}
-      return devicePilotId();
-    })();
+    const id = (mineId && !/^\+?\d{10,15}$/.test(String(mineId))) ? mineId : actingPilotId();
     const remoteRes = await remote('/duels?mine=' + encodeURIComponent(id));
     if (Array.isArray(remoteRes)) return remoteRes;
     try {
@@ -448,13 +456,7 @@ export const api = {
   },
 
   async listMyCrews(mineId) {
-    const id = mineId || (() => {
-      try {
-        const auth = JSON.parse(localStorage.getItem('pitlane-auth-v2') || localStorage.getItem('pitlane-auth-v1') || '{}');
-        if (auth.session) return String(auth.session);
-      } catch (_) {}
-      return devicePilotId();
-    })();
+    const id = (mineId && !/^\+?\d{10,15}$/.test(String(mineId))) ? mineId : actingPilotId();
     const remoteRes = await remote('/crews?mine=' + encodeURIComponent(id));
     if (Array.isArray(remoteRes)) return remoteRes;
     try {
@@ -494,6 +496,31 @@ export const api = {
     const laps = localListLap(trackId);
     const board = localBuildSectorBoard(laps, sector == null || sector === 'all' ? null : Number(sector) | 0);
     return board;
+  },
+
+  /** GET /auth/config → { sms, telegram, telegramBotId } or null (offline / no Worker). */
+  async authConfig() {
+    const base = apiBase();
+    if (!base) return null;
+    if (typeof window !== 'undefined' && window.__PITLANE_AUTH_CONFIG) return window.__PITLANE_AUTH_CONFIG; // tests
+    const res = await remoteKeep('/auth/config');
+    if (res && typeof res.sms === 'boolean') return res;
+    return null;
+  },
+
+  /** POST /auth/telegram with the raw Login Widget payload. */
+  async telegramLogin(payload) {
+    return await remoteKeep('/auth/telegram', { method: 'POST', body: JSON.stringify(payload || {}) });
+  },
+
+  /** GET /me → { pilotId, nick, user } (auth required). */
+  async me() {
+    return await remoteKeep('/me');
+  },
+
+  /** DELETE /account → { ok, deleted } (auth required). */
+  async deleteAccount() {
+    return await remoteKeep('/account', { method: 'DELETE' });
   },
 
   /** GET /session/today → { trackId, title, date, tops, attendees } */

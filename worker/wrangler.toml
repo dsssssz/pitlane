@@ -1,13 +1,25 @@
+# Canonical Worker config. Deploy from this directory:
+#   cd worker && npx wrangler@3.114.17 deploy
 name = "pitlane-api"
 main = "src/index.js"
-compatibility_date = "2026-09-01"
+compatibility_date = "2024-09-01"
+account_id = "dc344532c11330ddd28198123f1bf95f"
+workers_dev = true
 
-# Create KV: wrangler kv namespace create PITLANE
-# then put the id here:
-# [[kv_namespaces]]
-# binding = "PITLANE"
-# id = "YOUR_KV_ID"
+[[kv_namespaces]]
+binding = "PITLANE"
+id = "fc7e076d77824da184e7314c2fb3ff1b"
 
 [vars]
+# Production: SMS demo MUST stay "0" (demo OTP codes only for local dev).
+SMS_DEMO = "0"
+# Telegram bot username without @ (display only; login works from the TELEGRAM_BOT_TOKEN secret).
+# Replace after creating the bot in @BotFather, e.g. "pitlane_login_bot".
+TELEGRAM_BOT_USERNAME = "YOUR_BOT_USERNAME"
 # optional comma-separated extra origins
 # EXTRA_ORIGINS = "http://127.0.0.1:5174"
+
+# Secrets (never in git):  npx wrangler@3.114.17 secret put <NAME>
+#   TWILIO_SID / TWILIO_TOKEN / TWILIO_FROM  — SMS login
+#   TELEGRAM_BOT_TOKEN                       — Telegram login (from @BotFather)
+#   ADMIN_TOKEN                              — enables POST /admin/migrate-pilots (delete after use)

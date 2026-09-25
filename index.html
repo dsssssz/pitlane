@@ -274,6 +274,7 @@
           <h2 data-i18n="run.title">Замер</h2>
           <p class="run-car-name" id="runCarName">BMW G87 M2 Widebody</p>
           <p class="muted" data-i18n="run.hint">Старт → почти стой → газуй. Fusion GPS+IMU сглаживает спидометр; времена появляются снизу по ходу.</p>
+          <p class="tiny safety-line">Только треки и закрытые площадки. Не отвлекайтесь на телефон за рулём.</p>
           <div class="speedo card" id="runIdleCard">
             <div class="speed-num" id="liveSpeed">0</div>
             <div class="speed-unit">км/ч · GPS <span id="gpsAcc">—</span></div>
@@ -486,23 +487,35 @@
           </article>
           <!-- Audio: JaimeLopes «Lambo Start Up Sound» Freesound #564373 — CC0 -->
           <form id="authForm" class="card auth-card" onsubmit="event.preventDefault();">
-            <h3 data-i18n="acc.login">Вход по SMS</h3>
-            <p class="muted" data-i18n="acc.hint">Телефон → код из SMS. Аккаунт и ник сохраняются.</p>
-            <div id="authStepPhone">
-              <label>телефон <input id="authPhone" name="phone" type="tel" required placeholder="+7 900 000-00-00" autocomplete="tel" /></label>
-              <label>ник (опционально) <input id="authNick" name="nick" type="text" maxlength="24" placeholder="как в топе" autocomplete="nickname" /></label>
-              <p class="tiny" id="authMsg"></p>
-              <button type="button" id="btnSendSms" class="go-btn">Получить код</button>
+            <h3 data-i18n="acc.login">Вход</h3>
+            <p class="muted" data-i18n="acc.hint">Аккаунт хранит ник, гараж и результаты в топах.</p>
+            <div id="authProviders" class="auth-providers">
+              <button type="button" id="btnTgLogin" class="go-btn auth-tg-btn hidden">
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.2 13.1l-4.8-1.5c-1-.3-1-1 .2-1.5l18.9-7.3c.9-.3 1.6.2 1.4 1.5z"/></svg>
+                <span>Войти через Telegram</span>
+              </button>
+              <button type="button" id="btnSmsToggle" class="auth-alt-btn hidden">Войти по SMS</button>
+              <p class="tiny auth-none hidden" id="authNone">Вход временно недоступен: сервер входа ещё не настроен. Замеры, гараж и история работают без аккаунта.</p>
+              <p class="tiny" id="authMsgTop"></p>
             </div>
-            <div id="authStepCode" class="hidden">
-              <p class="tiny">Код отправлен на <strong id="authPhoneShow">—</strong></p>
-              <label>код из SMS <input id="authCode" name="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="1234" autocomplete="one-time-code" /></label>
-              <p class="tiny" id="authMsg2"></p>
-              <div class="form-row">
-                <button type="button" id="btnVerifySms" class="go-btn">OK</button>
-                <button type="button" id="btnSmsBack">Назад</button>
+            <div id="authSmsBox" class="auth-sms-box hidden">
+              <div id="authStepPhone">
+                <label>телефон <input id="authPhone" name="phone" type="tel" required placeholder="+7 900 000-00-00" autocomplete="tel" /></label>
+                <label>ник (опционально) <input id="authNick" name="nick" type="text" maxlength="24" placeholder="как в топе" autocomplete="nickname" /></label>
+                <p class="tiny" id="authMsg"></p>
+                <button type="button" id="btnSendSms" class="go-btn">Получить код</button>
+              </div>
+              <div id="authStepCode" class="hidden">
+                <p class="tiny">Код отправлен на <strong id="authPhoneShow">—</strong></p>
+                <label>код из SMS <input id="authCode" name="code" type="text" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="1234" autocomplete="one-time-code" /></label>
+                <p class="tiny" id="authMsg2"></p>
+                <div class="form-row">
+                  <button type="button" id="btnVerifySms" class="go-btn">OK</button>
+                  <button type="button" id="btnSmsBack">Назад</button>
+                </div>
               </div>
             </div>
+            <p class="tiny auth-legal">Входя, вы принимаете <a href="./terms.html">Соглашение</a> и <a href="./privacy.html">Политику конфиденциальности</a>.</p>
           </form>
           <p class="muted" id="accPhoneStatus">не вошли</p>
           <p class="tiny demo-banner hidden" id="accDemoBanner">режим демо · SMS не подключён</p>
@@ -517,6 +530,13 @@
           <button type="button" id="btnProSoon" class="btn-pro-soon">пока бесплатно</button>
           <p class="tiny acc-method"><a class="method-link" href="./method.html">Методика измерений и топов</a></p>
           <button type="button" id="btnLogout">Выйти</button>
+          <nav class="acc-legal" aria-label="Документы">
+            <a href="./privacy.html">Политика конфиденциальности</a>
+            <a href="./terms.html">Пользовательское соглашение</a>
+            <a href="./offer.html">Оферта Pro</a>
+            <a href="./delete-account.html">Удаление аккаунта</a>
+          </nav>
+          <button type="button" id="btnDeleteAccount" class="btn-danger hidden">Удалить аккаунт</button>
         </section>
         </div>
       </main>
@@ -736,6 +756,43 @@
       </div>
     </div>
 
+
+    <div id="safetySheet" class="pit-help race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Безопасность">
+      <div class="pit-help-inner race-sheet-inner">
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <p class="race-sheet-kicker">Перед первым замером</p>
+          <h2 class="pit-help-title race-sheet-title">Безопасность</h2>
+        </header>
+        <div class="pit-help-body">
+          <p>Разгоны и круги — <strong>только на треках и закрытых площадках</strong>. Не соревнуйтесь на дорогах общего пользования.</p>
+          <p>Закрепите телефон заранее и <strong>не отвлекайтесь на него за рулём</strong> — замер запишется сам.</p>
+          <p class="tiny muted">Вы отвечаете за соблюдение ПДД и правил площадки. <a class="method-link" href="./terms.html">Соглашение</a></p>
+        </div>
+        <button type="button" class="go-btn race-cta" id="safetyOk">Понятно</button>
+        <button type="button" class="auth-alt-btn" id="safetyCancel">Не сейчас</button>
+      </div>
+    </div>
+
+    <div id="deleteSheet" class="pit-help race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Удаление аккаунта">
+      <div class="pit-help-inner race-sheet-inner">
+        <button type="button" class="share-card-close" id="deleteClose" aria-label="Закрыть">×</button>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <p class="race-sheet-kicker">Аккаунт</p>
+          <h2 class="pit-help-title race-sheet-title danger-title">Удалить аккаунт</h2>
+        </header>
+        <div class="pit-help-body">
+          <p>С сервера будут удалены: аккаунт и способы входа, ник и фото, ваши результаты в топах (разгоны, круги, секторы), посты и лайки в Пэддоке, участие в экипажах и дуэлях, синхронизированный гараж.</p>
+          <p class="tiny muted">На этом устройстве останутся гараж, 3D-настройки и история замеров — они не привязаны к аккаунту. <a class="method-link" href="./delete-account.html">Подробнее</a></p>
+          <label class="delete-confirm">Для подтверждения введите <b>УДАЛИТЬ</b>
+            <input id="deleteConfirmInput" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="УДАЛИТЬ" />
+          </label>
+          <p class="tiny" id="deleteMsg"></p>
+        </div>
+        <button type="button" class="btn-danger race-cta" id="deleteConfirmBtn" disabled>Удалить навсегда</button>
+      </div>
+    </div>
 
     <div id="pitHelpSheet" class="pit-help race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Справка">
       <div class="pit-help-inner race-sheet-inner">
