@@ -15,7 +15,7 @@ id = "fc7e076d77824da184e7314c2fb3ff1b"
 SMS_DEMO = "0"
 # Telegram bot username without @ (display only; login works from the TELEGRAM_BOT_TOKEN secret).
 # Replace after creating the bot in @BotFather, e.g. "pitlane_login_bot".
-TELEGRAM_BOT_USERNAME = "YOUR_BOT_USERNAME"
+TELEGRAM_BOT_USERNAME = "pitlane_official_bot"
 # optional comma-separated extra origins
 # EXTRA_ORIGINS = "http://127.0.0.1:5174"
 
