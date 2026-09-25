@@ -316,3 +316,58 @@ npx wrangler@3.114.17 deploy
 ### Worker deploy log (v76, 2026-09-26)
 Deployed wrangler@3.114.17 from `worker/`. Code version `779e8a9a-7e1e-4cf8-bde1-ab94e61d0ac7`; after temporary `ADMIN_TOKEN` put/delete the active version is `0f124317-148c-4c8a-812e-a37e5600ba25` (same code). Secrets on Worker: none (no Twilio, no Telegram, ADMIN_TOKEN removed). `SMS_DEMO="0"`.
 Production migration (dry + run + re-run): prod KV had 13 keys (crew/crewinv/crewidx/duel/duelidx test data with non-phone ids) → `phonesFound: 0`, all counters 0. Live: `/auth/config` → `{"sms":false,"telegram":false}`, `/auth/telegram` → 503, `/admin/migrate-pilots` → 404, `DELETE /account` without session → 401; public tops/pulse/duel/crew responses contain no phone-like strings.
+
+## 21. Telegram Mini App (SW v77)
+
+Pitlane открывается как Mini App внутри Telegram (тот же сайт `https://dsssssz.github.io/pitlane/`, тот же аккаунт).
+
+### 21.1 Что работает внутри Telegram
+- **Определение среды** (`tma.js`): SDK `telegram-web-app.js` лежит у нас (`vendor/`, telegram.org в РФ тормозит) и грузится **только** если страница похожа на Telegram (hash `tgWebAppData`, `sessionStorage.__telegram__initParams`, `TelegramWebviewProxy` или `?tma=1`), с таймаутом 3,5 с. `isTMA` = есть `initData` или SDK сообщает реальную платформу. В обычном браузере/PWA SDK не загружается, ничего не меняется.
+- **Оформление**: `ready()`, `expand()`, `requestFullscreen()` (8.0+, только iOS/Android), `disableVerticalSwipes()` (7.7+ — вращение 3D-машины не закрывает приложение), цвета шапки/фона/нижней панели `#1a1a1a` (нижняя 7.10+). `safeAreaInset + contentSafeAreaInset` → CSS `--tma-top/--tma-bottom` → верхний бар и нижнее меню не залезают под кнопки Telegram.
+- **BackButton**: закрывает открытую шторку (дуэль, экипаж, шейр, автодромы, справка, удаление, безопасность), сворачивает экран круга, из вкладок возвращает в Бокс; скрыта во время активного замера.
+- **Подтверждение закрытия** включено, пока идёт замер разгона или track-day сессия.
+- **Вибро**: `HapticFeedback` вместо `navigator.vibrate` (на iOS WebView вибро нет); success на 0–100 и новом лучшем круге.
+- **3D**: Telegram-Android сообщает класс устройства в UA (`LOW/AVERAGE/HIGH`) → стартовая подсказка tier (LOW→low, AVERAGE→medium, берётся более низкий из GPU-эвристики и подсказки); финально решает замер FPS, как раньше.
+- **Вход**: тихий, без кнопки — `POST /auth/tma` с сырой `initData`. Та же учётка, что при входе через Telegram на сайте (`auth:tg:<id>` → `p_<uuid>`). Без токена бота Worker отвечает 503 и показывается обычное «Вход временно недоступен». Редирект на `oauth.telegram.org` внутри Mini App **не используется** (Bot API 10.2+: API Mini App работает только на исходном origin).
+- **Deep links** `t.me/<bot>?startapp=<param>`: `duel_<id>`, `crew_<id>`, `s_<id>` / `lap_<id>` / `run_<id>` (шейр-карточка), `track_<id>` (вкладка Круг + трасса), `tops_<track>` (Топы + трасса секторов), `diag` (страница диагностики). Параметр обрабатывается один раз за запуск.
+- **Шеринг**: дуэль/экипаж/результат → `WebApp.shareMessage` (8.0+) через `POST /tma/share-prepare` (Worker вызывает Bot API `savePreparedInlineMessage` с кнопкой «Открыть в PITLANE» → `t.me/<bot>?startapp=…`). Если нельзя (версия < 8.0, нет username бота, ошибка Bot API) — `openTelegramLink('https://t.me/share/url?url=…')` со ссылкой `t.me/<bot>?startapp=…`. `shareToStory` не сделан: нужна публичная https-картинка/видео, а шейр-карточка у нас рисуется на клиенте (canvas) — нужен хостинг медиа (R2) — отдельная задача.
+- **Оплаты**: по правилам Telegram цифровые товары в Mini App — только за Stars. Поэтому внутри Telegram скрыто ВСЁ про Pro/цены/триал/оферту: кнопка Pro, остаток триала, «trial ·/Pro ·» в статусе, пейволлы, ссылка «Оферта Pro» (в приложении и на юр. страницах), раздел 7 «Подписка Pro» в соглашении, фраза про подписку в политике; `offer.html` в Telegram показывает только заголовок и «не относится к версии в Telegram». Карточка «Добавить на Домой» тоже скрыта. Pro-доступ в будущем будет просто читаться из аккаунта.
+- **Внешние ссылки** внутри Mini App открываются через `openLink`/`openTelegramLink` — страница никогда не уходит на чужой origin.
+- **GPS**: основной источник — `navigator.geolocation.watchPosition`, как в PWA. При отказе в доступе — понятное сообщение на русском + «Открыть настройки» (`LocationManager.openSettings()`, 8.0+) / «Повторить». Экран не гаснет: `navigator.wakeLock`, если его нет — беззвучное зацикленное видео 2 КБ (`vendor/nosleep.mp4`, NoSleep-приём) на время замера; wake lock берётся заново при каждом старте и при возврате в приложение.
+- **Service Worker** на iOS внутри Telegram может отсутствовать — регистрация обёрнута, приложение работает без него (без офлайна).
+- **Web Bluetooth** в Mini App недоступен (в приложении и не используется).
+
+### 21.2 BotFather — что сделать Маге
+Можно использовать того же бота, что для входа на сайте (раздел 20.6), — тогда аккаунты совпадут автоматически.
+1. **@BotFather** → `/newbot` (если бота ещё нет) → имя «Pitlane» → username на `bot` (например `pitlane_app_bot`). Сохранить токен, никому не показывать.
+2. `/mybots` → бот → **Bot Settings → Configure Mini App → Enable Mini App** → URL: `https://dsssssz.github.io/pitlane/`.
+   - Флаг `?tma=1` **не нужен**: Telegram сам передаёт `tgWebAppData` в hash, по нему мы и определяем среду. Добавлять его можно для подстраховки (`https://dsssssz.github.io/pitlane/?tma=1` — принудительно пробует загрузить SDK), вреда нет, но и пользы в обычных клиентах нет.
+   - Там же: **Configure Splash Screen** — иконка Pitlane, цвет фона `#1a1a1a` для светлой и тёмной темы.
+3. **Кнопка меню** в чате с ботом: `/setmenubutton` → бот → отправить URL `https://dsssssz.github.io/pitlane/` → отправить название кнопки `PITLANE`.
+4. **Политика конфиденциальности**: `/mybots` → бот → **Edit Bot → Edit Privacy Policy** (в старых версиях — команда `/setprivacypolicy`, если есть) → `https://dsssssz.github.io/pitlane/privacy.html`. Сначала заполнить в ней плейсхолдеры (раздел 20.4).
+5. **Секреты Worker** (токен вводится в терминал, не в чат):
+   ```bash
+   cd worker
+   npx wrangler@3.114.17 secret put TELEGRAM_BOT_TOKEN
+   ```
+   и в `worker/wrangler.toml` поставить `TELEGRAM_BOT_USERNAME = "<username без @>"` → `npx wrangler@3.114.17 deploy`. Username нужен для ссылок `t.me/<bot>?startapp=…` и для `shareMessage`; без него шеринг внутри Telegram отправит обычную ссылку на сайт.
+6. Проверка: `curl https://pitlane-api.pitlane-taksimaga.workers.dev/auth/config` → `"tma":true`, `"telegramBot":"<username>"`, `"tmaShare":true`.
+
+### 21.3 Как тестировать
+- Открыть `https://t.me/<bot>?startapp` (или кнопку меню / «Открыть» в профиле бота) — приложение во весь экран, вход без кнопок (Аккаунт → «Telegram @ник»), нет ничего про Pro/оферту.
+- Deep links: `t.me/<bot>?startapp=duel_<id>`, `…=crew_<id>`, `…=track_sochi`, `…=tops_sochi`.
+- **Диагностика на iPhone до того, как доверять GPS**: открыть `https://t.me/<bot>?startapp=diag` — Mini App сразу откроет `tools/tma-check.html` (тот же origin). Либо временно поставить в Configure Mini App URL `https://dsssssz.github.io/pitlane/tools/tma-check.html`. Нажать «Старт GPS», 10–20 с под открытым небом (лучше в движении), «Взять wakeLock», «Проверить датчики» → «Скопировать отчёт» и прислать. Смотреть: частота (Гц за 10 с), точность, приходит ли поле `speed`, версия API, fullscreen/swipe, wakeLock, SW, WebGL GPU. В обычном браузере страница тоже работает (`https://dsssssz.github.io/pitlane/tools/tma-check.html`).
+- Без Telegram всё как раньше: SDK не грузится, Pro/оферта видны, вход через Telegram-редирект/SMS.
+
+### 21.4 Worker
+- `POST /auth/tma` `{initData}` (или сырая строка): `secret = HMAC_SHA256(key="WebAppData", msg=bot_token)`, `hash == hex(HMAC_SHA256(secret, data_check_string))` (все поля кроме `hash`, по алфавиту, `k=v` через `\n`), `auth_date` не старше 24 ч, `user.id` → `auth:tg:<id>` → та же сессия (`provider:"tma"`). Лимит 60 запросов / 15 мин с IP. Нет токена → 503.
+- `POST /tma/share-prepare` `{initData, param, text}` → `savePreparedInlineMessage` → `{id, link}`; `param` только `(duel|crew|lap|run|s|track|tops)_[A-Za-z0-9_-]`.
+- `/auth/config` добавил `tma` и `tmaShare`.
+- Тесты `cd worker && npm test`: валидная initData → тот же uuid, что у виджета; подделка, просрочка, другой бот, подпись по схеме виджета, пустая initData, нет user, нет токена; share-prepare с моком Bot API.
+- Заодно исправлен редкий баг: `containsPhone()` принимал непрозрачный `p_<uuid>` за телефон (10+ цифр через дефисы) → лайк мог пропасть при миграции (тест иногда падал).
+
+### 21.5 Риски
+- Реальное поведение GPS в iOS-Telegram (частота, `speed`) проверено только моками — сначала `startapp=diag` на iPhone.
+- `shareMessage` зависит от `savePreparedInlineMessage` (может потребовать включить inline-режим `/setinline`, если Bot API ответит ошибкой — тогда сработает фолбэк `t.me/share/url`).
+- NoSleep-видео на iOS может не запуститься без жеста пользователя (запускается по кнопке Старт — это жест).
+- В Telegram Desktop/Web fullscreen не запрашивается (только телефоны).

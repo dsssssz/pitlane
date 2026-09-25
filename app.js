@@ -1,3 +1,8 @@
+import {
+  isTMA, WebApp as TG, tmaInitData, tmaAtLeast, telegramDeviceClass, START_ROUTE, setupTmaChrome,
+  setBackHandler, showBack, setClosingGuard, tmaHaptic, canOpenLocationSettings, openLocationSettings,
+  tmaStartLink, tmaShare, keepAwake,
+} from './tma.js';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -11,6 +16,9 @@ import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilo
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
 let _authCfgAt = 0;
+let _tmaLogin = 'idle'; // TMA silent login: idle | pending | ok | failed | unconfigured
+if (isTMA) setupTmaChrome();
+else document.documentElement.classList.remove('tma');
 import {
   mountLapSatMap,
   unmountLapSatMap,
@@ -21,6 +29,11 @@ import {
 } from './track-sat-map.js';
 
 function hap(ms = 12) {
+  if (isTMA) {
+    // Telegram HapticFeedback (navigator.vibrate is unavailable in iOS WebViews)
+    const kind = Array.isArray(ms) ? (Math.max(...ms) >= 30 ? 'heavy' : 'medium') : (ms >= 18 ? 'medium' : (ms <= 10 ? 'select' : 'light'));
+    if (tmaHaptic(kind)) return;
+  }
   try { navigator.vibrate?.(ms); } catch (_) {}
 }
 document.addEventListener('click', (e) => {
@@ -1580,6 +1593,11 @@ const Q = (() => {
   st.gpu = qGpuString();
   st.tier = qTierFromGpu(st.gpu);
   st.source = st.stored ? 'stale→gpu' : 'gpu';
+  // Telegram for Android reports a device performance class in its UA: use it as an initial hint
+  // (take the lower of it and the GPU heuristic); the FPS measurement still has the final word.
+  const tgClass = telegramDeviceClass();
+  const hint = tgClass === 'LOW' ? 'low' : tgClass === 'AVERAGE' ? 'medium' : null;
+  if (hint && Q_TIERS.indexOf(hint) > Q_TIERS.indexOf(st.tier)) { st.tier = hint; st.source += '+tg:' + tgClass; }
   return st;
 })();
 function qPreset() { return Q_PRESETS[Q.tier] || Q_PRESETS.high; }
@@ -3018,6 +3036,7 @@ function onGpsPoint(pos) {
     setRunText('slipHero', `${sec.toFixed(2)}s`);
     revealRunMark('0100', '0–100', fmtRunSec(sec));
     run.saved0100 = true;
+    tmaHaptic('success');
     void publishGps(sec, t100 && t200 ? (t200 - t100) / 1000 : null, t200 && t300 ? (t300 - t200) / 1000 : null);
   }
   if (run.marks['d18'] && !run.saved18) {
@@ -3065,17 +3084,68 @@ function startWatch() {
   }
   if (run.watchId != null) return;
   run.watchId = navigator.geolocation.watchPosition(
-    onGpsPoint,
-    (err) => setRunText('runStatus', err.message || 'Нет доступа к GPS'),
+    (pos) => { hideGeoDenied(); onGpsPoint(pos); },
+    (err) => {
+      if (err && err.code === 1) {
+        // PERMISSION_DENIED: stop polling, explain in Russian, offer the settings shortcut.
+        stopGeoWatch();
+        const msg = 'Нет доступа к геолокации — разрешите её в настройках';
+        setRunText('runStatus', msg);
+        try { setLapMsg(msg); } catch (_) {}
+        showGeoDenied();
+        return;
+      }
+      // TIMEOUT / POSITION_UNAVAILABLE are transient while watching — keep going.
+      setRunText('runStatus', err?.code === 3 ? 'Ищем спутники… выйдите под открытое небо' : 'GPS временно недоступен — ждём сигнал');
+    },
     { enableHighAccuracy: true, maximumAge: 0, timeout: 2500 }
   );
   if (run.pollId) clearInterval(run.pollId);
   run.pollId = setInterval(() => {
     navigator.geolocation.getCurrentPosition(onGpsPoint, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 1800 });
   }, 400);
-  navigator.wakeLock?.request?.('screen').then((l) => { run.wake = l; }).catch(() => {});
+  // Screen Wake Lock; where it's missing (older iOS WebViews, Telegram) fall back to a muted looping video.
+  void keepAwake(true);
   setRunText('runStatus', 'Запрос разрешения на геолокацию…');
 }
+
+function stopGeoWatch() {
+  try { if (run.watchId != null) navigator.geolocation.clearWatch(run.watchId); } catch (_) {}
+  run.watchId = null;
+  if (run.pollId) clearInterval(run.pollId);
+  run.pollId = null;
+}
+
+function showGeoDenied() {
+  const box = document.getElementById('geoDenied');
+  if (!box) return;
+  const settings = document.getElementById('geoDeniedSettings');
+  const txt = document.getElementById('geoDeniedText');
+  const canSettings = canOpenLocationSettings();
+  settings?.classList.toggle('hidden', !canSettings);
+  if (txt) {
+    txt.textContent = isTMA
+      ? (canSettings
+        ? 'Без GPS замер и круг не работают. Нажмите «Открыть настройки» и разрешите Telegram доступ к геопозиции, затем «Повторить».'
+        : 'Без GPS замер и круг не работают. Разрешите Telegram доступ к геопозиции в настройках телефона (Настройки → Telegram → Геопозиция → «При использовании»), затем «Повторить».')
+      : 'Без GPS замер и круг не работают. Разрешите доступ к геопозиции для этого сайта в настройках браузера, затем «Повторить».';
+  }
+  box.classList.remove('hidden');
+}
+function hideGeoDenied() {
+  document.getElementById('geoDenied')?.classList.add('hidden');
+}
+document.getElementById('geoDeniedClose')?.addEventListener('click', hideGeoDenied);
+document.addEventListener('visibilitychange', () => {
+  // Wake locks are dropped when the page is hidden — take it back if a measurement is still running.
+  if (document.visibilityState === 'visible' && (run.armed || lapRun.active)) void keepAwake(true);
+});
+document.getElementById('geoDeniedSettings')?.addEventListener('click', () => { openLocationSettings(); });
+document.getElementById('geoDeniedRetry')?.addEventListener('click', () => {
+  hideGeoDenied();
+  stopGeoWatch();
+  startWatch();
+});
 
 function armRun() {
   resetSpeedFilter();
@@ -3085,6 +3155,7 @@ function armRun() {
 
   hap([18, 40, 18]);
   startWatch();
+  void keepAwake(true); // re-acquire each arm (the watch may already be running from a previous run)
   run.armed = true;
   run.launched = false;
   run.samples = [];
@@ -3115,6 +3186,7 @@ function stopRun() {
   run.launched = false;
   // keep GPS watch for live speed on idle card
   try { run.wake?.release?.(); } catch (_) {}
+  if (!lapRun.active) void keepAwake(false);
   setRunText('runStatus', 'Готово. Можно снова Старт');
   setRunText('runDriveMsg', 'замер записан · закрой или новый Старт');
 }
@@ -3884,6 +3956,7 @@ function armLapRun() {
 
   hap([18, 40, 18]);
   startWatch();
+  void keepAwake(true); // re-acquire each arm (the watch may already be running from a previous run)
   const trackId = document.getElementById('trackSelect')?.value || lapRun.trackId || TRACKS[0].id;
   if (!TRACK_GEO[trackId]) {
     setLapMsg('у трассы нет координат С/Ф');
@@ -3927,6 +4000,7 @@ function endLapSession(reason) {
   lapRun.active = false;
   resetLapRunSoft();
   lapSession.on = false;
+  if (!run.armed) void keepAwake(false);
   const msg = n
     ? `сессия: ${n} круг.${validN ? ` чистых ${validN}` : ''} · лучший ${best}`
     : (reason || 'сессия пустая');
@@ -4037,6 +4111,7 @@ async function completeLapRun(how, atTs) {
   if (valid && (lapSession.bestMs == null || ms < lapSession.bestMs)) {
     lapSession.bestMs = ms;
     lapSession.bestValid = true;
+    tmaHaptic('success');
   }
 
   if (valid) {
@@ -4458,7 +4533,10 @@ document.getElementById('btnSectorTopsFromBattle')?.addEventListener('click', ()
 document.getElementById('topValidOnly')?.addEventListener('change', () => { void renderTops(); });
 document.getElementById('topModelFilter')?.addEventListener('change', () => { void renderTops(); });
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js');
+if ('serviceWorker' in navigator) {
+  // Not available in some WebViews (e.g. Telegram on iOS) — the app works without it.
+  try { navigator.serviceWorker.register('./sw.js').catch((err) => console.info('[pitlane] SW not registered:', err?.message || err)); } catch (_) {}
+}
 renderSlips();
 
 
@@ -4657,6 +4735,11 @@ async function shareResult(payload) {
   } catch (_) {}
   const title = 'PITLANE';
   const text = shareTextRu(p);
+  if (isTMA) {
+    const sid = (url.match(/[?&]s=([^&#]+)/) || [])[1];
+    await shareViaTelegram(sid ? 's_' + decodeURIComponent(sid) : '', url, text);
+    return;
+  }
   try {
     if (navigator.share) {
       await navigator.share({ title, text, url });
@@ -4709,6 +4792,7 @@ document.getElementById('shareCardBtn')?.addEventListener('click', () => { void 
 document.getElementById('shareCardCopy')?.addEventListener('click', async () => {
   if (!_sharePayload) return;
   const url = sharePublicUrl(_sharePayload);
+  if (isTMA) { await shareViaTelegram('', url, shareTextRu(_sharePayload)); return; }
   try { await navigator.clipboard.writeText(url); hap(16); } catch (_) {}
 });
 
@@ -4719,6 +4803,7 @@ function canSeeFullHistory() {
 }
 
 function toastSoon() {
+  if (isTMA) return; // no pricing talk inside the Telegram Mini App
   hap(10);
   const el = document.getElementById('accPlan') || document.getElementById('pulseMsg');
   if (el) {
@@ -4900,7 +4985,7 @@ function refreshAccount() {
   document.getElementById('btnDeleteAccount')?.classList.toggle('hidden', !getSessionToken() || String(getSessionToken()).startsWith('local-'));
   const plan = document.getElementById('accPlan');
   if (plan) {
-    plan.textContent = (isPro(u) ? ('Pro · ') : ('trial · ')) + 'аккаунт сохранён';
+    plan.textContent = isTMA ? 'аккаунт сохранён' : ((isPro(u) ? ('Pro · ') : ('trial · ')) + 'аккаунт сохранён');
   }
   const trialEl = document.getElementById('accTrialLeft');
   if (trialEl) {
@@ -5315,7 +5400,9 @@ async function refreshAuthProviders(force) {
     _authCfg = undefined; // retry next time
     return;
   }
-  const tg = !!(cfg.telegram && cfg.telegramBotId);
+  const tmaAvail = !!(isTMA && cfg.tma && tmaInitData);
+  // In TMA the button only appears as a manual retry after a failed silent login.
+  const tg = isTMA ? (tmaAvail && _tmaLogin === 'failed') : !!(cfg.telegram && cfg.telegramBotId);
   const sms = !!cfg.sms;
   tgBtn.classList.toggle('hidden', !tg);
   if (tg && sms) {
@@ -5327,7 +5414,7 @@ async function refreshAuthProviders(force) {
     smsBtn.classList.add('hidden');
     smsBox.classList.add('hidden');
   }
-  if (!tg && !sms) {
+  if (!tg && !sms && !tmaAvail) {
     none.textContent = 'Вход временно недоступен: сервер входа ещё не настроен. Замеры, гараж и история работают без аккаунта.';
     none.classList.remove('hidden');
   } else {
@@ -5346,6 +5433,8 @@ document.getElementById('btnSmsToggle')?.addEventListener('click', () => {
 });
 
 document.getElementById('btnTgLogin')?.addEventListener('click', () => {
+  // Inside the Mini App: no oauth.telegram.org redirect (would leave our origin) — re-validate initData instead.
+  if (isTMA) { void tmaAutoLogin(true); return; }
   const id = _authCfg && _authCfg.telegramBotId;
   if (!id) { void refreshAuthProviders(true); return; }
   const back = new URL(location.href);
@@ -5392,6 +5481,132 @@ async function finishTelegramReturn() {
 void finishTelegramReturn();
 void refreshAuthProviders();
 document.querySelector('[data-view="account"]')?.addEventListener('click', () => { void refreshAuthProviders(); });
+
+/* -------- v77: Telegram Mini App — silent login, sharing, BackButton, closing guard, start_param -------- */
+
+/** Silent login from the signed initData (same account as the site's Telegram login: auth:tg:<id>). */
+async function tmaAutoLogin(manual) {
+  if (!isTMA || !tmaInitData || !isRemoteApi()) return;
+  const tgId = String(TG?.initDataUnsafe?.user?.id || '');
+  const u = currentUser();
+  const tok = getSessionToken();
+  const realSession = !!(u && tok && !String(tok).startsWith('local-'));
+  // Keep an existing session unless it belongs to a different Telegram user (account switch in Telegram).
+  if (!manual && realSession && (!u.tgUserId || u.tgUserId === tgId)) { _tmaLogin = 'ok'; return; }
+  _tmaLogin = 'pending';
+  setAuthTopMsg('Входим через Telegram…');
+  const res = await api.tmaLogin(tmaInitData);
+  if (res && res.ok && res.token && res.pilotId) {
+    const nu = completeLogin({
+      pilotId: res.pilotId,
+      token: res.token,
+      user: res.user,
+      nick: res.nick,
+      provider: 'telegram',
+      tgUsername: res.user?.telegram?.username || TG?.initDataUnsafe?.user?.username || null,
+      photoUrl: res.user?.photoUrl || null,
+    });
+    if (nu) { nu.tgUserId = String(res.tgUserId || tgId); saveAuth(); }
+    _tmaLogin = 'ok';
+    setAuthTopMsg('');
+    refreshAccount();
+    try { applyCarUI(); } catch (_) {}
+    return;
+  }
+  _tmaLogin = res?.status === 503 ? 'unconfigured' : 'failed';
+  if (res?.status === 503) setAuthTopMsg('');
+  else if (res?.error === 'auth expired') setAuthTopMsg('Данные Telegram устарели — закройте и откройте мини-приложение заново.');
+  else if (res?.status === 429) setAuthTopMsg('Слишком много попыток — подождите 15 минут.');
+  else if (res?.status) setAuthTopMsg('Telegram не подтвердил вход — нажмите «Войти через Telegram».');
+  else setAuthTopMsg('Нет связи с сервером — вход не выполнен. Замеры и гараж работают офлайн.');
+  void refreshAuthProviders(true);
+}
+
+async function ensureAuthCfg() {
+  if (_authCfg === undefined || Date.now() - _authCfgAt > 60000) {
+    _authCfgAt = Date.now();
+    _authCfg = await api.authConfig();
+  }
+  return _authCfg || null;
+}
+
+/** t.me/<bot>?startapp=<param> inside Telegram (bot username from /auth/config), else the web URL. */
+function publicLinkFor(param, webUrl) {
+  if (!isTMA || !param) return webUrl;
+  return tmaStartLink(_authCfg?.telegramBot, param) || webUrl;
+}
+
+/** Share inside Telegram: prepared inline message (WebApp.shareMessage) → fallback t.me/share/url. */
+async function shareViaTelegram(param, webUrl, text) {
+  const cfg = await ensureAuthCfg();
+  const link = (param && tmaStartLink(cfg?.telegramBot, param)) || webUrl;
+  const canPrepare = !!(param && cfg?.tmaShare && tmaInitData && link !== webUrl);
+  hap(16);
+  await tmaShare({
+    url: link,
+    text,
+    prepare: canPrepare ? async () => {
+      const r = await api.tmaSharePrepare(tmaInitData, param, String(text || 'PITLANE'));
+      return r && r.ok && r.id ? r.id : null;
+    } : null,
+  });
+}
+
+if (isTMA) {
+  void ensureAuthCfg().then(() => tmaAutoLogin(false));
+
+  // BackButton: close the top-most sheet / overlay, otherwise go back to the garage.
+  const SHEETS = [
+    ['safetySheet', 'safetyCancel'], ['deleteSheet', 'deleteClose'], ['pitHelpSheet', 'pitHelpClose'],
+    ['shareCard', 'shareCardClose'], ['duelSheet', 'duelSheetClose'], ['crewSheet', 'crewSheetClose'],
+    ['autodromeSheet', 'autodromeSheetClose'],
+  ];
+  const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
+  const closeSheet = (id, btnId) => {
+    const btn = document.getElementById(btnId) || document.querySelector('#' + id + ' [data-close], #' + id + ' .race-sheet-close, #' + id + ' button[aria-label="Закрыть"]');
+    if (btn) btn.click();
+    else { const el = document.getElementById(id); el?.classList.add('hidden'); el?.setAttribute('aria-hidden', 'true'); }
+  };
+  const backTarget = () => {
+    if (visible('geoDenied')) return () => hideGeoDenied();
+    for (const [id, btn] of SHEETS) if (visible(id)) return () => closeSheet(id, btn);
+    if (visible('runDrive')) return run.armed ? null : () => closeRunDrive();
+    if (visible('lapDrive')) return () => document.getElementById('lapDriveCancel')?.click();
+    const active = document.querySelector('.view.active');
+    if (active && active.id !== 'view-garage') return () => goToView('garage');
+    return null;
+  };
+  setBackHandler(() => { const fn = backTarget(); if (fn) fn(); syncTmaChrome(); });
+  const syncTmaChrome = () => {
+    showBack(!!backTarget());
+    setClosingGuard(!!(run.armed || lapRun.active));
+  };
+  let _syncQueued = false;
+  new MutationObserver(() => {
+    if (_syncQueued) return;
+    _syncQueued = true;
+    requestAnimationFrame(() => { _syncQueued = false; syncTmaChrome(); });
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  setInterval(syncTmaChrome, 1000);
+  syncTmaChrome();
+}
+
+/** start_param routes that need app state (track selection) — URL-level ones were rewritten in tma.js. */
+if (START_ROUTE && (START_ROUTE.kind === 'track' || START_ROUTE.kind === 'tops')) {
+  setTimeout(() => {
+    try {
+      const pick = (selId) => {
+        const sel = document.getElementById(selId);
+        if (!sel || ![...sel.options].some((o) => o.value === START_ROUTE.id)) return false;
+        sel.value = START_ROUTE.id;
+        sel.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      };
+      if (START_ROUTE.kind === 'track') { goToView('lap', { sfx: false }); pick('trackSelect'); }
+      else { goToView('tops', { sfx: false }); pick('sectorTopTrackSelect'); }
+    } catch (err) { console.warn('start_param route', err); }
+  }, 900);
+}
 
 /* —— account deletion —— */
 function openDeleteSheet() {
@@ -7553,7 +7768,7 @@ async function createDuelFromUi() {
     // leave manual attach — user taps button; optional auto:
   }
   try {
-    await navigator.clipboard.writeText(duelPublicUrl(duel.id));
+    await navigator.clipboard.writeText(publicLinkFor('duel_' + duel.id, duelPublicUrl(duel.id)));
   } catch (_) {}
   await refreshDuelList();
 }
@@ -7625,6 +7840,7 @@ document.querySelectorAll('[data-duel-type]').forEach((b) => {
 document.getElementById('duelCreateBtn')?.addEventListener('click', () => { void createDuelFromUi(); });
 document.getElementById('duelCopyLink')?.addEventListener('click', async () => {
   if (!_activeDuel?.id) return;
+  if (isTMA) { await shareViaTelegram('duel_' + _activeDuel.id, duelPublicUrl(_activeDuel.id), 'PITLANE · вызов на дуэль'); return; }
   try {
     await navigator.clipboard.writeText(duelPublicUrl(_activeDuel.id));
     hap(16);
@@ -7860,7 +8076,7 @@ async function createCrewFromUi() {
   rememberCrewId(crew.id);
   hap(18);
   await showCrewView(crew.id);
-  try { await navigator.clipboard.writeText(crewPublicUrl(crew.id)); } catch (_) {}
+  try { await navigator.clipboard.writeText(publicLinkFor('crew_' + crew.id, crewPublicUrl(crew.id))); } catch (_) {}
   await refreshCrewList();
 }
 
@@ -8171,6 +8387,7 @@ document.getElementById('crewCreateBtn')?.addEventListener('click', () => { void
 document.getElementById('crewJoinBtn')?.addEventListener('click', () => { void joinCrewByCodeUi(); });
 document.getElementById('crewCopyLink')?.addEventListener('click', async () => {
   if (!_activeCrew?.id) return;
+  if (isTMA) { await shareViaTelegram('crew_' + _activeCrew.id, crewPublicUrl(_activeCrew.id), 'PITLANE · вступай в экипаж'); return; }
   try { await navigator.clipboard.writeText(crewPublicUrl(_activeCrew.id)); hap(16); } catch (_) {}
 });
 document.getElementById('crewCopyCode')?.addEventListener('click', async () => {

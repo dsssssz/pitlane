@@ -105,6 +105,8 @@ function isPhoneLike(v) {
 
 /** Text contains something that looks like a phone number. */
 function containsPhone(v) {
+  // opaque account ids (p_<uuid>) can contain 10+ digits across dashes — never treat them as phones
+  if (isPilotUuid(String(v || ''))) return false;
   return /(?:\+?\d[\s\-()]?){10,}/.test(String(v || ''));
 }
 
@@ -1033,6 +1035,104 @@ async function verifyTelegramAuth(data, botToken, opts = {}) {
   };
 }
 
+/**
+ * Verify Telegram Mini App initData (https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app):
+ * data_check_string = all fields except `hash` (and `signature` is kept, per spec only `hash` is excluded), sorted "k=v" joined by "\n";
+ * secret_key = HMAC_SHA256(key="WebAppData", msg=bot_token); valid iff hex(HMAC_SHA256(key=secret_key, msg=dcs)) == hash.
+ */
+async function verifyTmaInitData(initData, botToken, opts = {}) {
+  const maxAgeSec = opts.maxAgeSec || 86400;
+  const nowSec = opts.nowSec || Math.floor(Date.now() / 1000);
+  if (!botToken) return { ok: false, error: 'Telegram not configured', status: 503 };
+  if (typeof initData !== 'string' || !initData || initData.length > 8192) return { ok: false, error: 'bad initData', status: 400 };
+  let params;
+  try { params = new URLSearchParams(initData); } catch (_) { return { ok: false, error: 'bad initData', status: 400 }; }
+  const hash = String(params.get('hash') || '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(hash)) return { ok: false, error: 'bad hash', status: 401 };
+  const pairs = [];
+  for (const [k, v] of params.entries()) if (k !== 'hash') pairs.push([k, v]);
+  if (pairs.length > 32) return { ok: false, error: 'bad initData', status: 400 };
+  pairs.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const dcs = pairs.map(([k, v]) => k + '=' + v).join('\n');
+  const enc = new TextEncoder();
+  const k1 = await crypto.subtle.importKey('raw', enc.encode('WebAppData'), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const secret = await crypto.subtle.sign('HMAC', k1, enc.encode(String(botToken)));
+  const k2 = await crypto.subtle.importKey('raw', secret, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = bytesToHex(await crypto.subtle.sign('HMAC', k2, enc.encode(dcs)));
+  if (!timingSafeEqualStr(sig, hash)) return { ok: false, error: 'bad hash', status: 401 };
+  const authDate = Number(params.get('auth_date'));
+  if (!Number.isFinite(authDate) || authDate <= 0) return { ok: false, error: 'bad auth_date', status: 401 };
+  if (nowSec - authDate > maxAgeSec) return { ok: false, error: 'auth expired', status: 401 };
+  if (authDate - nowSec > 300) return { ok: false, error: 'bad auth_date', status: 401 };
+  let user = null;
+  try { user = JSON.parse(params.get('user') || 'null'); } catch (_) { user = null; }
+  const id = user && user.id != null ? String(user.id) : '';
+  if (!/^\d{1,20}$/.test(id)) return { ok: false, error: 'no user', status: 400 };
+  const photo = String(user.photo_url || '');
+  return {
+    ok: true,
+    id,
+    username: user.username ? String(user.username).replace(/[^\w]/g, '').slice(0, 32) : null,
+    firstName: user.first_name ? String(user.first_name).slice(0, 48) : null,
+    lastName: user.last_name ? String(user.last_name).slice(0, 48) : null,
+    photoUrl: /^https:\/\/[\w.-]*(telegram\.org|t\.me|telesco\.pe)\//i.test(photo) && photo.length <= 500 ? photo : null,
+    startParam: String(params.get('start_param') || '').slice(0, 64) || null,
+    authDate,
+  };
+}
+
+/** Shared by /auth/telegram (login widget) and /auth/tma (Mini App): same `auth:tg:<id>` → same pilot uuid. */
+async function loginTelegramUser(env, v, provider) {
+  const { pilot: rec, created } = await ensurePilotForProvider(env.PITLANE, 'tg', v.id, {
+    nick: v.username || [v.firstName, v.lastName].filter(Boolean).join(' '),
+    photoUrl: v.photoUrl,
+  });
+  const prov = (rec.providers || []).find((x) => x.type === 'tg');
+  if (prov) prov.username = v.username || null;
+  if (v.photoUrl && (!rec.photoRef || created)) rec.photoRef = v.photoUrl;
+  rec.lastLogin = Date.now();
+  await savePilot(env.PITLANE, rec);
+  const token = await issueSession(env.PITLANE, rec, provider);
+  return { ok: true, token, pilotId: rec.id, nick: rec.nick, provider, created, user: ownerUser(rec) };
+}
+
+const TMA_PARAM_RE = /^(duel|crew|lap|run|s|track|tops)_[A-Za-z0-9_-]{1,56}$/;
+
+/** Bot API savePreparedInlineMessage → id for WebApp.shareMessage(). */
+async function prepareTmaShare(env, v, body) {
+  const tg = telegramConfig(env);
+  const param = String(body?.param || '');
+  if (!TMA_PARAM_RE.test(param)) return { status: 400, data: { ok: false, error: 'bad param' } };
+  if (!tg.username) return { status: 503, data: { ok: false, error: 'bot username not configured' } };
+  const text = String(body?.text || 'PITLANE').replace(/[<>]/g, '').slice(0, 600);
+  const link = 'https://t.me/' + tg.username + '?startapp=' + encodeURIComponent(param);
+  const result = {
+    type: 'article',
+    id: ('p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)).slice(0, 64),
+    title: String(body?.title || 'PITLANE').slice(0, 64),
+    description: text.split('\n')[0].slice(0, 120),
+    input_message_content: { message_text: text + '\n' + link },
+    reply_markup: { inline_keyboard: [[{ text: 'Открыть в PITLANE', url: link }]] },
+  };
+  const f = (env.__fetch || fetch);
+  let res;
+  try {
+    res = await f('https://api.telegram.org/bot' + env.TELEGRAM_BOT_TOKEN + '/savePreparedInlineMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: Number(v.id), result,
+        allow_user_chats: true, allow_bot_chats: false, allow_group_chats: true, allow_channel_chats: true,
+      }),
+    });
+  } catch (_) {
+    return { status: 502, data: { ok: false, error: 'telegram unreachable', link } };
+  }
+  const data = await res.json().catch(() => null);
+  if (!data?.ok || !data.result?.id) return { status: 502, data: { ok: false, error: 'telegram: ' + String(data?.description || res.status).slice(0, 120), link } };
+  return { status: 200, data: { ok: true, id: data.result.id, link } };
+}
+
 /* ———————————————————— KV scan helpers ———————————————————— */
 
 async function kvListAll(kv, prefix, limit = 20000) {
@@ -1370,8 +1470,9 @@ async function migratePilots(kv, { dry = false } = {}) {
         r.who = fixName(r.who, null, r.pilotId);
         changed = true;
       }
-      if (Array.isArray(r.likes) && r.likes.some((l) => isPhoneLike(l) || containsPhone(l))) {
+      if (Array.isArray(r.likes) && r.likes.some((l) => !isPilotUuid(l) && (isPhoneLike(l) || containsPhone(l)))) {
         r.likes = r.likes.map((l) => {
+          if (isPilotUuid(l)) return l;
           if (isPhoneLike(l)) { rep.pulseLikes++; return mapId(l) || null; }
           if (containsPhone(l)) { rep.unmappedDropped++; return null; }
           return l;
@@ -1567,6 +1668,8 @@ export default {
             telegram: tg.enabled,
             telegramBot: tg.enabled ? tg.username : null,
             telegramBotId: tg.enabled ? tg.botId : null,
+            tma: tg.enabled,
+            tmaShare: tg.enabled && !!tg.username,
           },
           200,
           headers
@@ -1585,21 +1688,28 @@ export default {
         const payload = body && typeof body === 'object' && body.auth && typeof body.auth === 'object' ? body.auth : body;
         const v = await verifyTelegramAuth(payload, env.TELEGRAM_BOT_TOKEN);
         if (!v.ok) return json({ ok: false, error: v.error }, v.status || 401, headers);
-        const { pilot: rec, created } = await ensurePilotForProvider(env.PITLANE, 'tg', v.id, {
-          nick: v.username || [v.firstName, v.lastName].filter(Boolean).join(' '),
-          photoUrl: v.photoUrl,
-        });
-        const prov = (rec.providers || []).find((x) => x.type === 'tg');
-        if (prov) prov.username = v.username || null;
-        if (v.photoUrl && (!rec.photoRef || created)) rec.photoRef = v.photoUrl;
-        rec.lastLogin = Date.now();
-        await savePilot(env.PITLANE, rec);
-        const token = await issueSession(env.PITLANE, rec, 'telegram');
-        return json(
-          { ok: true, token, pilotId: rec.id, nick: rec.nick, provider: 'telegram', created, user: ownerUser(rec) },
-          200,
-          headers
-        );
+        return json(await loginTelegramUser(env, v, 'telegram'), 200, headers);
+      }
+
+      // —— Telegram Mini App: raw initData → same account as /auth/telegram ——
+      if (req.method === 'POST' && (path === '/auth/tma' || path === '/tma/share-prepare')) {
+        const tg = telegramConfig(env);
+        if (!tg.enabled) return json({ ok: false, error: 'Telegram not configured' }, 503, headers);
+        const ip = clientIp(req);
+        if (await rateHit(env.PITLANE, 'rl:tma:ip:' + ip, 60, 900)) {
+          return json({ ok: false, error: 'rate limit', retry: 900 }, 429, headers);
+        }
+        const body = await req.json().catch(() => null);
+        const initData = typeof body === 'string' ? body : body?.initData;
+        const v = await verifyTmaInitData(initData, env.TELEGRAM_BOT_TOKEN);
+        if (!v.ok) return json({ ok: false, error: v.error }, v.status || 401, headers);
+        if (path === '/auth/tma') {
+          const out = await loginTelegramUser(env, v, 'tma');
+          out.tgUserId = v.id;
+          return json(out, 200, headers);
+        }
+        const r = await prepareTmaShare(env, v, body);
+        return json(r.data, r.status, headers);
       }
 
       // —— Own account ——

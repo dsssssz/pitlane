@@ -513,6 +513,16 @@ export const api = {
     return await remoteKeep('/auth/telegram', { method: 'POST', body: JSON.stringify(payload || {}) });
   },
 
+  /** POST /auth/tma with the raw Mini App initData string (server validates HMAC). */
+  async tmaLogin(initData) {
+    return await remoteKeep('/auth/tma', { method: 'POST', body: JSON.stringify({ initData: String(initData || '') }) });
+  },
+
+  /** POST /tma/share-prepare → { id } for WebApp.shareMessage (Bot API savePreparedInlineMessage). */
+  async tmaSharePrepare(initData, param, text) {
+    return await remoteKeep('/tma/share-prepare', { method: 'POST', body: JSON.stringify({ initData: String(initData || ''), param, text }) });
+  },
+
   /** GET /me → { pilotId, nick, user } (auth required). */
   async me() {
     return await remoteKeep('/me');

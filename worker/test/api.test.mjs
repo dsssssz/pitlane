@@ -153,6 +153,55 @@ ok(r.data.user.providers.includes('tg') && r.data.user.telegram.username === 'iv
 r = await call(tenv, 'POST', '/crew/join', { token: tokTg, body: { code: 'ABCDEF', nick: 'Иван' } });
 ok(r.status === 200, 'tg user joins crew c1');
 
+console.log('\n[5b] Telegram Mini App initData');
+function tmaInit(fields, token = BOT_TOKEN) {
+  const dcs = Object.keys(fields).sort().map((k) => `${k}=${fields[k]}`).join('\n');
+  const secret = crypto.createHmac('sha256', 'WebAppData').update(token).digest();
+  const hash = crypto.createHmac('sha256', secret).update(dcs).digest('hex');
+  return new URLSearchParams({ ...fields, hash }).toString();
+}
+const tmaUser = JSON.stringify({ id: 555000111, first_name: 'Иван', username: 'ivan_racer', language_code: 'ru', allows_write_to_pm: true });
+const tmaFields = { query_id: 'AAHdF6IQAAAAAN0XohDhrOrc', user: tmaUser, auth_date: String(nowSec), signature: 'abc', start_param: 'duel_d1' };
+r = await call(mkEnv(), 'POST', '/auth/tma', { body: { initData: tmaInit(tmaFields) } });
+ok(r.status === 503 && r.data.error === 'Telegram not configured', 'tma: no secret → 503');
+r = await call(tenv, 'GET', '/auth/config');
+ok(r.data.tma === true && r.data.tmaShare === false, '/auth/config tma:true, tmaShare:false (placeholder username)');
+r = await call(mkEnv(), 'GET', '/auth/config');
+ok(r.data.tma === false, '/auth/config tma:false without token');
+r = await call(tenv, 'POST', '/auth/tma', { body: { initData: tmaInit(tmaFields) } });
+ok(r.status === 200 && r.data.pilotId === uuidTg && r.data.provider === 'tma' && r.data.tgUserId === '555000111' && r.data.token, 'valid initData → SAME uuid as login widget (' + r.data.pilotId + ')');
+const tokTma = r.data.token;
+r = await call(tenv, 'GET', '/me', { token: tokTma });
+ok(r.status === 200 && r.data.pilotId === uuidTg, 'tma session works for /me');
+r = await call(tenv, 'POST', '/auth/tma', { body: tmaInit(tmaFields) });
+ok(r.status === 200 && r.data.pilotId === uuidTg, 'raw string body accepted too');
+const forged = tmaInit(tmaFields).replace(encodeURIComponent('Иван'), encodeURIComponent('Хакер'));
+r = await call(tenv, 'POST', '/auth/tma', { body: { initData: forged } });
+ok(r.status === 401 && r.data.error === 'bad hash', 'forged user → 401 bad hash');
+r = await call(tenv, 'POST', '/auth/tma', { body: { initData: tmaInit({ ...tmaFields, auth_date: String(nowSec - 90000) }) } });
+ok(r.status === 401 && r.data.error === 'auth expired', 'expired auth_date → 401');
+r = await call(tenv, 'POST', '/auth/tma', { body: { initData: tmaInit(tmaFields, '999:OtherBotTokenOtherBotToken12345') } });
+ok(r.status === 401 && r.data.error === 'bad hash', 'other bot → 401');
+// login-widget style signature (SHA256 key) must NOT be accepted as initData
+const wl = { ...tmaFields }; const wlDcs = Object.keys(wl).sort().map((k) => `${k}=${wl[k]}`).join('\n');
+const wlHash = crypto.createHmac('sha256', crypto.createHash('sha256').update(BOT_TOKEN).digest()).update(wlDcs).digest('hex');
+r = await call(tenv, 'POST', '/auth/tma', { body: { initData: new URLSearchParams({ ...wl, hash: wlHash }).toString() } });
+ok(r.status === 401, 'widget-scheme hash rejected for initData');
+r = await call(tenv, 'POST', '/auth/tma', { body: { initData: '' } });
+ok(r.status === 400, 'empty initData → 400');
+r = await call(tenv, 'POST', '/auth/tma', { body: { initData: tmaInit({ auth_date: String(nowSec), query_id: 'x' }) } });
+ok(r.status === 400 && r.data.error === 'no user', 'no user field → 400');
+// share-prepare with mocked Bot API
+let sent = null;
+const senv = mkEnv({ TELEGRAM_BOT_TOKEN: BOT_TOKEN, TELEGRAM_BOT_USERNAME: 'pitlane_test_bot', __fetch: async (url, init) => { sent = { url, body: JSON.parse(init.body) }; return new Response(JSON.stringify({ ok: true, result: { id: 'PREP1', expiration_date: nowSec + 3600 } })); } });
+r = await call(senv, 'POST', '/tma/share-prepare', { body: { initData: tmaInit(tmaFields), param: 'duel_d1', text: 'Дуэль' } });
+ok(r.status === 200 && r.data.id === 'PREP1' && r.data.link === 'https://t.me/pitlane_test_bot?startapp=duel_d1', 'share-prepare → prepared id + startapp link');
+ok(sent && sent.url.endsWith('/savePreparedInlineMessage') && sent.body.user_id === 555000111 && sent.body.result.reply_markup.inline_keyboard[0][0].url.includes('startapp=duel_d1'), 'Bot API called with user_id + startapp button');
+r = await call(senv, 'POST', '/tma/share-prepare', { body: { initData: tmaInit(tmaFields), param: '../evil' } });
+ok(r.status === 400, 'bad share param → 400');
+r = await call(senv, 'POST', '/tma/share-prepare', { body: { initData: forged, param: 'duel_d1' } });
+ok(r.status === 401, 'share-prepare needs valid initData');
+
 console.log('\n[6] DELETE /account');
 r = await call(env, 'DELETE', '/account');
 ok(r.status === 401, 'no session → 401');

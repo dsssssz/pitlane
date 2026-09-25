@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1a1a1a" />
+    <script>try{if(/tgWebAppData|tgWebAppVersion/.test(location.hash)||sessionStorage.getItem("pitlane-tma")==="1")document.documentElement.classList.add("tma")}catch(e){}</script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -794,6 +795,14 @@
       </div>
     </div>
 
+    <div id="geoDenied" class="geo-denied hidden" role="alert">
+      <p><strong>Нет доступа к геолокации.</strong> <span id="geoDeniedText">Без GPS замер и круг не работают.</span></p>
+      <div class="row">
+        <button type="button" id="geoDeniedSettings" class="hidden">Открыть настройки</button>
+        <button type="button" id="geoDeniedRetry">Повторить</button>
+        <button type="button" id="geoDeniedClose" class="ghost">Закрыть</button>
+      </div>
+    </div>
     <div id="pitHelpSheet" class="pit-help race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Справка">
       <div class="pit-help-inner race-sheet-inner">
         <button type="button" class="share-card-close" id="pitHelpClose" aria-label="Закрыть">×</button>

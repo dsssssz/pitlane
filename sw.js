@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v76';
+const CACHE = 'pitlane-v77';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -11,6 +11,7 @@ const CORE = [
   './terms.html',
   './offer.html',
   './delete-account.html',
+  './tools/tma-check.html',
   './legal.css',
   './styles.css',
   './app.js',
@@ -20,6 +21,8 @@ const CORE = [
   './vendor/leaflet/leaflet.js',
   './vendor/leaflet/leaflet.css',
   './api.js',
+  './tma.js',
+  './vendor/telegram-web-app.js',
   './manifest.json',
   './favicon.svg',
   './img/icon-192.png',
@@ -118,6 +121,7 @@ self.addEventListener('fetch', (e) => {
     p.includes('/duel') ||
     p.includes('/crew') ||
     p.includes('/session') ||
+    p.endsWith('.mp4') || e.request.headers.has('range') ||
     (url.origin !== self.location.origin && (p === '/me' || p === '/account' || p.startsWith('/admin'))) ||
     url.hostname.includes('arcgisonline.com') ||
     url.hostname.includes('tile.openstreetmap.org') ||

@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#1a1a1a" />
+<title>Pitlane · проверка Telegram Mini App</title>
+<link rel="icon" href="../favicon.svg" type="image/svg+xml" />
+<style>
+  :root { color-scheme: dark; --neon: #39FF14; --bad: #ff5a4f; --warn: #ffcf40; --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #1a1a1a; color: #eee; }
+  body { font: 500 17px/1.45 Manrope, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; padding: calc(max(var(--sat), var(--tma-top, 0px)) + 14px) 14px calc(max(var(--sab), var(--tma-bottom, 0px)) + 110px); }
+  h1 { font: 800 28px/1.1 "Barlow Condensed", Manrope, sans-serif; letter-spacing: .05em; text-transform: uppercase; color: var(--neon); margin: 4px 0 4px; text-shadow: 0 0 18px rgba(57,255,20,.25); }
+  .sub { color: #999; font-size: 14px; margin: 0 0 14px; }
+  .card { background: linear-gradient(165deg, #262626 0%, #1d1d1d 70%); border: 1px solid rgba(57,255,20,.25); border-radius: 18px; padding: 12px 14px; margin: 0 0 12px; }
+  .card h2 { font: 800 15px/1.2 Manrope, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: #bdbdbd; margin: 2px 0 8px; }
+  .row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid rgba(255,255,255,.06); align-items: baseline; }
+  .row:first-of-type { border-top: 0; }
+  .k { color: #aaa; font-size: 15px; flex: 0 1 50%; }
+  .v { font-weight: 800; text-align: right; word-break: break-word; flex: 1 1 50%; font-variant-numeric: tabular-nums; }
+  .ok { color: var(--neon); } .bad { color: var(--bad); } .warn { color: var(--warn); } .dim { color: #888; font-weight: 600; }
+  .big { font-size: 30px; }
+  button { appearance: none; min-height: 52px; border-radius: 14px; border: 1px solid var(--neon); background: #696969; color: var(--neon); font: 800 15px/1 Manrope, sans-serif; letter-spacing: .06em; text-transform: uppercase; padding: 0 16px; cursor: pointer; }
+  button.ghost { background: transparent; border-color: #555; color: #ccc; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .btns button { flex: 1 1 140px; }
+  .footer { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 14px calc(max(var(--sab), var(--tma-bottom, 0px)) + 10px); background: rgba(26,26,26,.94); border-top: 1px solid rgba(57,255,20,.25); display: flex; gap: 8px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .footer button { flex: 1; min-height: 56px; font-size: 16px; }
+  textarea { width: 100%; min-height: 160px; background: #111; color: #ddd; border: 1px solid #444; border-radius: 12px; padding: 10px; font: 12px/1.4 ui-monospace, Menlo, monospace; }
+  .hidden { display: none !important; }
+  .note { color: #999; font-size: 13px; margin: 8px 0 0; }
+</style>
+</head>
+<body>
+  <h1>Проверка Mini App</h1>
+  <p class="sub">Pitlane · что умеет этот телефон внутри Telegram. Нажмите «Старт GPS», пройдитесь/проедьте 10–20 секунд под открытым небом, затем «Скопировать отчёт».</p>
+
+  <section class="card" id="cEnv"><h2>Среда</h2></section>
+  <section class="card" id="cSupportWrap"><div id="cSupport"></div>
+    <div class="btns"><button type="button" id="fsBtn" class="ghost">Тест полного экрана</button></div>
+  </section>
+  <section class="card" id="cGps"><h2>GPS (watchPosition)</h2>
+    <div id="gpsRows"></div>
+    <div class="btns">
+      <button type="button" id="gpsStart">Старт GPS</button>
+      <button type="button" id="gpsStop" class="ghost">Стоп</button>
+      <button type="button" id="gpsSettings" class="ghost hidden">Настройки геопозиции</button>
+    </div>
+    <p class="note">Для замера разгона нужно ≥ 5 Гц и точность ≤ 10 м. На iPhone Safari обычно ~1 Гц; главное — есть ли поле speed.</p>
+  </section>
+  <section class="card" id="cWake"><h2>Экран не гаснет</h2>
+    <div id="wakeRows"></div>
+    <div class="btns">
+      <button type="button" id="wakeGet">Взять wakeLock</button>
+      <button type="button" id="wakeVideo" class="ghost">Тест видео-фолбэка</button>
+    </div>
+  </section>
+  <section class="card" id="cStore"><h2>Хранилище и офлайн</h2></section>
+  <section class="card" id="cGfx"><h2>Графика</h2></section>
+  <section class="card" id="cSens"><h2>Датчики движения</h2>
+    <div id="sensRows"></div>
+    <div class="btns"><button type="button" id="sensTest">Проверить датчики (3 с)</button></div>
+  </section>
+  <section class="card hidden" id="cReport"><h2>Отчёт</h2><textarea id="reportText" readonly></textarea></section>
+
+  <div class="footer">
+    <button type="button" id="copyBtn">Скопировать отчёт</button>
+    <button type="button" id="backBtn" class="ghost">В приложение</button>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+  var R = {}; // report values: section → [[label, value]]
+  var $ = function (id) { return document.getElementById(id); };
+  function esc(s) { return String(s).replace(/[&<>]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]; }); }
+  function yn(b) { return b ? 'да' : 'нет'; }
+  function cls(v) { if (v === true || v === 'да') return 'ok'; if (v === false || v === 'нет') return 'bad'; return ''; }
+  function setRows(hostId, section, rows) {
+    var host = $(hostId);
+    R[section] = rows;
+    var html = rows.map(function (r) {
+      var val = r[1], c = r[2] != null ? r[2] : cls(val);
+      if (val === true) val = 'да'; if (val === false) val = 'нет';
+      if (val == null || val === '') { val = '—'; c = 'dim'; }
+      return '<div class="row"><span class="k">' + esc(r[0]) + '</span><span class="v ' + c + (r[3] ? ' big' : '') + '">' + esc(val) + '</span></div>';
+    }).join('');
+    var h2 = host.querySelector('h2');
+    if (h2) { host.innerHTML = ''; host.appendChild(h2); host.insertAdjacentHTML('beforeend', html); }
+    else host.innerHTML = html;
+  }
+
+  function loadSdk(cb) {
+    if (window.Telegram && window.Telegram.WebApp) return cb();
+    var done = false, s = document.createElement('script');
+    var fin = function () { if (!done) { done = true; cb(); } };
+    s.src = '../vendor/telegram-web-app.js'; s.async = true; s.onload = s.onerror = fin;
+    setTimeout(fin, 4000);
+    document.head.appendChild(s);
+  }
+
+  loadSdk(function () {
+    var W = window.Telegram && window.Telegram.WebApp;
+    var initData = W && typeof W.initData === 'string' ? W.initData : '';
+    var isTMA = !!(W && (initData.length > 0 || (W.platform && W.platform !== 'unknown')));
+    var at = function (v) { try { return !!(isTMA && W.isVersionAtLeast(v)); } catch (e) { return false; } };
+    var m = String(navigator.userAgent).match(/Telegram-Android\/[\d.]+\s*\([^)]*;\s*(LOW|AVERAGE|HIGH)\)/i);
+    var devClass = m ? m[1].toUpperCase() : (/iPhone|iPad/.test(navigator.userAgent) ? 'нет (iOS не сообщает)' : 'нет');
+
+    function applyInsets() {
+      if (!isTMA) return;
+      var sa = W.safeAreaInset || {}, ca = W.contentSafeAreaInset || {};
+      document.documentElement.style.setProperty('--tma-top', ((+sa.top || 0) + (+ca.top || 0)) + 'px');
+      document.documentElement.style.setProperty('--tma-bottom', ((+sa.bottom || 0) + (+ca.bottom || 0)) + 'px');
+      renderEnv();
+    }
+    if (isTMA) {
+      try { W.ready(); W.expand(); } catch (e) {}
+      try { if (at('6.1')) { W.setHeaderColor('#1a1a1a'); W.setBackgroundColor('#1a1a1a'); } } catch (e) {}
+      try { if (at('7.10')) W.setBottomBarColor('#1a1a1a'); } catch (e) {}
+      try { if (at('7.7')) W.disableVerticalSwipes(); } catch (e) {}
+      ['safeAreaChanged', 'contentSafeAreaChanged', 'fullscreenChanged', 'viewportChanged'].forEach(function (ev) { try { W.onEvent(ev, applyInsets); } catch (e) {} });
+      try { if (at('6.1')) { W.BackButton.show(); W.BackButton.onClick(goBack); } } catch (e) {}
+      setTimeout(applyInsets, 0);
+    }
+    function goBack() { location.href = '../index.html'; }
+    $('backBtn').onclick = goBack;
+
+    function ins(o) { o = o || {}; return 'в' + (o.top | 0) + ' н' + (o.bottom | 0) + ' л' + (o.left | 0) + ' п' + (o.right | 0); }
+    function renderEnv() {
+      var u = null; try { u = W && W.initDataUnsafe && W.initDataUnsafe.user; } catch (e) {}
+      setRows('cEnv', 'Среда', [
+        ['Внутри Telegram (isTMA)', isTMA, null, true],
+        ['initData (подпись)', initData ? ('есть, ' + initData.length + ' симв.') : 'нет', initData ? 'ok' : 'bad'],
+        ['Пользователь TG', u ? ((u.username ? '@' + u.username : u.first_name || '') + ' · id ' + u.id) : ''],
+        ['Версия WebApp API', W ? W.version : 'SDK не загрузился', W ? (at('8.0') ? 'ok' : 'warn') : 'bad'],
+        ['Платформа', W ? W.platform : ''],
+        ['Класс устройства (Android)', devClass, m ? 'ok' : 'dim'],
+        ['start_param', (W && W.initDataUnsafe && W.initDataUnsafe.start_param) || ''],
+        ['Полноэкранный сейчас', isTMA ? (W.isFullscreen ? 'да' : 'нет') : '', ''],
+        ['safeAreaInset', isTMA ? ins(W.safeAreaInset) : ''],
+        ['contentSafeAreaInset', isTMA ? ins(W.contentSafeAreaInset) : ''],
+        ['Окно', innerWidth + '×' + innerHeight + ' @' + (devicePixelRatio || 1) + 'x'],
+        ['User-Agent', navigator.userAgent, 'dim'],
+      ]);
+    }
+    renderEnv();
+
+    $('fsBtn').onclick = function () {
+      try { if (at('8.0')) { if (W.isFullscreen) W.exitFullscreen(); else W.requestFullscreen(); } else $('fsBtn').textContent = 'нужен API 8.0+'; } catch (e) { $('fsBtn').textContent = 'ошибка'; }
+      setTimeout(renderEnv, 800);
+    };
+    $('cSupportWrap').insertAdjacentHTML('afterbegin', '<h2>Функции Telegram</h2>');
+    setRows('cSupport', 'Функции Telegram', [
+      ['requestFullscreen (8.0+)', at('8.0') && typeof W.requestFullscreen === 'function'],
+      ['disableVerticalSwipes (7.7+)', at('7.7')],
+      ['Цвет нижней панели (7.10+)', at('7.10')],
+      ['BackButton (6.1+)', at('6.1')],
+      ['Подтверждение закрытия (6.2+)', at('6.2')],
+      ['HapticFeedback (6.1+)', at('6.1') && !!W.HapticFeedback],
+      ['LocationManager (8.0+)', at('8.0') && !!W.LocationManager],
+      ['shareMessage (8.0+)', at('8.0') && typeof W.shareMessage === 'function'],
+      ['shareToStory (7.8+)', at('7.8')],
+      ['DeviceStorage (9.0+)', at('9.0') && !!W.DeviceStorage],
+      ['Акселерометр TG (8.0+)', at('8.0') && !!W.Accelerometer],
+    ]);
+    if (at('6.1') && W.HapticFeedback) { try { W.HapticFeedback.impactOccurred('light'); } catch (e) {} }
+
+    /* ---------- GPS ---------- */
+    var g = { id: null, n: 0, times: [], last: null, err: '', speedSeen: false, speedNullN: 0, perm: '', started: 0, bestAcc: null };
+    function gpsRender() {
+      var now = Date.now();
+      g.times = g.times.filter(function (t) { return now - t <= 10000; });
+      var span = g.times.length > 1 ? (g.times[g.times.length - 1] - g.times[0]) / 1000 : 0;
+      var hz = span > 0 ? (g.times.length - 1) / span : 0;
+      var c = g.last && g.last.coords;
+      var acc = c ? c.accuracy : null;
+      setRows('gpsRows', 'GPS', [
+        ['Разрешение', g.perm || '—', g.perm === 'granted' ? 'ok' : g.perm === 'denied' ? 'bad' : ''],
+        ['Обновлений', g.id != null || g.n ? String(g.n) : '', '', true],
+        ['Частота (последние 10 с)', g.n ? hz.toFixed(2) + ' Гц' : '', hz >= 5 ? 'ok' : hz >= 0.9 ? 'warn' : 'bad', true],
+        ['Точность', acc != null ? Math.round(acc) + ' м' + (g.bestAcc != null ? ' (лучшая ' + Math.round(g.bestAcc) + ')' : '') : '', acc == null ? '' : acc <= 10 ? 'ok' : acc <= 25 ? 'warn' : 'bad'],
+        ['Поле speed приходит', g.n ? (g.speedSeen ? 'да' : 'нет (null ×' + g.speedNullN + ')') : '', g.n ? (g.speedSeen ? 'ok' : 'bad') : ''],
+        ['Скорость', c && c.speed != null ? (c.speed * 3.6).toFixed(1) + ' км/ч' : ''],
+        ['Курс / высота', c ? ((c.heading != null && !isNaN(c.heading) ? Math.round(c.heading) + '°' : '—') + ' / ' + (c.altitude != null ? Math.round(c.altitude) + ' м' : '—')) : ''],
+        ['Возраст последней точки', g.last ? (now - g.lastAt) + ' мс' : ''],
+        ['Ошибка', g.err, g.err ? 'bad' : ''],
+      ]);
+    }
+    function permCheck() {
+      try {
+        navigator.permissions.query({ name: 'geolocation' }).then(function (p) { g.perm = p.state; gpsRender(); p.onchange = function () { g.perm = p.state; gpsRender(); }; }, function () {});
+      } catch (e) {}
+    }
+    permCheck();
+    gpsRender();
+    setInterval(function () { if (g.id != null) gpsRender(); }, 500);
+    if (at('8.0') && W.LocationManager) $('gpsSettings').classList.remove('hidden');
+    $('gpsSettings').onclick = function () {
+      try { var LM = W.LocationManager; if (LM.isInited) LM.openSettings(); else LM.init(function () { LM.openSettings(); }); } catch (e) {}
+    };
+    $('gpsStart').onclick = function () {
+      if (!navigator.geolocation) { g.err = 'navigator.geolocation отсутствует'; gpsRender(); return; }
+      if (g.id != null) return;
+      g.err = ''; g.started = Date.now();
+      g.id = navigator.geolocation.watchPosition(function (pos) {
+        g.n++; g.last = pos; g.lastAt = Date.now(); g.times.push(g.lastAt); g.err = '';
+        var c = pos.coords;
+        if (c.speed != null && !isNaN(c.speed)) g.speedSeen = true; else g.speedNullN++;
+        if (c.accuracy != null && (g.bestAcc == null || c.accuracy < g.bestAcc)) g.bestAcc = c.accuracy;
+        if (!g.perm || g.perm === 'prompt') g.perm = 'granted';
+      }, function (err) {
+        g.err = (err.code === 1 ? 'доступ запрещён' : err.code === 2 ? 'позиция недоступна' : err.code === 3 ? 'таймаут' : '') + (err.message ? ' · ' + err.message : '');
+        if (err.code === 1) g.perm = 'denied';
+        gpsRender();
+      }, { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 });
+      gpsRender();
+    };
+    $('gpsStop').onclick = function () { if (g.id != null) navigator.geolocation.clearWatch(g.id); g.id = null; gpsRender(); };
+
+    /* ---------- wake ---------- */
+    var wk = { lock: null, state: '', video: '' };
+    function wakeRender() {
+      setRows('wakeRows', 'Экран', [
+        ['navigator.wakeLock', 'wakeLock' in navigator],
+        ['Статус wakeLock', wk.state, wk.state === 'активен' ? 'ok' : wk.state ? 'bad' : ''],
+        ['Видео-фолбэк (NoSleep)', wk.video, wk.video === 'играет' ? 'ok' : wk.video ? 'bad' : ''],
+      ]);
+    }
+    wakeRender();
+    $('wakeGet').onclick = function () {
+      if (!navigator.wakeLock) { wk.state = 'не поддерживается'; wakeRender(); return; }
+      navigator.wakeLock.request('screen').then(function (l) {
+        wk.lock = l; wk.state = 'активен'; wakeRender();
+        l.addEventListener('release', function () { wk.state = 'отпущен'; wakeRender(); });
+      }, function (e) { wk.state = 'ошибка: ' + (e && e.name || e); wakeRender(); });
+    };
+    $('wakeVideo').onclick = function () {
+      var v = document.createElement('video');
+      v.muted = true; v.loop = true; v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+      v.src = '../vendor/nosleep.mp4';
+      v.style.cssText = 'position:fixed;width:1px;height:1px;opacity:.01;left:-10px;bottom:0';
+      document.body.appendChild(v);
+      v.play().then(function () { wk.video = 'играет'; wakeRender(); }, function (e) { wk.video = 'ошибка: ' + (e && e.name || e); wakeRender(); });
+    };
+
+    /* ---------- storage / SW ---------- */
+    function storeTest(st) { try { var k = '__pl_test'; st.setItem(k, '1'); var ok = st.getItem(k) === '1'; st.removeItem(k); return ok; } catch (e) { return false; } }
+    var store = { ds: at('9.0') && W.DeviceStorage ? 'проверяем…' : 'нет', cs: at('6.9') && W.CloudStorage ? 'проверяем…' : 'нет', sw: '', swCtl: !!(navigator.serviceWorker && navigator.serviceWorker.controller) };
+    function storeRender() {
+      setRows('cStore', 'Хранилище', [
+        ['localStorage', storeTest(window.localStorage)],
+        ['sessionStorage', storeTest(window.sessionStorage)],
+        ['IndexedDB', 'indexedDB' in window],
+        ['Telegram DeviceStorage (9.0+)', store.ds, store.ds === 'работает' ? 'ok' : store.ds === 'нет' ? 'bad' : 'warn'],
+        ['Telegram CloudStorage (6.9+)', store.cs, store.cs === 'работает' ? 'ok' : store.cs === 'нет' ? 'bad' : 'warn'],
+        ['Service Worker API', 'serviceWorker' in navigator],
+        ['Регистрация SW', store.sw],
+        ['SW управляет страницей', store.swCtl],
+      ]);
+    }
+    storeRender();
+    try {
+      if (store.ds !== 'нет') W.DeviceStorage.setItem('pl_test', '1', function (err) {
+        if (err) { store.ds = 'ошибка: ' + err; storeRender(); return; }
+        W.DeviceStorage.getItem('pl_test', function (e2, v) { store.ds = !e2 && v === '1' ? 'работает' : 'ошибка чтения'; storeRender(); });
+      });
+    } catch (e) { store.ds = 'ошибка'; }
+    try {
+      if (store.cs !== 'нет') W.CloudStorage.setItem('pl_test', '1', function (err) { store.cs = err ? 'ошибка: ' + err : 'работает'; storeRender(); });
+    } catch (e) { store.cs = 'ошибка'; }
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+        navigator.serviceWorker.getRegistrations().then(function (r) { store.sw = r.length ? ('есть (' + r.length + ')') : 'нет'; storeRender(); }, function (e) { store.sw = 'ошибка: ' + (e && e.name); storeRender(); });
+      } else store.sw = 'нет API';
+    } catch (e) { store.sw = 'ошибка'; }
+
+    /* ---------- WebGL ---------- */
+    (function () {
+      var rows = [];
+      try {
+        var c = document.createElement('canvas');
+        var gl2 = c.getContext('webgl2');
+        var gl = gl2 || c.getContext('webgl');
+        rows.push(['WebGL', gl ? (gl2 ? 'WebGL 2' : 'WebGL 1') : 'нет', gl ? 'ok' : 'bad']);
+        if (gl) {
+          var ext = gl.getExtension('WEBGL_debug_renderer_info');
+          rows.push(['GPU', ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)]);
+          rows.push(['Вендор', ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR)]);
+          rows.push(['Макс. текстура', String(gl.getParameter(gl.MAX_TEXTURE_SIZE))]);
+          var lose = gl.getExtension('WEBGL_lose_context'); if (lose) lose.loseContext();
+        }
+      } catch (e) { rows.push(['WebGL', 'ошибка: ' + e.message, 'bad']); }
+      var q = null; try { q = JSON.parse(localStorage.getItem('pitlane-quality-v1') || 'null'); } catch (e) {}
+      rows.push(['Tier 3D в приложении', q && q.tier ? q.tier : 'ещё не измерен']);
+      rows.push(['Web Bluetooth', 'bluetooth' in navigator]);
+      setRows('cGfx', 'Графика', rows);
+    })();
+
+    /* ---------- sensors ---------- */
+    var sn = { ori: '', mot: '', tgAcc: '' };
+    function sensRender() {
+      setRows('sensRows', 'Датчики', [
+        ['DeviceOrientationEvent', 'DeviceOrientationEvent' in window],
+        ['DeviceMotionEvent', 'DeviceMotionEvent' in window],
+        ['Нужен запрос разрешения (iOS)', !!(window.DeviceMotionEvent && DeviceMotionEvent.requestPermission) ? 'да' : 'нет', ''],
+        ['Generic Sensor Accelerometer', 'Accelerometer' in window],
+        ['События ориентации (3 с)', sn.ori],
+        ['События движения (3 с)', sn.mot],
+        ['Акселерометр Telegram', sn.tgAcc],
+      ]);
+    }
+    sensRender();
+    $('sensTest').onclick = function () {
+      var o = 0, mo = 0, hz = '';
+      var fo = function () { o++; }, fm = function () { mo++; };
+      var run = function () {
+        addEventListener('deviceorientation', fo); addEventListener('devicemotion', fm);
+        sn.ori = sn.mot = 'слушаем…'; sensRender();
+        if (at('8.0') && W.Accelerometer) {
+          var n = 0, h = function () { n++; };
+          try {
+            W.onEvent('accelerometerChanged', h);
+            W.Accelerometer.start({ refresh_rate: 60 }, function (ok) { if (!ok) sn.tgAcc = 'не запустился'; });
+            setTimeout(function () { try { W.Accelerometer.stop(); W.offEvent('accelerometerChanged', h); } catch (e) {} sn.tgAcc = n ? (n / 3).toFixed(0) + ' Гц' : (sn.tgAcc || 'нет событий'); sensRender(); }, 3000);
+          } catch (e) { sn.tgAcc = 'ошибка'; }
+        } else sn.tgAcc = 'нет (нужен 8.0+)';
+        setTimeout(function () {
+          removeEventListener('deviceorientation', fo); removeEventListener('devicemotion', fm);
+          sn.ori = o ? (o / 3).toFixed(0) + ' Гц' : 'нет событий';
+          sn.mot = mo ? (mo / 3).toFixed(0) + ' Гц' : 'нет событий';
+          sensRender();
+        }, 3000);
+      };
+      var perms = [];
+      if (window.DeviceMotionEvent && DeviceMotionEvent.requestPermission) perms.push(DeviceMotionEvent.requestPermission());
+      if (window.DeviceOrientationEvent && DeviceOrientationEvent.requestPermission) perms.push(DeviceOrientationEvent.requestPermission());
+      Promise.all(perms).then(run, function (e) { sn.ori = sn.mot = 'разрешение отклонено'; sensRender(); run(); });
+    };
+
+    /* ---------- report ---------- */
+    function reportText() {
+      gpsRender();
+      var out = ['PITLANE · проверка Mini App · ' + new Date().toLocaleString('ru-RU'), location.href.split('#')[0], ''];
+      Object.keys(R).forEach(function (sec) {
+        out.push('## ' + sec);
+        R[sec].forEach(function (r) { var v = r[1]; if (v === true) v = 'да'; if (v === false) v = 'нет'; out.push(r[0] + ': ' + (v == null || v === '' ? '—' : v)); });
+        out.push('');
+      });
+      return out.join('\n');
+    }
+    $('copyBtn').onclick = function () {
+      var txt = reportText();
+      var ta = $('reportText'); ta.value = txt; $('cReport').classList.remove('hidden');
+      var done = function (ok) {
+        $('copyBtn').textContent = ok ? 'Скопировано ✓' : 'Выделите текст ниже';
+        setTimeout(function () { $('copyBtn').textContent = 'Скопировать отчёт'; }, 2500);
+        try { if (ok && at('6.1')) W.HapticFeedback.notificationOccurred('success'); } catch (e) {}
+      };
+      var legacy = function () { try { ta.focus(); ta.select(); ta.setSelectionRange(0, txt.length); done(document.execCommand('copy')); } catch (e) { done(false); } };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(txt).then(function () { done(true); }, legacy);
+      else legacy();
+      ta.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    window.__tmaCheck = { report: reportText, isTMA: isTMA };
+  });
+})();
+</script>
+</body>
+</html>

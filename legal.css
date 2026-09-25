@@ -32,3 +32,10 @@ mark.ph { background: rgba(255, 196, 0, .16); color: #ffcf40; border: 1px dashed
 .field input { display: block; width: 100%; margin-top: 6px; min-height: 46px; border-radius: 10px; border: 1px solid #696969; background: #121212; color: #f0f0f0; padding: 0 12px; font: 700 16px/1 Manrope, sans-serif; letter-spacing: .12em; }
 .muted { color: #8a8a8a; font-size: 13px; }
 .hidden { display: none !important; }
+
+/* Inside the Telegram Mini App: no purchase-related links/blocks (Telegram ToS: digital goods only via Stars) */
+.tma-only { display: none; }
+html.tma .tma-only { display: block; }
+html.tma .tma-hide, html.tma a[href$="offer.html"] { display: none !important; }
+html.tma .offer-doc > :not(.back):not(h1):not(.tma-only):not(footer) { display: none !important; }
+html.tma .legal { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); }
