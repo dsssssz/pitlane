@@ -5553,7 +5553,11 @@ async function shareViaTelegram(param, webUrl, text) {
 }
 
 if (isTMA) {
-  void ensureAuthCfg().then(() => tmaAutoLogin(false));
+  void ensureAuthCfg().then((cfg) => {
+    if (cfg && cfg.tma) return tmaAutoLogin(false);
+    _tmaLogin = cfg ? 'unconfigured' : 'idle'; // no bot token on the Worker → «вход недоступен» (no pointless 503 call)
+    return undefined;
+  });
 
   // BackButton: close the top-most sheet / overlay, otherwise go back to the garage.
   const SHEETS = [

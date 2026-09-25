@@ -371,3 +371,6 @@ Pitlane открывается как Mini App внутри Telegram (тот ж�
 - `shareMessage` зависит от `savePreparedInlineMessage` (может потребовать включить inline-режим `/setinline`, если Bot API ответит ошибкой — тогда сработает фолбэк `t.me/share/url`).
 - NoSleep-видео на iOS может не запуститься без жеста пользователя (запускается по кнопке Старт — это жест).
 - В Telegram Desktop/Web fullscreen не запрашивается (только телефоны).
+
+### Worker deploy log (v77, 2026-09-26)
+Deployed wrangler@3.114.17 from `worker/`: version `469b5d77-d15c-4fdd-bcb0-620054fcfcc6`. Secrets: none (TELEGRAM_BOT_TOKEN не задан — это делает Мага, 21.2). `SMS_DEMO="0"`, `TELEGRAM_BOT_USERNAME="YOUR_BOT_USERNAME"` (плейсхолдер → `telegramBot:null`). Live: `/auth/config` → `{"sms":false,"smsDemo":false,"telegram":false,"telegramBot":null,"telegramBotId":null,"tma":false,"tmaShare":false}`; `POST /auth/tma` и `/tma/share-prepare` → 503 `Telegram not configured`; `DELETE /account` без сессии → 401.
