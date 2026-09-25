@@ -312,3 +312,7 @@ npx wrangler@3.114.17 secret delete ADMIN_TOKEN                        # вык�
 cd worker && npm test          # офлайн-тесты (mock KV): миграция, публичные ответы без телефонов, DELETE /account, Telegram HMAC
 npx wrangler@3.114.17 deploy
 ```
+
+### Worker deploy log (v76, 2026-09-26)
+Deployed wrangler@3.114.17 from `worker/`. Code version `779e8a9a-7e1e-4cf8-bde1-ab94e61d0ac7`; after temporary `ADMIN_TOKEN` put/delete the active version is `0f124317-148c-4c8a-812e-a37e5600ba25` (same code). Secrets on Worker: none (no Twilio, no Telegram, ADMIN_TOKEN removed). `SMS_DEMO="0"`.
+Production migration (dry + run + re-run): prod KV had 13 keys (crew/crewinv/crewidx/duel/duelidx test data with non-phone ids) → `phonesFound: 0`, all counters 0. Live: `/auth/config` → `{"sms":false,"telegram":false}`, `/auth/telegram` → 503, `/admin/migrate-pilots` → 404, `DELETE /account` without session → 401; public tops/pulse/duel/crew responses contain no phone-like strings.
