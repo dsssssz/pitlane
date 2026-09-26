@@ -430,3 +430,19 @@ Deployed wrangler@3.114.17 from `worker/`: version `469b5d77-d15c-4fdd-bcb0-6200
 
 ### Worker deploy log (v80, 2026-09-26)
 Deployed wrangler@3.114.17 from `worker/`: version `2135cb57-740d-4396-945e-cebbb4177629`. Bindings: KV `PITLANE`, ratelimit `RL_READ` (240/60 s) / `RL_WRITE` (40/60 s), vars `SMS_DEMO="0"`, `TELEGRAM_BOT_USERNAME="pitlane_official_bot"`, `FEEDBACK_CHAT_ID=""` (ждёт chat id владельца → пока отзывы только в KV). Live: security-заголовки, CORS только github.io, share > 8 КБ → 413; тестовый отзыв `[TEST]` сохранён (`feedback:<ts>:<id>`, TTL 180 д) и удалён вместе с тестовыми `rl:fb:*`.
+
+## 24. Telegram-бот @pitlane_official_bot (v81)
+
+**Webhook.** `POST /tg/webhook/<path>` — `<path>` = первые 32 hex от `sha256("pitlane-tg-webhook:" + TG_WEBHOOK_SECRET)`; дополнительно заголовок `X-Telegram-Bot-Api-Secret-Token` сверяется с `TG_WEBHOOK_SECRET` (timing-safe). Любое несовпадение → 404. Путь не проходит per-IP burst-лимитер (IP Telegram общие), но каждый чат ограничен 12 ответами/мин (KV `rl:tgchat:<id>`, сверх лимита — молча). Отвечаем только в личных чатах; на всё верифицированное — 200.
+
+Команды: `/start [payload]` (фото `img/tg/banner.jpg` + подпись + кнопки web_app: «🏁 Открыть PITLANE» (`?startapp=<payload>` если payload валиден по `TMA_PARAM_RE`), «🏆 Топы» `?view=tops&skipIntro=1`, «⚔️ Дуэль» `?screen=duel`, «💬 Обратная связь» `?screen=feedback`), `/garage`, `/tops`, `/duel`, `/help`, `/feedback`, прочий текст → подсказка. Тексты — в `BOT_TEXT` в `worker/src/index.js`, HTML parse_mode, пользовательский ввод не эхоится. Если фото не отправилось — fallback на sendMessage.
+
+Клиент: новый параметр `?screen=duel|crew|autodromes|feedback` (app.js, `DEEP_SCREENS`) — открывает вкладку и нужный шит через ~0.9 с.
+
+**Секреты (не в git):** `TG_WEBHOOK_SECRET`, `TG_ADMIN_SECRET` — 64 hex, `openssl rand -hex 32 | tr -d '\n' | npx wrangler@3.114.17 secret put ...`. Значение admin-секрета нигде не сохранено; для повторной настройки — положить новый.
+
+**Настройка бота:** `curl -X POST -H "X-Admin-Secret: $TGA" https://pitlane-api.pitlane-taksimaga.workers.dev/tg/setup` — идемпотентно: getMe, setWebhook (secret_token, allowed_updates=[message]), setMyCommands (default+ru), setMyDescription/ShortDescription (default+ru), setChatMenuButton web_app «PITLANE», setMyName «PITLANE» только если имя отличается (username не трогаем), затем проверка getWebhookInfo/getMyCommands/getMyDescription/getChatMenuButton. `?preview=1` — отправить один /start-приветственный пост в `FEEDBACK_CHAT_ID` (владельцу). Эндпоинт оставлен, без верного заголовка → 404 (+ лимит 10/час на IP).
+
+**Важно:** после setWebhook метод `getUpdates` недоступен — способ узнать chat id через getUpdates (§23) больше не работает (chat id владельца уже задан: 8591275999). Снять webhook: `deleteWebhook` (тогда бот перестанет отвечать).
+
+Баннер: `tools/tg-banner.mjs` (puppeteer, контур Сочи из `geo/outlines.js` + силуэт `img/sil/coupe.svg`) → `img/tg/banner.jpg` 1280×640. Тесты: `worker/test/tg.test.mjs` (в `npm test`).
