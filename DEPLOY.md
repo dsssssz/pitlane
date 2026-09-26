@@ -427,3 +427,6 @@ Deployed wrangler@3.114.17 from `worker/`: version `469b5d77-d15c-4fdd-bcb0-6200
 - Сессии: `POST /auth/logout` отзывает токен на сервере (кнопка «Выйти»); Login Widget — не старше 1 ч (было 24 ч); OTP-код через `crypto.getRandomValues`.
 - Клиент: XSS в Sector Battle из share-ссылки (`data-track`) закрыт; `paint` из share — только hex; Pulse — только data:image; минимальный CSP `<meta>` (`object-src 'none'; base-uri 'self'; form-action 'self'`); SW не трогает запросы с `Authorization` и к `*.workers.dev`.
 - Тесты: `cd worker && npm test` (api + security, 77 проверок безопасности).
+
+### Worker deploy log (v80, 2026-09-26)
+Deployed wrangler@3.114.17 from `worker/`: version `2135cb57-740d-4396-945e-cebbb4177629`. Bindings: KV `PITLANE`, ratelimit `RL_READ` (240/60 s) / `RL_WRITE` (40/60 s), vars `SMS_DEMO="0"`, `TELEGRAM_BOT_USERNAME="pitlane_official_bot"`, `FEEDBACK_CHAT_ID=""` (ждёт chat id владельца → пока отзывы только в KV). Live: security-заголовки, CORS только github.io, share > 8 КБ → 413; тестовый отзыв `[TEST]` сохранён (`feedback:<ts>:<id>`, TTL 180 д) и удалён вместе с тестовыми `rl:fb:*`.
