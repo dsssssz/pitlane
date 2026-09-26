@@ -18,7 +18,7 @@ SMS_DEMO = "0"
 TELEGRAM_BOT_USERNAME = "pitlane_official_bot"
 # Telegram chat id that receives POST /feedback (see DEPLOY.md §23: /start the bot → getUpdates).
 # Empty → feedback is only stored in KV (feedback:<ts>:<id>, TTL 180 d).
-FEEDBACK_CHAT_ID = ""
+FEEDBACK_CHAT_ID = "8591275999"
 # optional comma-separated extra origins (local dev only — never localhost in prod)
 # EXTRA_ORIGINS = "http://127.0.0.1:5174"
 

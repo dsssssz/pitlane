@@ -2275,6 +2275,14 @@ try {
 
 
 const DEEP_VIEWS = new Set(['garage', 'run', 'lap', 'tops', 'pulse', 'account', 'cars']);
+/** v81: ?screen=duel|crew|feedback|autodromes — opens a sheet (used by the Telegram bot's web_app buttons). */
+const DEEP_SCREENS = { duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account' };
+const SCREEN_PARAM = (() => {
+  try {
+    const s = String(new URLSearchParams(location.search).get('screen') || '').toLowerCase();
+    return Object.prototype.hasOwnProperty.call(DEEP_SCREENS, s) ? s : '';
+  } catch (_) { return ''; }
+})();
 
 /** Parse ?view= / ?skipIntro=1 and hash #view=… (never treats #r= / #s= as view). */
 function getDeepLinkView() {
@@ -2293,6 +2301,7 @@ function getDeepLinkView() {
       }
     }
     if (!DEEP_VIEWS.has(view)) view = '';
+    if (!view && SCREEN_PARAM) view = DEEP_SCREENS[SCREEN_PARAM];
     return { view, skipIntro: skipFlag || !!view };
   } catch (_) {
     return { view: '', skipIntro: false };
@@ -8873,7 +8882,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v80';
+const APP_VERSION = 'v81';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -9090,3 +9099,15 @@ window.addEventListener('online', () => {
   void api.flushFeedbackQueue().then((n) => { if (n) showAppToast('Отзыв отправлен — спасибо!'); });
 });
 setTimeout(() => { void api.flushFeedbackQueue(); }, 8000);
+
+/* v81: ?screen= deep links (Telegram bot buttons) → open the matching sheet once the app is up */
+if (SCREEN_PARAM) {
+  setTimeout(() => {
+    try {
+      if (SCREEN_PARAM === 'duel') openDuelSheet();
+      else if (SCREEN_PARAM === 'crew') openCrewSheet();
+      else if (SCREEN_PARAM === 'autodromes') openAutodromeSheet();
+      else if (SCREEN_PARAM === 'feedback') openFeedbackSheet();
+    } catch (err) { console.warn('screen deep link', err); }
+  }, 900);
+}

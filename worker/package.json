@@ -1,1 +1,1 @@
-{"name":"pitlane-api","private":true,"type":"module","scripts":{"deploy":"npx wrangler@3.114.17 deploy","dev":"npx wrangler@3.114.17 dev","test":"node test/api.test.mjs && node test/security.test.mjs"}}
+{"name":"pitlane-api","private":true,"type":"module","scripts":{"deploy":"npx wrangler@3.114.17 deploy","dev":"npx wrangler@3.114.17 dev","test":"node test/api.test.mjs && node test/security.test.mjs && node test/tg.test.mjs"}}

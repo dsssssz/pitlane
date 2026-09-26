@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v80';
+const CACHE = 'pitlane-v81';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 

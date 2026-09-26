@@ -1371,6 +1371,198 @@ async function prepareTmaShare(env, v, body) {
   return { status: 200, data: { ok: true, id: data.result.id, link } };
 }
 
+/* ———————————————————— Telegram bot @pitlane_official_bot (v81) ———————————————————— */
+
+const APP_URL = 'https://dsssssz.github.io/pitlane/';
+const TG_BANNER_URL = APP_URL + 'img/tg/banner.jpg';
+
+/** Webhook URL path segment derived from the secret (so the URL alone is also unguessable). */
+function tgWebhookPath(secret) {
+  return sha256Hex('pitlane-tg-webhook:' + String(secret)).slice(0, 32);
+}
+
+function tgEsc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+}
+
+function appUrl(params) {
+  const q = new URLSearchParams(params || {}).toString();
+  return APP_URL + (q ? '?' + q : '');
+}
+
+const webAppBtn = (text, params) => ({ text, web_app: { url: appUrl(params) } });
+
+const BOT_TEXT = {
+  start:
+    '<b>PITLANE — пит-лейн у тебя в кармане</b>\n\n' +
+    '⏱ Замеры 0–100 и времени круга по GPS — с честной оценкой точности\n' +
+    '🏆 Топы автодромов и секторов\n' +
+    '⚔️ Дуэли один на один и 👥 экипажи\n' +
+    '🚘 3D-гараж твоей машины\n\n' +
+    'Жми «Открыть PITLANE» — и на старт 🏁',
+  garage: '🚘 <b>3D-гараж</b>\nВыбери машину, покрась её, смотри паспорт и свои замеры.',
+  tops: '🏆 <b>Топы автодромов</b>\nЛучшие круги и секторы по трассам России. В зачёт идут только заезды с точным GPS (A/B).',
+  duel: '⚔️ <b>Дуэль</b>\nСоздай вызов и отправь ссылку другу. Побеждает лучший GPS-заезд за 7 дней.',
+  feedback: '💬 <b>Обратная связь</b>\nНашёл ошибку или есть идея? Напиши нам прямо в приложении — можно приложить скриншот.',
+  help:
+    '<b>Как пользоваться PITLANE</b>\n\n' +
+    '1. Открой приложение кнопкой ниже или через меню «PITLANE» слева от поля ввода.\n' +
+    '2. <b>Замер</b>: вкладка «Замер» → разреши геопозицию → старт с места, 0–100 фиксируется сам.\n' +
+    '3. <b>Круг</b>: вкладка «Круг» → выбери автодром → старт и финиш ловятся по GPS.\n' +
+    '4. <b>Топы</b>: попадают только заезды с точным GPS (A/B). Там же — дуэли, экипажи и секторы.\n' +
+    '5. Войди через Telegram в «Профиле», чтобы результаты сохранялись.\n\n' +
+    'Команды: /garage /tops /duel /feedback\n\n' +
+    '⚠️ Замеряй только на закрытых площадках и треках.',
+  other: 'Я понимаю команды из меню 🙂 Открой PITLANE кнопкой ниже или загляни в /help.',
+};
+
+/** Extra line on /start when the user came from a shared deep link (t.me/<bot>?start=<param>). */
+function startPayloadLine(param) {
+  const kind = String(param).split('_')[0];
+  if (kind === 'duel') return '⚔️ Тебе бросили вызов — открой дуэль кнопкой ниже.';
+  if (kind === 'crew') return '👥 Тебя зовут в экипаж — открой приглашение кнопкой ниже.';
+  if (kind === 's' || kind === 'lap' || kind === 'run') return '📊 С тобой поделились результатом — открой его кнопкой ниже.';
+  if (kind === 'track') return '📍 Открой трассу кнопкой ниже.';
+  if (kind === 'tops') return '🏆 Открой топы кнопкой ниже.';
+  return '';
+}
+
+/** Pure router: text → reply spec { method, payload } (chat id filled by caller). Exported for tests. */
+function tgRoute(text) {
+  const t = String(text || '').trim();
+  const m = t.match(/^\/([a-z_]{1,32})(?:@[A-Za-z0-9_]{3,64})?(?:\s+([\s\S]*))?$/i);
+  const cmd = m ? m[1].toLowerCase() : '';
+  const arg = m && m[2] ? m[2].trim() : '';
+  const openRow = [webAppBtn('🏁 Открыть PITLANE', {})];
+  if (cmd === 'start') {
+    const param = TMA_PARAM_RE.test(arg) ? arg : '';
+    const extra = param ? startPayloadLine(param) : '';
+    const caption = BOT_TEXT.start + (extra ? '\n\n' + extra : '');
+    return {
+      cmd,
+      method: 'sendPhoto',
+      payload: {
+        photo: TG_BANNER_URL,
+        caption,
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [webAppBtn(param ? '🏁 Открыть в PITLANE' : '🏁 Открыть PITLANE', param ? { startapp: param } : {})],
+            [webAppBtn('🏆 Топы', { view: 'tops', skipIntro: '1' }), webAppBtn('⚔️ Дуэль', { screen: 'duel' })],
+            [webAppBtn('💬 Обратная связь', { screen: 'feedback' })],
+          ],
+        },
+      },
+    };
+  }
+  const simple = {
+    garage: [BOT_TEXT.garage, [webAppBtn('🚘 Открыть гараж', { view: 'garage', skipIntro: '1' })]],
+    tops: [BOT_TEXT.tops, [webAppBtn('🏆 Открыть топы', { view: 'tops', skipIntro: '1' })]],
+    duel: [BOT_TEXT.duel, [webAppBtn('⚔️ Создать дуэль', { screen: 'duel' })]],
+    feedback: [BOT_TEXT.feedback, [webAppBtn('💬 Написать', { screen: 'feedback' })]],
+    help: [BOT_TEXT.help, openRow],
+  };
+  const [body, row] = simple[cmd] || [BOT_TEXT.other, openRow];
+  return {
+    cmd: simple[cmd] ? cmd : 'other',
+    method: 'sendMessage',
+    payload: { text: body, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: [row] } },
+  };
+}
+
+async function tgCall(env, method, payload) {
+  const token = String(env.TELEGRAM_BOT_TOKEN || '').trim();
+  if (!token) return { ok: false, description: 'no token' };
+  const f = env.__fetch || fetch;
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await f('https://api.telegram.org/bot' + token + '/' + method, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload || {}),
+      signal: ctrl.signal,
+    });
+    return (await res.json().catch(() => null)) || { ok: false, description: 'HTTP ' + res.status };
+  } catch (err) {
+    return { ok: false, description: String(err?.name || 'fetch failed') };
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+/** Send the reply for one incoming private message. Returns the route used (for tests/logs). */
+async function tgHandleMessage(env, msg) {
+  const chatId = msg?.chat?.id;
+  if (msg?.chat?.type !== 'private' || !Number.isSafeInteger(chatId)) return null;
+  // per-chat flood guard: 12 replies / minute, then silence (fixed window, no writes once over)
+  if (await rateHit(env.PITLANE, 'rl:tgchat:' + chatId, 12, 60)) return { cmd: 'limited' };
+  const route = tgRoute(typeof msg.text === 'string' ? msg.text.slice(0, 512) : '');
+  let r = await tgCall(env, route.method, { chat_id: chatId, ...route.payload });
+  if (!r?.ok && route.method === 'sendPhoto') {
+    // banner unreachable → same text without the photo
+    const { photo, caption, ...rest } = route.payload;
+    r = await tgCall(env, 'sendMessage', { chat_id: chatId, text: caption, ...rest, link_preview_options: { is_disabled: true } });
+  }
+  return { ...route, sent: !!r?.ok };
+}
+
+const BOT_COMMANDS = [
+  { command: 'start', description: 'Главное меню' },
+  { command: 'garage', description: '3D-гараж' },
+  { command: 'tops', description: 'Топы автодромов' },
+  { command: 'duel', description: 'Вызвать на дуэль' },
+  { command: 'feedback', description: 'Обратная связь' },
+  { command: 'help', description: 'Как пользоваться' },
+];
+const BOT_DESCRIPTION =
+  'PITLANE — гараж и телеметрия для трека прямо в Telegram.\n\n' +
+  '⏱ Замеры 0–100 и времени круга по GPS смартфона с оценкой точности\n' +
+  '🏆 Топы автодромов России и секторов — только честные заезды\n' +
+  '⚔️ Дуэли с друзьями и 👥 экипажи с общим бордом\n' +
+  '🚘 3D-гараж твоей машины\n\n' +
+  'Нажми «Старт» или кнопку «PITLANE». Замеряй только на закрытых площадках и треках.';
+const BOT_SHORT_DESCRIPTION = 'Замеры 0–100 и кругов по GPS, топы автодромов, дуэли, экипажи и 3D-гараж — прямо в Telegram 🏁';
+const BOT_NAME = 'PITLANE';
+
+/** One-shot bot configuration (POST /tg/setup, admin-secret guarded). Idempotent. */
+async function tgSetup(env, origin) {
+  const secret = String(env.TG_WEBHOOK_SECRET || '');
+  const out = {};
+  const me = await tgCall(env, 'getMe', {});
+  out.getMe = me?.ok ? { ok: true, username: me.result.username, first_name: me.result.first_name } : me;
+  if (secret.length >= 32) {
+    out.setWebhook = await tgCall(env, 'setWebhook', {
+      url: origin + '/tg/webhook/' + tgWebhookPath(secret),
+      secret_token: secret,
+      allowed_updates: ['message'],
+      max_connections: 20,
+    });
+  } else {
+    out.setWebhook = { ok: false, description: 'TG_WEBHOOK_SECRET missing/short' };
+  }
+  out.setMyCommands = await tgCall(env, 'setMyCommands', { commands: BOT_COMMANDS });
+  out.setMyCommandsRu = await tgCall(env, 'setMyCommands', { commands: BOT_COMMANDS, language_code: 'ru' });
+  out.setMyDescription = await tgCall(env, 'setMyDescription', { description: BOT_DESCRIPTION });
+  out.setMyDescriptionRu = await tgCall(env, 'setMyDescription', { description: BOT_DESCRIPTION, language_code: 'ru' });
+  out.setMyShortDescription = await tgCall(env, 'setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION });
+  out.setMyShortDescriptionRu = await tgCall(env, 'setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION, language_code: 'ru' });
+  out.setChatMenuButton = await tgCall(env, 'setChatMenuButton', { menu_button: { type: 'web_app', text: 'PITLANE', web_app: { url: APP_URL } } });
+  if (me?.ok && me.result.first_name !== BOT_NAME) out.setMyName = await tgCall(env, 'setMyName', { name: BOT_NAME });
+  // verification
+  const wh = await tgCall(env, 'getWebhookInfo', {});
+  out.getWebhookInfo = wh?.ok
+    ? { ok: true, urlSet: !!wh.result.url, urlMatches: !!secret && wh.result.url === origin + '/tg/webhook/' + tgWebhookPath(secret), pending: wh.result.pending_update_count, allowed: wh.result.allowed_updates, lastError: wh.result.last_error_message || null }
+    : wh;
+  out.getMyCommands = await tgCall(env, 'getMyCommands', { language_code: 'ru' });
+  out.getMyDescription = await tgCall(env, 'getMyDescription', { language_code: 'ru' });
+  out.getMyShortDescription = await tgCall(env, 'getMyShortDescription', { language_code: 'ru' });
+  out.getChatMenuButton = await tgCall(env, 'getChatMenuButton', {});
+  const me2 = await tgCall(env, 'getMe', {});
+  out.getMeAfter = me2?.ok ? { username: me2.result.username, first_name: me2.result.first_name } : me2;
+  return out;
+}
+
 /* ———————————————————— Feedback (v80) ———————————————————— */
 
 const FEEDBACK_TYPES = { bug: 'Ошибка', idea: 'Идея', complaint: 'Жалоба', other: 'Другое' };
@@ -1896,6 +2088,46 @@ export default {
     const path = url.pathname.replace(/\/+$/, '') || '/';
     const ip = clientIp(req);
     const isWrite = req.method !== 'GET' && req.method !== 'HEAD';
+
+    // v81: Telegram webhook — verified by path + secret header; skips the per-IP limiter (Telegram's IPs are shared)
+    if (req.method === 'POST' && path.startsWith('/tg/webhook/')) {
+      const secret = String(env.TG_WEBHOOK_SECRET || '');
+      const got = String(req.headers.get('X-Telegram-Bot-Api-Secret-Token') || '');
+      if (secret.length < 32 || path !== '/tg/webhook/' + tgWebhookPath(secret) || !timingSafeEqualStr(secret, got)) {
+        return json({ error: 'not found' }, 404, headers);
+      }
+      try {
+        const upd = await readJson(req, 64 * 1024);
+        const msg = upd && (upd.message || null);
+        if (msg) {
+          const r = await tgHandleMessage(env, msg);
+          return json({ ok: true, cmd: r?.cmd || null }, 200, headers);
+        }
+      } catch (err) {
+        console.error('tg webhook', err && err.stack ? err.stack : err);
+      }
+      // always 200 for verified calls so Telegram doesn't retry-storm
+      return json({ ok: true }, 200, headers);
+    }
+
+    // v81: one-shot bot setup (commands, descriptions, menu button, webhook). 404 unless TG_ADMIN_SECRET matches.
+    if (req.method === 'POST' && path === '/tg/setup') {
+      const adm = String(env.TG_ADMIN_SECRET || '');
+      const got = String(req.headers.get('X-Admin-Secret') || '');
+      if (adm.length < 32) return json({ error: 'not found' }, 404, headers);
+      if (await rateHit(env.PITLANE, 'rl:tgsetup:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
+      if (!timingSafeEqualStr(adm, got)) return json({ error: 'not found' }, 404, headers);
+      if (url.searchParams.get('preview') === '1') {
+        // send the real /start welcome to the owner chat only (FEEDBACK_CHAT_ID), nothing else
+        const owner = Number(String(env.FEEDBACK_CHAT_ID || '').trim());
+        if (!Number.isSafeInteger(owner) || owner <= 0) return json({ error: 'no owner chat' }, 400, headers);
+        const route = tgRoute('/start');
+        const r = await tgCall(env, route.method, { chat_id: owner, ...route.payload });
+        return json({ ok: !!r?.ok, preview: r?.ok ? { message_id: r.result?.message_id, hasPhoto: !!r.result?.photo } : r }, 200, headers);
+      }
+      const origin = 'https://' + url.host;
+      return json({ ok: true, result: await tgSetup(env, origin) }, 200, headers);
+    }
 
     // v80: per-IP burst limits (Workers Rate Limiting bindings, in-memory per colo, no KV cost)
     if (await burstLimited(env, isWrite ? 'RL_WRITE' : 'RL_READ', ip)) {
@@ -2870,3 +3102,5 @@ export default {
     }
   },
 };
+
+export { tgRoute, tgWebhookPath, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION };
