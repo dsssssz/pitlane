@@ -11,7 +11,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { attachPitlanePlates, isPitlanePlate } from './plates.js';
-import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId } from './api.js';
+import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -1004,7 +1004,7 @@ function renderCars() {
     b.type = 'button';
     b.className = 'car-card' + (c.id === state.carId ? ' active' : '');
     const src = silForCar(c);
-    b.innerHTML = `<img src="${src}" alt="" loading="lazy" /><strong>${c.name}</strong><small>${c.cls}</small><small>0–100 ${fmt(c.v0100)}</small>`;
+    b.innerHTML = `<img src="${esc(src)}" alt="" loading="lazy" /><strong>${esc(c.name)}</strong><small>${esc(c.cls)}</small><small>0–100 ${fmt(c.v0100)}</small>`;
     b.onclick = () => {
       selectActiveCar(c.id);
     };
@@ -3444,8 +3444,9 @@ function buildSectorBattleHtml(trackId, lap, opts) {
     : '';
   const title = o.title || 'Sector Battle';
   const note = abOk ? '' : '<p class="sb-note">дельта без «победы» — нужен GPS A/B</p>';
-  return `<div class="sector-battle" data-track="${trackId}">`
-    + `<p class="sb-title">${title}</p>`
+  // v80: trackId comes from share payloads (#r= / ?s=) → escape (was an attribute-injection XSS)
+  return `<div class="sector-battle" data-track="${esc(trackId)}">`
+    + `<p class="sb-title">${esc(title)}</p>`
     + `<ul class="sb-list">${rows}</ul>`
     + optLine + note
     + `</div>`;
@@ -3485,9 +3486,10 @@ function nickInitials(name) {
 }
 
 function topsAvatarHtml(name, avatar) {
+  // v80: remote avatars only from Telegram CDN (arbitrary https = tracking pixel on every tops view)
   const ok = typeof avatar === 'string' && (
-    /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(avatar) ||
-    /^https:\/\//i.test(avatar)
+    /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(avatar) ||
+    /^https:\/\/([\w-]+\.)*(telegram\.org|t\.me|telesco\.pe)\/[^"'<>\s]*$/i.test(avatar)
   );
   if (ok) {
     return `<span class="tops-av"><img src="${esc(avatar)}" alt="" loading="lazy" /></span>`;
@@ -4652,7 +4654,8 @@ function openShareCard(payload) {
 
   const sw = document.getElementById('shareSwatch');
   if (sw) {
-    if (payload.paint) {
+    // v80: only a hex colour (untrusted share payload; url(...) would leak viewers' IPs)
+    if (typeof payload.paint === 'string' && /^#[0-9a-f]{3,8}$/i.test(payload.paint)) {
       sw.style.background = payload.paint;
       sw.classList.remove('hidden');
     } else {
@@ -5306,6 +5309,8 @@ document.getElementById('btnLogout')?.addEventListener('click', () => {
     u.garage = state.garage || [];
     u.carId = state.carId || null;
   }
+  // v80: revoke the token server-side too (fire-and-forget; must run before the token is cleared)
+  try { void api.logout(); } catch (_) {}
   authDb.session = null;
   authDb.token = null;
   setSessionToken('');
@@ -5580,6 +5585,7 @@ if (isTMA) {
     ['safetySheet', 'safetyCancel'], ['deleteSheet', 'deleteClose'], ['pitHelpSheet', 'pitHelpClose'],
     ['shareCard', 'shareCardClose'], ['duelSheet', 'duelSheetClose'], ['crewSheet', 'crewSheetClose'],
     ['autodromeSheet', 'autodromeSheetClose'], ['carPickerSheet', 'carPickerClose'],
+    ['feedbackSheet', 'feedbackClose'],
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
   const closeSheet = (id, btnId) => {
@@ -7708,7 +7714,7 @@ async function renderPulse() {
     return `<article class="pulse-card" data-id="${esc(p.id)}">
       <header><b>${esc(p.who || 'Пилот')}</b><span>${new Date(p.at).toLocaleString('ru-RU')}</span></header>
       <p>${esc(p.text || '')}</p>
-      ${p.img && /^(data:image\/|https:\/\/)/.test(String(p.img)) ? `<img src="${esc(p.img)}" alt="">` : ''}
+      ${p.img && /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(String(p.img)) ? `<img src="${esc(p.img)}" alt="">` : ''}
       <div class="pulse-actions">
         <button type="button" data-like="${esc(p.id)}">♥ ${likes}</button>
         ${(!p.pilotId || (myPid && p.pilotId === myPid)) ? `<button type="button" data-del="${esc(p.id)}">удалить</button>` : ''}
@@ -8030,8 +8036,9 @@ async function showDuelView(id) {
     else { note.hidden = true; note.textContent = ''; }
   }
   const myId = duelPilotId();
-  const iAmCreator = d.createdBy?.id && d.createdBy.id === myId;
-  const iAmChallenger = d.challenger?.id && d.challenger.id === myId;
+  // v80: guest ids come back hashed (g_…) → isMyPilotId recognises raw + hashed forms
+  const iAmCreator = d.createdBy?.id && (d.createdBy.id === myId || isMyPilotId(d.createdBy.id));
+  const iAmChallenger = d.challenger?.id && (d.challenger.id === myId || isMyPilotId(d.challenger.id));
   const myRun = iAmCreator ? d.creatorRun : (iAmChallenger ? d.challengerRun : null);
   const submitBtn = document.getElementById('duelSubmitRun');
   if (submitBtn) {
@@ -8332,7 +8339,7 @@ async function showCrewView(id) {
         const time = best ? esc(best.time) : '—';
         const gq = best?.gpsQ ? `<span class="gq">${esc(best.gpsQ)}</span>` : '';
         const car = best?.car ? esc(best.car) : '';
-        const me = m.pilotId === myId ? ' me' : '';
+        const me = (m.pilotId === myId || isMyPilotId(m.pilotId)) ? ' me' : '';
         const nick = m.nick || 'пилот';
         const av = topsAvatarHtml(nick, m.avatar || best?.avatar);
         return `<li class="${me}"><span class="rk">${i + 1}</span>${av}<span><div class="who">${esc(nick)}</div><div class="sub">${car || 'нет круга'}</div></span><span class="tm">${time}${gq}</span></li>`;
@@ -8346,7 +8353,7 @@ async function showCrewView(id) {
   }
   const joinHere = document.getElementById('crewJoinHere');
   if (joinHere) {
-    const already = (crew.members || []).some((m) => m.pilotId === myId);
+    const already = (crew.members || []).some((m) => m.pilotId === myId || isMyPilotId(m.pilotId));
     joinHere.disabled = already;
     joinHere.textContent = already ? 'Ты уже в экипаже' : 'Вступить в этот';
   }
@@ -8864,3 +8871,222 @@ document.addEventListener('click', (e) => {
   if (key) openPitHelp(key);
 });
 
+
+/* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
+const APP_VERSION = 'v80';
+const FB_MIN = 10;
+const FB_MAX = 2000;
+const FB_SHOT_MAX_SIDE = 1280;
+const FB_SHOT_MAX_BYTES = 400 * 1024;
+const _fb = { type: 'bug', openedAt: 0, shot: null, sending: false };
+
+function showAppToast(text, ms = 2600) {
+  const el = document.getElementById('appToast');
+  if (!el) return;
+  el.textContent = text;
+  el.classList.remove('hidden');
+  clearTimeout(showAppToast._t);
+  showAppToast._t = setTimeout(() => el.classList.add('hidden'), ms);
+}
+
+async function swCacheVersion() {
+  try {
+    const keys = await caches.keys();
+    return keys.find((k) => /^pitlane-v\d+$/.test(k)) || '';
+  } catch (_) { return ''; }
+}
+
+async function feedbackDiag() {
+  const active = document.querySelector('.view.active');
+  let tgPlatform = '';
+  try { tgPlatform = String(window.Telegram?.WebApp?.platform || ''); } catch (_) {}
+  const dpr = Math.round((window.devicePixelRatio || 1) * 100) / 100;
+  return {
+    app: APP_VERSION,
+    sw: await swCacheVersion(),
+    ua: String(navigator.userAgent || '').slice(0, 300),
+    tier: (typeof Q !== 'undefined' && Q && Q.tier) || '',
+    tma: !!isTMA,
+    tgPlatform: isTMA ? tgPlatform.slice(0, 24) : '',
+    tab: active ? active.id.replace(/^view-/, '') : '',
+    lang: String(document.documentElement.lang || navigator.language || '').slice(0, 5),
+    screen: `${Math.round(screen.width)}x${Math.round(screen.height)}@${dpr}`,
+    online: navigator.onLine !== false,
+  };
+}
+
+function fbSetMsg(text, isErr) {
+  const el = document.getElementById('fbMsg');
+  if (!el) return;
+  el.textContent = text || '';
+  el.classList.toggle('err', !!isErr);
+}
+
+function fbUpdateCounter() {
+  const ta = document.getElementById('fbText');
+  const c = document.getElementById('fbCounter');
+  if (!ta || !c) return;
+  const n = [...ta.value.trim()].length;
+  c.textContent = `${n} / ${FB_MAX}` + (n > 0 && n < FB_MIN ? ` · ещё ${FB_MIN - n}` : '');
+  c.classList.toggle('bad', n > 0 && n < FB_MIN);
+}
+
+function fbSetType(type) {
+  _fb.type = type;
+  document.querySelectorAll('#feedbackSheet [data-fb-type]').forEach((b) => {
+    const on = b.dataset.fbType === type;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-checked', on ? 'true' : 'false');
+  });
+}
+
+function fbClearShot() {
+  _fb.shot = null;
+  const prev = document.getElementById('fbShotPreview');
+  const clr = document.getElementById('fbShotClear');
+  const inp = document.getElementById('fbShot');
+  if (prev) { prev.hidden = true; prev.removeAttribute('src'); }
+  if (clr) clr.hidden = true;
+  if (inp) inp.value = '';
+}
+
+/** Any raster image → JPEG data URL, longest side ≤1280 px, ≤400 KB (quality/size stepped down). */
+function fbDownscaleShot(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\/(jpeg|png|webp|heic|heif)$/i.test(file.type || '')) { reject(new Error('type')); return; }
+    if (file.size > 25 * 1024 * 1024) { reject(new Error('big')); return; }
+    const url = URL.createObjectURL(file);
+    const im = new Image();
+    im.onload = () => {
+      try {
+        let scale = Math.min(1, FB_SHOT_MAX_SIDE / Math.max(im.naturalWidth || 1, im.naturalHeight || 1));
+        const c = document.createElement('canvas');
+        const ctx = c.getContext('2d');
+        for (let pass = 0; pass < 6; pass++) {
+          c.width = Math.max(1, Math.round(im.naturalWidth * scale));
+          c.height = Math.max(1, Math.round(im.naturalHeight * scale));
+          ctx.fillStyle = '#000';
+          ctx.fillRect(0, 0, c.width, c.height);
+          ctx.drawImage(im, 0, 0, c.width, c.height);
+          for (const q of [0.82, 0.7, 0.58, 0.46]) {
+            const d = c.toDataURL('image/jpeg', q);
+            const bytes = Math.floor(((d.length - d.indexOf(',') - 1) * 3) / 4);
+            if (bytes <= FB_SHOT_MAX_BYTES) { URL.revokeObjectURL(url); resolve(d); return; }
+          }
+          scale *= 0.75;
+        }
+        URL.revokeObjectURL(url);
+        reject(new Error('big'));
+      } catch (err) { URL.revokeObjectURL(url); reject(err); }
+    };
+    im.onerror = () => { URL.revokeObjectURL(url); reject(new Error('decode')); };
+    im.src = url;
+  });
+}
+
+function openFeedbackSheet() {
+  const sheet = document.getElementById('feedbackSheet');
+  if (!sheet) return;
+  sheet.classList.remove('hidden');
+  sheet.setAttribute('aria-hidden', 'false');
+  _fb.openedAt = Date.now();
+  fbSetMsg('');
+  fbUpdateCounter();
+  const contact = document.getElementById('fbContact');
+  if (contact) {
+    let logged = false;
+    try { logged = !!accountPilotId(); } catch (_) {}
+    contact.placeholder = logged ? '@telegram или e-mail (необязательно)' : '@telegram или e-mail — чтобы мы могли ответить';
+  }
+}
+
+function closeFeedbackSheet() {
+  const sheet = document.getElementById('feedbackSheet');
+  if (!sheet) return;
+  sheet.classList.add('hidden');
+  sheet.setAttribute('aria-hidden', 'true');
+}
+
+async function sendFeedbackFromUi() {
+  if (_fb.sending) return;
+  const ta = document.getElementById('fbText');
+  const text = (ta?.value || '').trim();
+  const n = [...text].length;
+  if (n < FB_MIN) { fbSetMsg(`Напишите хотя бы ${FB_MIN} символов.`, true); ta?.focus(); return; }
+  if (n > FB_MAX) { fbSetMsg(`Слишком длинно: максимум ${FB_MAX} символов.`, true); return; }
+  if (!isRemoteApi()) { fbSetMsg('Сервер недоступен — попробуйте позже.', true); return; }
+  const btn = document.getElementById('fbSend');
+  _fb.sending = true;
+  if (btn) { btn.disabled = true; btn.textContent = 'Отправляем…'; }
+  fbSetMsg('');
+  try {
+    const payload = {
+      type: _fb.type,
+      text,
+      contact: (document.getElementById('fbContact')?.value || '').trim().slice(0, 120),
+      website: document.getElementById('fbWebsite')?.value || '',
+      elapsedMs: Date.now() - (_fb.openedAt || Date.now()),
+      screenshot: _fb.shot || undefined,
+      diag: await feedbackDiag(),
+    };
+    const res = await api.sendFeedback(payload);
+    if (res && res.ok) {
+      hap(18);
+      closeFeedbackSheet();
+      if (ta) ta.value = '';
+      const contact = document.getElementById('fbContact');
+      if (contact) contact.value = '';
+      fbClearShot();
+      fbSetType('bug');
+      showAppToast(res.queued ? 'Нет сети — отправим, когда появится интернет' : 'Спасибо! Мы прочитаем');
+      return;
+    }
+    const st = res?.status;
+    let msg = 'Не удалось отправить. Попробуйте ещё раз.';
+    if (st === 429) msg = 'Слишком много сообщений. Попробуйте через час.';
+    else if (st === 413 || res?.error === 'screenshot too large') msg = 'Скриншот слишком большой — уберите его или выберите другой.';
+    else if (res?.error === 'text too short') msg = `Напишите хотя бы ${FB_MIN} символов.`;
+    else if (res?.error === 'offline') msg = 'Нет сети, и очередь заполнена. Попробуйте позже.';
+    fbSetMsg(msg, true);
+  } catch (err) {
+    console.warn('feedback send', err);
+    fbSetMsg('Не удалось отправить. Попробуйте ещё раз.', true);
+  } finally {
+    _fb.sending = false;
+    if (btn) { btn.disabled = false; btn.textContent = 'Отправить'; }
+  }
+}
+
+document.getElementById('btnFeedback')?.addEventListener('click', () => openFeedbackSheet());
+document.getElementById('feedbackClose')?.addEventListener('click', () => closeFeedbackSheet());
+document.getElementById('feedbackSheet')?.addEventListener('click', (e) => {
+  if (e.target?.id === 'feedbackSheet') closeFeedbackSheet();
+});
+document.querySelectorAll('#feedbackSheet [data-fb-type]').forEach((b) => {
+  b.addEventListener('click', () => fbSetType(b.dataset.fbType));
+});
+document.getElementById('fbText')?.addEventListener('input', () => { fbUpdateCounter(); fbSetMsg(''); });
+document.getElementById('fbShotClear')?.addEventListener('click', () => fbClearShot());
+document.getElementById('fbShot')?.addEventListener('change', async (e) => {
+  const file = e.target?.files?.[0];
+  if (!file) return;
+  fbSetMsg('Готовим скриншот…');
+  try {
+    const d = await fbDownscaleShot(file);
+    _fb.shot = d;
+    const prev = document.getElementById('fbShotPreview');
+    if (prev) { prev.src = d; prev.hidden = false; }
+    const clr = document.getElementById('fbShotClear');
+    if (clr) clr.hidden = false;
+    fbSetMsg('');
+  } catch (err) {
+    fbClearShot();
+    fbSetMsg(err?.message === 'type' ? 'Нужна картинка JPEG, PNG или WebP.' : 'Не удалось обработать скриншот.', true);
+  }
+});
+document.getElementById('fbSend')?.addEventListener('click', () => { void sendFeedbackFromUi(); });
+// offline queue: retry on reconnect and shortly after boot
+window.addEventListener('online', () => {
+  void api.flushFeedbackQueue().then((n) => { if (n) showAppToast('Отзыв отправлен — спасибо!'); });
+});
+setTimeout(() => { void api.flushFeedbackQueue(); }, 8000);

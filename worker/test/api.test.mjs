@@ -122,7 +122,7 @@ for (const p of ['/tops/straight/bmw-m2', '/tops/lap/sochi', '/tops/sector/sochi
 r = await call(env, 'POST', '/crew/c1/join', { token: tok2, body: { nick: 'Тест', pilotId: uuid } });
 ok(r.data.members.some((m) => m.pilotId === uuid2), 'crew join uses session uuid (body pilotId ignored)');
 r = await call(env, 'POST', '/duel', { headers: { 'X-Pilot-Id': uuid }, body: { type: 'drag', createdBy: 'Гость' } });
-ok(r.data.createdBy.id !== uuid, 'guest cannot impersonate account uuid via X-Pilot-Id');
+ok(r.status === 400 && r.data.error === 'pilot required', 'guest cannot impersonate account uuid via X-Pilot-Id (400)');
 r = await call(env, 'POST', '/duel', { headers: { 'X-Pilot-Id': PHONE2 }, body: { type: 'drag', createdBy: 'Гость' } });
 noPhone('duel created with phone as X-Pilot-Id', r.text, PHONE2);
 

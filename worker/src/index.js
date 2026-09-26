@@ -19,13 +19,9 @@
  * GET /auth/config → { sms, telegram, telegramBot, telegramBotId } · GET /me · DELETE /account
  * X-Pilot-Id kept as soft guest id (dev_…) for duels/crews; writes to tops/pulse/garage require session.
  */
-const DEFAULT_ORIGINS = [
-  'https://dsssssz.github.io',
-  'http://localhost:5174',
-  'http://127.0.0.1:5174',
-  'http://localhost:5500',
-  'http://127.0.0.1:5500',
-];
+// v80: production origin only (Telegram Mini App loads the same GitHub Pages origin).
+// Local dev: add origins via the EXTRA_ORIGINS var (never commit localhost into prod config).
+const DEFAULT_ORIGINS = ['https://dsssssz.github.io'];
 
 const SHARE_TTL = 30 * 24 * 60 * 60; // 30 days
 const SESS_TTL = 90 * 24 * 60 * 60; // 90 days
@@ -33,6 +29,12 @@ const OTP_PHONE_LIMIT = 5; // per 15 min
 const OTP_IP_LIMIT = 20; // soft per 15 min
 const OTP_MAX_TRIES = 5; // bad verify attempts per code
 const OTP_TTL_SEC = 600; // 10 min
+const OTP_DAILY_CAP = 300; // real SMS sends per day, all numbers (toll-fraud guard)
+
+/** decodeURIComponent that never throws (malformed % escapes → raw string). */
+function safeDecode(v) {
+  try { return decodeURIComponent(v); } catch { return String(v); }
+}
 
 function corsHeaders(req, env) {
   const origin = req.headers.get('Origin') || '';
@@ -51,11 +53,61 @@ function corsHeaders(req, env) {
   };
 }
 
+/** v80: hardening headers on every API response (JSON only, never rendered as a document). */
+const SEC_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Referrer-Policy': 'no-referrer',
+  'Content-Security-Policy': "default-src 'none'; frame-ancestors 'none'",
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cache-Control': 'no-store',
+};
+
 function json(data, status, headers) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json; charset=utf-8', ...headers },
+    headers: { 'Content-Type': 'application/json; charset=utf-8', ...SEC_HEADERS, ...headers },
   });
+}
+
+class HttpError extends Error {
+  constructor(status, message) { super(message); this.status = status; }
+}
+
+/** Body size caps (bytes) per route family — requests above are refused with 413 before parsing. */
+const BODY_LIMITS = {
+  default: 32 * 1024,
+  auth: 16 * 1024,
+  share: 8 * 1024,
+  pulse: 256 * 1024,
+  feedback: 720 * 1024,
+  garage: 1_600_000,
+};
+
+/** Read a JSON body with a hard byte cap (streamed; Content-Length is checked first). Bad JSON → null. */
+async function readJson(req, max = BODY_LIMITS.default) {
+  const cl = Number(req.headers.get('Content-Length') || 0);
+  if (cl && cl > max) throw new HttpError(413, 'payload too large');
+  if (!req.body) return null;
+  const reader = req.body.getReader();
+  const chunks = [];
+  let n = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    n += value.byteLength;
+    if (n > max) {
+      try { await reader.cancel(); } catch (_) {}
+      throw new HttpError(413, 'payload too large');
+    }
+    chunks.push(value);
+  }
+  if (!n) return null;
+  const buf = new Uint8Array(n);
+  let o = 0;
+  for (const c of chunks) { buf.set(c, o); o += c.byteLength; }
+  try { return JSON.parse(new TextDecoder().decode(buf)); } catch { return null; }
 }
 
 async function readList(kv, key) {
@@ -73,12 +125,105 @@ async function writeList(kv, key, arr) {
   await kv.put(key, JSON.stringify(arr.slice(0, 200)));
 }
 
+/** Client IP as seen by Cloudflare. X-Forwarded-For is attacker-controlled → never trusted. */
 function clientIp(req) {
-  return (
-    req.headers.get('CF-Connecting-IP') ||
-    (req.headers.get('X-Forwarded-For') || '').split(',')[0].trim() ||
-    '0.0.0.0'
-  );
+  return String(req.headers.get('CF-Connecting-IP') || '0.0.0.0').slice(0, 64);
+}
+
+/** Crypto-random lowercase base36 string (ids, share keys). */
+function randB36(len) {
+  const a = new Uint8Array(len);
+  crypto.getRandomValues(a);
+  return [...a].map((b) => (b % 36).toString(36)).join('');
+}
+
+/** Strip control chars, bidi overrides and angle brackets; trim + cap. For short public labels. */
+function cleanLabel(v, max) {
+  return String(v == null ? '' : v)
+    .replace(/[\u0000-\u001f\u007f\u202a-\u202e\u2066-\u2069<>]/g, '')
+    .trim()
+    .slice(0, max);
+}
+
+/** Free text (feedback / pulse): keep newlines + tabs, drop other control chars and bidi overrides. */
+function cleanText(v, max) {
+  return String(v == null ? '' : v)
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f\u202a-\u202e\u2066-\u2069]/g, '')
+    .trim()
+    .slice(0, max);
+}
+
+/** Track / car ids used in KV keys: short ASCII slug only (prevents unbounded / weird key creation). */
+const SLUG_RE = /^[A-Za-z0-9_.-]{1,64}$/;
+function slugOk(v) { return SLUG_RE.test(String(v || '')); }
+
+/* Compact sync SHA-256 (for non-reversible public guest ids; not used for auth). */
+const SHA_K = new Uint32Array([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
+function sha256Hex(str) {
+  const bytes = new TextEncoder().encode(String(str));
+  const l = bytes.length;
+  const nBlocks = ((l + 9 + 63) >> 6);
+  const m = new Uint8Array(nBlocks * 64);
+  m.set(bytes);
+  m[l] = 0x80;
+  const bits = l * 8;
+  const dv = new DataView(m.buffer);
+  dv.setUint32(m.length - 4, bits >>> 0);
+  dv.setUint32(m.length - 8, Math.floor(bits / 0x100000000));
+  const H = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);
+  const W = new Uint32Array(64);
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+  for (let b = 0; b < nBlocks; b++) {
+    for (let i = 0; i < 16; i++) W[i] = dv.getUint32(b * 64 + i * 4);
+    for (let i = 16; i < 64; i++) {
+      const s0 = rotr(W[i - 15], 7) ^ rotr(W[i - 15], 18) ^ (W[i - 15] >>> 3);
+      const s1 = rotr(W[i - 2], 17) ^ rotr(W[i - 2], 19) ^ (W[i - 2] >>> 10);
+      W[i] = (W[i - 16] + s0 + W[i - 7] + s1) >>> 0;
+    }
+    let [a, bb, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+      const ch = (e & f) ^ (~e & g);
+      const t1 = (h + S1 + ch + SHA_K[i] + W[i]) >>> 0;
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+      const mj = (a & bb) ^ (a & c) ^ (bb & c);
+      const t2 = (S0 + mj) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = bb; bb = a; a = (t1 + t2) >>> 0;
+    }
+    H[0] += a; H[1] += bb; H[2] += c; H[3] += d; H[4] += e; H[5] += f; H[6] += g; H[7] += h;
+  }
+  return [...H].map((x) => x.toString(16).padStart(8, '0')).join('');
+}
+
+/**
+ * Guest device ids (dev_…) act as a bearer credential for guest duels/crews, so they are never
+ * published raw: public output shows g_<sha256('pitlane-guest:'+id)[0..16]>. The client computes the
+ * same value for itself (api.js publicGuestId) to recognise its own rows.
+ */
+function publicGuestId(id) {
+  return 'g_' + sha256Hex('pitlane-guest:' + String(id)).slice(0, 16);
+}
+
+/** Burst limiter via Workers Rate Limiting bindings (RL_READ / RL_WRITE); absent binding → allow. */
+async function burstLimited(env, binding, key) {
+  const rl = env && env[binding];
+  if (!rl || typeof rl.limit !== 'function') return false;
+  try {
+    const { success } = await rl.limit({ key });
+    return !success;
+  } catch (_) {
+    return false;
+  }
 }
 
 function randomToken() {
@@ -115,13 +260,15 @@ function pubId(v) {
   if (v == null || v === '') return null;
   const s = String(v).slice(0, 64);
   if (isPilotUuid(s)) return s;
+  if (/^g_[0-9a-f]{16}$/.test(s)) return s;
   if (isPhoneLike(s) || /\d{10,}/.test(s) || containsPhone(s)) return null;
-  return s;
+  // guest device ids / legacy guest:<nick> ids → non-reversible public form
+  return publicGuestId(s);
 }
 
 /** Public display name: never a phone number. */
 function safeName(v, fallback = 'пилот') {
-  const s = String(v == null ? '' : v).trim().slice(0, 48);
+  const s = cleanLabel(v, 48);
   if (!s || containsPhone(s)) return fallback;
   return s;
 }
@@ -129,7 +276,9 @@ function safeName(v, fallback = 'пилот') {
 /** Guest (unauthenticated) id: device ids only — never a phone, never a real account uuid. */
 function guestId(v) {
   const s = String(v || '').trim().slice(0, 64);
-  if (!s || isPilotUuid(s) || isPhoneLike(s) || containsPhone(s)) return '';
+  // Only real client-generated device ids (api.js devicePilotId: dev_<base36>); 'dev_anon' is shared → refused.
+  if (!/^dev_[a-z0-9]{8,40}$/.test(s)) return '';
+  if (isPhoneLike(s) || containsPhone(s)) return '';
   return s;
 }
 
@@ -142,7 +291,7 @@ function defaultNick(pid) {
 }
 
 function sanitizeNick(v) {
-  const s = String(v == null ? '' : v).replace(/[\u0000-\u001f<>]/g, '').trim().slice(0, 24);
+  const s = cleanLabel(v, 24);
   if (!s || containsPhone(s)) return '';
   return s;
 }
@@ -345,10 +494,11 @@ function publicRows(rows) {
 
 function sanitizeStraight(body, pilot) {
   const t = Number(body?.t);
-  if (!Number.isFinite(t) || t <= 0 || t > 60) return null;
+  // anti-cheat bounds: 0–100 faster than 1.5 s is physically implausible for road cars; > 60 s is not a run
+  if (!Number.isFinite(t) || t < 1.5 || t > 60) return null;
   if (!body?.gps) return null;
   const name = safeName(body.name || pilot.name);
-  const car = String(body.car || '').slice(0, 80);
+  const car = cleanLabel(body.car, 80);
   const { valid, gpsQ, flags } = computeValid(body);
   const row = {
     name,
@@ -361,24 +511,33 @@ function sanitizeStraight(body, pilot) {
   };
   if (gpsQ) row.gpsQ = gpsQ;
   if (flags.length) row.flags = flags;
-  if (body.avgAcc != null && Number.isFinite(Number(body.avgAcc))) {
-    row.avgAcc = Math.round(Number(body.avgAcc) * 10) / 10;
-  }
-  if (body.hz != null && Number.isFinite(Number(body.hz))) {
-    row.hz = Math.round(Number(body.hz) * 10) / 10;
-  }
+  const acc = boundedNum(body.avgAcc, 0, 1000);
+  if (acc != null) row.avgAcc = Math.round(acc * 10) / 10;
+  const hz = boundedNum(body.hz, 0, 100);
+  if (hz != null) row.hz = Math.round(hz * 10) / 10;
   const wxS = sanitizeWeather(body.weather);
   if (wxS) row.weather = wxS;
   return row;
 }
 
+/** Finite number within [lo, hi] or null (drops NaN / Infinity / absurd values). */
+function boundedNum(v, lo, hi) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  if (!Number.isFinite(n) || n < lo || n > hi) return null;
+  return n;
+}
+
+/** Remote avatars: Telegram CDN only (arbitrary https would let anyone track viewers' IPs). */
+const AVATAR_HOST_RE = /^https:\/\/([\w-]+\.)*(telegram\.org|t\.me|telesco\.pe)\//i;
+
 function sanitizeAvatar(v) {
   if (v == null) return null;
   const s = String(v).trim();
   if (!s) return null;
-  if (/^https:\/\//i.test(s) && s.length <= 500) return s;
+  if (AVATAR_HOST_RE.test(s) && s.length <= 500 && !/["'<>\s]/.test(s)) return s;
   // data:image/jpeg|png|webp;base64,... — keep small thumbs only
-  if (/^data:image\/(jpeg|jpg|png|webp);base64,/i.test(s) && s.length <= 16000) return s;
+  if (/^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(s) && s.length <= 16000) return s;
   return null;
 }
 
@@ -397,12 +556,17 @@ function sanitizeSectors(body) {
   return out;
 }
 
+const LAP_MIN_MS = 15_000; // shortest plausible karting/track lap
+const LAP_MAX_MS = 60 * 60_000; // 1 h (Nordschleife tourist laps are ~8–12 min)
+
 function sanitizeLap(body, pilot) {
   const t = String(body?.t || '').trim();
-  if (!/^\d+:\d{2}(\.\d+)?$/.test(t)) return null;
+  if (!/^\d{1,2}:[0-5]\d(\.\d{1,3})?$/.test(t)) return null;
+  const tMs = parseLapMs(t);
+  if (tMs == null || tMs < LAP_MIN_MS || tMs > LAP_MAX_MS) return null;
   if (!body?.gps) return null;
   const name = safeName(body.name || pilot.name);
-  const car = String(body.car || '').slice(0, 80);
+  const car = cleanLabel(body.car, 80);
   const { valid, gpsQ, flags } = computeValid(body);
   const row = {
     name,
@@ -412,23 +576,25 @@ function sanitizeLap(body, pilot) {
     valid,
     pilotId: pilot.id || null,
     at: Date.now(),
-    dist: body.dist != null ? Number(body.dist) : undefined,
-    slipAvg: body.slipAvg != null ? Number(body.slipAvg) : undefined,
+    dist: boundedNum(body.dist, 0, 100_000) ?? undefined,
+    slipAvg: boundedNum(body.slipAvg, -100, 100) ?? undefined,
   };
   if (gpsQ) row.gpsQ = gpsQ;
   if (flags.length) row.flags = flags;
-  if (body.avgAcc != null && Number.isFinite(Number(body.avgAcc))) {
-    row.avgAcc = Math.round(Number(body.avgAcc) * 10) / 10;
-  }
-  if (body.hz != null && Number.isFinite(Number(body.hz))) {
-    row.hz = Math.round(Number(body.hz) * 10) / 10;
-  }
+  const acc = boundedNum(body.avgAcc, 0, 1000);
+  if (acc != null) row.avgAcc = Math.round(acc * 10) / 10;
+  const hz = boundedNum(body.hz, 0, 100);
+  if (hz != null) row.hz = Math.round(hz * 10) / 10;
   const wxL = sanitizeWeather(body.weather);
   if (wxL) row.weather = wxL;
-  const sectors = sanitizeSectors(body);
-  if (sectors) row.sectors = sectors;
   const ms = Number(body?.ms);
-  if (Number.isFinite(ms) && ms > 0 && ms <= 3_600_000) row.ms = Math.round(ms);
+  if (body?.ms != null) {
+    // ms must agree with the displayed time (±1 s) — otherwise the row is inconsistent / forged
+    if (!Number.isFinite(ms) || Math.abs(ms - tMs) > 1000) return null;
+    row.ms = Math.round(ms);
+  }
+  const sectors = sanitizeSectors(body);
+  if (sectors && sectors[sectors.length - 1] <= tMs + 1000) row.sectors = sectors;
   const av = sanitizeAvatar(body?.avatar);
   if (av) row.avatar = av;
   return row;
@@ -536,15 +702,16 @@ async function enrichSectorAvatars(kv, rows) {
 }
 
 function sanitizePulse(body, pilot) {
-  const text = String(body?.text || '').trim().slice(0, 280);
+  const text = cleanText(body?.text, 280);
   if (!text) return null;
   const img = body?.img ? String(body.img) : '';
   return {
-    id: String(body.id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`).replace(/[^\w.-]/g, '').slice(0, 48) || shareId(),
+    // v80: id is always server-generated (a client-chosen id could collide with / shadow another post)
+    id: Date.now().toString(36) + '-' + randB36(8),
     // Name fallback is a generic label — never the pilot id / phone.
     who: safeName(body.who, '') || safeName(pilot.name, '') || 'Пилот',
     text,
-    img: /^data:image\/(jpeg|jpg|png|webp);base64,/i.test(img) && img.length <= 200_000 ? img : null,
+    img: /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(img) && img.length <= 200_000 ? img : null,
     at: Date.now(),
     likes: [],
     pilotId: pilot.id || null,
@@ -570,22 +737,83 @@ function publicPulseList(rows) {
 }
 
 function shareId() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  return Date.now().toString(36) + randB36(10);
 }
 
+/** Pulse list is one KV value: keep it ≤ ~3 MB (images!) so reads stay cheap and writes never hit the 25 MB cap. */
+const PULSE_MAX_BYTES = 3_000_000;
+async function writePulse(kv, rows) {
+  let list = rows.slice(0, 200);
+  let ser = JSON.stringify(list);
+  while (ser.length > PULSE_MAX_BYTES && list.length > 1) {
+    list = list.slice(0, Math.max(1, Math.floor(list.length * 0.8)));
+    ser = JSON.stringify(list);
+  }
+  await kv.put('pulse', ser);
+  return list;
+}
+
+/* ———————————————————— Share card payload (whitelist) ———————————————————— */
+function sanitizeSharePayload(p) {
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+  const out = {
+    brand: 'PITLANE',
+    car: cleanLabel(p.car, 80) || '—',
+    nick: safeName(p.nick),
+    type: p.type === 'lap' || p.type === 'круг' ? 'lap' : '0-100',
+    track: cleanLabel(p.track, 80),
+    time: cleanLabel(p.time, 24) || '—',
+    valid: p.valid !== false,
+    at: boundedNum(p.at, 0, 4e12) ?? Date.now(),
+    date: cleanLabel(p.date, 40),
+  };
+  if (p.gpsQ === 'A' || p.gpsQ === 'B' || p.gpsQ === 'C') out.gpsQ = p.gpsQ;
+  const acc = boundedNum(p.avgAcc, 0, 1000); if (acc != null) out.avgAcc = acc;
+  const hz = boundedNum(p.hz, 0, 100); if (hz != null) out.hz = hz;
+  const wx = sanitizeWeather(p.weather); if (wx) out.weather = wx;
+  if (typeof p.paint === 'string' && /^#[0-9a-f]{3,8}$/i.test(p.paint)) out.paint = p.paint;
+  if (slugOk(p.trackId)) out.trackId = String(p.trackId);
+  if (Array.isArray(p.sectors)) {
+    const sec = p.sectors.slice(0, 3).map((x) => boundedNum(x, 0, LAP_MAX_MS));
+    if (sec.every((x) => x != null)) out.sectors = sec;
+  }
+  const ms = boundedNum(p.ms, 0, LAP_MAX_MS); if (ms != null) out.ms = ms;
+  return out;
+}
+
+/**
+ * Fixed-window counter in KV → true when over the limit. v80: the window no longer slides on every hit,
+ * and once over the limit nothing is written (so a flood can't turn into a KV write flood).
+ */
 async function rateHit(kv, key, limit, ttlSec) {
-  const raw = await kv.get(key);
+  const now = Date.now();
   let n = 0;
+  let exp = 0;
+  const raw = await kv.get(key);
   if (raw) {
     try {
-      n = Number(JSON.parse(raw).n) || 0;
+      const o = JSON.parse(raw);
+      n = Number(o.n) || 0;
+      exp = Number(o.exp) || 0;
     } catch {
       n = Number(raw) || 0;
     }
   }
+  if (!exp || exp <= now) { n = 0; exp = now + ttlSec * 1000; }
+  if (n >= limit) return true;
   n += 1;
-  await kv.put(key, JSON.stringify({ n, at: Date.now() }), { expirationTtl: ttlSec });
-  return n > limit;
+  await kv.put(key, JSON.stringify({ n, exp }), { expirationTtl: Math.max(60, Math.ceil((exp - now) / 1000)) });
+  return false;
+}
+
+/** Several KV windows at once; returns a 429 Response or null. */
+async function limitOr429(env, headers, rules) {
+  for (const [key, limit, ttl] of rules) {
+    if (await rateHit(env.PITLANE, key, limit, ttl)) {
+      return json({ error: 'rate limit', retry: ttl }, 429, { ...headers, 'Retry-After': String(ttl) });
+    }
+  }
+  return null;
 }
 
 /** Normalize RU mobiles to 11 digits starting with 7 (no +). */
@@ -647,7 +875,7 @@ const DUEL_TTL = 7 * 24 * 60 * 60; // 7 days
 const DUEL_TTL_MS = DUEL_TTL * 1000;
 
 function duelId() {
-  return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  return 'd' + Date.now().toString(36) + randB36(10);
 }
 
 function parseLapMs(t) {
@@ -741,8 +969,15 @@ function sanitizeDuelRun(body, pilot, type) {
 function pilotLabel(pilot, body) {
   const name = safeName(pilot.name || body?.nick || body?.name || body?.createdBy);
   if (pilot.authed && pilot.id) return { id: pilot.id, name };
+  // v80: guests must present a device id (dev_…); the old 'guest:<nick>' fallback let anyone act as anyone.
   const id = guestId(pilot.id) || guestId(body?.pilotId);
-  return { id: id || ('guest:' + name.toLowerCase()), name };
+  return { id, name };
+}
+
+/** Requester identity for "is this mine" checks (account uuid or guest device id), '' if none. */
+function viewerId(pilot) {
+  if (pilot.authed && pilot.id) return pilot.id;
+  return guestId(pilot.id);
 }
 
 function publicWho(w) {
@@ -772,7 +1007,7 @@ function publicDuel(d) {
 const CREW_MAX = 10;
 
 function crewId() {
-  return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  return 'c' + Date.now().toString(36) + randB36(10);
 }
 
 function inviteCode() {
@@ -810,13 +1045,15 @@ async function indexCrewMine(kv, pilotId, crewIdVal) {
   await kv.put(ikey, JSON.stringify(idx));
 }
 
-function publicCrew(c) {
+/** Public crew. The invite code is shown to members only (it used to leak to anyone with the crew id). */
+function publicCrew(c, viewer) {
   if (!c) return null;
+  const isMember = !!viewer && (c.members || []).some((m) => m.pilotId === viewer);
   return {
     id: c.id,
     name: safeName(c.name, 'экипаж'),
     trackId: c.trackId,
-    inviteCode: c.inviteCode,
+    inviteCode: isMember ? c.inviteCode : undefined,
     createdBy: publicWho(c.createdBy),
     members: (c.members || []).map((m) => ({
       pilotId: pubId(m.pilotId),
@@ -1001,7 +1238,8 @@ function timingSafeEqualStr(a, b) {
  * Also: auth_date must be fresh (< maxAgeSec) and not in the future.
  */
 async function verifyTelegramAuth(data, botToken, opts = {}) {
-  const maxAgeSec = opts.maxAgeSec || 86400;
+  // v80: Login Widget payload comes straight back from oauth.telegram.org → 1 h is plenty (was 24 h)
+  const maxAgeSec = opts.maxAgeSec || 3600;
   const nowSec = opts.nowSec || Math.floor(Date.now() / 1000);
   if (!botToken) return { ok: false, error: 'Telegram not configured', status: 503 };
   if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok: false, error: 'bad payload', status: 400 };
@@ -1104,12 +1342,12 @@ async function prepareTmaShare(env, v, body) {
   const param = String(body?.param || '');
   if (!TMA_PARAM_RE.test(param)) return { status: 400, data: { ok: false, error: 'bad param' } };
   if (!tg.username) return { status: 503, data: { ok: false, error: 'bot username not configured' } };
-  const text = String(body?.text || 'PITLANE').replace(/[<>]/g, '').slice(0, 600);
+  const text = cleanText(body?.text || 'PITLANE', 600).replace(/[<>]/g, '');
   const link = 'https://t.me/' + tg.username + '?startapp=' + encodeURIComponent(param);
   const result = {
     type: 'article',
-    id: ('p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)).slice(0, 64),
-    title: String(body?.title || 'PITLANE').slice(0, 64),
+    id: ('p' + Date.now().toString(36) + randB36(10)).slice(0, 64),
+    title: cleanLabel(body?.title || 'PITLANE', 64) || 'PITLANE',
     description: text.split('\n')[0].slice(0, 120),
     input_message_content: { message_text: text + '\n' + link },
     reply_markup: { inline_keyboard: [[{ text: 'Открыть в PITLANE', url: link }]] },
@@ -1131,6 +1369,111 @@ async function prepareTmaShare(env, v, body) {
   const data = await res.json().catch(() => null);
   if (!data?.ok || !data.result?.id) return { status: 502, data: { ok: false, error: 'telegram: ' + String(data?.description || res.status).slice(0, 120), link } };
   return { status: 200, data: { ok: true, id: data.result.id, link } };
+}
+
+/* ———————————————————— Feedback (v80) ———————————————————— */
+
+const FEEDBACK_TYPES = { bug: 'Ошибка', idea: 'Идея', complaint: 'Жалоба', other: 'Другое' };
+const FEEDBACK_TTL = 180 * 24 * 60 * 60; // ~180 days
+const FEEDBACK_MIN_FORM_MS = 3000; // bots submit instantly
+const FEEDBACK_SHOT_MAX = 400 * 1024; // decoded JPEG bytes
+
+function b64DecodedLen(b64) {
+  const s = String(b64 || '');
+  const pad = s.endsWith('==') ? 2 : s.endsWith('=') ? 1 : 0;
+  return Math.floor((s.length * 3) / 4) - pad;
+}
+
+/** → { spam:true } | { error } | { rec, shot } */
+function sanitizeFeedback(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return { error: 'invalid body' };
+  // honeypot: hidden «website» input, humans never fill it
+  if (body.website != null && String(body.website).trim() !== '') return { spam: true };
+  const elapsed = Number(body.elapsedMs);
+  if (!Number.isFinite(elapsed) || elapsed < FEEDBACK_MIN_FORM_MS) return { spam: true };
+  const type = Object.prototype.hasOwnProperty.call(FEEDBACK_TYPES, body.type) ? body.type : null;
+  if (!type) return { error: 'bad type' };
+  const text = cleanText(body.text, 2100);
+  const len = [...text].length;
+  if (len < 10) return { error: 'text too short', min: 10 };
+  if (len > 2000) return { error: 'text too long', max: 2000 };
+  const contact = cleanLabel(body.contact, 120);
+  let shot = null;
+  if (body.screenshot != null && body.screenshot !== '') {
+    const m = String(body.screenshot).match(/^data:image\/jpeg;base64,([A-Za-z0-9+/]+={0,2})$/);
+    if (!m) return { error: 'screenshot must be JPEG' };
+    if (!m[1].startsWith('/9j/')) return { error: 'screenshot must be JPEG' }; // FF D8 FF magic
+    if (b64DecodedLen(m[1]) > FEEDBACK_SHOT_MAX) return { error: 'screenshot too large', max: FEEDBACK_SHOT_MAX };
+    shot = m[1];
+  }
+  const d = body.diag && typeof body.diag === 'object' ? body.diag : {};
+  const diag = {
+    app: cleanLabel(d.app, 24),
+    sw: cleanLabel(d.sw, 32),
+    ua: cleanLabel(d.ua, 300),
+    tier: ['high', 'medium', 'low'].includes(d.tier) ? d.tier : '',
+    tma: d.tma === true,
+    tgPlatform: cleanLabel(d.tgPlatform, 24),
+    tab: /^[a-z0-9_-]{1,24}$/i.test(String(d.tab || '')) ? String(d.tab) : '',
+    lang: /^[a-z]{2}(-[A-Za-z]{2})?$/.test(String(d.lang || '')) ? String(d.lang) : '',
+    screen: /^\d{2,5}x\d{2,5}(@[\d.]{1,4})?$/.test(String(d.screen || '')) ? String(d.screen) : '',
+    online: d.online === false ? false : true,
+    queued: d.queued === true,
+  };
+  return { rec: { type, text, contact, diag }, shot };
+}
+
+function feedbackMessage(rec, key) {
+  const lines = [
+    '📝 Pitlane · обратная связь · ' + FEEDBACK_TYPES[rec.type],
+    '',
+    rec.text,
+    '',
+    '— — —',
+    'Контакт: ' + (rec.contact || '—'),
+    'Пилот: ' + (rec.nick || '—') + (rec.authed ? ' (аккаунт ' + rec.pilotId + ')' : ' (гость)'),
+    'App ' + (rec.diag.app || '?') + ' · SW ' + (rec.diag.sw || '?') + ' · 3D ' + (rec.diag.tier || '?') +
+      ' · TMA ' + (rec.diag.tma ? 'да' + (rec.diag.tgPlatform ? ' (' + rec.diag.tgPlatform + ')' : '') : 'нет') +
+      ' · вкладка ' + (rec.diag.tab || '?') + (rec.diag.queued ? ' · из офлайн-очереди' : ''),
+    'UA: ' + (rec.diag.ua || '?') + (rec.diag.screen ? ' · ' + rec.diag.screen : ''),
+    'KV: ' + key,
+  ];
+  // plain text (no parse_mode) → user text can't inject markup; Telegram limit 4096
+  return lines.join('\n').slice(0, 4000);
+}
+
+/** Forward to the owner's chat. Returns true when Telegram accepted the message. Never throws. */
+async function forwardFeedbackToTelegram(env, rec, key, shot) {
+  const token = String(env.TELEGRAM_BOT_TOKEN || '').trim();
+  const chat = String(env.FEEDBACK_CHAT_ID || '').trim();
+  if (!token || !/^-?\d{1,20}$/.test(chat)) return false;
+  const f = env.__fetch || fetch;
+  const api = 'https://api.telegram.org/bot' + token;
+  const withTimeout = async (url, init) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
+    try { return await f(url, { ...init, signal: ctrl.signal }); } finally { clearTimeout(t); }
+  };
+  try {
+    const res = await withTimeout(api + '/sendMessage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chat, text: feedbackMessage(rec, key), link_preview_options: { is_disabled: true } }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!data?.ok) return false;
+    if (shot) {
+      const bin = Uint8Array.from(atob(shot), (c) => c.charCodeAt(0));
+      const fd = new FormData();
+      fd.append('chat_id', chat);
+      fd.append('caption', 'Скриншот · ' + key);
+      fd.append('photo', new Blob([bin], { type: 'image/jpeg' }), 'screenshot.jpg');
+      await withTimeout(api + '/sendPhoto', { method: 'POST', body: fd }).catch(() => null);
+    }
+    return true;
+  } catch (_) {
+    return false;
+  }
 }
 
 /* ———————————————————— KV scan helpers ———————————————————— */
@@ -1280,6 +1623,13 @@ async function deleteAccount(kv, pid, currentToken) {
       await kvPutKeep(kv, k.name, JSON.stringify(kept), k.expiration);
     }
   }
+  // feedback authored by this account (KV metadata carries the pilot id → no value reads needed)
+  rep.feedback = 0;
+  for (const k of await kvListAll(kv, 'feedback:')) {
+    if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.feedback++; }
+  }
+  // per-account rate-limit counters (short-lived anyway; removed so nothing references the uuid)
+  for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew']) await del('rl:' + b + ':p:' + pid);
   // finally the account record itself
   if (rec) rep.account = 1;
   await del('pilot:' + pid);
@@ -1544,30 +1894,41 @@ export default {
 
     const url = new URL(req.url);
     const path = url.pathname.replace(/\/+$/, '') || '/';
-    const pilot = await resolvePilot(req, env);
+    const ip = clientIp(req);
+    const isWrite = req.method !== 'GET' && req.method !== 'HEAD';
+
+    // v80: per-IP burst limits (Workers Rate Limiting bindings, in-memory per colo, no KV cost)
+    if (await burstLimited(env, isWrite ? 'RL_WRITE' : 'RL_READ', ip)) {
+      return json({ error: 'rate limit', retry: 60 }, 429, { ...headers, 'Retry-After': '60' });
+    }
+    if (path.length > 256) return json({ error: 'not found' }, 404, headers);
 
     try {
+    const pilot = await resolvePilot(req, env);
       if (req.method === 'GET' && path === '/health') {
         return json({ ok: true, service: 'pitlane-api' }, 200, headers);
       }
 
       // —— Auth OTP ——
       if (req.method === 'POST' && path === '/auth/otp') {
-        const body = await req.json().catch(() => null);
+        const body = await readJson(req, BODY_LIMITS.auth);
         const phone = normPhone(body?.phone);
         if (phone.length !== 11 || !phone.startsWith('7')) {
           return json({ error: 'bad phone', hint: '+7…' }, 400, headers);
         }
 
-        const ip = clientIp(req);
         const phoneLimited = await rateHit(env.PITLANE, 'rl:otp:ph:' + phone, OTP_PHONE_LIMIT, 900);
         const ipLimited = await rateHit(env.PITLANE, 'rl:otp:ip:' + ip, OTP_IP_LIMIT, 900);
         if (phoneLimited || ipLimited) {
           return json({ error: 'rate limit', retry: 900 }, 429, headers);
         }
+        // global daily SMS cap (SMS-pumping / toll-fraud guard) — only counts when a real send would happen
+        if (twilioConfigured(env) && await rateHit(env.PITLANE, 'rl:otp:day:' + moscowDateKey(), OTP_DAILY_CAP, 86400)) {
+          return json({ error: 'rate limit', retry: 3600 }, 429, headers);
+        }
 
         const demo = isDemoSms(env);
-        const code = String(Math.floor(1000 + Math.random() * 9000));
+        const code = String(1000 + (crypto.getRandomValues(new Uint32Array(1))[0] % 9000));
 
         let sent = false;
         let twStatus = 0;
@@ -1608,7 +1969,10 @@ export default {
       }
 
       if (req.method === 'POST' && path === '/auth/verify') {
-        const body = await req.json().catch(() => null);
+        if (await rateHit(env.PITLANE, 'rl:otpv:ip:' + ip, 30, 900)) {
+          return json({ ok: false, error: 'rate limit', retry: 900 }, 429, headers);
+        }
+        const body = await readJson(req, BODY_LIMITS.auth);
         const phone = normPhone(body?.phone);
         const code = String(body?.code || '').trim();
         if (phone.length !== 11 || !phone.startsWith('7')) {
@@ -1680,11 +2044,10 @@ export default {
       if (req.method === 'POST' && path === '/auth/telegram') {
         const tg = telegramConfig(env);
         if (!tg.enabled) return json({ ok: false, error: 'Telegram not configured' }, 503, headers);
-        const ip = clientIp(req);
         if (await rateHit(env.PITLANE, 'rl:tg:ip:' + ip, 30, 900)) {
           return json({ ok: false, error: 'rate limit', retry: 900 }, 429, headers);
         }
-        const body = await req.json().catch(() => null);
+        const body = await readJson(req, BODY_LIMITS.auth);
         const payload = body && typeof body === 'object' && body.auth && typeof body.auth === 'object' ? body.auth : body;
         const v = await verifyTelegramAuth(payload, env.TELEGRAM_BOT_TOKEN);
         if (!v.ok) return json({ ok: false, error: v.error }, v.status || 401, headers);
@@ -1695,11 +2058,10 @@ export default {
       if (req.method === 'POST' && (path === '/auth/tma' || path === '/tma/share-prepare')) {
         const tg = telegramConfig(env);
         if (!tg.enabled) return json({ ok: false, error: 'Telegram not configured' }, 503, headers);
-        const ip = clientIp(req);
         if (await rateHit(env.PITLANE, 'rl:tma:ip:' + ip, 60, 900)) {
           return json({ ok: false, error: 'rate limit', retry: 900 }, 429, headers);
         }
-        const body = await req.json().catch(() => null);
+        const body = await readJson(req, BODY_LIMITS.auth);
         const initData = typeof body === 'string' ? body : body?.initData;
         const v = await verifyTmaInitData(initData, env.TELEGRAM_BOT_TOKEN);
         if (!v.ok) return json({ ok: false, error: v.error }, v.status || 401, headers);
@@ -1712,6 +2074,55 @@ export default {
         return json(r.data, r.status, headers);
       }
 
+      // —— Logout: revoke this session token server-side ——
+      if (req.method === 'POST' && path === '/auth/logout') {
+        if (pilot.authed && pilot.token) {
+          await env.PITLANE.delete('sess:' + pilot.token);
+          const idx = (await kvJson(env.PITLANE, 'sessidx:' + pilot.id)) || [];
+          if (Array.isArray(idx) && idx.includes(pilot.token)) {
+            const rest = idx.filter((t) => t !== pilot.token);
+            if (rest.length) await env.PITLANE.put('sessidx:' + pilot.id, JSON.stringify(rest), { expirationTtl: SESS_TTL });
+            else await env.PITLANE.delete('sessidx:' + pilot.id);
+          }
+        }
+        return json({ ok: true }, 200, headers);
+      }
+
+      // —— Feedback (works for guests too) ——
+      if (req.method === 'POST' && path === '/feedback') {
+        const body = await readJson(req, BODY_LIMITS.feedback);
+        const fb = sanitizeFeedback(body);
+        // bots (honeypot / instant submit): pretend success, store nothing
+        if (fb.spam) return json({ ok: true }, 200, headers);
+        if (fb.error) return json({ ok: false, ...fb }, 400, headers);
+        const who = viewerId(pilot);
+        const rules = [
+          ['rl:fb:ip:' + ip, 5, 3600],
+          ['rl:fb:day:' + moscowDateKey(), 300, 86400], // global cap → bounded KV / Telegram usage
+        ];
+        if (who) rules.unshift(['rl:fb:p:' + who, 10, 86400]);
+        const lim = await limitOr429(env, headers, rules);
+        if (lim) return lim;
+        const at = Date.now();
+        const id = randB36(10);
+        const key = 'feedback:' + at + ':' + id;
+        const rec = {
+          id,
+          at,
+          ...fb.rec,
+          authed: !!pilot.authed,
+          pilotId: pilot.authed ? pilot.id : (who ? publicGuestId(who) : null),
+          nick: safeName(pilot.name, ''),
+          screenshot: fb.shot ? 'data:image/jpeg;base64,' + fb.shot : null,
+        };
+        await env.PITLANE.put(key, JSON.stringify(rec), {
+          expirationTtl: FEEDBACK_TTL,
+          metadata: { pid: pilot.authed ? pilot.id : null, type: rec.type, shot: !!fb.shot },
+        });
+        const forwarded = await forwardFeedbackToTelegram(env, rec, key, fb.shot);
+        return json({ ok: true, id, forwarded }, 200, headers);
+      }
+
       // —— Own account ——
       if (path === '/me' && (req.method === 'GET' || req.method === 'PUT')) {
         const denied = requireAuth(pilot, headers);
@@ -1719,7 +2130,9 @@ export default {
         const rec = await loadPilot(env.PITLANE, pilot.id);
         if (!rec) return json({ error: 'account not found' }, 404, headers);
         if (req.method === 'PUT') {
-          const body = await req.json().catch(() => null);
+          const lim = await limitOr429(env, headers, [['rl:me:p:' + pilot.id, 30, 3600]]);
+          if (lim) return lim;
+          const body = await readJson(req, BODY_LIMITS.auth);
           const nick = sanitizeNick(body?.nick);
           if (nick) {
             rec.nick = nick;
@@ -1733,6 +2146,9 @@ export default {
       if (req.method === 'DELETE' && path === '/account') {
         const denied = requireAuth(pilot, headers);
         if (denied) return denied;
+        // full-KV scan per call → strictly limited
+        const lim = await limitOr429(env, headers, [['rl:del:p:' + pilot.id, 3, 3600], ['rl:del:ip:' + ip, 5, 3600]]);
+        if (lim) return lim;
         const report = await deleteAccount(env.PITLANE, pilot.id, pilot.token);
         return json({ ok: true, deleted: report }, 200, headers);
       }
@@ -1741,7 +2157,9 @@ export default {
       if (req.method === 'POST' && path === '/admin/migrate-pilots') {
         const adm = String(env.ADMIN_TOKEN || '');
         const got = String(req.headers.get('X-Admin-Token') || '');
-        if (adm.length < 24 || !timingSafeEqualStr(adm, got)) return json({ error: 'not found', path }, 404, headers);
+        if (adm.length < 24) return json({ error: 'not found' }, 404, headers);
+        if (await rateHit(env.PITLANE, 'rl:adm:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
+        if (!timingSafeEqualStr(adm, got)) return json({ error: 'not found' }, 404, headers);
         const dry = url.searchParams.get('dry') === '1';
         const report = await migratePilots(env.PITLANE, { dry });
         return json({ ok: true, dry, report }, 200, headers);
@@ -1771,7 +2189,9 @@ export default {
           }
         }
         if (req.method === 'PUT') {
-          const body = await req.json().catch(() => null);
+          const lim = await limitOr429(env, headers, [['rl:gar:p:' + pilot.id, 60, 3600]]);
+          if (lim) return lim;
+          const body = await readJson(req, BODY_LIMITS.garage);
           const cars = Array.isArray(body?.cars)
             ? body.cars.slice(0, 40)
             : Array.isArray(body)
@@ -1780,7 +2200,7 @@ export default {
           if (!cars) return json({ error: 'invalid garage' }, 400, headers);
           const payload = {
             cars,
-            carId: body?.carId ? String(body.carId).slice(0, 64) : null,
+            carId: body?.carId ? cleanLabel(body.carId, 64) : null,
             at: Date.now(),
           };
           // ~1.5MB soft cap
@@ -1793,11 +2213,14 @@ export default {
 
       // —— Share cards ——
       if (req.method === 'POST' && path === '/share') {
-        const body = await req.json().catch(() => null);
-        const payload = body?.payload ?? body;
-        if (!payload || typeof payload !== 'object') {
+        const body = await readJson(req, BODY_LIMITS.share);
+        const payload = sanitizeSharePayload(body?.payload ?? body);
+        if (!payload) {
           return json({ error: 'invalid payload' }, 400, headers);
         }
+        // anonymous write → per-IP window + global daily cap (KV quota guard)
+        const lim = await limitOr429(env, headers, [['rl:share:ip:' + ip, 30, 3600], ['rl:share:day:' + moscowDateKey(), 3000, 86400]]);
+        if (lim) return lim;
         const id = shareId();
         await env.PITLANE.put('share:' + id, JSON.stringify(payload), {
           expirationTtl: SHARE_TTL,
@@ -1807,18 +2230,14 @@ export default {
 
       let m = path.match(/^\/share\/([^/]+)$/);
       if (req.method === 'GET' && m) {
-        const id = decodeURIComponent(m[1]);
+        const id = safeDecode(m[1]);
+        if (!/^[a-z0-9]{4,40}$/i.test(id)) return json({ error: 'not found' }, 404, headers);
         const raw = await env.PITLANE.get('share:' + id);
         if (!raw) return json({ error: 'not found' }, 404, headers);
         try {
-          const payload = JSON.parse(raw);
-          // Old clients used the phone as nick fallback on share cards — scrub on read.
-          if (payload && typeof payload === 'object') {
-            for (const k of ['nick', 'name', 'who', 'pilot']) {
-              if (typeof payload[k] === 'string' && containsPhone(payload[k])) payload[k] = 'пилот';
-            }
-            if (payload.pilotId != null) payload.pilotId = pubId(payload.pilotId);
-          }
+          // v80: whitelist on read too (old cards were stored verbatim; phone-ish nicks → «пилот»)
+          const payload = sanitizeSharePayload(JSON.parse(raw));
+          if (!payload) return json({ error: 'not found' }, 404, headers);
           return json(payload, 200, headers);
         } catch {
           return json({ error: 'corrupt' }, 500, headers);
@@ -1828,8 +2247,8 @@ export default {
       // —— Tops straight ——
       m = path.match(/^\/tops\/straight\/([^/]+)$/);
       if (req.method === 'GET' && m) {
-        const carId = decodeURIComponent(m[1]);
-        const url = new URL(req.url);
+        const carId = safeDecode(m[1]);
+        if (!slugOk(carId)) return json([], 200, headers);
         const wx = sanitizeWeather(url.searchParams.get('weather'));
         let rows = (await readList(env.PITLANE, `straight:${carId}`))
           .filter(isValidGpsRow)
@@ -1840,8 +2259,11 @@ export default {
       if (req.method === 'POST' && m) {
         const denied = requireAuth(pilot, headers);
         if (denied) return denied;
-        const carId = decodeURIComponent(m[1]);
-        const body = await req.json().catch(() => null);
+        const carId = safeDecode(m[1]);
+        if (!slugOk(carId)) return json({ error: 'bad car id' }, 400, headers);
+        const lim = await limitOr429(env, headers, [['rl:top:p:' + pilot.id, 60, 3600]]);
+        if (lim) return lim;
+        const body = await readJson(req);
         const row = sanitizeStraight(body, pilot);
         if (!row) return json({ error: 'invalid gps straight row' }, 400, headers);
         // reject forged pilot ids in body
@@ -1860,8 +2282,8 @@ export default {
       // —— Tops lap ——
       m = path.match(/^\/tops\/lap\/([^/]+)$/);
       if (req.method === 'GET' && m) {
-        const trackId = decodeURIComponent(m[1]);
-        const url = new URL(req.url);
+        const trackId = safeDecode(m[1]);
+        if (!slugOk(trackId)) return json([], 200, headers);
         const wx = sanitizeWeather(url.searchParams.get('weather'));
         let rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter(isValidGpsRow);
         if (wx) rows = rows.filter((r) => r && r.weather === wx);
@@ -1870,8 +2292,11 @@ export default {
       if (req.method === 'POST' && m) {
         const denied = requireAuth(pilot, headers);
         if (denied) return denied;
-        const trackId = decodeURIComponent(m[1]);
-        const body = await req.json().catch(() => null);
+        const trackId = safeDecode(m[1]);
+        if (!slugOk(trackId)) return json({ error: 'bad track id' }, 400, headers);
+        const lim = await limitOr429(env, headers, [['rl:top:p:' + pilot.id, 60, 3600]]);
+        if (lim) return lim;
+        const body = await readJson(req);
         const row = sanitizeLap(body, pilot);
         if (!row) return json({ error: 'invalid gps lap row' }, 400, headers);
         if (body?.pilotId && String(body.pilotId) !== pilot.id) {
@@ -1895,8 +2320,8 @@ export default {
       // —— Tops sector (public A/B best sector times) ——
       m = path.match(/^\/tops\/sector\/([^/]+)$/);
       if (req.method === 'GET' && m) {
-        const trackId = decodeURIComponent(m[1]);
-        const url = new URL(req.url);
+        const trackId = safeDecode(m[1]);
+        if (!slugOk(trackId)) return json({ trackId: null, sectors: [[], [], []] }, 200, headers);
         const sectorParam = url.searchParams.get('sector');
         const wx = sanitizeWeather(url.searchParams.get('weather'));
         let rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter(isAbLapRow);
@@ -1910,7 +2335,7 @@ export default {
           }
           return json({ trackId, sectors }, 200, headers);
         }
-        const sector = Math.max(0, Math.min(2, Number(sectorParam) | 0));
+        const sector = Math.max(0, Math.min(2, Number(sectorParam) | 0 || 0));
         let board = buildSectorLeaderboard(rows, sector);
         board = await enrichSectorAvatars(env.PITLANE, board);
         return json({ trackId, sector, rows: publicRows(board) }, 200, headers);
@@ -1926,13 +2351,15 @@ export default {
         if (req.method === 'POST') {
           const denied = requireAuth(pilot, headers);
           if (denied) return denied;
-          const body = await req.json().catch(() => null);
+          const lim = await limitOr429(env, headers, [['rl:pulse:p:' + pilot.id, 10, 3600], ['rl:pulsed:p:' + pilot.id, 40, 86400]]);
+          if (lim) return lim;
+          const body = await readJson(req, BODY_LIMITS.pulse);
           const row = sanitizePulse(body, pilot);
           if (!row) return json({ error: 'invalid pulse' }, 400, headers);
           const rows = await readList(env.PITLANE, 'pulse');
           rows.unshift(row);
-          await writeList(env.PITLANE, 'pulse', rows);
-          return json(publicPulseList(rows.slice(0, 200)), 200, headers);
+          const kept = await writePulse(env.PITLANE, rows);
+          return json(publicPulseList(kept), 200, headers);
         }
       }
 
@@ -1940,17 +2367,19 @@ export default {
       if (req.method === 'POST' && m) {
         const denied = requireAuth(pilot, headers);
         if (denied) return denied;
-        const id = decodeURIComponent(m[1]);
+        const id = safeDecode(m[1]).slice(0, 64);
+        const lim = await limitOr429(env, headers, [['rl:like:p:' + pilot.id, 120, 3600]]);
+        if (lim) return lim;
         // Likes are keyed by the opaque account id (never a phone / nick).
         const who = pilot.id;
         const rows = await readList(env.PITLANE, 'pulse');
         const p = rows.find((x) => x.id === id);
         if (!p) return json({ error: 'not found' }, 404, headers);
-        p.likes = p.likes || [];
+        p.likes = Array.isArray(p.likes) ? p.likes.slice(0, 5000) : [];
         const i = p.likes.indexOf(who);
         if (i >= 0) p.likes.splice(i, 1);
         else p.likes.push(who);
-        await writeList(env.PITLANE, 'pulse', rows);
+        await writePulse(env.PITLANE, rows);
         rows.sort((a, b) => (b.at || 0) - (a.at || 0));
         return json(publicPulseList(rows.slice(0, 200)), 200, headers);
       }
@@ -1959,11 +2388,12 @@ export default {
       if (req.method === 'DELETE' && m) {
         const denied = requireAuth(pilot, headers);
         if (denied) return denied;
-        const id = decodeURIComponent(m[1]);
+        const id = safeDecode(m[1]).slice(0, 64);
         // Only the author (by account id) can delete a post.
         let rows = await readList(env.PITLANE, 'pulse');
+        const before = rows.length;
         rows = rows.filter((x) => !(x.id === id && x.pilotId && x.pilotId === pilot.id));
-        await writeList(env.PITLANE, 'pulse', rows);
+        if (rows.length !== before) await writePulse(env.PITLANE, rows);
         rows.sort((a, b) => (b.at || 0) - (a.at || 0));
         return json(publicPulseList(rows.slice(0, 200)), 200, headers);
       }
@@ -1971,14 +2401,17 @@ export default {
 
       // —— Duels / Challenge ——
       if (req.method === 'POST' && path === '/duel') {
-        const body = await req.json().catch(() => null);
+        const body = await readJson(req);
         const type = body?.type === 'lap' ? 'lap' : body?.type === 'drag' ? 'drag' : null;
         if (!type) return json({ error: 'type must be drag|lap' }, 400, headers);
         const trackId = type === 'lap' ? String(body?.trackId || '').trim().slice(0, 64) : null;
-        if (type === 'lap' && !trackId) return json({ error: 'trackId required for lap' }, 400, headers);
+        if (type === 'lap' && !slugOk(trackId)) return json({ error: 'trackId required for lap' }, 400, headers);
         const who = pilotLabel(pilot, body);
+        if (!who.id) return json({ error: 'pilot required' }, 400, headers);
         if (!who.name) return json({ error: 'createdBy / nick required' }, 400, headers);
-        const note = body?.note != null ? String(body.note).trim().slice(0, 140) : '';
+        const lim = await limitOr429(env, headers, [['rl:duel:ip:' + ip, 20, 3600], ['rl:duel:p:' + who.id, 20, 86400]]);
+        if (lim) return lim;
+        const note = body?.note != null ? cleanLabel(body.note, 140) : '';
         const id = duelId();
         const now = Date.now();
         const duel = {
@@ -2013,7 +2446,8 @@ export default {
       if (req.method === 'GET' && path === '/duels') {
         const mine = String(url.searchParams.get('mine') || '').trim().slice(0, 64);
         if (!mine) return json({ error: 'mine= required' }, 400, headers);
-        if (!pubId(mine)) return json([], 200, headers);
+        // v80: only your own list (was: anyone could list any pilot's duels by id)
+        if (mine !== viewerId(pilot)) return json([], 200, headers);
         let ids = [];
         try {
           const raw = await env.PITLANE.get('duelidx:' + mine);
@@ -2039,7 +2473,7 @@ export default {
 
       m = path.match(/^\/duel\/([^/]+)$/);
       if (req.method === 'GET' && m) {
-        const id = decodeURIComponent(m[1]).slice(0, 64);
+        const id = safeDecode(m[1]).slice(0, 64);
         const raw = await env.PITLANE.get('duel:' + id);
         if (!raw) return json({ error: 'not found' }, 404, headers);
         let d;
@@ -2054,7 +2488,7 @@ export default {
 
       m = path.match(/^\/duel\/([^/]+)\/run$/);
       if (req.method === 'POST' && m) {
-        const id = decodeURIComponent(m[1]).slice(0, 64);
+        const id = safeDecode(m[1]).slice(0, 64);
         const raw = await env.PITLANE.get('duel:' + id);
         if (!raw) return json({ error: 'not found' }, 404, headers);
         let d;
@@ -2063,8 +2497,11 @@ export default {
         if (d.status === 'expired') return json({ error: 'duel expired', duel: publicDuel(d) }, 410, headers);
         if (d.status === 'ready') return json({ error: 'duel locked', duel: publicDuel(d) }, 409, headers);
 
-        const body = await req.json().catch(() => null);
+        const body = await readJson(req);
         const who = pilotLabel(pilot, body);
+        if (!who.id) return json({ error: 'pilot required' }, 400, headers);
+        const lim = await limitOr429(env, headers, [['rl:drun:ip:' + ip, 30, 3600]]);
+        if (lim) return lim;
         const run = sanitizeDuelRun(body, { id: who.id, name: who.name }, d.type);
         if (!run) {
           return json({ error: 'only A/B GPS runs accepted for duel' }, 400, headers);
@@ -2131,17 +2568,19 @@ export default {
 
       // —— Crews / Экипажи ——
       if (req.method === 'POST' && path === '/crew') {
-        const body = await req.json().catch(() => null);
-        const name = String(body?.name || '').trim().slice(0, 48);
+        const body = await readJson(req);
+        const name = cleanLabel(body?.name, 48);
         const trackId = String(body?.trackId || '').trim().slice(0, 64);
-        if (!name) return json({ error: 'name required' }, 400, headers);
-        if (!trackId) return json({ error: 'trackId required' }, 400, headers);
+        if (!name || containsPhone(name)) return json({ error: 'name required' }, 400, headers);
+        if (!slugOk(trackId)) return json({ error: 'trackId required' }, 400, headers);
         const who = pilotLabel(pilot, {
           pilotId: body?.pilotId,
           name: body?.nick || body?.createdBy,
           createdBy: body?.createdBy,
         });
         if (!who.id) return json({ error: 'pilot required' }, 400, headers);
+        const lim = await limitOr429(env, headers, [['rl:crew:ip:' + ip, 10, 3600], ['rl:crew:p:' + who.id, 10, 86400]]);
+        if (lim) return lim;
         const id = crewId();
         let code = inviteCode();
         // rare collision retry
@@ -2164,13 +2603,14 @@ export default {
         await env.PITLANE.put('crew:' + id, JSON.stringify(crew));
         await env.PITLANE.put('crewinv:' + code, id);
         await indexCrewMine(env.PITLANE, who.id, id);
-        return json({ ...publicCrew(crew), inviteCode: code }, 200, headers);
+        return json({ ...publicCrew(crew, who.id), inviteCode: code }, 200, headers);
       }
 
       if (req.method === 'GET' && path === '/crews') {
         const mine = String(url.searchParams.get('mine') || '').trim().slice(0, 64);
         if (!mine) return json({ error: 'mine= required' }, 400, headers);
-        if (!pubId(mine)) return json([], 200, headers);
+        // v80: only your own list (was: anyone could list any pilot's crews + invite codes)
+        if (mine !== viewerId(pilot)) return json([], 200, headers);
         let ids = [];
         try {
           const raw = await env.PITLANE.get('crewidx:' + mine);
@@ -2182,7 +2622,7 @@ export default {
           const raw = await env.PITLANE.get('crew:' + id);
           if (!raw) continue;
           try {
-            out.push(publicCrew(JSON.parse(raw)));
+            out.push(publicCrew(JSON.parse(raw), mine));
           } catch (_) {}
         }
         return json(out, 200, headers);
@@ -2190,9 +2630,12 @@ export default {
 
       // join by invite code
       if (req.method === 'POST' && path === '/crew/join') {
-        const body = await req.json().catch(() => null);
+        const body = await readJson(req);
         const code = String(body?.code || body?.inviteCode || '').trim().toUpperCase().slice(0, 12);
-        if (!code) return json({ error: 'code required' }, 400, headers);
+        if (!/^[A-Z0-9]{4,12}$/.test(code)) return json({ error: 'code required' }, 400, headers);
+        // invite-code guessing guard
+        const lim = await limitOr429(env, headers, [['rl:cjoin:ip:' + ip, 20, 3600]]);
+        if (lim) return lim;
         const cid = await env.PITLANE.get('crewinv:' + code);
         if (!cid) return json({ error: 'invalid invite' }, 404, headers);
         // fall through by rewriting to /crew/:id/join via internal hop — handled below by cloning logic
@@ -2210,23 +2653,23 @@ export default {
           existing.nick = nick;
           await env.PITLANE.put('crew:' + crew.id, JSON.stringify(crew));
           await indexCrewMine(env.PITLANE, pilotId, crew.id);
-          return json(publicCrew(crew), 200, headers);
+          return json(publicCrew(crew, pilotId), 200, headers);
         }
         if (crew.members.length >= CREW_MAX) return json({ error: 'crew full', max: CREW_MAX }, 409, headers);
         crew.members.push({ pilotId, nick, joinedAt: Date.now() });
         await env.PITLANE.put('crew:' + crew.id, JSON.stringify(crew));
         await indexCrewMine(env.PITLANE, pilotId, crew.id);
-        return json(publicCrew(crew), 200, headers);
+        return json(publicCrew(crew, pilotId), 200, headers);
       }
 
       m = path.match(/^\/crew\/([^/]+)$/);
       if (m) {
-        const id = decodeURIComponent(m[1]).slice(0, 64);
+        const id = safeDecode(m[1]).slice(0, 64);
         if (req.method === 'GET') {
           const raw = await env.PITLANE.get('crew:' + id);
           if (!raw) return json({ error: 'not found' }, 404, headers);
           try {
-            return json(publicCrew(JSON.parse(raw)), 200, headers);
+            return json(publicCrew(JSON.parse(raw), viewerId(pilot)), 200, headers);
           } catch {
             return json({ error: 'corrupt' }, 500, headers);
           }
@@ -2235,8 +2678,10 @@ export default {
 
       m = path.match(/^\/crew\/([^/]+)\/join$/);
       if (req.method === 'POST' && m) {
-        const id = decodeURIComponent(m[1]).slice(0, 64);
-        const body = await req.json().catch(() => null);
+        const id = safeDecode(m[1]).slice(0, 64);
+        const body = await readJson(req);
+        const lim = await limitOr429(env, headers, [['rl:cjoin:ip:' + ip, 20, 3600]]);
+        if (lim) return lim;
         const raw = await env.PITLANE.get('crew:' + id);
         if (!raw) return json({ error: 'not found' }, 404, headers);
         let crew;
@@ -2251,18 +2696,18 @@ export default {
           existing.nick = nick;
           await env.PITLANE.put('crew:' + id, JSON.stringify(crew));
           await indexCrewMine(env.PITLANE, pilotId, id);
-          return json(publicCrew(crew), 200, headers);
+          return json(publicCrew(crew, pilotId), 200, headers);
         }
         if (crew.members.length >= CREW_MAX) return json({ error: 'crew full', max: CREW_MAX }, 409, headers);
         crew.members.push({ pilotId, nick, joinedAt: Date.now() });
         await env.PITLANE.put('crew:' + id, JSON.stringify(crew));
         await indexCrewMine(env.PITLANE, pilotId, id);
-        return json(publicCrew(crew), 200, headers);
+        return json(publicCrew(crew, pilotId), 200, headers);
       }
 
       m = path.match(/^\/crew\/([^/]+)\/board$/);
       if (req.method === 'GET' && m) {
-        const id = decodeURIComponent(m[1]).slice(0, 64);
+        const id = safeDecode(m[1]).slice(0, 64);
         const raw = await env.PITLANE.get('crew:' + id);
         if (!raw) return json({ error: 'not found' }, 404, headers);
         let crew;
@@ -2273,8 +2718,10 @@ export default {
 
       m = path.match(/^\/crew\/([^/]+)\/best$/);
       if (req.method === 'POST' && m) {
-        const id = decodeURIComponent(m[1]).slice(0, 64);
-        const body = await req.json().catch(() => null);
+        const id = safeDecode(m[1]).slice(0, 64);
+        const body = await readJson(req);
+        const lim = await limitOr429(env, headers, [['rl:cbest:ip:' + ip, 60, 3600]]);
+        if (lim) return lim;
         const raw = await env.PITLANE.get('crew:' + id);
         if (!raw) return json({ error: 'not found' }, 404, headers);
         let crew;
@@ -2361,7 +2808,9 @@ export default {
       }
 
       if (req.method === 'POST' && path === '/session/today/checkin') {
-        const body = await req.json().catch(() => null);
+        const body = await readJson(req);
+        const lim = await limitOr429(env, headers, [['rl:chk:ip:' + ip, 10, 3600]]);
+        if (lim) return lim;
         let manual = null;
         const mraw = await env.PITLANE.get('session:day');
         if (mraw) {
@@ -2412,9 +2861,12 @@ export default {
       }
 
 
-      return json({ error: 'not found', path }, 404, headers);
+      return json({ error: 'not found' }, 404, headers);
     } catch (err) {
-      return json({ error: String(err?.message || err) }, 500, headers);
+      if (err instanceof HttpError) return json({ error: err.message }, err.status, headers);
+      // never leak internals / stack traces to clients; details go to Workers logs only
+      console.error('pitlane-api error', req.method, path, err && err.stack ? err.stack : err);
+      return json({ error: 'internal error' }, 500, headers);
     }
   },
 };

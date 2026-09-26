@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v79';
+const CACHE = 'pitlane-v80';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -121,6 +121,8 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   const p = url.pathname;
+  // v80: never touch authenticated or Worker API traffic (no caching of personal responses, ever)
+  if (e.request.headers.has('authorization') || url.hostname.endsWith('.workers.dev')) return;
   // API + live map tiles: never SW-cache (online-first; graceful app fallback offline)
   if (
     p.includes('/auth/') ||
@@ -131,6 +133,7 @@ self.addEventListener('fetch', (e) => {
     p.includes('/duel') ||
     p.includes('/crew') ||
     p.includes('/session') ||
+    p.includes('/feedback') ||
     p.endsWith('.mp4') || e.request.headers.has('range') ||
     (url.origin !== self.location.origin && (p === '/me' || p === '/account' || p.startsWith('/admin'))) ||
     url.hostname.includes('arcgisonline.com') ||

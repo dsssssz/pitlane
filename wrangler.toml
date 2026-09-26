@@ -1,5 +1,5 @@
-# Same Worker as worker/wrangler.toml (canonical). Kept so `npx wrangler deploy` from repo root
-# (or /workspace/pitlane-auth) keeps working. Source of truth: worker/src/index.js
+# Same Worker as worker/wrangler.toml (canonical, keep in sync). Kept so `npx wrangler deploy` from repo root
+# keeps working. Prefer: cd worker && npx wrangler@3.114.17 deploy. Source of truth: worker/src/index.js
 name = "pitlane-api"
 main = "worker/src/index.js"
 compatibility_date = "2024-09-01"
@@ -11,5 +11,31 @@ binding = "PITLANE"
 id = "fc7e076d77824da184e7314c2fb3ff1b"
 
 [vars]
+# Production: SMS demo MUST stay "0" (demo OTP codes only for local dev).
 SMS_DEMO = "0"
-TELEGRAM_BOT_USERNAME = "YOUR_BOT_USERNAME"
+# Telegram bot username without @ (display only; login works from the TELEGRAM_BOT_TOKEN secret).
+# Replace after creating the bot in @BotFather, e.g. "pitlane_login_bot".
+TELEGRAM_BOT_USERNAME = "pitlane_official_bot"
+# Telegram chat id that receives POST /feedback (see DEPLOY.md §23: /start the bot → getUpdates).
+# Empty → feedback is only stored in KV (feedback:<ts>:<id>, TTL 180 d).
+FEEDBACK_CHAT_ID = ""
+# optional comma-separated extra origins (local dev only — never localhost in prod)
+# EXTRA_ORIGINS = "http://127.0.0.1:5174"
+
+# Per-IP burst limits (Workers Rate Limiting API; in-memory per colo, no KV cost). period: 10 or 60 s.
+[[unsafe.bindings]]
+name = "RL_READ"
+type = "ratelimit"
+namespace_id = "8001"
+simple = { limit = 240, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_WRITE"
+type = "ratelimit"
+namespace_id = "8002"
+simple = { limit = 40, period = 60 }
+
+# Secrets (never in git):  npx wrangler@3.114.17 secret put <NAME>
+#   TWILIO_SID / TWILIO_TOKEN / TWILIO_FROM  — SMS login
+#   TELEGRAM_BOT_TOKEN                       — Telegram login (from @BotFather)
+#   ADMIN_TOKEN                              — enables POST /admin/migrate-pilots (delete after use)

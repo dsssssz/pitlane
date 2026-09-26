@@ -33,7 +33,13 @@ function devicePilotId() {
   try {
     let id = localStorage.getItem('pitlane-device-v1');
     if (!id) {
-      id = 'dev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      let rnd = '';
+      try {
+        const a = new Uint8Array(12);
+        crypto.getRandomValues(a);
+        rnd = [...a].map((b) => (b % 36).toString(36)).join('');
+      } catch (_) { rnd = Math.random().toString(36).slice(2, 10); }
+      id = 'dev_' + Date.now().toString(36) + rnd;
       localStorage.setItem('pitlane-device-v1', id);
     }
     return id;
@@ -51,6 +57,29 @@ export function accountPilotId() {
   } catch (_) {
     return '';
   }
+}
+
+/**
+ * v80: the Worker never publishes raw guest device ids (they act as the guest's credential) — public
+ * rows carry g_<sha256('pitlane-guest:'+deviceId)[0..16]>. Precompute ours so UI can recognise own rows.
+ */
+let _guestPub = '';
+async function _computeGuestPub() {
+  try {
+    const id = devicePilotId();
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('pitlane-guest:' + id));
+    _guestPub = 'g_' + [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
+  } catch (_) { _guestPub = ''; }
+}
+void _computeGuestPub();
+
+/** True when a public pilot id (account uuid, raw device id or its g_ hash) is the current pilot. */
+export function isMyPilotId(id) {
+  if (!id) return false;
+  const acc = accountPilotId();
+  if (acc && id === acc) return true;
+  if (acc) return false;
+  return id === devicePilotId() || (!!_guestPub && id === _guestPub);
 }
 
 /** Id used for duels / crews: account uuid when logged in, else the device guest id. */
@@ -106,10 +135,11 @@ async function remoteKeep(path, opts = {}) {
   const base = apiBase();
   if (!base) return null;
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 8000);
+  const { timeoutMs, ...fetchOpts } = opts;
+  const t = setTimeout(() => ctrl.abort(), timeoutMs || 8000);
   try {
     const res = await fetch(base + path, {
-      ...opts,
+      ...fetchOpts,
       headers: { ...pilotHeaders(), ...(opts.headers || {}) },
       signal: ctrl.signal,
     });
@@ -528,6 +558,33 @@ export const api = {
     return await remoteKeep('/me');
   },
 
+  /** POST /auth/logout → revoke the session token on the server (best effort). */
+  async logout() {
+    const token = getSessionToken();
+    if (!token || token.startsWith('local-')) return null;
+    return await remoteKeep('/auth/logout', { method: 'POST', body: '{}' });
+  },
+
+  /**
+   * POST /feedback. Offline / network failure → queued in localStorage and retried on `online`
+   * (flushFeedbackQueue). Returns { ok, queued?, error?, status? }.
+   */
+  async sendFeedback(payload) {
+    if (!apiBase()) return { ok: false, error: 'no api' };
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+      return queueFeedback(payload) ? { ok: true, queued: true } : { ok: false, error: 'offline' };
+    }
+    const res = await remoteKeep('/feedback', { method: 'POST', body: JSON.stringify(payload), timeoutMs: 20000 });
+    if (res && res.ok) return res;
+    // network error (no HTTP status) → queue; HTTP 4xx/5xx → report to the user
+    if (res && !res.status) return queueFeedback(payload) ? { ok: true, queued: true } : { ok: false, error: 'offline' };
+    return res || { ok: false, error: 'no api' };
+  },
+
+  async flushFeedbackQueue() {
+    return flushFeedbackQueue();
+  },
+
   /** DELETE /account → { ok, deleted } (auth required). */
   async deleteAccount() {
     return await remoteKeep('/account', { method: 'DELETE' });
@@ -555,6 +612,53 @@ export const api = {
 
 
 };
+
+const FB_QUEUE_KEY = 'pitlane-feedback-queue-v1';
+function readFbQueue() {
+  try { const q = JSON.parse(localStorage.getItem(FB_QUEUE_KEY) || '[]'); return Array.isArray(q) ? q : []; } catch (_) { return []; }
+}
+function queueFeedback(payload) {
+  try {
+    const q = readFbQueue();
+    if (q.length >= 3) return false; // keep localStorage small (screenshots!)
+    q.push({ ...payload, diag: { ...(payload.diag || {}), queued: true }, queuedAt: Date.now() });
+    localStorage.setItem(FB_QUEUE_KEY, JSON.stringify(q));
+    return true;
+  } catch (_) {
+    // quota (big screenshot) → retry without it
+    try {
+      if (!payload.screenshot) return false;
+      const q = readFbQueue();
+      q.push({ ...payload, screenshot: undefined, diag: { ...(payload.diag || {}), queued: true, shotDropped: true }, queuedAt: Date.now() });
+      localStorage.setItem(FB_QUEUE_KEY, JSON.stringify(q));
+      return true;
+    } catch (_) { return false; }
+  }
+}
+let _fbFlushing = false;
+async function flushFeedbackQueue() {
+  if (_fbFlushing || !apiBase()) return 0;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 0;
+  const q = readFbQueue();
+  if (!q.length) return 0;
+  _fbFlushing = true;
+  let sent = 0;
+  try {
+    const rest = [];
+    for (const item of q) {
+      if (Date.now() - (item.queuedAt || 0) > 7 * 86400000) continue; // stale → drop
+      const { queuedAt, ...payload } = item;
+      const res = await remoteKeep('/feedback', { method: 'POST', body: JSON.stringify(payload), timeoutMs: 20000 });
+      if (res && res.ok) sent++;
+      else if (res && res.status && res.status !== 429 && res.status < 500) { /* invalid → drop */ }
+      else rest.push(item);
+    }
+    try { localStorage.setItem(FB_QUEUE_KEY, JSON.stringify(rest)); } catch (_) {}
+  } finally {
+    _fbFlushing = false;
+  }
+  return sent;
+}
 
 export function isRemoteApi() {
   return Boolean(apiBase());

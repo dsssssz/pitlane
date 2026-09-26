@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1a1a1a" />
+    <!-- v80: minimal CSP that cannot break the app (no plugins, no <base> hijack, forms only to self) -->
+    <meta http-equiv="Content-Security-Policy" content="object-src 'none'; base-uri 'self'; form-action 'self'" />
     <script>try{if(/tgWebAppData|tgWebAppVersion/.test(location.hash)||sessionStorage.getItem("pitlane-tma")==="1")document.documentElement.classList.add("tma")}catch(e){}</script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -534,6 +536,7 @@
           <button type="button" id="btnProSoon" class="btn-pro-soon">пока бесплатно</button>
           <p class="tiny acc-method"><a class="method-link" href="./method.html">Методика измерений и топов</a></p>
           <button type="button" id="btnLogout">Выйти</button>
+          <button type="button" id="btnFeedback" class="btn-secondary acc-feedback-btn" aria-haspopup="dialog" aria-controls="feedbackSheet">Обратная связь</button>
           <nav class="acc-legal" aria-label="Документы">
             <a href="./privacy.html">Политика конфиденциальности</a>
             <a href="./terms.html">Пользовательское соглашение</a>
@@ -736,6 +739,44 @@
       </div>
     </div>
 
+
+    <div id="feedbackSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Обратная связь">
+      <div class="crew-sheet-inner race-sheet-inner fb-sheet-inner">
+        <button type="button" class="share-card-close" id="feedbackClose" aria-label="Закрыть">×</button>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <h2 class="race-sheet-title crew-title">Обратная связь</h2>
+          <p class="race-sheet-sub crew-lead">Ошибка, идея или жалоба — сообщение уйдёт команде Pitlane</p>
+        </header>
+        <form id="feedbackForm" class="race-sheet-body" novalidate onsubmit="event.preventDefault();">
+          <div class="seg-control fb-types" role="radiogroup" aria-label="Тип обращения">
+            <button type="button" class="seg-btn on" role="radio" aria-checked="true" data-fb-type="bug">Ошибка</button>
+            <button type="button" class="seg-btn" role="radio" aria-checked="false" data-fb-type="idea">Идея</button>
+            <button type="button" class="seg-btn" role="radio" aria-checked="false" data-fb-type="complaint">Жалоба</button>
+            <button type="button" class="seg-btn" role="radio" aria-checked="false" data-fb-type="other">Другое</button>
+          </div>
+          <label class="crew-field">Сообщение
+            <textarea id="fbText" maxlength="2000" rows="5" placeholder="Что случилось или что улучшить? Минимум 10 символов"></textarea>
+          </label>
+          <p class="tiny fb-counter" id="fbCounter" aria-live="polite">0 / 2000</p>
+          <label class="crew-field">Контакт для ответа (необязательно)
+            <input id="fbContact" maxlength="120" autocomplete="off" placeholder="@telegram или e-mail" />
+          </label>
+          <label class="fb-hp" aria-hidden="true">Сайт <input id="fbWebsite" name="website" tabindex="-1" autocomplete="off" /></label>
+          <div class="fb-shot-row">
+            <label class="btn-ghost fb-shot-btn" for="fbShot">Прикрепить скриншот</label>
+            <input id="fbShot" type="file" accept="image/jpeg,image/png,image/webp" hidden />
+            <img id="fbShotPreview" class="fb-shot-preview" alt="" hidden />
+            <button type="button" class="fb-shot-clear" id="fbShotClear" aria-label="Убрать скриншот" hidden>×</button>
+          </div>
+          <p class="tiny muted fb-diag">К сообщению добавятся версия приложения, браузер, режим 3D и вкладка. Геопозиция и телефон не передаются.</p>
+          <p class="tiny fb-msg" id="fbMsg" role="status"></p>
+          <button type="button" class="go-btn race-cta" id="fbSend">Отправить</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="appToast" class="app-toast hidden" role="status" aria-live="polite"></div>
 
     <div id="autodromeSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Автодромы">
       <div class="crew-sheet-inner ad-sheet-inner race-sheet-inner">
