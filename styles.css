@@ -4017,6 +4017,7 @@ html.tma body { overscroll-behavior: none; }
   flex-shrink: 0;
   width: 30px;
   height: 30px;
+  min-height: 30px;
   margin: 0 0 0 -4px;
   padding: 0;
   border: 1px solid rgba(105, 105, 105, 0.55);
@@ -4029,6 +4030,7 @@ html.tma body { overscroll-behavior: none; }
   -webkit-tap-highlight-color: transparent;
   transition: color .18s ease, border-color .18s ease, background .18s ease, transform .15s ease;
 }
+.mycar .hero-grid-btn { margin-top: 8px; } /* h1 in .mycar has margin-top: 8px — keep the icon on the title's centre line */
 .hero-grid-btn svg { display: block; pointer-events: none; }
 .hero-grid-btn:hover,
 .hero-grid-btn:focus-visible { color: #39FF14; border-color: rgba(57, 255, 20, 0.5); outline: none; }
