@@ -45,7 +45,7 @@ ok(r.status === 200 && sent.length === 1, 'valid secret + path → 200 and one r
 
 console.log('\n[command routing]');
 let s = sent.pop();
-ok(s.method === 'sendPhoto' && s.body.chat_id === 555 && /banner\.jpg$/.test(s.body.photo), '/start → sendPhoto banner to chat');
+ok(s.method === 'sendPhoto' && s.body.chat_id === 555 && /banner\.jpg(\?v=\d+)?$/.test(s.body.photo), '/start → sendPhoto banner to chat');
 const kb = s.body.reply_markup.inline_keyboard;
 ok(kb.length === 3 && kb[0][0].text === '🏁 Открыть PITLANE' && kb[0][0].web_app.url === 'https://dsssssz.github.io/pitlane/', 'big open button');
 ok(kb[1][0].text === '🏆 Топы' && /view=tops/.test(kb[1][0].web_app.url) && kb[1][1].text === '⚔️ Дуэль' && /screen=duel/.test(kb[1][1].web_app.url), 'Топы / Дуэль row');
