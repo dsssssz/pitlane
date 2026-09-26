@@ -11,6 +11,7 @@ import { Reflector } from 'three/addons/objects/Reflector.js';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { attachPitlanePlates, isPitlanePlate } from './plates.js';
+import { createExtGps } from './ext-gps.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
@@ -2851,13 +2852,23 @@ function resetSpeedFilter() {
 /** GPS speed for timing (filtV) + smoother HUD (filtShow). Prefer fused state. */
 function kmhFromCoords(coords, ts) {
   const s = GpsFusion.ingestGps(coords, ts);
+  if (coords && coords.ext && coords.speed != null && Number.isFinite(coords.speed)) {
+    // Внешний GNSS (PITLANE GPS): доплеровская скорость u-blox точнее фильтра телефона — берём её напрямую,
+    // фильтр используем только для координат/дистанции.
+    filtV = coords.speed * 3.6;
+    filtShow = filtV;
+    extSpeedTs = ts;
+    return filtV;
+  }
   if (!s.ready) return null;
   filtV = s.vKmh;
   filtShow = s.showKmh;
   return filtV;
 }
 
+var extSpeedTs = 0;
 function displayKmh() {
+  if (extGps?.active() && extSpeedTs && Date.now() - extSpeedTs < 1500) return Math.round(filtShow || filtV || 0);
   const s = GpsFusion.getState();
   return Math.round(s.showKmh || s.vKmh || filtShow || filtV || 0);
 }
@@ -2956,10 +2967,19 @@ function onGpsPoint(pos) {
     // ZUPT helps clean 0–100: trust fused near-zero
     if (v < 8 || fus.zupt) {
       run.t0 = now;
+      if (pos.coords?.ext) {
+        // Внешний GNSS: точный доплер позволяет брать старт с момента трогания (1 км/ч, интерполяция), как у Dragy
+        if (v < 1) { run.extStill = { t: now, v }; run.t0Ext = null; }
+        else if (run.extStill && !run.t0Ext) {
+          const a = run.extStill;
+          run.t0Ext = a.t + (now - a.t) * Math.max(0, Math.min(1, (1 - a.v) / Math.max(0.01, v - a.v)));
+        }
+      }
       setRunText('runFrom', 'ожидание старта');
       setRunText('runStatus', fus.zupt ? 'Вооружён · ZUPT (стойка чистая)' : 'Вооружён. Трогайтесь');
       setRunText('runDriveMsg', 'вооружён — газ');
     } else if (run.t0 && v >= 8) {
+      if (pos.coords?.ext && run.t0Ext && run.t0 - run.t0Ext >= 0 && run.t0 - run.t0Ext < 4000) run.t0 = run.t0Ext;
       run.launched = true;
       setRunText('runFrom', 'пошли');
       setRunText('runStatus', 'Идёт разгон…');
@@ -3103,6 +3123,12 @@ function onGpsPoint(pos) {
 }
 
 function startWatch() {
+  if (extGps?.active()) {
+    // Точки идут от внешнего приёмника (Bluetooth/симулятор) — геолокацию телефона не трогаем.
+    void keepAwake(true);
+    setRunText('runStatus', extGps.state() === 'sim' ? 'Симулятор PITLANE GPS: жмите «Старт»' : 'PITLANE GPS подключён — жмите «Старт»');
+    return;
+  }
   if (!navigator.geolocation) {
     setRunText('runStatus', 'В этом браузере нет Geolocation');
     return;
@@ -3140,6 +3166,106 @@ function stopGeoWatch() {
   if (run.pollId) clearInterval(run.pollId);
   run.pollId = null;
 }
+
+/* -------- v82: Внешний GPS (PITLANE GPS) — Web Bluetooth + симулятор, см. ext-gps.js / hardware/pitlane-gps -------- */
+var extGps = null;
+function extGpsRender(info) {
+  const bar = document.getElementById('extGpsBar');
+  const st = info?.state || 'off';
+  document.body.classList.toggle('ext-gps-on', st === 'ble' || st === 'sim');
+  document.querySelectorAll('[data-gps-src]').forEach((b) => {
+    const src = b.getAttribute('data-gps-src');
+    const on = (src === 'phone' && st === 'off') || (src === 'ble' && (st === 'ble' || st === 'connecting')) || (src === 'sim' && st === 'sim');
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  const rateRow = document.getElementById('extGpsRate');
+  rateRow?.classList.toggle('hidden', !(st === 'ble' || st === 'sim'));
+  if (!bar) return;
+  if (st === 'off') { bar.textContent = 'Источник: GPS телефона (1 Гц на iPhone, до ~1–5 Гц на Android)'; bar.dataset.q = ''; return; }
+  if (st === 'connecting') { bar.textContent = 'PITLANE GPS: подключение…'; bar.dataset.q = 'mid'; return; }
+  const p = info.last;
+  const hz = info.hz ? info.hz.toFixed(1) : '—';
+  const parts = [st === 'sim' ? 'Симулятор' : (info.name || 'PITLANE GPS'), `${hz} Гц`];
+  if (p) {
+    parts.push(p.fixOk && p.fixType >= 3 ? `${p.numSV} спутн.` : (p.fixOk && p.fixType === 2 ? `2D · ${p.numSV} спутн.` : `нет фикса · ${p.numSV} спутн.`));
+    parts.push(`±${p.hAcc.toFixed(1)} м`);
+    parts.push(`±${p.sAcc.toFixed(2)} м/с`);
+  } else {
+    parts.push('ждём данные…');
+  }
+  const s = info.status;
+  if (s && s.battmV) parts.push(`🔋 ${s.battPct}%`);
+  if (s && !s.configured) parts.push('⚠ приёмник не настроен');
+  if (info.lost) parts.push(`потери ${info.lost}`);
+  bar.textContent = parts.join(' · ');
+  const good = p && p.fixOk && p.fixType >= 3 && p.hAcc <= 2.5 && p.numSV >= 8 && info.hz >= 8;
+  bar.dataset.q = good ? 'good' : (p && p.fixOk ? 'mid' : 'bad');
+  const r = s?.rateHz || (info.hz >= 18 ? 25 : 10);
+  document.querySelectorAll('[data-ext-rate]').forEach((b) => b.classList.toggle('on', Number(b.getAttribute('data-ext-rate')) === r));
+}
+function extGpsMsg(text) {
+  const el = document.getElementById('extGpsMsg');
+  if (!el) return;
+  el.textContent = text || '';
+  el.classList.toggle('hidden', !text);
+}
+function initExtGps() {
+  extGps = createExtGps({
+    isTMA,
+    onPoint: (pos) => { hideGeoDenied(); onGpsPoint(pos); },
+    onStatus: (info) => extGpsRender(info),
+    onState: (state) => {
+      if (state === 'ble' || state === 'sim') {
+        stopGeoWatch();
+        extGpsMsg(state === 'sim' ? 'Симулятор: 4 с стоим, затем разгон до 230 км/ч и торможение — по кругу. Жмите «Старт».' : '');
+        if (run.armed || lapRun.active) void keepAwake(true);
+        setRunText('runStatus', state === 'sim' ? 'Симулятор PITLANE GPS: жмите «Старт»' : 'PITLANE GPS подключён — жмите «Старт»');
+      } else if (state === 'off') {
+        extSpeedTs = 0;
+        resetSpeedFilter();
+        if (run.armed || lapRun.active) {
+          extGpsMsg('Внешний GPS отключился — переключились на GPS телефона.');
+          startWatch();
+        }
+      }
+      extGpsRender(extGps.info());
+    },
+  });
+  extGpsRender(extGps.info());
+  document.querySelectorAll('[data-gps-src]').forEach((b) => b.addEventListener('click', async () => {
+    const src = b.getAttribute('data-gps-src');
+    hap(10);
+    if (src === 'phone') {
+      extGps.disconnect();
+      extGpsMsg('');
+      return;
+    }
+    if (src === 'sim') {
+      extGps.startSim(10);
+      return;
+    }
+    const why = extGps.unsupportedReason();
+    if (why) { extGpsMsg(why); return; }
+    extGpsMsg('Выберите «PITLANE-GPS-…» в списке. Bluetooth и геолокация на телефоне должны быть включены.');
+    try {
+      await extGps.connect();
+      extGpsMsg('');
+    } catch (e) {
+      extGpsMsg(`Не удалось подключиться: ${e?.message || e}`);
+    }
+  }));
+  document.querySelectorAll('[data-ext-rate]').forEach((b) => b.addEventListener('click', async () => {
+    const r = Number(b.getAttribute('data-ext-rate'));
+    try {
+      const ok = await extGps.setRate(r);
+      if (!ok) extGpsMsg('Приёмник не поддерживает смену частоты');
+      else if (r === 25) extGpsMsg('25 Гц: только GPS (одно созвездие), нужен NEO-M9N. На MAX-M10S останется 10 Гц.');
+      else extGpsMsg('');
+    } catch (e) { extGpsMsg(`Ошибка: ${e?.message || e}`); }
+  }));
+}
+try { initExtGps(); } catch (e) { console.warn('[ext-gps] init', e); }
 
 function showGeoDenied() {
   const box = document.getElementById('geoDenied');
@@ -3185,6 +3311,8 @@ function armRun() {
   run.launched = false;
   run.samples = [];
   run.t0 = null;
+  run.t0Ext = null;
+  run.extStill = null;
   run.marks = {};
   run.accSum = 0;
   run.accN = 0;
@@ -8882,7 +9010,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v81';
+const APP_VERSION = 'v82';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

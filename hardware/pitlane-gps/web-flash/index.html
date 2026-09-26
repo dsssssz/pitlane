@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PITLANE GPS — прошивка через браузер</title>
+  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+  <style>
+    body { font: 16px/1.5 system-ui, sans-serif; background: #0b0b0d; color: #eee; max-width: 640px; margin: 40px auto; padding: 0 16px; }
+    h1 { font-size: 22px; } code { background: #1c1c22; padding: 1px 5px; border-radius: 4px; }
+    .muted { color: #999; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h1>PITLANE GPS — прошивка через браузер</h1>
+  <ol>
+    <li>Откройте эту страницу в <b>Chrome или Edge на компьютере</b> (нужен Web Serial).</li>
+    <li>Подключите плату ESP32-C3/ESP32-S3 кабелем USB-C (кабель с данными, не только зарядный).</li>
+    <li>Нажмите кнопку ниже, выберите порт (обычно «USB JTAG/serial debug unit»), подтвердите.</li>
+  </ol>
+  <esp-web-install-button manifest="manifest.json">
+    <button slot="activate">Прошить PITLANE GPS</button>
+    <span slot="unsupported">Этот браузер не поддерживает Web Serial — нужен Chrome/Edge на компьютере.</span>
+    <span slot="not-allowed">Нужна страница по HTTPS.</span>
+  </esp-web-install-button>
+  <p class="muted">Если порт не появляется: зажмите кнопку BOOT, нажмите RESET (или переподключите USB), отпустите BOOT — и повторите.</p>
+  <p class="muted">Исходники: <code>hardware/pitlane-gps/</code> в репозитории pitlane.</p>
+</body>
+</html>

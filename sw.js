@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v81';
+const CACHE = 'pitlane-v82';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -16,6 +16,7 @@ const CORE = [
   './styles.css',
   './app.js',
   './plates.js',
+  './ext-gps.js',
   './track-sat-map.js',
   './geo/outlines.js',
   './vendor/leaflet/leaflet.js',
@@ -134,6 +135,7 @@ self.addEventListener('fetch', (e) => {
     p.includes('/crew') ||
     p.includes('/session') ||
     p.includes('/feedback') ||
+    p.includes('/hardware/') || // v82: firmware images / web-flash page — never cache
     p.endsWith('.mp4') || e.request.headers.has('range') ||
     (url.origin !== self.location.origin && (p === '/me' || p === '/account' || p.startsWith('/admin'))) ||
     url.hostname.includes('arcgisonline.com') ||
