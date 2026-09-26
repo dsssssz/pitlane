@@ -4009,3 +4009,89 @@ html.tma body { overscroll-behavior: none; }
 .geo-denied .row { display: flex; gap: 8px; }
 .geo-denied button { flex: 1; min-height: 44px; border-radius: 12px; border: 1px solid #39FF14; background: #696969; color: #39FF14; font: 800 13px/1 Manrope, sans-serif; letter-spacing: .06em; text-transform: uppercase; }
 .geo-denied button.ghost { border-color: #555; background: transparent; color: #bbb; }
+
+/* —— Car picker (Бокс → tap name / grid icon) · SW v78 —— */
+#boxName { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#boxName:focus-visible { outline: 1px solid rgba(57, 255, 20, 0.6); outline-offset: 4px; border-radius: 6px; }
+.hero-grid-btn {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  margin: 0 0 0 -4px;
+  padding: 0;
+  border: 1px solid rgba(105, 105, 105, 0.55);
+  border-radius: 8px;
+  background: transparent;
+  color: #696969;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color .18s ease, border-color .18s ease, background .18s ease, transform .15s ease;
+}
+.hero-grid-btn svg { display: block; pointer-events: none; }
+.hero-grid-btn:hover,
+.hero-grid-btn:focus-visible { color: #39FF14; border-color: rgba(57, 255, 20, 0.5); outline: none; }
+.hero-grid-btn:active { color: #39FF14; transform: scale(0.92); background: rgba(57, 255, 20, 0.1); }
+.car-picker-sheet { padding: 12px 12px calc(12px + var(--tma-bottom, 0px) + env(safe-area-inset-bottom, 0px)); }
+.car-picker-inner.race-sheet-inner {
+  max-height: min(82vh, 720px);
+  padding: 10px 14px 18px !important;
+  animation: cpSheetUp .26s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+@keyframes cpSheetUp { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.car-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+@media (min-width: 440px) { .car-picker-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.cp-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  margin: 0;
+  padding: 0 0 8px;
+  min-width: 0;
+  border: 1px solid rgba(105, 105, 105, 0.35);
+  border-radius: 12px;
+  background: #1a1a1a;
+  color: #e8e8e8;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+}
+.cp-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  object-position: 50% 30%;
+  background: #1a1a1a;
+}
+.cp-name {
+  display: block;
+  padding: 6px 8px 0;
+  font: 700 14px/1.15 "Barlow Condensed", sans-serif;
+  letter-spacing: .03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cp-year {
+  display: block;
+  padding: 2px 8px 0;
+  font: 500 11px/1.2 Manrope, sans-serif;
+  color: #8a8a8a;
+}
+.cp-card:active { transform: scale(0.97); }
+.cp-card.on {
+  border-color: #39FF14;
+  box-shadow: 0 0 0 1px #39FF14, 0 0 16px rgba(57, 255, 20, 0.28);
+}
+.cp-card.on .cp-name { color: #39FF14; }

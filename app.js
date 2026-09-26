@@ -2112,6 +2112,7 @@ let interactUntil = 0;
 let podiumInView = true;
 const IDLE_SAFETY_MS = 1000; // idle safety-net repaint (1 fps) in case something changed silently
 let renderedFrames = 0;
+let driveIn = null; // active drive-in animation state (see startDriveIn, DEPLOY.md §22)
 
 /** Ask the podium to repaint (and keep painting for `ms`). hard = scene changed (refresh mirror/shadow now). */
 function podiumInvalidate(ms = 0, hard = false) {
@@ -2234,6 +2235,7 @@ function tick(now) {
     const dir = Math.sign(d.position.z) || 1;
     lerp(d, 'y', dir * moving.tDoors * 1.1);
   });
+  if (driveIn) { stepDriveIn(now); animating = true; }
   // high: exact original per-frame update; capped tiers: time-based so rotation speed matches 60 Hz
   const changed = p.maxFps ? controls.update(Math.min(0.1, Math.max(0.001, dtRaw || 1 / 60))) : controls.update();
   const measuring = qMeasureStep(now, false);
@@ -2254,6 +2256,16 @@ try {
     quality: () => ({ tier: Q.tier, source: Q.source, gpu: Q.gpu, locked: Q.locked, measured: Q.measured.slice(), dpr: renderer.getPixelRatio() }),
     frames: () => renderedFrames,
     invalidate: () => podiumInvalidate(300, true),
+    // drive-in debug/recording: replay on the current model, freeze at t ms (null = live), state
+    driveInReplay: () => startDriveIn(glbRoot, podiumModelId),
+    driveInSeek: (ms) => { if (!driveIn) return false; driveIn.seekT = ms; podiumInvalidate(200, true); return true; },
+    driveInActive: () => !!driveIn,
+    // synchronous frame for offline recording: pose at t ms, render, return PNG data URL (null when no drive-in)
+    driveInFrame: (ms, type = 'image/png') => {
+      if (driveIn) { driveIn.seekT = ms; stepDriveIn(performance.now()); }
+      controls.update(); podiumRender(performance.now());
+      return canvas.toDataURL(type);
+    },
   };
 } catch (_) {}
 
@@ -5563,7 +5575,7 @@ if (isTMA) {
   const SHEETS = [
     ['safetySheet', 'safetyCancel'], ['deleteSheet', 'deleteClose'], ['pitHelpSheet', 'pitHelpClose'],
     ['shareCard', 'shareCardClose'], ['duelSheet', 'duelSheetClose'], ['crewSheet', 'crewSheetClose'],
-    ['autodromeSheet', 'autodromeSheetClose'],
+    ['autodromeSheet', 'autodromeSheetClose'], ['carPickerSheet', 'carPickerClose'],
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
   const closeSheet = (id, btnId) => {
@@ -5730,7 +5742,7 @@ const MODEL_CATALOG = [
   { id: 'g87-m2', name: 'BMW G87 M2 Widebody', file: './models/g87-m2.glb', year: '2026' },
   { id: 'gt3rs', name: 'Porsche 911 GT3 RS', file: './models/gt3rs.glb', year: '2023' },
   { id: 'mclaren-765lt', name: 'McLaren 765LT', file: './models/mclaren-765lt.glb', year: '2021' },
-  { id: 'g63', name: 'Mercedes-AMG G 63', file: './models/g63.glb', year: '2020' },
+  { id: 'g63', name: 'Mercedes-AMG G 63', file: './models/g63.glb', year: '2020', driveIn: true },
   { id: 'm4', name: 'BMW M4', file: './models/m4.glb', year: '2021' },
   { id: 'm3', name: 'BMW M3 Competition', file: './models/m3.glb', year: '2023' },
   { id: 'x6', name: 'BMW X6 xDrive40i', file: './models/x6.glb', year: '2020' },
@@ -5783,7 +5795,8 @@ function clearGlb() {
   moving.trunk = null;
 }
 
-function fitGlb(obj) {
+function fitGlb(obj, opts = {}) {
+  try { finishDriveIn(); } catch (_) {}
   const prevRoot = glbRoot;
   glbRoot = obj;
   if (glbRoot.userData) glbRoot.userData.__fromParsedCache = !!obj.userData?.__fromParsedCache;
@@ -5871,7 +5884,192 @@ function fitGlb(obj) {
   try { applyStoredBodyPaint(); } catch (err) { console.warn('paint after fitGlb', err); }
   podiumInvalidate(1200, true);
   if (qm.phase === 'sample' || qm.phase === 'warm') { qm.phase = 'warm'; qm.t0 = performance.now(); } // model swap hitch ≠ slow device
+  if (opts.driveIn) { try { startDriveIn(glbRoot, opts.modelId); } catch (err) { console.warn('drive-in', err); } }
 }
+
+/* ---- Drive-in animation (opt-in per model: MODEL_CATALOG[].driveIn) — DEPLOY.md §22 ----
+ * The car starts DRIVE_IN.dist m behind its resting spot and rolls onto the podium centre with ease-out,
+ * brake dive + small suspension bob, wheels spin by travelled distance, head/tail lights glow.
+ * Everything is restored to the exact fitted values at the end → idle pose identical to the static load.
+ * Tap on the canvas snaps to the end. Low tier: motion + wheel spin only (no dive/bob/lights). */
+const DRIVE_IN = { dist: 3.0, driveMs: 1350, settleMs: 520, pitch: 0.021, bob: 0.014, wobbleHz: 2.4, damp: 7.5 };
+/** Per-model rig hints (node names are GLTFLoader-sanitized: spaces → _). Missing entry → auto-detect wheels by name. */
+const DRIVE_IN_RIGS = {
+  g63: {
+    wheels: /^3DWheel_(Front|Rear)_[LR]$/,
+    unsprung: /^Calliper_(Front|Rear)_[LR]/,
+    headMats: /LightA_Material/,
+    tailMats: /^red_glass$/,
+  },
+};
+const _di = { m1: new THREE.Matrix4(), m2: new THREE.Matrix4(), m3: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3() };
+
+function buildDriveRig(root, modelId) {
+  const cfg = DRIVE_IN_RIGS[modelId] || {};
+  const wheelRe = cfg.wheels || /wheel/i;
+  root.updateMatrixWorld(true);
+  const rootRest = root.matrixWorld.clone();
+  const topMatches = (re) => {
+    const out = [];
+    root.traverse((o) => {
+      if (!re.test(o.name || '') || isPitlanePlate(o)) return;
+      for (let p = o.parent; p && p !== root; p = p.parent) if (re.test(p.name || '')) return;
+      out.push(o);
+    });
+    return out;
+  };
+  const wheels = [];
+  topMatches(wheelRe).forEach((node) => {
+    if (!cfg.wheels && !/front|rear|fl|fr|rl|rr/i.test(node.name)) return;
+    const box = new THREE.Box3().setFromObject(node);
+    if (box.isEmpty()) return;
+    const cw = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3());
+    wheels.push({ node, cw, r: Math.max(0.05, size.y / 2), front: /front/i.test(node.name) });
+  });
+  // forward = rear axle → front axle (world, horizontal); fallback: towards the camera
+  const up = new THREE.Vector3(0, 1, 0);
+  let fwd = new THREE.Vector3();
+  const fr = wheels.filter((w) => w.front), rr = wheels.filter((w) => !w.front);
+  if (fr.length && rr.length) {
+    const a = new THREE.Vector3(); fr.forEach((w) => a.add(w.cw)); a.multiplyScalar(1 / fr.length);
+    const b = new THREE.Vector3(); rr.forEach((w) => b.add(w.cw)); b.multiplyScalar(1 / rr.length);
+    fwd.subVectors(a, b);
+  } else {
+    fwd.set(camera.position.x, 0, camera.position.z);
+  }
+  fwd.y = 0;
+  if (fwd.lengthSq() < 1e-8) fwd.set(0, 0, 1);
+  fwd.normalize();
+  const axle = new THREE.Vector3().crossVectors(up, fwd).normalize(); // rolling forward = +angle about up×fwd
+  const pivot = new THREE.Vector3();
+  if (wheels.length) { wheels.forEach((w) => pivot.add(w.cw)); pivot.multiplyScalar(1 / wheels.length); }
+  else new THREE.Box3().setFromObject(root).getCenter(pivot);
+  const mkNode = (node, spin, cw) => {
+    const parentRest = node.parent.matrixWorld.clone();
+    const e = { node, M0: node.matrix.clone(), K: parentRest, Kinv: parentRest.clone().invert(), spin: false };
+    if (spin) {
+      const inv = node.matrixWorld.clone().invert();
+      e.spin = true;
+      e.c = node.worldToLocal(cw.clone());
+      e.a = axle.clone().transformDirection(inv);
+    }
+    return e;
+  };
+  const unsprung = wheels.map((w) => Object.assign(mkNode(w.node, true, w.cw), { r: w.r }));
+  if (cfg.unsprung) topMatches(cfg.unsprung).forEach((n) => { if (!wheels.some((w) => w.node === n)) unsprung.push(mkNode(n, false)); });
+  // light materials (emissive boost in place; exact values restored at the end)
+  const lights = [];
+  const seen = new Set();
+  root.traverse((o) => {
+    if (!o.isMesh || isPitlanePlate(o)) return;
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+      if (!m || seen.has(m) || !m.emissive) return;
+      const nm = m.name || '';
+      const kind = cfg.headMats && cfg.headMats.test(nm) ? 'head' : cfg.tailMats && cfg.tailMats.test(nm) ? 'tail' : '';
+      if (!kind) return;
+      seen.add(m);
+      lights.push({ m, kind, e0: m.emissive.clone(), i0: m.emissiveIntensity });
+    });
+  });
+  return { root, rootRest, pos0: root.position.clone(), rot0: root.rotation.clone(), scale0: root.scale.clone(), fwd, axle, pivot, unsprung, lights, cs0: contactShadow.position.clone() };
+}
+
+function driveInApply(rig, offset, pitch, bob, travelled, lightK) {
+  const { root } = rig;
+  // body transform Tp = T(P+bob) · R(axle, pitch) · T(-P) — world space, root has no parent transform
+  const Tp = _di.m1.makeTranslation(-rig.pivot.x, -rig.pivot.y, -rig.pivot.z);
+  _di.m2.makeRotationAxis(rig.axle, pitch);
+  Tp.premultiply(_di.m2);
+  Tp.premultiply(_di.m2.makeTranslation(rig.pivot.x, rig.pivot.y + bob, rig.pivot.z));
+  const body = pitch !== 0 || bob !== 0;
+  _di.m3.copy(Tp).multiply(rig.rootRest);
+  _di.m3.premultiply(_di.m2.makeTranslation(offset.x, 0, offset.z));
+  _di.m3.decompose(root.position, root.quaternion, root.scale);
+  // unsprung parts (wheels, calipers) stay level: local = K⁻¹ · Tp⁻¹ · K · M0 · spin
+  const TpInv = body ? Tp.clone().invert() : null;
+  rig.unsprung.forEach((e) => {
+    const M = e.node.matrix;
+    if (body) M.copy(e.Kinv).multiply(TpInv).multiply(e.K).multiply(e.M0);
+    else M.copy(e.M0);
+    if (e.spin) {
+      const ang = travelled / e.r;
+      M.multiply(_di.m2.makeTranslation(e.c.x, e.c.y, e.c.z));
+      M.multiply(_di.m2.makeRotationAxis(e.a, ang));
+      M.multiply(_di.m2.makeTranslation(-e.c.x, -e.c.y, -e.c.z));
+    }
+    e.node.matrixAutoUpdate = false;
+    e.node.matrixWorldNeedsUpdate = true;
+  });
+  rig.lights.forEach((L) => {
+    if (lightK <= 0) { L.m.emissive.copy(L.e0); L.m.emissiveIntensity = L.i0; return; }
+    if (L.kind === 'head') L.m.emissive.setRGB(0.92, 0.96, 1);
+    else L.m.emissive.setRGB(1, 0.06, 0.04);
+    L.m.emissiveIntensity = (L.kind === 'head' ? 0.42 : 1.6) * lightK;
+  });
+  contactShadow.position.set(rig.cs0.x + offset.x, rig.cs0.y, rig.cs0.z + offset.z);
+}
+
+/** Restore the exact fitted pose (idle frame must equal a static load). */
+function finishDriveIn() {
+  const d = driveIn;
+  if (!d) return;
+  driveIn = null;
+  const rig = d.rig;
+  rig.root.position.copy(rig.pos0);
+  rig.root.rotation.copy(rig.rot0);
+  rig.root.scale.copy(rig.scale0);
+  rig.unsprung.forEach((e) => { e.node.matrix.copy(e.M0); e.node.matrixAutoUpdate = true; e.node.matrixWorldNeedsUpdate = true; });
+  rig.lights.forEach((L) => { L.m.emissive.copy(L.e0); L.m.emissiveIntensity = L.i0; });
+  contactShadow.position.copy(rig.cs0);
+  rig.root.updateMatrixWorld(true);
+  try { podiumInvalidate(300, true); } catch (_) {}
+}
+
+function startDriveIn(root, modelId) {
+  finishDriveIn();
+  const m = MODEL_CATALOG.find((x) => x.id === modelId);
+  if (!m || !m.driveIn || !root) return false;
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
+  let rig;
+  try { rig = buildDriveRig(root, modelId); } catch (err) { console.warn('drive-in rig', err); return false; }
+  const lite = Q.tier === 'low';
+  driveIn = { rig, t0: performance.now(), lite, frame: 0 };
+  stepDriveIn(driveIn.t0);
+  podiumInvalidate(DRIVE_IN.driveMs + DRIVE_IN.settleMs + 300, true);
+  return true;
+}
+
+function stepDriveIn(now) {
+  const d = driveIn;
+  if (!d) return false;
+  if (d.rig.root !== glbRoot) { finishDriveIn(); return false; }
+  const t = d.seekT != null ? d.seekT : Math.max(0, now - d.t0);
+  const D = DRIVE_IN.driveMs, S = DRIVE_IN.settleMs;
+  if (t >= D + S) { finishDriveIn(); return false; }
+  const u = Math.min(1, t / D);
+  const s = 1 - Math.pow(1 - u, 3); // ease-out cubic
+  const rem = DRIVE_IN.dist * (1 - s);
+  const offset = _di.v.copy(d.rig.fwd).multiplyScalar(-rem);
+  let pitch = 0, bob = 0, lightK = 0;
+  if (!d.lite) {
+    // brake dive builds while decelerating, then a damped rebound after the stop
+    let k;
+    if (t < D) { const x = Math.min(1, Math.max(0, (u - 0.3) / 0.65)); k = x * x * (3 - 2 * x); }
+    else { const tau = (t - D) / 1000; k = Math.exp(-DRIVE_IN.damp * tau) * Math.cos(2 * Math.PI * DRIVE_IN.wobbleHz * tau); }
+    pitch = DRIVE_IN.pitch * k;
+    bob = -DRIVE_IN.bob * k;
+    const up = Math.min(1, t / 220), down = Math.min(1, Math.max(0, (D + S - t) / 420));
+    lightK = Math.min(up, down);
+  }
+  driveInApply(d.rig, offset, pitch, bob, DRIVE_IN.dist * s, lightK);
+  // static-shadow tiers (medium) re-render the shadow map every 2nd frame while the car moves
+  const p = qPreset();
+  if (p.shadow && p.shadowStatic && (d.frame++ % 2) === 0) { try { renderer.shadowMap.needsUpdate = true; } catch (_) {} }
+  if (p.reflEvery > 1) reflForce = true;
+  return true;
+}
+canvas?.addEventListener('pointerdown', () => { if (driveIn) finishDriveIn(); }, { passive: true });
 
 let heroTitleAnimLock = false;
 
@@ -6135,7 +6333,7 @@ function loadPodiumModel(id, animDir = 0) {
     if (gen !== podiumLoadGen) return;
     if (!scene) return;
     if (scene.userData) scene.userData.__plateModel = m.id;
-    fitGlb(scene);
+    fitGlb(scene, { driveIn: !same, modelId: m.id });
   };
 
   const fail = (err) => {
@@ -6174,8 +6372,13 @@ function loadPodiumModel(id, animDir = 0) {
   })();
 }
 
+/** Garage open: last podium car (state.carId) if it has a GLB, else the M2. */
+function defaultPodiumId() {
+  try { if (state.carId && MODEL_CATALOG.some((m) => m.id === state.carId)) return state.carId; } catch (_) {}
+  return 'g87-m2';
+}
 function loadDefaultGlb() {
-  loadPodiumModel('g87-m2');
+  loadPodiumModel(defaultPodiumId());
 }
 
 
@@ -6186,7 +6389,7 @@ function bootPodium() {
   if (podiumBooted) return;
   podiumBooted = true;
   ensurePodiumEnv();
-  try { startGlbPrefetch(podiumModelId || 'g87-m2'); } catch (_) {}
+  try { startGlbPrefetch(podiumModelId || defaultPodiumId()); } catch (_) {}
   loadDefaultGlb();
   // second resize after fonts/layout
   requestAnimationFrame(() => { onResize(); requestAnimationFrame(onResize); });
@@ -6198,6 +6401,93 @@ document.getElementById('btnDynoCancel')?.addEventListener('click', () => setDyn
 document.getElementById('dynoEditForm')?.addEventListener('submit', saveDynoEdit);
 document.getElementById('btnCarPrev')?.addEventListener('click', () => cyclePodiumModel(-1));
 document.getElementById('btnCarNext')?.addEventListener('click', () => cyclePodiumModel(1));
+
+/* ---- Car picker bottom sheet (tap car name / grid icon) — DEPLOY.md §22 ----
+ * Static thumbnails img/cars/<id>.webp (rendered offline from the GLBs, see tools/car-thumbs.mjs) — no WebGL per card. */
+function carThumbUrl(id) { return './img/cars/' + id + '.webp'; }
+function renderCarPicker() {
+  const grid = document.getElementById('carPickerGrid');
+  if (!grid) return;
+  const cur = podiumModelId || state.carId;
+  grid.innerHTML = MODEL_CATALOG.map((m) => {
+    const on = m.id === cur;
+    return `<button type="button" class="cp-card${on ? ' on' : ''}" role="option" aria-selected="${on}" data-car-id="${esc(m.id)}">`
+      + `<img src="${carThumbUrl(m.id)}" alt="" width="128" height="128" loading="lazy" decoding="async" />`
+      + `<span class="cp-name">${esc(m.name)}</span>${m.year ? `<span class="cp-year">${esc(m.year)}</span>` : ''}</button>`;
+  }).join('');
+}
+function openCarPicker() {
+  const sheet = document.getElementById('carPickerSheet');
+  if (!sheet) return;
+  renderCarPicker();
+  const inner = document.getElementById('carPickerInner');
+  if (inner) { inner.style.transform = ''; inner.style.transition = ''; }
+  sheet.classList.remove('hidden');
+  sheet.setAttribute('aria-hidden', 'false');
+  hap(8);
+  requestAnimationFrame(() => {
+    try { sheet.querySelector('.cp-card.on')?.scrollIntoView({ block: 'nearest' }); } catch (_) {}
+  });
+}
+function closeCarPicker() {
+  const sheet = document.getElementById('carPickerSheet');
+  if (!sheet || sheet.classList.contains('hidden')) return;
+  sheet.classList.add('hidden');
+  sheet.setAttribute('aria-hidden', 'true');
+  const inner = document.getElementById('carPickerInner');
+  if (inner) { inner.style.transform = ''; inner.style.transition = ''; }
+}
+function pickPodiumCar(id) {
+  const m = MODEL_CATALOG.find((x) => x.id === id);
+  closeCarPicker();
+  if (!m || m.id === podiumModelId) return;
+  const from = MODEL_CATALOG.findIndex((x) => x.id === podiumModelId);
+  const to = MODEL_CATALOG.indexOf(m);
+  hap(12);
+  try { controls.autoRotate = false; } catch (_) {}
+  loadPodiumModel(m.id, to >= from ? 1 : -1);
+  clearTimeout(podiumIdleTimer);
+  podiumIdleTimer = setTimeout(() => { try { controls.autoRotate = true; } catch (_) {} }, 1800);
+}
+document.getElementById('btnCarPicker')?.addEventListener('click', openCarPicker);
+document.getElementById('boxName')?.addEventListener('click', openCarPicker);
+document.getElementById('boxName')?.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCarPicker(); } });
+document.getElementById('carPickerClose')?.addEventListener('click', closeCarPicker);
+document.getElementById('carPickerGrid')?.addEventListener('click', (e) => {
+  const b = e.target.closest?.('.cp-card');
+  if (b) pickPodiumCar(b.dataset.carId);
+});
+document.getElementById('carPickerSheet')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closeCarPicker(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCarPicker(); });
+// swipe down to close (from the header anywhere, or from the list when it is scrolled to the top)
+(() => {
+  const inner = document.getElementById('carPickerInner');
+  if (!inner) return;
+  let y0 = null, dy = 0, t0 = 0;
+  inner.addEventListener('touchstart', (e) => {
+    const head = e.target.closest?.('#carPickerHead');
+    if (!head && inner.scrollTop > 0) { y0 = null; return; }
+    y0 = e.touches[0].clientY; dy = 0; t0 = performance.now();
+    inner.style.transition = 'none';
+  }, { passive: true });
+  inner.addEventListener('touchmove', (e) => {
+    if (y0 == null) return;
+    dy = e.touches[0].clientY - y0;
+    if (dy <= 0) { inner.style.transform = ''; return; }
+    if (e.cancelable) e.preventDefault();
+    inner.style.transform = `translateY(${dy}px)`;
+  }, { passive: false });
+  const end = () => {
+    if (y0 == null) return;
+    y0 = null;
+    const v = dy / Math.max(1, performance.now() - t0);
+    inner.style.transition = 'transform .2s ease';
+    if (dy > 90 || (dy > 30 && v > 0.6)) { inner.style.transform = 'translateY(110%)'; setTimeout(closeCarPicker, 180); }
+    else inner.style.transform = '';
+  };
+  inner.addEventListener('touchend', end, { passive: true });
+  inner.addEventListener('touchcancel', end, { passive: true });
+})();
 
 
 document.getElementById('liveryInput')?.addEventListener('change', async (e) => {

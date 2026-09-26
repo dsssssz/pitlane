@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v77';
+const CACHE = 'pitlane-v78';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -29,6 +29,16 @@ const CORE = [
   './img/icon-512.png',
   './img/emblem.svg',
   './img/brands/bmw.png',
+  './img/cars/g87-m2.webp',
+  './img/cars/gt3rs.webp',
+  './img/cars/mclaren-765lt.webp',
+  './img/cars/g63.webp',
+  './img/cars/m4.webp',
+  './img/cars/m3.webp',
+  './img/cars/x6.webp',
+  './img/cars/isf.webp',
+  './img/cars/c63-ed507.webp',
+  './img/cars/spark.webp',
   './audio/huracan-start.mp3',
   './vendor/three/three.module.js',
   './vendor/three/addons/controls/OrbitControls.js',

@@ -176,7 +176,10 @@
                 <div class="hero-title-swap" id="heroTitleSwap">
                   <div class="hero-name-row">
                     <img id="brandMark" class="brand-mark" src="./img/brands/bmw.png" alt="" width="36" height="36" />
-                    <h1 id="boxName">BMW G87 M2 Widebody</h1>
+                    <h1 id="boxName" role="button" tabindex="0" aria-haspopup="dialog" aria-controls="carPickerSheet" title="Выбрать машину">BMW G87 M2 Widebody</h1>
+                    <button type="button" class="hero-grid-btn" id="btnCarPicker" aria-haspopup="dialog" aria-controls="carPickerSheet" aria-label="Все машины" title="Все машины">
+                      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M4 4h7v7H4zm9 0h7v7h-7zM4 13h7v7H4zm9 0h7v7h-7z"/></svg>
+                    </button>
                   </div>
                   <p class="hero-chip" id="boxTrim">2026 · carbon widebody</p>
                   <p class="tiny brand-disclaimer" id="brandDisclaimer">эмблемы марок — только для превью в приложении</p>
@@ -757,6 +760,20 @@
       </div>
     </div>
 
+
+    <div id="carPickerSheet" class="crew-sheet race-sheet car-picker-sheet hidden" aria-hidden="true" role="dialog" aria-label="Выбор машины">
+      <div class="crew-sheet-inner race-sheet-inner car-picker-inner" id="carPickerInner">
+        <button type="button" class="share-card-close" id="carPickerClose" aria-label="Закрыть">×</button>
+        <header class="race-sheet-head" id="carPickerHead">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <h2 class="race-sheet-title">Гараж</h2>
+          <p class="race-sheet-sub">Выбери машину для подиума</p>
+        </header>
+        <div class="race-sheet-body">
+          <div class="car-picker-grid" id="carPickerGrid" role="listbox" aria-label="Машины"></div>
+        </div>
+      </div>
+    </div>
 
     <div id="safetySheet" class="pit-help race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Безопасность">
       <div class="pit-help-inner race-sheet-inner">
