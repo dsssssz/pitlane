@@ -1473,6 +1473,7 @@ function goToView(id, opts = {}) {
     try { onResize(); } catch (_) {}
     return;
   }
+  if (id !== 'garage') { try { finishDriveIn(); } catch (_) {} } // leaving the garage aborts the drive-in (controls restored)
 
   // Unlock + play on the same user gesture that navigates to Замер
   if (id === 'run' && opts.sfx !== false) {
@@ -2131,7 +2132,7 @@ function kickLoop() {
 controls.addEventListener('start', () => { userInteracting = true; podiumInvalidate(300); });
 controls.addEventListener('end', () => { userInteracting = false; interactUntil = performance.now() + 1500; podiumInvalidate(300); });
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) { last = performance.now(); podiumInvalidate(300, true); qMeasureReset(); } else qMeasureReset();
+  if (!document.hidden) { last = performance.now(); podiumInvalidate(300, true); qMeasureReset(); } else { qMeasureReset(); try { finishDriveIn(); } catch (_) {} }
 });
 try {
   if (typeof IntersectionObserver !== 'undefined' && canvas) {
@@ -2140,6 +2141,7 @@ try {
       const vis = !!(e && e.isIntersecting);
       if (vis === podiumInView) return;
       podiumInView = vis;
+      if (!vis) { try { finishDriveIn(); } catch (_) {} } // leaving the garage aborts the drive-in (controls restored)
       qMeasureReset();
       if (vis) { last = performance.now(); podiumInvalidate(300, true); }
     }).observe(canvas);
@@ -2235,9 +2237,10 @@ function tick(now) {
     const dir = Math.sign(d.position.z) || 1;
     lerp(d, 'y', dir * moving.tDoors * 1.1);
   });
+  const diLocked = !!driveIn; // camera frozen while the car drives in (no controls.update → no auto-rotate / damping)
   if (driveIn) { stepDriveIn(now); animating = true; }
   // high: exact original per-frame update; capped tiers: time-based so rotation speed matches 60 Hz
-  const changed = p.maxFps ? controls.update(Math.min(0.1, Math.max(0.001, dtRaw || 1 / 60))) : controls.update();
+  const changed = diLocked ? false : p.maxFps ? controls.update(Math.min(0.1, Math.max(0.001, dtRaw || 1 / 60))) : controls.update();
   const measuring = qMeasureStep(now, false);
   const active = changed || animating || needFrame || now < renderUntil || measuring || userInteracting;
   if (!active) {
@@ -2260,6 +2263,7 @@ try {
     driveInReplay: () => startDriveIn(glbRoot, podiumModelId),
     driveInSeek: (ms) => { if (!driveIn) return false; driveIn.seekT = ms; podiumInvalidate(200, true); return true; },
     driveInActive: () => !!driveIn,
+    driveInState: () => (driveIn ? { t0: driveIn.t0, t: driveIn.lastT ?? 0, seekT: driveIn.seekT ?? null, controlsEnabled: controls.enabled } : null),
     // synchronous frame for offline recording: pose at t ms, render, return PNG data URL (null when no drive-in)
     driveInFrame: (ms, type = 'image/png') => {
       if (driveIn) { driveIn.seekT = ms; stepDriveIn(performance.now()); }
@@ -5891,7 +5895,7 @@ function fitGlb(obj, opts = {}) {
  * The car starts DRIVE_IN.dist m behind its resting spot and rolls onto the podium centre with ease-out,
  * brake dive + small suspension bob, wheels spin by travelled distance, head/tail lights glow.
  * Everything is restored to the exact fitted values at the end → idle pose identical to the static load.
- * Tap on the canvas snaps to the end. Low tier: motion + wheel spin only (no dive/bob/lights). */
+ * Camera controls are locked during the drive-in (no snap on touch). Low tier: motion + wheel spin only (no dive/bob/lights). */
 const DRIVE_IN = { dist: 3.0, driveMs: 1350, settleMs: 520, pitch: 0.021, bob: 0.014, wobbleHz: 2.4, damp: 7.5 };
 /** Per-model rig hints (node names are GLTFLoader-sanitized: spaces → _). Missing entry → auto-detect wheels by name. */
 const DRIVE_IN_RIGS = {
@@ -6015,6 +6019,7 @@ function finishDriveIn() {
   const d = driveIn;
   if (!d) return;
   driveIn = null;
+  unlockControlsAfterDriveIn(d);
   const rig = d.rig;
   rig.root.position.copy(rig.pos0);
   rig.root.rotation.copy(rig.rot0);
@@ -6035,6 +6040,7 @@ function startDriveIn(root, modelId) {
   try { rig = buildDriveRig(root, modelId); } catch (err) { console.warn('drive-in rig', err); return false; }
   const lite = Q.tier === 'low';
   driveIn = { rig, t0: performance.now(), lite, frame: 0 };
+  lockControlsForDriveIn(driveIn);
   stepDriveIn(driveIn.t0);
   podiumInvalidate(DRIVE_IN.driveMs + DRIVE_IN.settleMs + 300, true);
   return true;
@@ -6045,6 +6051,7 @@ function stepDriveIn(now) {
   if (!d) return false;
   if (d.rig.root !== glbRoot) { finishDriveIn(); return false; }
   const t = d.seekT != null ? d.seekT : Math.max(0, now - d.t0);
+  d.lastT = t;
   const D = DRIVE_IN.driveMs, S = DRIVE_IN.settleMs;
   if (t >= D + S) { finishDriveIn(); return false; }
   const u = Math.min(1, t / D);
@@ -6069,7 +6076,37 @@ function stepDriveIn(now) {
   if (p.reflEvery > 1) reflForce = true;
   return true;
 }
-canvas?.addEventListener('pointerdown', () => { if (driveIn) finishDriveIn(); }, { passive: true });
+/** Drive-in camera lock: no rotate/zoom/pinch/pan, no inertia carry-over; any in-progress gesture is dropped. */
+function cancelOrbitGesture() {
+  const c = controls;
+  try {
+    const ptrs = Array.isArray(c._pointers) ? c._pointers.slice() : [];
+    if (ptrs.length) {
+      ptrs.forEach((id) => { try { c.domElement.releasePointerCapture(id); } catch (_) {} });
+      try { c.domElement.removeEventListener('pointermove', c._onPointerMove); } catch (_) {}
+      try { c.domElement.removeEventListener('pointerup', c._onPointerUp); } catch (_) {}
+      c._pointers.length = 0;
+      if (c._pointerPositions) for (const k of Object.keys(c._pointerPositions)) delete c._pointerPositions[k];
+      c.dispatchEvent({ type: 'end' }); // keep app's userInteracting / auto-rotate timer consistent
+    }
+    c.state = -1; // _STATE.NONE
+    c._sphericalDelta?.set(0, 0, 0);
+    c._panOffset?.set(0, 0, 0);
+    c._scale = 1;
+    c._performCursorZoom = false;
+  } catch (_) {}
+}
+function lockControlsForDriveIn(d) {
+  d.ctlEnabled = controls.enabled;
+  cancelOrbitGesture();
+  controls.enabled = false;
+  userInteracting = false;
+  interactUntil = 0;
+}
+function unlockControlsAfterDriveIn(d) {
+  cancelOrbitGesture(); // nothing queued from the locked period
+  controls.enabled = d.ctlEnabled !== false;
+}
 
 let heroTitleAnimLock = false;
 
