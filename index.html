@@ -170,15 +170,80 @@
             <div class="hc-dots" id="homeCarouselDots" role="tablist" aria-label="Слайды"></div>
           </div>
 
-          <button type="button" class="home-card home-car" id="homeCar" aria-label="Моя машина — открыть в гараже">
-            <span class="home-car-img"><img id="homeCarImg" src="./img/cars/g87-m2.webp" alt="" decoding="async"></span>
-            <span class="home-car-txt">
-              <span class="home-kicker">Моя машина</span>
-              <b id="homeCarName">—</b>
-              <span class="home-car-sub" id="homeCarSub"></span>
-            </span>
-            <svg class="home-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
-          </button>
+          <!-- v85: hero «Моя машина» -->
+          <article class="home-hero" id="homeHero">
+            <button type="button" class="hh-stage" id="homeHeroStage" aria-label="Открыть машину в гараже">
+              <span class="hh-glow" aria-hidden="true"></span>
+              <img id="homeHeroImg" class="hh-img" src="./img/cars/hero/g87-m2.webp" alt="" decoding="async" fetchpriority="high">
+              <span class="hh-kicker">Моя машина</span>
+            </button>
+            <div class="hh-body">
+              <h2 id="homeHeroName" class="hh-name">—</h2>
+              <p id="homeHeroSub" class="hh-sub"></p>
+              <div id="homeHeroStats" class="hh-stats"></div>
+              <div class="hh-actions">
+                <button type="button" class="hh-btn" id="homeHeroGarage">В гараж</button>
+                <button type="button" class="hh-btn hh-btn-go" id="homeHeroRun">Замер</button>
+              </div>
+            </div>
+          </article>
+
+          <!-- v85: быстрые действия -->
+          <div class="home-quick" id="homeQuick">
+            <button type="button" class="hq-btn" data-hq="run"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 13l4.5-4.5"/><path d="M9 3h6"/></svg></span><b>Замер</b></button>
+            <button type="button" class="hq-btn" data-hq="lap"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 17c-2-4 1-10 7-10s9 3 7 7-6 2-8 4-4 3-6-1z"/><path d="M12 7V4l3 1.5-3 1.5"/></svg></span><b>Круг</b></button>
+            <button type="button" class="hq-btn" data-hq="duel"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7l6 5-6 5"/><path d="M21 7l-6 5 6 5"/><path d="M12 8v8"/></svg></span><b>Дуэль</b></button>
+            <button type="button" class="hq-btn" data-hq="post"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg></span><b>Пост</b></button>
+          </div>
+
+          <!-- v85: мои дуэли -->
+          <section class="home-sec" id="homeDuelsSec">
+            <div class="home-sec-head">
+              <h3>Мои дуэли</h3>
+              <button type="button" class="home-link" data-view="duels">Все</button>
+            </div>
+            <div id="homeDuels" class="home-rail"></div>
+          </section>
+
+          <!-- v85: трасса дня -->
+          <section class="home-sec">
+            <div class="home-sec-head">
+              <h3>Трасса дня</h3>
+              <button type="button" class="home-link" id="homeTrackOpen">Топ трассы</button>
+            </div>
+            <article class="home-track" id="homeTrack">
+              <div class="ht-art" id="homeTrackArt" aria-hidden="true"></div>
+              <div class="ht-info">
+                <b id="homeTrackName">—</b>
+                <span id="homeTrackMeta" class="ht-meta"></span>
+                <ol id="homeTrackTop" class="ht-top"></ol>
+              </div>
+            </article>
+          </section>
+
+          <!-- v85: лидеры 0–100 -->
+          <section class="home-sec">
+            <div class="home-sec-head">
+              <h3>Лидеры 0–100</h3>
+              <button type="button" class="home-link" id="homeLeadersOpen">Все топы</button>
+            </div>
+            <div id="homeLeaders" class="home-podium"></div>
+          </section>
+
+          <!-- v85: мой прогресс -->
+          <section class="home-sec">
+            <div class="home-sec-head"><h3>Мой прогресс</h3></div>
+            <div id="homeStats" class="home-stats"></div>
+          </section>
+
+          <!-- v85: машины Pitlane -->
+          <section class="home-sec">
+            <div class="home-sec-head">
+              <h3>Машины на подиуме</h3>
+              <button type="button" class="home-link" data-view="garage">Гараж</button>
+            </div>
+            <div id="homeCars" class="home-rail home-cars"></div>
+          </section>
 
           <section class="home-sec">
             <div class="home-sec-head">

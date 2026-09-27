@@ -3098,6 +3098,7 @@ function onGpsPoint(pos) {
     setRunText('slipHero', `${sec.toFixed(2)}s`);
     revealRunMark('0100', '0–100', fmtRunSec(sec));
     run.saved0100 = true;
+    publishDragMark('0-100', sec);
     tmaHaptic('success');
     void publishGps(sec, t100 && t200 ? (t200 - t100) / 1000 : null, t200 && t300 ? (t300 - t200) / 1000 : null);
   }
@@ -9546,7 +9547,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v84';
+const APP_VERSION = 'v85';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -9866,13 +9867,16 @@ function trackShortName(trackId) {
 /* ——— publish every discipline mark (0–100 goes via /tops/straight, mirrored server-side) ——— */
 function publishDragMark(disc, sec) {
   try {
-    if (!dragDiscMeta(disc) || disc === '0-100') return;
-    if (!isRemoteApi() || !currentUser()) return;
+    if (!dragDiscMeta(disc)) return;
     const t = Number(sec);
     if (!Number.isFinite(t) || t <= 0) return;
     const gq = gpsQualityFromStraightRun();
     const flags = (run.flags || []).slice(0, 8);
     if (!(runRowValid(gq, flags) && canPublishTop(gq, flags))) return;
+    // v85: personal bests on device (A/B only) — feeds the home hero card
+    try { recordLocalDragBest(currentCar()?.id, disc, t, gq.gpsQ); } catch (_) {}
+    if (disc === '0-100') return; // server copy goes via /tops/straight (mirrored)
+    if (!isRemoteApi() || !currentUser()) return;
     const car = currentCar();
     void api.addDrag(disc, {
       t: Number(t.toFixed(3)),
@@ -9911,36 +9915,64 @@ function onViewEnter(id) {
 }
 
 /* ——— Главная ——— */
-let _hcIdx = 0; let _hcTimer = 0; let _hcPauseUntil = 0; let _hcHold = false;
+let _hcIdx = 0; let _hcPos = 1; let _hcTimer = 0; let _hcPauseUntil = 0; let _hcHold = false; let _hcN = 0;
 const HC_INTERVAL = 5000;
+/** All slides incl. loop clones: [clone(last), 1..n, clone(first)] */
 function hcSlides() { return [...document.querySelectorAll('#homeCarouselTrack .hc-slide')]; }
-function hcGo(i, smooth = true) {
+function hcGoPos(p, smooth = true) {
   const track = document.getElementById('homeCarouselTrack');
-  const n = hcSlides().length;
-  if (!track || !n) return;
-  _hcIdx = ((i % n) + n) % n;
+  if (!track || !_hcN) return;
+  _hcPos = Math.max(0, Math.min(_hcN + 1, p));
+  _hcIdx = ((_hcPos - 1) % _hcN + _hcN) % _hcN;
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  track.scrollTo({ left: _hcIdx * track.clientWidth, behavior: smooth && !reduce ? 'smooth' : 'auto' });
+  track.scrollTo({ left: _hcPos * track.clientWidth, behavior: smooth && !reduce ? 'smooth' : 'auto' });
   hcSyncDots();
 }
+function hcGo(i, smooth = true) { hcGoPos(i + 1, smooth); }
 function hcSyncDots() {
   document.querySelectorAll('#homeCarouselDots .hc-dot').forEach((b, i) => {
     const on = i === _hcIdx;
     b.classList.toggle('on', on);
     b.setAttribute('aria-selected', String(on));
   });
-  hcSlides().forEach((s, i) => s.classList.toggle('cur', i === _hcIdx));
+  hcSlides().forEach((s, i) => s.classList.toggle('cur', i === _hcPos));
 }
 function hcPause(ms = 6000) { _hcPauseUntil = Date.now() + ms; }
+/** Seamless loop: when we land on a clone, jump (no animation) to its real twin. */
+function hcFixLoop() {
+  const track = document.getElementById('homeCarouselTrack');
+  if (!track || !_hcN) return;
+  const w = track.clientWidth || 1;
+  const p = Math.round(track.scrollLeft / w);
+  if (p <= 0) hcGoPos(_hcN, false);
+  else if (p >= _hcN + 1) hcGoPos(1, false);
+}
 function setupHomeCarousel() {
   const root = document.getElementById('homeCarousel');
   const track = document.getElementById('homeCarouselTrack');
   const dots = document.getElementById('homeCarouselDots');
   if (!root || !track || !dots || root.dataset.ready) return;
   root.dataset.ready = '1';
-  const slides = hcSlides();
+  const art = document.getElementById('hcTrackArt');
+  if (art && !art.firstChild) art.appendChild(trackSilhouetteSvg('sochi', 160, 'hc-trk'));
+  const sub = document.getElementById('hcTopsSub');
+  if (sub) sub.textContent = TRACKS.length + ' трасс и ' + DRAG_DISC.length + ' дисциплин — только валидные GPS A/B';
+  const real = hcSlides();
+  _hcN = real.length;
+  if (_hcN > 1) {
+    const mkClone = (el) => {
+      const c = el.cloneNode(true);
+      c.classList.add('hc-clone');
+      c.setAttribute('aria-hidden', 'true');
+      c.tabIndex = -1;
+      c.querySelectorAll('[id]').forEach((x) => x.removeAttribute('id'));
+      return c;
+    };
+    track.insertBefore(mkClone(real[_hcN - 1]), real[0]);
+    track.appendChild(mkClone(real[0]));
+  }
   dots.replaceChildren();
-  slides.forEach((s, i) => {
+  real.forEach((s, i) => {
     const b = padEl('button', 'hc-dot');
     b.type = 'button';
     b.setAttribute('role', 'tab');
@@ -9948,58 +9980,38 @@ function setupHomeCarousel() {
     b.addEventListener('click', () => { hcPause(); hcGo(i); });
     dots.appendChild(b);
   });
-  const art = document.getElementById('hcTrackArt');
-  if (art && !art.firstChild) art.appendChild(trackSilhouetteSvg('sochi', 160, 'hc-trk'));
-  const sub = document.getElementById('hcTopsSub');
-  if (sub) sub.textContent = TRACKS.length + ' трасс и ' + DRAG_DISC.length + ' дисциплин — только валидные GPS A/B';
-  let raf = 0;
+  let raf = 0; let settle = 0;
   track.addEventListener('scroll', () => {
-    if (raf) return;
-    raf = requestAnimationFrame(() => {
-      raf = 0;
-      const w = track.clientWidth || 1;
-      const i = Math.round(track.scrollLeft / w);
-      if (i !== _hcIdx) { _hcIdx = i; hcSyncDots(); }
-    });
+    if (!raf) {
+      raf = requestAnimationFrame(() => {
+        raf = 0;
+        const w = track.clientWidth || 1;
+        const p = Math.round(track.scrollLeft / w);
+        if (p !== _hcPos) { _hcPos = p; _hcIdx = ((p - 1) % _hcN + _hcN) % _hcN; hcSyncDots(); }
+      });
+    }
+    clearTimeout(settle);
+    settle = setTimeout(() => { if (!_hcHold) hcFixLoop(); }, 160);
   }, { passive: true });
   const hold = () => { _hcHold = true; };
-  const release = () => { _hcHold = false; hcPause(4000); };
+  const release = () => { _hcHold = false; hcPause(4000); clearTimeout(settle); settle = setTimeout(hcFixLoop, 400); };
   track.addEventListener('pointerdown', hold, { passive: true });
   track.addEventListener('touchstart', hold, { passive: true });
   ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'mouseleave'].forEach((ev) => track.addEventListener(ev, release, { passive: true }));
   root.addEventListener('focusin', () => hcPause(8000));
-  slides.forEach((s) => s.addEventListener('click', () => {
+  hcSlides().forEach((s) => s.addEventListener('click', () => {
     const go = s.dataset.go;
     if (go) { hap(10); goToView(go); }
   }));
-  window.addEventListener('resize', () => hcGo(_hcIdx, false), { passive: true });
-  hcSyncDots();
+  window.addEventListener('resize', () => hcGoPos(_hcPos, false), { passive: true });
+  requestAnimationFrame(() => hcGoPos(1, false));
   clearInterval(_hcTimer);
   _hcTimer = setInterval(() => {
     if (_hcHold || document.hidden || Date.now() < _hcPauseUntil) return;
     if (!document.getElementById('view-home')?.classList.contains('active')) return;
-    hcGo(_hcIdx + 1);
+    hcFixLoop();
+    hcGoPos(_hcPos + 1);
   }, HC_INTERVAL);
-}
-function renderHomeCar() {
-  let id = null;
-  try { id = podiumModelId || defaultPodiumId(); } catch (_) { id = 'g87-m2'; }
-  const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
-  if (!m) return;
-  const img = document.getElementById('homeCarImg');
-  if (img && img.getAttribute('src') !== carThumbUrl(m.id)) img.src = carThumbUrl(m.id);
-  const nm = document.getElementById('homeCarName');
-  if (nm) nm.textContent = m.name;
-  const sub = document.getElementById('homeCarSub');
-  if (sub) {
-    const rec = state.meas?.[m.id] || {};
-    const bits = [m.year ? String(m.year) : ''];
-    if (rec.v0100) bits.push('0–100 · ' + Number(rec.v0100).toFixed(2) + ' с');
-    else bits.push('Открыть в гараже');
-    sub.textContent = bits.filter(Boolean).join(' · ');
-  }
-  const btn = document.getElementById('homeCar');
-  if (btn) btn.dataset.car = m.id;
 }
 let _homePostsAt = 0;
 async function renderHomeTopPosts(force = false) {
@@ -10062,25 +10074,397 @@ async function openPostInPaddock(id) {
     }
   }
 }
+/* ——— v85: насыщенная Главная — только реальные данные (локальные замеры, Worker-топы, контент кода) ——— */
+function homeHeroCarId() {
+  try { return podiumModelId || defaultPodiumId(); } catch (_) { return 'g87-m2'; }
+}
+function localDragBest(carId, disc) {
+  const r = state.dragBest?.[carId]?.[disc];
+  return r && Number.isFinite(Number(r.t)) ? r : null;
+}
+function recordLocalDragBest(carId, disc, t, gpsQ) {
+  if (!carId || !(t > 0) || (gpsQ !== 'A' && gpsQ !== 'B')) return;
+  state.dragBest = state.dragBest || {};
+  const car = (state.dragBest[carId] = state.dragBest[carId] || {});
+  const prev = car[disc];
+  if (!prev || t < Number(prev.t)) {
+    car[disc] = { t: Number(t.toFixed(3)), at: Date.now(), gpsQ };
+    try { save(); } catch (_) {}
+  }
+}
+function passportBest(carId, mark) {
+  const runs = state.passportGps?.[carId]?.[mark];
+  if (!Array.isArray(runs)) return null;
+  const ts = runs.filter((r) => r && (r.gpsQ === 'A' || r.gpsQ === 'B')).map((r) => Number(r.t)).filter((x) => Number.isFinite(x) && x > 0);
+  return ts.length ? Math.min(...ts) : null;
+}
+function minDefined(...xs) {
+  const a = xs.map(Number).filter((x) => Number.isFinite(x) && x > 0);
+  return a.length ? Math.min(...a) : null;
+}
+function localBestLap() {
+  let best = null;
+  for (const [trackId, list] of Object.entries(state.laps || {})) {
+    if (!Array.isArray(list)) continue;
+    for (const r of list) {
+      if (!r || !r.gps || r.valid === false || !(r.ms > 0)) continue;
+      if (!best || (r.at || 0) > (best.lastAt || 0)) best = { trackId, ms: r.ms, lastAt: r.at || 0 };
+    }
+  }
+  if (!best) return null;
+  const same = (state.laps[best.trackId] || []).filter((r) => r && r.gps && r.valid !== false && r.ms > 0);
+  return { trackId: best.trackId, ms: Math.min(...same.map((r) => r.ms)) };
+}
+function localStats() {
+  let laps = 0; const tracks = new Set();
+  for (const [trackId, list] of Object.entries(state.laps || {})) {
+    const v = (Array.isArray(list) ? list : []).filter((r) => r && r.gps && r.valid !== false && r.ms > 0);
+    if (v.length) { laps += v.length; tracks.add(trackId); }
+  }
+  const slips = Array.isArray(state.slips) ? state.slips : [];
+  let best0100 = null;
+  for (const m of MODEL_CATALOG) best0100 = minDefined(best0100, passportBest(m.id, 'v0100'), localDragBest(m.id, '0-100')?.t);
+  for (const c of state.garage || []) best0100 = minDefined(best0100, passportBest(c.id, 'v0100'));
+  return { runs: slips.length, runsCapped: slips.length >= 20, laps, tracks: tracks.size, cars: (state.garage || []).length, best0100, slips };
+}
+
+let _homeCache = { at: 0 };
+async function homeRemote() {
+  if (Date.now() - _homeCache.at < 60000) return _homeCache;
+  const pid = (() => { try { return accountPilotId(); } catch (_) { return null; } })();
+  const [board, prof] = await Promise.all([
+    isRemoteApi() ? api.listDrag('0-100', {}).catch(() => []) : Promise.resolve([]),
+    pid && isPublicPilot(pid) && isRemoteApi() ? api.pilotProfile(pid).catch(() => null) : Promise.resolve(null),
+  ]);
+  _homeCache = { at: Date.now(), board: Array.isArray(board) ? board : [], prof: prof && prof.best ? prof : null, pid };
+  return _homeCache;
+}
+
+function homeStatTile(k, v, sub, cls = '') {
+  const t = padEl('div', 'hh-stat ' + cls);
+  t.appendChild(padEl('span', 'hh-k', k));
+  t.appendChild(padEl('b', 'hh-v', v));
+  if (sub) t.appendChild(padEl('span', 'hh-s', sub));
+  return t;
+}
+async function renderHomeHero() {
+  const id = homeHeroCarId();
+  const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
+  if (!m) return;
+  const img = document.getElementById('homeHeroImg');
+  const heroSrc = './img/cars/hero/' + m.id + '.webp';
+  if (img && img.dataset.car !== m.id) {
+    img.dataset.car = m.id;
+    img.onerror = () => { img.onerror = null; img.src = carThumbUrl(m.id); };
+    img.src = heroSrc;
+  }
+  const hero = document.getElementById('homeHero');
+  if (hero) hero.dataset.car = m.id;
+  const nm = document.getElementById('homeHeroName');
+  if (nm) nm.textContent = m.name;
+  const sub = document.getElementById('homeHeroSub');
+  let cls = '';
+  try { cls = (CARS.find((c) => c.id === m.id)?.cls) || ''; } catch (_) {}
+  if (sub) sub.textContent = [m.year, cls].filter(Boolean).join(' · ');
+  const box = document.getElementById('homeHeroStats');
+  if (!box) return;
+  const draw = (remote) => {
+    const drag = remote?.prof?.best?.drag || {};
+    const srv = (disc) => (drag[disc] && (!drag[disc].carId || drag[disc].carId === m.id)) ? Number(drag[disc].t) : null;
+    const b0100 = minDefined(passportBest(m.id, 'v0100'), localDragBest(m.id, '0-100')?.t, srv('0-100'));
+    const bQ = minDefined(localDragBest(m.id, '402m')?.t, srv('402m'));
+    const lap = localBestLap();
+    let rank = null;
+    if (remote?.pid && remote.board?.length) {
+      const i = remote.board.findIndex((r) => r.pilotId === remote.pid);
+      if (i >= 0) rank = { n: i + 1, of: remote.board.length };
+    }
+    box.replaceChildren();
+    const tiles = [];
+    if (b0100 != null) tiles.push(homeStatTile('0–100', b0100.toFixed(2) + ' с', 'GPS A/B'));
+    if (bQ != null) tiles.push(homeStatTile('¼ мили', bQ.toFixed(2) + ' с', '402 м'));
+    if (lap) tiles.push(homeStatTile('Лучший круг', fmtLapTime(lap.ms), clipText(trackShortName(lap.trackId), 14)));
+    if (rank) tiles.push(homeStatTile('Топ 0–100', '#' + rank.n, 'из ' + rank.of, 'hh-rank'));
+    if (!tiles.length) {
+      const cta = padEl('div', 'hh-cta');
+      cta.appendChild(padEl('b', '', 'Сделай первый замер'));
+      cta.appendChild(padEl('span', '', 'Здесь появятся твои рекорды: 0–100, ¼ мили, лучший круг и место в топе. Только честный GPS A/B.'));
+      box.appendChild(cta);
+      document.getElementById('homeHero')?.classList.add('empty');
+      return;
+    }
+    document.getElementById('homeHero')?.classList.remove('empty');
+    tiles.forEach((t) => box.appendChild(t));
+  };
+  draw(null);
+  try { draw(await homeRemote()); } catch (_) {}
+}
+
+async function fetchMyDuels() {
+  if (!isRemoteApi()) return [];
+  let rows = [];
+  try { rows = (await api.listMyDuels(duelPilotId())) || []; } catch (_) { rows = []; }
+  const have = new Set(rows.map((d) => d.id));
+  const extra = inboxDuelIds().filter((id) => !have.has(id)).slice(0, 8);
+  const got = await Promise.all(extra.map((id) => api.getDuel(id).catch(() => null)));
+  got.forEach((d) => { if (d && d.id) rows.push(d); });
+  return rows.filter((d) => d && d.id);
+}
+async function renderHomeDuels() {
+  const box = document.getElementById('homeDuels');
+  if (!box) return;
+  let rows = [];
+  try { rows = await fetchMyDuels(); } catch (_) { rows = []; }
+  const order = { inbox: 0, active: 1, done: 2 };
+  rows = rows.filter((d) => duelCategory(d) !== 'done' || (Date.now() - (d.createdAt || 0)) < 3 * 86400000)
+    .sort((a, b) => order[duelCategory(a)] - order[duelCategory(b)] || (b.createdAt || 0) - (a.createdAt || 0));
+  box.replaceChildren();
+  if (!rows.length) {
+    const e = padEl('button', 'home-duel-empty');
+    e.type = 'button';
+    e.dataset.hq = 'duel';
+    const art = padEl('span', 'hde-art');
+    art.setAttribute('aria-hidden', 'true');
+    ['g87-m2', 'gt3rs'].forEach((cid, i) => {
+      const im = document.createElement('img');
+      im.src = carThumbUrl(cid); im.alt = ''; im.loading = 'lazy'; im.className = 'hde-car hde-car-' + (i ? 'r' : 'l');
+      art.appendChild(im);
+    });
+    art.appendChild(padEl('span', 'hde-vs', 'VS'));
+    e.appendChild(art);
+    const tx = padEl('span', 'hde-txt');
+    tx.appendChild(padEl('b', '', 'Брось первый вызов'));
+    tx.appendChild(padEl('span', '', '0–100 или круг — отправь ссылку другу, победит честный GPS.'));
+    tx.appendChild(padEl('span', 'hde-go', 'Вызвать →'));
+    e.appendChild(tx);
+    box.appendChild(e);
+    box.classList.add('single');
+    return;
+  }
+  box.classList.remove('single');
+  rows.slice(0, 6).forEach((d) => box.appendChild(buildDuelCard(d)));
+}
+
+async function renderHomeTrack() {
+  let data = null;
+  try { data = await api.getSessionToday(); } catch (_) { data = null; }
+  if (!data || !data.trackId) data = pickSessionTrackClient();
+  const tr = TRACKS.find((t) => t.id === data.trackId) || TRACKS[0];
+  const card = document.getElementById('homeTrack');
+  if (!card || !tr) return;
+  card.dataset.track = tr.id;
+  const art = document.getElementById('homeTrackArt');
+  if (art && art.dataset.track !== tr.id) {
+    art.dataset.track = tr.id;
+    const svg = trackSilhouetteSvg(tr.id, 120, 'ht-sil');
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const d = trackSilhouettePath(tr.id);
+    if (d && !reduce) {
+      const ns = 'http://www.w3.org/2000/svg';
+      const dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('r', '1.6');
+      dot.setAttribute('class', 'ht-dot');
+      const mo = document.createElementNS(ns, 'animateMotion');
+      mo.setAttribute('dur', '7s');
+      mo.setAttribute('repeatCount', 'indefinite');
+      mo.setAttribute('path', d);
+      dot.appendChild(mo);
+      svg.appendChild(dot);
+    }
+    art.replaceChildren(svg);
+  }
+  const nm = document.getElementById('homeTrackName');
+  if (nm) nm.textContent = tr.name;
+  const meta = document.getElementById('homeTrackMeta');
+  if (meta) meta.textContent = [tr.km ? tr.km + ' км' : '', tr.turns ? tr.turns + ' поворотов' : '', tr.cult ? 'культовая' : ''].filter(Boolean).join(' · ');
+  const ol = document.getElementById('homeTrackTop');
+  if (!ol) return;
+  let rows = [];
+  try {
+    const raw = (await api.listLapBoard(tr.id, 'all')) || [];
+    const best = new Map();
+    filterTopRows(raw, { model: '' }).forEach((r) => {
+      const k = r.pilotId || ('n:' + (r.name || ''));
+      const ms = lapMs(r.t);
+      if (!Number.isFinite(ms)) return;
+      if (!best.has(k) || ms < best.get(k)._ms) best.set(k, { ...r, _ms: ms });
+    });
+    rows = [...best.values()].sort((a, b) => a._ms - b._ms).slice(0, 3);
+  } catch (_) { rows = []; }
+  ol.replaceChildren();
+  if (!rows.length) {
+    const li = padEl('li', 'ht-empty');
+    li.appendChild(padEl('b', '', 'Трасса свободна'));
+    li.appendChild(padEl('span', '', 'Проедь круг с GPS A/B — и рекорд трассы твой.'));
+    ol.appendChild(li);
+    return;
+  }
+  rows.forEach((r, i) => {
+    const li = padEl('li', 'ht-row');
+    if (r.pilotId && isPublicPilot(r.pilotId)) li.dataset.pilot = r.pilotId;
+    li.appendChild(padEl('span', 'ht-n', String(i + 1)));
+    li.appendChild(padEl('span', 'ht-who', clipText(r.name || 'пилот', 12)));
+    li.appendChild(padEl('span', 'ht-t', String(r.t)));
+    ol.appendChild(li);
+  });
+}
+
+async function renderHomeLeaders() {
+  const box = document.getElementById('homeLeaders');
+  if (!box) return;
+  let board = [];
+  try { board = (await homeRemote()).board || []; } catch (_) { board = []; }
+  try { board = filterTopRows(board, { model: '' }); } catch (_) {}
+  board = board.slice().sort((a, b) => Number(a.t) - Number(b.t));
+  box.replaceChildren();
+  const slots = [1, 0, 2]; // 2nd · 1st · 3rd
+  slots.forEach((i) => {
+    const r = board[i];
+    const col = padEl(r?.pilotId && isPublicPilot(r.pilotId) ? 'button' : 'div', 'hl-col hl-p' + (i + 1) + (r ? '' : ' free'));
+    if (col.tagName === 'BUTTON') { col.type = 'button'; col.dataset.pilot = r.pilotId; }
+    col.appendChild(r ? padAvatar(r.name || 'P', r.avatar, i === 0 ? 52 : 42) : padEl('span', 'pad-ava hl-q', '?'));
+    col.appendChild(padEl('b', 'hl-name', r ? clipText(r.name || 'пилот', 10) : 'Свободно'));
+    col.appendChild(padEl('span', 'hl-car', r ? (shortCarName(r.car, r.carId) || '—') : 'займи место'));
+    const step = padEl('span', 'hl-step');
+    step.appendChild(padEl('i', '', String(i + 1)));
+    step.appendChild(padEl('span', 'hl-t', r ? Number(r.t).toFixed(2) + ' с' : '—'));
+    col.appendChild(step);
+    box.appendChild(col);
+  });
+  if (!board.length) {
+    const cta = padEl('button', 'home-link hl-cta', 'Займи первое место — к замеру');
+    cta.type = 'button';
+    cta.dataset.hq = 'run';
+    box.appendChild(cta);
+  }
+}
+
+function renderHomeStats() {
+  const box = document.getElementById('homeStats');
+  if (!box) return;
+  const s = localStats();
+  box.replaceChildren();
+  const grid = padEl('div', 'hs-grid');
+  [
+    [s.runsCapped ? '20+' : String(s.runs), 'замеров 0–100'],
+    [String(s.laps), 'кругов GPS'],
+    [String(s.tracks), s.tracks === 1 ? 'трасса' : 'трасс'],
+    [s.best0100 != null ? s.best0100.toFixed(2) : '—', 'лучший 0–100, с'],
+  ].forEach(([v, k]) => {
+    const t = padEl('div', 'hs-tile');
+    t.appendChild(padEl('b', '', v));
+    t.appendChild(padEl('span', '', k));
+    grid.appendChild(t);
+  });
+  box.appendChild(grid);
+  const hist = s.slips.map((x) => Number(x.v0100)).filter((x) => Number.isFinite(x) && x > 0).slice(0, 10).reverse();
+  if (hist.length >= 2) {
+    const wrap = padEl('div', 'hs-hist');
+    wrap.appendChild(padEl('span', 'hs-hist-k', 'Последние замеры 0–100'));
+    const bars = padEl('div', 'hs-bars');
+    const mx = Math.max(...hist); const mn = Math.min(...hist);
+    hist.forEach((v, i) => {
+      const b = padEl('span', 'hs-bar' + (v === mn ? ' best' : ''));
+      b.style.height = Math.round(30 + 70 * (mx === mn ? 1 : (mx - v) / (mx - mn))) + '%';
+      b.style.animationDelay = (i * 40) + 'ms';
+      b.title = v.toFixed(2) + ' с';
+      bars.appendChild(b);
+    });
+    wrap.appendChild(bars);
+    wrap.appendChild(padEl('span', 'hs-hist-s', 'лучший ' + mn.toFixed(2) + ' с · последний ' + hist[hist.length - 1].toFixed(2) + ' с'));
+    box.appendChild(wrap);
+  } else if (!s.runs && !s.laps) {
+    const cta = padEl('div', 'hs-cta');
+    cta.appendChild(padEl('span', '', 'Первый замер откроет историю и прогресс.'));
+    const b = padEl('button', 'home-link', 'Сделать замер');
+    b.type = 'button';
+    b.dataset.hq = 'run';
+    cta.appendChild(b);
+    box.appendChild(cta);
+  }
+}
+
+function renderHomeCars() {
+  const box = document.getElementById('homeCars');
+  if (!box) return;
+  const cur = homeHeroCarId();
+  if (box.childElementCount && box.dataset.cur === cur) return;
+  box.dataset.cur = cur;
+  box.replaceChildren();
+  MODEL_CATALOG.forEach((m) => {
+    const b = padEl('button', 'hcar' + (m.id === cur ? ' on' : ''));
+    b.type = 'button';
+    b.dataset.car = m.id;
+    const im = document.createElement('img');
+    im.src = carThumbUrl(m.id); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+    b.appendChild(im);
+    b.appendChild(padEl('b', '', shortCarName(m.name, m.id)));
+    b.appendChild(padEl('span', '', m.id === cur ? 'на подиуме' : String(m.year || '')));
+    box.appendChild(b);
+  });
+}
+function openCarInGarage(id) {
+  hap(10);
+  try {
+    if (id && MODEL_CATALOG.some((m) => m.id === id) && id !== podiumModelId) {
+      if (podiumModelId) loadPodiumModel(id, 0);
+      else selectActiveCar(id, { skipPodium: true });
+    }
+  } catch (_) {}
+  goToView('garage');
+}
+function homeQuick(kind) {
+  hap(8);
+  if (kind === 'run') goToView('run');
+  else if (kind === 'lap') goToView('lap');
+  else if (kind === 'duel') { goToView('duels'); openDuelSheet({ createOnly: true }); }
+  else if (kind === 'post') {
+    goToView('pulse');
+    setTimeout(() => { const t = document.getElementById('pulseText'); try { t?.focus({ preventScroll: false }); t?.scrollIntoView({ block: 'center' }); } catch (_) {} }, 250);
+  }
+}
 function renderHome() {
+  try { if (Q.tier === 'low') document.documentElement.classList.add('q-low'); } catch (_) {}
   setupHomeCarousel();
-  renderHomeCar();
+  try { hcGoPos(_hcPos, false); } catch (_) {}
+  void renderHomeHero();
+  void renderHomeDuels();
+  void renderHomeTrack();
+  void renderHomeLeaders();
+  renderHomeStats();
+  renderHomeCars();
   void renderHomeTopPosts();
 }
-document.getElementById('homeCar')?.addEventListener('click', () => {
-  const id = document.getElementById('homeCar')?.dataset.car;
-  hap(10);
-  goToView('garage');
-  try { if (id && podiumModelId && id !== podiumModelId) loadPodiumModel(id, 0); } catch (_) {}
-});
-document.getElementById('homeTopPosts')?.addEventListener('click', (e) => {
-  const c = e.target?.closest?.('.hp-card[data-post]');
-  if (c) { hap(8); void openPostInPaddock(c.dataset.post); return; }
-  const v = e.target?.closest?.('[data-view]');
+document.getElementById('view-home')?.addEventListener('click', (e) => {
+  const t = e.target;
+  const hq = t?.closest?.('[data-hq]');
+  if (hq) { homeQuick(hq.dataset.hq); return; }
+  const car = t?.closest?.('.hcar[data-car]');
+  if (car) { openCarInGarage(car.dataset.car); return; }
+  const pil = t?.closest?.('#homeLeaders [data-pilot], #homeTrackTop [data-pilot]');
+  if (pil) { void openPilotProfile(pil.dataset.pilot); return; }
+  const duel = t?.closest?.('#homeDuels .duel-card[data-duel-id]');
+  if (duel) { hap(8); goToView('duels'); openDuelSheet({ duelId: duel.dataset.duelId }); return; }
+  const post = t?.closest?.('.hp-card[data-post]');
+  if (post) { hap(8); void openPostInPaddock(post.dataset.post); return; }
+  if (t?.closest?.('#homeHeroStage, #homeHeroGarage')) { openCarInGarage(document.getElementById('homeHero')?.dataset.car); return; }
+  if (t?.closest?.('#homeHeroRun')) { homeQuick('run'); return; }
+  if (t?.closest?.('#homeTrackOpen, #homeTrack')) {
+    const id = document.getElementById('homeTrack')?.dataset.track;
+    if (id) { _topsSel = { kind: 'lap', id }; try { localStorage.setItem('pitlane-tops-sel-v1', JSON.stringify(_topsSel)); } catch (_) {} }
+    const box = document.getElementById('topsChips'); if (box) delete box.dataset.scrolled;
+    goToView('tops');
+    return;
+  }
+  if (t?.closest?.('#homeLeadersOpen')) {
+    _topsSel = { kind: 'drag', id: '0-100' };
+    try { localStorage.setItem('pitlane-tops-sel-v1', JSON.stringify(_topsSel)); } catch (_) {}
+    const box = document.getElementById('topsChips'); if (box) delete box.dataset.scrolled;
+    goToView('tops');
+    return;
+  }
+  const v = t?.closest?.('.home-sec-head [data-view], .home-empty [data-view]');
   if (v) goToView(v.dataset.view);
-});
-document.querySelector('#view-home .home-sec-head [data-view]')?.addEventListener('click', (e) => {
-  goToView(e.currentTarget.dataset.view);
 });
 
 /* ——— Дуэли ——— */

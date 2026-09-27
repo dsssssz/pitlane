@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v84';
+const CACHE = 'pitlane-v85';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -31,6 +31,7 @@ const CORE = [
   './img/emblem.svg',
   './img/brands/bmw.png',
   './img/cars/g87-m2.webp',
+  './img/cars/hero/g87-m2.webp',
   './img/cars/gt3rs.webp',
   './img/cars/mclaren-765lt.webp',
   './img/cars/g63.webp',
