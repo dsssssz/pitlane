@@ -73,23 +73,29 @@
         <div class="mark">PIT<span>LANE</span></div>
         <nav class="tabbar" id="tabbar">
           <div class="tab-pill" id="tabPill" aria-hidden="true"></div>
-          <button class="nav-btn active" data-view="garage" title="Гараж">
+          <button class="nav-btn active" data-view="home" title="Главная">
+            <span class="nav-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico ico-home"><rect class="ico-t1" x="4" y="4" width="7" height="7" rx="2"/><rect class="ico-t2" x="13" y="4" width="7" height="7" rx="2"/><rect class="ico-t3" x="4" y="13" width="7" height="7" rx="2"/><rect class="ico-t4" x="13" y="13" width="7" height="7" rx="2"/></svg>
+            </span>
+            <i data-i18n="nav.home">Главная</i>
+          </button>
+          <button class="nav-btn" data-view="garage" title="Гараж">
             <span class="nav-ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" class="ico ico-box"><path class="ico-body" d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5z"/><path class="ico-door" d="M10 20v-6h4v6"/></svg>
             </span>
             <i data-i18n="nav.box">Бокс</i>
           </button>
-          <button class="nav-btn" data-view="run" title="Замер">
+          <button class="nav-btn" data-view="run" data-alias="lap" title="Заезд: замер и круг">
             <span class="nav-ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" class="ico ico-run"><circle class="ico-dial" cx="12" cy="13" r="7"/><path class="ico-needle" d="M12 13L16.5 9"/><circle cx="12" cy="13" r="1.4"/></svg>
             </span>
-            <i data-i18n="nav.run">Замер</i>
+            <i data-i18n="nav.ride">Заезд</i>
           </button>
-          <button class="nav-btn" data-view="lap" title="Круг">
+          <button class="nav-btn" data-view="duels" title="Дуэли">
             <span class="nav-ico" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="ico ico-lap"><path class="ico-track" d="M7 7c4-3 10-2 12 3s-1 10-6 11-10-3-9-8 4-7 8-7"/><circle class="ico-car" cx="17" cy="9" r="1.6"/></svg>
+              <svg viewBox="0 0 24 24" class="ico ico-duel"><path class="ico-dl" d="M3 7l6 5-6 5"/><path class="ico-dr" d="M21 7l-6 5 6 5"/><path class="ico-spark" d="M12 8v8"/></svg>
             </span>
-            <i data-i18n="nav.lap">Круг</i>
+            <i data-i18n="nav.duels">Дуэли</i>
           </button>
           <button class="nav-btn" data-view="tops" title="Топ">
             <span class="nav-ico" aria-hidden="true">
@@ -137,7 +143,53 @@
         </header>
 
         <div class="view-host" id="viewHost">
-        <section id="view-garage" class="view active garage-hero">
+        <!-- v84: Главная — карусель разделов, моя машина, топ постов за сутки -->
+        <section id="view-home" class="view active">
+          <div class="home-carousel" id="homeCarousel" role="region" aria-roledescription="карусель" aria-label="Разделы Pitlane">
+            <div class="hc-track" id="homeCarouselTrack">
+              <button type="button" class="hc-slide hc-duel" data-go="duels" aria-label="Дуэли — вызови соперника">
+                <span class="hc-art" aria-hidden="true">
+                  <img class="hc-car hc-car-l" src="./img/cars/g87-m2.webp" alt="" loading="lazy" decoding="async">
+                  <img class="hc-car hc-car-r" src="./img/cars/gt3rs.webp" alt="" loading="lazy" decoding="async">
+                  <span class="hc-vs">VS</span>
+                </span>
+                <span class="hc-copy"><b>Дуэли</b><span>Вызови соперника на 0–100 или круг — честный GPS A/B</span></span>
+              </button>
+              <button type="button" class="hc-slide hc-tops" data-go="tops" aria-label="Топы автодромов">
+                <span class="hc-art" aria-hidden="true"><img class="hc-banner" src="./img/tg/banner.jpg" alt="" loading="lazy" decoding="async"></span>
+                <span class="hc-copy"><b>Топы автодромов</b><span id="hcTopsSub">Круги, сектора и замеры — только валидные GPS</span></span>
+              </button>
+              <button type="button" class="hc-slide hc-pad" data-go="pulse" aria-label="Паддок — посты пилотов">
+                <span class="hc-art" aria-hidden="true">
+                  <span class="hc-track-svg" id="hcTrackArt"></span>
+                  <img class="hc-car hc-car-c" src="./img/cars/mclaren-765lt.webp" alt="" loading="lazy" decoding="async">
+                </span>
+                <span class="hc-copy"><b>Паддок</b><span>Сборки, заезды и комментарии пилотов</span></span>
+              </button>
+            </div>
+            <div class="hc-dots" id="homeCarouselDots" role="tablist" aria-label="Слайды"></div>
+          </div>
+
+          <button type="button" class="home-card home-car" id="homeCar" aria-label="Моя машина — открыть в гараже">
+            <span class="home-car-img"><img id="homeCarImg" src="./img/cars/g87-m2.webp" alt="" decoding="async"></span>
+            <span class="home-car-txt">
+              <span class="home-kicker">Моя машина</span>
+              <b id="homeCarName">—</b>
+              <span class="home-car-sub" id="homeCarSub"></span>
+            </span>
+            <svg class="home-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+          </button>
+
+          <section class="home-sec">
+            <div class="home-sec-head">
+              <h3>Топ постов за сутки</h3>
+              <button type="button" class="home-link" data-view="pulse">Паддок</button>
+            </div>
+            <div id="homeTopPosts" class="home-posts"></div>
+          </section>
+        </section>
+
+        <section id="view-garage" class="view garage-hero">
           <div class="podium-wrap" id="podiumWrap">
             <canvas id="view3d" aria-label="3D подиум"></canvas>
           </div>
@@ -277,6 +329,10 @@
         </section>
 
         <section id="view-run" class="view">
+          <div class="ride-seg seg-control" role="tablist" aria-label="Заезд">
+            <button type="button" class="seg-btn on" data-view="run" role="tab" aria-selected="true">Замер</button>
+            <button type="button" class="seg-btn" data-view="lap" role="tab" aria-selected="false">Круг</button>
+          </div>
           <h2 data-i18n="run.title">Замер</h2>
           <p class="run-car-name" id="runCarName">BMW G87 M2 Widebody</p>
           <p class="muted" data-i18n="run.hint">Старт → почти стой → газуй. Fusion GPS+IMU сглаживает спидометр; времена появляются снизу по ходу.</p>
@@ -322,6 +378,10 @@
         </section>
 
         <section id="view-lap" class="view">
+          <div class="ride-seg seg-control" role="tablist" aria-label="Заезд">
+            <button type="button" class="seg-btn" data-view="run" role="tab" aria-selected="false">Замер</button>
+            <button type="button" class="seg-btn on" data-view="lap" role="tab" aria-selected="true">Круг</button>
+          </div>
           <h2 data-i18n="lap.title">Круг</h2>
           <p class="muted">Выбери трассу барабаном, старт на линии, финиш на той же.</p>
           <div class="grid-2">
@@ -383,14 +443,20 @@
           <div class="tops-head">
             <h2 data-i18n="top.title">Топы</h2>
             <div class="tops-head-actions race-toolbar">
-              <button type="button" class="duel-btn" id="btnDuelOpen">Дуэль</button>
               <button type="button" class="crew-btn" id="btnCrewOpen">Экипаж</button>
               <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen">Секторы</button>
               <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
               <a class="method-link" href="./method.html" id="topsMethodLink">методика</a>
             </div>
           </div>
-          <p class="muted">Прямая — внутри одной модели. Кольцо — выбранный трек. Только валидные GPS A/B.</p>
+          <div class="tops-chips" id="topsChips" role="tablist" aria-label="Трасса или замер"></div>
+          <article class="card tops-board-card">
+            <div class="tops-board-head">
+              <h3 id="topsBoardTitle">0–100 км/ч</h3>
+              <span class="tiny muted" id="topsBoardSub">все машины · GPS A/B</span>
+            </div>
+            <ol id="topsBoard" class="tops-board" aria-live="polite"></ol>
+          </article>
 
           <article class="card session-day-card" id="sessionDayCard">
             <div class="session-day-head">
@@ -441,6 +507,8 @@
             <p class="tiny muted" id="sectorTopsHint">Пока пусто — проедьте валидный круг с секторами</p>
           </article>
 
+          <details class="tops-classic card">
+            <summary>Внутри модели и карта трассы</summary>
           <div class="grid-2">
             <article class="card">
               <h3>Прямая 0–100 · <span id="topCarName">GT RS</span></h3>
@@ -456,6 +524,25 @@
               <p class="tiny">Только валидные GPS-круги (С/Ф).</p>
             </article>
           </div>
+          </details>
+        </section>
+
+        <!-- v84: Дуэли — отдельный раздел -->
+        <section id="view-duels" class="view">
+          <div class="duels-head">
+            <div>
+              <h2>Дуэли</h2>
+              <p class="muted">Личный вызов на 0–100 или круг. Ссылка живёт 7 дней, засчитывается только GPS A/B.</p>
+            </div>
+            <button type="button" class="go-btn duels-new" id="btnDuelOpen">Вызвать</button>
+          </div>
+          <div class="duels-tabs seg-control" role="tablist" aria-label="Дуэли">
+            <button type="button" class="seg-btn on" data-duels-tab="active" role="tab" aria-selected="true">Активные <span data-cnt="active"></span></button>
+            <button type="button" class="seg-btn" data-duels-tab="inbox" role="tab" aria-selected="false">Входящие <span data-cnt="inbox"></span></button>
+            <button type="button" class="seg-btn" data-duels-tab="done" role="tab" aria-selected="false">Завершённые <span data-cnt="done"></span></button>
+          </div>
+          <div id="duelsList" class="duels-list" aria-live="polite"></div>
+          <button type="button" class="duel-linkish duels-paste" id="duelsPaste">Открыть по ссылке / id…</button>
         </section>
 
         <section id="view-cars" class="view">
@@ -921,6 +1008,15 @@
         </header>
         <div class="pilot-body" id="pilotBody"></div>
       </div>
+    </div>
+
+    <!-- v84: анимация заключения дуэли -->
+    <div id="duelVsFx" class="duel-vs-fx hidden" aria-hidden="true">
+      <div class="dvf-flash"></div>
+      <div class="dvf-side dvf-l"><span class="dvf-ava" id="dvfAvaL"></span><b id="dvfNameL"></b><span id="dvfCarL"></span></div>
+      <div class="dvf-vs">VS</div>
+      <div class="dvf-side dvf-r"><span class="dvf-ava" id="dvfAvaR"></span><b id="dvfNameR"></b><span id="dvfCarR"></span></div>
+      <p class="dvf-cap" id="dvfCap">Вызов брошен</p>
     </div>
 
     <script type="module" src="./app.js"></script>

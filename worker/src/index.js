@@ -473,7 +473,7 @@ function sanitizeWeather(v) {
 
 const PUBLIC_ROW_FIELDS = [
   'car', 't', 'gps', 'valid', 'gpsQ', 'flags', 'avgAcc', 'hz', 'weather',
-  'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector',
+  'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc',
 ];
 
 /** Whitelisted public tops row (straight / lap / sector / duel run). No phone, ever. */
@@ -518,6 +518,95 @@ function sanitizeStraight(body, pilot) {
   const wxS = sanitizeWeather(body.weather);
   if (wxS) row.weather = wxS;
   return row;
+}
+
+/**
+ * v84: straight-line disciplines the app measures (run view): time bounds in seconds — the same
+ * anti-cheat idea as 0–100 (physically implausible / not-a-run values refused).
+ */
+const DRAG_DISCIPLINES = {
+  '0-100': { lo: 1.5, hi: 60 },
+  '100-200': { lo: 3, hi: 90 },
+  '200-300': { lo: 4, hi: 120 },
+  '0-200': { lo: 5, hi: 120 },
+  '80-120': { lo: 1, hi: 40 },
+  '0-60': { lo: 1, hi: 30 },
+  '0-50': { lo: 0.8, hi: 30 },
+  '60ft': { lo: 1, hi: 10 },
+  '201m': { lo: 3.5, hi: 40 },
+  '402m': { lo: 6, hi: 60 },
+};
+function dragDisc(v) {
+  const d = String(v || '');
+  return Object.prototype.hasOwnProperty.call(DRAG_DISCIPLINES, d) ? d : '';
+}
+
+function sanitizeDrag(body, pilot, disc) {
+  const b = DRAG_DISCIPLINES[disc];
+  if (!b) return null;
+  const t = Number(body?.t);
+  if (!Number.isFinite(t) || t < b.lo || t > b.hi) return null;
+  if (!body?.gps) return null;
+  const carId = slugOk(body?.carId) ? String(body.carId) : null;
+  const car = cleanLabel(body?.car, 80);
+  const { valid, gpsQ, flags } = computeValid(body);
+  const row = {
+    name: safeName(pilot.name || body?.name),
+    car: car && !containsPhone(car) ? car : '',
+    carId,
+    disc,
+    t: Math.round(t * 1000) / 1000,
+    gps: true,
+    valid,
+    pilotId: pilot.id || null,
+    at: Date.now(),
+  };
+  if (gpsQ) row.gpsQ = gpsQ;
+  if (flags.length) row.flags = flags;
+  const acc = boundedNum(body?.avgAcc, 0, 1000);
+  if (acc != null) row.avgAcc = Math.round(acc * 10) / 10;
+  const hz = boundedNum(body?.hz, 0, 100);
+  if (hz != null) row.hz = Math.round(hz * 10) / 10;
+  const wx = sanitizeWeather(body?.weather);
+  if (wx) row.weather = wx;
+  return row;
+}
+
+/**
+ * Global per-discipline board `drag:<disc>`: only valid (GPS A/B) rows, one best row per pilot+car.
+ * Returns true when the row became (or improved) the pilot's best for that car.
+ */
+async function upsertDrag(kv, disc, row) {
+  if (!row || !isValidGpsRow(row) || !row.pilotId) return false;
+  const key = 'drag:' + disc;
+  const rows = await readList(kv, key);
+  const same = (r) => r && r.pilotId === row.pilotId && String(r.carId || r.car || '') === String(row.carId || row.car || '');
+  const prev = rows.find(same);
+  if (prev && Number(prev.t) <= Number(row.t)) return false;
+  const kept = rows.filter((r) => !same(r));
+  kept.push({ ...row, disc });
+  kept.sort((a, b) => a.t - b.t);
+  await writeList(kv, key, kept);
+  return true;
+}
+
+/** Fill missing avatars / nicks from pilotmeta for the first `max` distinct pilots (bounded KV reads). */
+async function enrichAvatars(kv, rows, max = 50) {
+  const ids = [];
+  for (const r of rows) {
+    if (r && r.pilotId && !r.avatar && !ids.includes(r.pilotId)) ids.push(r.pilotId);
+    if (ids.length >= max) break;
+  }
+  const meta = new Map();
+  await Promise.all(ids.map(async (id) => {
+    try { const m = await kvJson(kv, 'pilotmeta:' + id); if (m) meta.set(id, m); } catch (_) {}
+  }));
+  for (const r of rows) {
+    const m = r && meta.get(r.pilotId);
+    if (!m) continue;
+    if (!r.avatar && m.avatar) r.avatar = sanitizeAvatar(m.avatar);
+  }
+  return rows;
 }
 
 /** Finite number within [lo, hi] or null (drops NaN / Infinity / absurd values). */
@@ -823,6 +912,15 @@ async function buildPilotProfile(kv, pid, viewer) {
     });
   }
   laps.sort((a, b) => (b.at || 0) - (a.at || 0));
+  // v84: best per straight-line discipline (global boards)
+  const drag = {};
+  for (const disc of Object.keys(DRAG_DISCIPLINES)) {
+    const rows = (await readList(kv, 'drag:' + disc)).filter((r) => r && r.pilotId === pid && isValidGpsRow(r));
+    if (!rows.length) continue;
+    rows.forEach(seen);
+    const b = rows.reduce((a, r) => (Number(r.t) < Number(a.t) ? r : a));
+    drag[disc] = { car: cleanLabel(b.car, 80), carId: b.carId || null, t: Number(b.t), at: b.at || null, gpsQ: b.gpsQ || null };
+  }
   // posts in the Paddock
   const pulse = await readList(kv, 'pulse');
   const mine = pulse.filter((r) => r && r.pilotId === pid).sort((a, b) => (b.at || 0) - (a.at || 0));
@@ -834,7 +932,7 @@ async function buildPilotProfile(kv, pid, viewer) {
     nick: safeName(rec.nick || meta.nick, 'Пилот'),
     avatar: sanitizeAvatar(meta.avatar) || null,
     car,
-    best: { zeroHundred: cars, laps },
+    best: { zeroHundred: cars, laps, drag },
     postCount: mine.length,
     likesReceived,
     posts: publicPulseList(mine.slice(0, 20), viewer),
@@ -1807,7 +1905,7 @@ async function kvPutKeep(kv, key, value, expiration) {
 async function deleteAccount(kv, pid, currentToken) {
   const rep = {
     account: 0, providers: 0, sessions: 0, meta: 0, garage: 0,
-    straightRows: 0, lapRows: 0, pulsePosts: 0, pulseLikes: 0,
+    straightRows: 0, lapRows: 0, dragRows: 0, pulsePosts: 0, pulseLikes: 0,
     crewsLeft: 0, crewsTransferred: 0, crewsDeleted: 0, duels: 0, checkins: 0,
   };
   if (!isPilotUuid(pid)) return rep;
@@ -1839,7 +1937,7 @@ async function deleteAccount(kv, pid, currentToken) {
   await del('garage:' + pid);
 
   // tops (sector tops are derived from lap rows)
-  for (const [prefix, field] of [['straight:', 'straightRows'], ['lap:', 'lapRows']]) {
+  for (const [prefix, field] of [['straight:', 'straightRows'], ['lap:', 'lapRows'], ['drag:', 'dragRows']]) {
     for (const k of await kvListAll(kv, prefix)) {
       const rows = await readList(kv, k.name);
       const kept = rows.filter((r) => !(r && r.pilotId === pid));
@@ -1948,7 +2046,7 @@ async function deleteAccount(kv, pid, currentToken) {
     if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.feedback++; }
   }
   // per-account rate-limit counters (short-lived anyway; removed so nothing references the uuid)
-  for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx']) await del('rl:' + b + ':p:' + pid);
+  for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx', 'drag']) await del('rl:' + b + ':p:' + pid);
   // finally the account record itself
   if (rec) rep.account = 1;
   await del('pilot:' + pid);
@@ -2636,6 +2734,8 @@ export default {
         rows.sort((a, b) => a.t - b.t);
         await writeList(env.PITLANE, key, rows);
         await indexPilotTop(env.PITLANE, pilot.id, 's', carId);
+        // v84: 0–100 also feeds the global per-discipline board (all cars)
+        await upsertDrag(env.PITLANE, '0-100', { ...row, carId, disc: '0-100' });
         return json(publicRows(rows.filter(isValidGpsRow)), 200, headers);
       }
 
@@ -2647,6 +2747,10 @@ export default {
         const wx = sanitizeWeather(url.searchParams.get('weather'));
         let rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter(isValidGpsRow);
         if (wx) rows = rows.filter((r) => r && r.weather === wx);
+        if (url.searchParams.get('avatars') === '1') {
+          rows.sort((a, b) => (parseLapMs(a.t) ?? 1e12) - (parseLapMs(b.t) ?? 1e12));
+          await enrichAvatars(env.PITLANE, rows, 40);
+        }
         return json(publicRows(rows), 200, headers);
       }
       if (req.method === 'POST' && m) {
@@ -2678,6 +2782,39 @@ export default {
         return json(publicRows(rows.filter(isValidGpsRow)), 200, headers);
       }
 
+      // —— v84: Tops by straight-line discipline (global board, all cars) ——
+      m = path.match(/^\/tops\/drag\/([^/]+)$/);
+      if (m) {
+        const disc = dragDisc(safeDecode(m[1]));
+        if (req.method === 'GET') {
+          if (!disc) return json([], 200, headers);
+          const wx = sanitizeWeather(url.searchParams.get('weather'));
+          const car = url.searchParams.get('car');
+          let rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
+          if (wx) rows = rows.filter((r) => r && r.weather === wx);
+          if (car && slugOk(car)) rows = rows.filter((r) => r && r.carId === car);
+          rows = rows.slice(0, 100);
+          await enrichAvatars(env.PITLANE, rows, 40);
+          return json(publicRows(rows), 200, headers);
+        }
+        if (req.method === 'POST') {
+          const denied = requireAuth(pilot, headers);
+          if (denied) return denied;
+          if (!disc) return json({ error: 'bad discipline' }, 400, headers);
+          const lim = await limitOr429(env, headers, [['rl:top:p:' + pilot.id, 60, 3600], ['rl:drag:p:' + pilot.id, 200, 86400]]);
+          if (lim) return lim;
+          const body = await readJson(req);
+          if (body?.pilotId && String(body.pilotId) !== pilot.id) return json({ error: 'pilot mismatch' }, 403, headers);
+          const rec = await loadPilot(env.PITLANE, pilot.id);
+          const row = sanitizeDrag(body, { ...pilot, name: safeName(rec?.nick, '') || pilot.name }, disc);
+          if (!row) return json({ error: 'invalid gps run' }, 400, headers);
+          row.pilotId = pilot.id;
+          const stored = await upsertDrag(env.PITLANE, disc, row);
+          const rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
+          return json({ ok: true, stored, valid: row.valid, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
+        }
+      }
+
       // —— Tops sector (public A/B best sector times) ——
       m = path.match(/^\/tops\/sector\/([^/]+)$/);
       if (req.method === 'GET' && m) {
@@ -2707,6 +2844,14 @@ export default {
       if (path === '/pulse') {
         if (req.method === 'GET') {
           const rows = await readList(env.PITLANE, 'pulse');
+          // v84: ?top=day → last 24 h, most liked first, light payload (no images) for the home screen
+          if (url.searchParams.get('top') === 'day') {
+            const since = Date.now() - DAY_MS;
+            const day = rows.filter((r) => r && Number(r.at) >= since)
+              .sort((a, b) => ((b.likes || []).length - (a.likes || []).length) || ((b.at || 0) - (a.at || 0)))
+              .slice(0, 10);
+            return json(publicPulseList(day, viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
+          }
           rows.sort((a, b) => (b.at || 0) - (a.at || 0));
           return json(publicPulseList(rows.slice(0, 200), viewer), 200, headers);
         }

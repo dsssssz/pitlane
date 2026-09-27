@@ -302,6 +302,32 @@ export const api = {
     const body = typeof liked === 'boolean' ? { liked } : {};
     return remoteKeep('/pulse/' + encodeURIComponent(id) + '/like', { method: 'POST', body: JSON.stringify(body) });
   },
+  /** v84: global straight-line board for a discipline (0-100, 100-200, 402m…). */
+  async listDrag(disc, { car, weather } = {}) {
+    let path = '/tops/drag/' + encodeURIComponent(disc);
+    const q = [];
+    if (car) q.push('car=' + encodeURIComponent(car));
+    if (weather === 'dry' || weather === 'damp' || weather === 'wet') q.push('weather=' + weather);
+    if (q.length) path += '?' + q.join('&');
+    const rows = await remote(path);
+    return Array.isArray(rows) ? rows : [];
+  },
+  async addDrag(disc, row) {
+    if (!apiBase()) return { ok: false, error: 'offline' };
+    return remoteKeep('/tops/drag/' + encodeURIComponent(disc), { method: 'POST', body: JSON.stringify({ ...row, gps: true }) });
+  },
+  /** v84: lap board with avatars (pilotmeta) for the compact tops list. */
+  async listLapBoard(trackId, weather) {
+    let path = '/tops/lap/' + encodeURIComponent(trackId) + '?avatars=1';
+    if (weather === 'dry' || weather === 'damp' || weather === 'wet') path += '&weather=' + weather;
+    const rows = await remote(path);
+    return Array.isArray(rows) ? rows : [];
+  },
+  /** v84: Paddock posts of the last 24 h, most liked first (no images). */
+  async listPulseTopDay() {
+    const rows = await remote('/pulse?top=day');
+    return Array.isArray(rows) ? rows : null;
+  },
   /** v83: comments under a Paddock post. */
   async listComments(postId) {
     if (!apiBase()) return { ok: false, error: 'offline' };

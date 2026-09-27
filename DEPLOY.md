@@ -446,3 +446,15 @@ Deployed wrangler@3.114.17 from `worker/`: version `2135cb57-740d-4396-945e-cebb
 **Важно:** после setWebhook метод `getUpdates` недоступен — способ узнать chat id через getUpdates (§23) больше не работает (chat id владельца уже задан: 8591275999). Снять webhook: `deleteWebhook` (тогда бот перестанет отвечать).
 
 Баннер: `tools/tg-banner.mjs` (puppeteer, контур Сочи из `geo/outlines.js` + силуэт `img/sil/coupe.svg`) → `img/tg/banner.jpg` 1280×640. Тесты: `worker/test/tg.test.mjs` (в `npm test`).
+
+## v84 — компактная навигация: Главная / Дуэли / Топы
+
+- Таббар: **Главная · Бокс · Заезд (Замер | Круг) · Дуэли · Топ · Paddock**. Аккаунт — кнопка в шапке. Старые `?view=lap`, `?view=run`, `?duel=`/`startapp=duel_` работают как раньше.
+- Главная (`#view-home`): карусель из 3 баннеров (scroll-snap, автолистание 5 с, пауза при касании), «Моя машина» (`podiumModelId`/`defaultPodiumId`), «Топ постов за сутки» (`GET /pulse?top=day`).
+- Дуэли (`#view-duels`): вкладки Активные/Входящие/Завершённые (`/duels?mine=` + открытые по ссылке id в `pitlane-duels-inbox-v1`), VS-анимация `#duelVsFx`.
+- Топы: чипы дисциплин и трасс, одна строка на запись. Worker:
+  - `GET /tops/drag/:disc` — топ по дисциплине (`0-100, 100-200, 200-300, 0-200, 80-120, 0-60, 0-50, 60ft, 201m, 402m`), только валидные GPS A/B, лучший результат на пилота+машину, до 100 строк, аватары из pilotmeta.
+  - `POST /tops/drag/:disc` — сессия обязательна; лимиты 60/ч (общий top) + 200/сут на дисциплины; пределы времени на дисциплину; ник берётся из аккаунта. `POST /tops/straight` зеркалит 0–100 в `drag:0-100`.
+  - `GET /tops/lap/:id?avatars=1`, `GET /pulse?top=day` (24 ч, по лайкам, без картинок — флаг `hasImg`).
+  - `GET /pilot/:id` → `best.drag` по всем дисциплинам.
+- Тесты: `worker/test/v84.test.mjs`. Локальный смоук: `/workspace/perf-harness/home.mjs` (MemKV, тестовые данные только в памяти).

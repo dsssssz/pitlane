@@ -12,6 +12,7 @@ import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUnifo
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { attachPitlanePlates, isPitlanePlate } from './plates.js';
 import { createExtGps } from './ext-gps.js';
+import { TRACK_OUTLINES } from './geo/outlines.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
@@ -1463,9 +1464,18 @@ function goToView(id, opts = {}) {
   const prev = document.querySelector('.view.active');
   const already = !!(prev && prev.id === 'view-' + id);
 
+  // v84: «Заезд» tab covers both run + lap (data-alias); segment buttons inside the views stay in sync
   const nav = (opts.navBtn && opts.navBtn.classList.contains('nav-btn'))
     ? opts.navBtn
-    : document.querySelector(`.nav-btn[data-view="${id}"]`);
+    : (document.querySelector(`.nav-btn[data-view="${id}"]`) || document.querySelector(`.nav-btn[data-alias~="${id}"]`));
+  if (id === 'run' || id === 'lap') {
+    document.querySelectorAll('.ride-seg [data-view]').forEach((b) => {
+      const on = b.dataset.view === id;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+  try { onViewEnter(id); } catch (_) {}
   if (nav) activateNavBtn(nav);
   else if (id === 'account') {
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
@@ -2278,7 +2288,7 @@ try {
 } catch (_) {}
 
 
-const DEEP_VIEWS = new Set(['garage', 'run', 'lap', 'tops', 'pulse', 'account', 'cars']);
+const DEEP_VIEWS = new Set(['home', 'garage', 'run', 'lap', 'tops', 'duels', 'pulse', 'account', 'cars']);
 /** v81: ?screen=duel|crew|feedback|autodromes — opens a sheet (used by the Telegram bot's web_app buttons). */
 const DEEP_SCREENS = { duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account' };
 const SCREEN_PARAM = (() => {
@@ -3052,16 +3062,19 @@ function onGpsPoint(pos) {
     setRunText('run050', fmtRunSec(sec));
     revealRunMark('050', '0–50', fmtRunSec(sec));
     run.saved050 = true;
+    publishDragMark('0-50', sec);
   }
   if (t60 && !run.saved060) {
     const sec = (t60 - run.t0) / 1000;
     revealRunMark('060', '0–60', fmtRunSec(sec));
     run.saved060 = true;
+    publishDragMark('0-60', sec);
   }
   if (run.marks['d60ft'] && !run.saved60ft) {
     const sec = (run.marks['d60ft'] - run.t0) / 1000;
     revealRunMark('60ft', '60 ft', fmtRunSec(sec));
     run.saved60ft = true;
+    publishDragMark('60ft', sec);
   }
   if (run.marks['80'] && run.marks['120'] && !run.saved80120) {
     const s = (run.marks['120'] - run.marks['80']) / 1000;
@@ -3069,6 +3082,7 @@ function onGpsPoint(pos) {
     setRunText('slip80120', `${s.toFixed(2)}s`);
     revealRunMark('80120', '80–120', fmtRunSec(s));
     run.saved80120 = true;
+    publishDragMark('80-120', s);
     try {
       const gq80120 = gpsQualityFromStraightRun();
       if (foldPassportGps({ v80120: Number(s.toFixed(2)) }, gq80120.gpsQ)) {
@@ -3091,6 +3105,7 @@ function onGpsPoint(pos) {
     const sec = (run.marks['d18'] - run.t0) / 1000;
     revealRunMark('18', '⅛ мили', fmtRunSec(sec));
     run.saved18 = true;
+    publishDragMark('201m', sec);
   }
   if (t100 && t200 && !run.saved100200) {
     const s = (t200 - t100) / 1000;
@@ -3100,12 +3115,15 @@ function onGpsPoint(pos) {
     revealRunMark('100200', '100–200', fmtRunSec(s));
     revealRunMark('0200', '0–200', fmtRunSec((t200 - run.t0) / 1000));
     run.saved100200 = true;
+    publishDragMark('100-200', s);
+    publishDragMark('0-200', (t200 - run.t0) / 1000);
     void publishGps(null, s, t200 && t300 ? (t300 - t200) / 1000 : null);
   }
   if (run.marks['d14'] && !run.saved14) {
     const sec = (run.marks['d14'] - run.t0) / 1000;
     revealRunMark('14', '¼ мили', fmtRunSec(sec));
     run.saved14 = true;
+    publishDragMark('402m', sec);
   }
   if (t200 && t300 && !run.saved200300) {
     const s = (t300 - t200) / 1000;
@@ -3113,6 +3131,7 @@ function onGpsPoint(pos) {
     setRunText('slip200300', `${s.toFixed(2)}s`);
     revealRunMark('200300', '200–300', fmtRunSec(s));
     run.saved200300 = true;
+    publishDragMark('200-300', s);
     void publishGps(null, null, s);
   }
   run.peak = Math.max(run.peak || 0, v);
@@ -3410,7 +3429,7 @@ async function publishGps(v0100, v100200, v200300) {
     const valid = runRowValid(gq, flags);
     if (valid && canPublishTop(gq, flags)) {
       await api.addStraight(currentCar().id, {
-        name: String(who).slice(-6),
+        name: String(who).slice(0, 24),
         car: currentCar().name,
         t: rec.v0100,
         gps: true,
@@ -5742,7 +5761,7 @@ if (isTMA) {
     if (visible('runDrive')) return run.armed ? null : () => closeRunDrive();
     if (visible('lapDrive')) return () => document.getElementById('lapDriveCancel')?.click();
     const active = document.querySelector('.view.active');
-    if (active && active.id !== 'view-garage') return () => goToView('garage');
+    if (active && active.id !== 'view-home') return () => goToView('home');
     return null;
   };
   setBackHandler(() => { const fn = backTarget(); if (fn) fn(); syncTmaChrome(); });
@@ -7757,7 +7776,7 @@ document.getElementById('topLapForm')?.addEventListener('submit', async (e) => {
 
 const I18N = {
   ru: {
-    'nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Paddock','nav.park':'Парк',
+    'nav.home':'Главная','nav.duels':'Дуэли','nav.ride':'Заезд','nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Paddock','nav.park':'Парк',
     'garage.empty':'Гараж пуст','garage.hint':'Добавь свой автомобиль — марка, кузов, год, мотор.','garage.add':'Добавить автомобиль','garage.reset':'сброс',
     'run.title':'Замер','run.hint':'Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
@@ -7766,7 +7785,7 @@ const I18N = {
     'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Аккаунт хранит ник, гараж и результаты в топах.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
-    'nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock','nav.park':'Park',
+    'nav.home':'Home','nav.duels':'Duels','nav.ride':'Drive','nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock','nav.park':'Park',
     'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car','garage.reset':'reset',
     'run.title':'Run','run.hint':'Tap start, almost stop, then accelerate. When speed drops the run is saved.','run.start':'Start',
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
@@ -7775,7 +7794,7 @@ const I18N = {
     'acc.title':'Account','acc.login':'Sign in','acc.hint':'Keeps your nickname, garage and results in tops.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
   },
   zh: {
-    'nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单','nav.paddock':'Paddock',
+    'nav.home':'首页','nav.duels':'对决','nav.ride':'驾驶','nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单','nav.paddock':'Paddock',
     'garage.empty':'车库是空的','garage.hint':'添加车辆：品牌、车身、年份、发动机。','garage.add':'添加车辆','garage.reset':'重置',
     'run.title':'加速测试','run.hint':'点开始，先几乎停住再加速。车速下降后成绩会保存。','run.start':'开始测试',
     'dyno.title':'动态档案','dyno.hint':'加速数据只在你自己测完后出现。','dyno.acc':'加速','dyno.mass':'重量与功率',
@@ -7784,7 +7803,7 @@ const I18N = {
     'acc.title':'账户','acc.login':'登录','acc.hint':'手机号和密码。','acc.in':'登录','acc.reg':'注册','acc.nick':'昵称'
   },
   es: {
-    'nav.box':'Box','nav.dyno':'Ficha','nav.run':'Medición','nav.lap':'Vuelta','nav.top':'Ranking','nav.paddock':'Paddock',
+    'nav.home':'Inicio','nav.duels':'Duelos','nav.ride':'Pista','nav.box':'Box','nav.dyno':'Ficha','nav.run':'Medición','nav.lap':'Vuelta','nav.top':'Ranking','nav.paddock':'Paddock',
     'garage.empty':'Garaje vacío','garage.hint':'Añade tu coche: marca, carrocería, año, motor.','garage.add':'Añadir coche','garage.reset':'reset',
     'run.title':'Medición','run.hint':'Pulsa inicio, casi párate y acelera. Al bajar la velocidad se guarda.','run.start':'Iniciar',
     'dyno.title':'Ficha de dinámica','dyno.hint':'Las cifras de aceleración salen solo tras tu propia medición.','dyno.acc':'Aceleración','dyno.mass':'Masa y potencia',
@@ -8229,7 +8248,9 @@ function renderPilotProfile(pr) {
   const stats = padEl('div', 'pilot-stats');
   const zh = (pr.best && pr.best.zeroHundred) || [];
   const laps = (pr.best && pr.best.laps) || [];
-  const best0100 = zh.length ? Math.min(...zh.map((r) => Number(r.t))) : null;
+  const drag = (pr.best && pr.best.drag && typeof pr.best.drag === 'object') ? pr.best.drag : {};
+  const zhAll = zh.map((r) => Number(r.t)).concat(drag['0-100'] ? [Number(drag['0-100'].t)] : []).filter((x) => Number.isFinite(x));
+  const best0100 = zhAll.length ? Math.min(...zhAll) : null;
   [
     ['0–100', best0100 != null ? best0100.toFixed(2) + ' с' : '—'],
     ['Трасс', String(laps.length)],
@@ -8244,7 +8265,21 @@ function renderPilotProfile(pr) {
   body.appendChild(stats);
 
   const secRuns = padSection('Лучшие заезды');
-  if (!zh.length && !laps.length) {
+  const dragKeys = DRAG_DISC.map((x) => x.id).filter((k) => drag[k] && Number.isFinite(Number(drag[k].t)));
+  if (dragKeys.length) {
+    secRuns.appendChild(padEl('h4', 'pilot-sub', 'Замеры по дисциплинам'));
+    const grid = padEl('div', 'pilot-drag');
+    dragKeys.forEach((k) => {
+      const r = drag[k];
+      const c = padEl('div', 'pd-cell');
+      c.appendChild(padEl('span', 'pd-k', dragDiscMeta(k)?.label || k));
+      c.appendChild(padEl('b', 'pd-t', Number(r.t).toFixed(2) + ' с'));
+      c.appendChild(padEl('span', 'pd-car', [shortCarName(r.car, r.carId), r.gpsQ ? 'GPS ' + r.gpsQ : ''].filter(Boolean).join(' · ')));
+      grid.appendChild(c);
+    });
+    secRuns.appendChild(grid);
+  }
+  if (!zh.length && !laps.length && !dragKeys.length) {
     secRuns.appendChild(padEmptyLine('Пока нет заездов в топах. Результаты появятся после валидных GPS-замеров.'));
   }
   if (zh.length) {
@@ -8578,6 +8613,7 @@ function closeDuelSheet() {
   if (!sheet) return;
   sheet.classList.add('hidden');
   sheet.setAttribute('aria-hidden', 'true');
+  try { if (document.getElementById('view-duels')?.classList.contains('active')) void renderDuelsView(); } catch (_) {}
 }
 
 function statusLabelRu(st) {
@@ -8589,20 +8625,25 @@ function statusLabelRu(st) {
 function renderDuelSides(d) {
   const box = document.getElementById('duelSides');
   if (!box) return;
-  const sides = [
-    { key: 'creator', who: d.createdBy, run: d.creatorRun },
-    { key: 'challenger', who: d.challenger, run: d.challengerRun },
-  ];
-  box.innerHTML = sides.map((s) => {
-    const name = s.who?.name || (s.key === 'creator' ? 'создатель' : 'соперник');
-    const run = s.run;
-    const win = d.status === 'ready' && d.winner === s.key;
-    const time = run ? (d.type === 'drag' ? (Number(run.t).toFixed(2) + ' с') : String(run.t)) : 'ждём заезд';
-    const q = run?.gpsQ;
-    const badge = q === 'A' ? '<span class="duel-badge">A</span>' : (q === 'B' ? '<span class="duel-badge b">B</span>' : '');
-    const car = run?.car ? esc(run.car) : '—';
-    return `<div class="duel-side${win ? ' win' : ''}"><div class="who">${esc(name)}${win ? ' · победа' : ''}</div><div class="time">${esc(time)}${badge}</div><div class="meta">${car}</div></div>`;
-  }).join('');
+  box.replaceChildren();
+  box.classList.add('duel-vs-board');
+  const side = (key) => {
+    const who = key === 'creator' ? d.createdBy : d.challenger;
+    const run = key === 'creator' ? d.creatorRun : d.challengerRun;
+    const win = d.status === 'ready' && d.winner === key;
+    const el = padEl('div', 'duel-side' + (win ? ' win' : '') + (key === 'challenger' ? ' r' : ''));
+    el.appendChild(padAvatar(who?.name || '?', who?.avatar, 64));
+    el.appendChild(padEl('div', 'who', who ? clipText(who.name || 'пилот', 14) : (key === 'creator' ? 'создатель' : 'соперник?')));
+    const time = padEl('div', 'time' + (run ? '' : ' wait'), run ? duelTimeText(d, run) : 'ждём заезд');
+    if (run?.gpsQ === 'A' || run?.gpsQ === 'B') time.appendChild(padEl('span', 'duel-badge' + (run.gpsQ === 'B' ? ' b' : ''), run.gpsQ));
+    el.appendChild(time);
+    el.appendChild(padEl('div', 'meta', run?.car ? shortCarName(run.car, run.carId) : '—'));
+    if (win) el.appendChild(padEl('div', 'duel-win', 'победа'));
+    return el;
+  };
+  box.appendChild(side('creator'));
+  box.appendChild(padEl('div', 'duel-vs-x', 'VS'));
+  box.appendChild(side('challenger'));
 }
 
 async function showDuelView(id) {
@@ -8712,6 +8753,7 @@ async function createDuelFromUi() {
   } catch (_) {}
   hap(18);
   await showDuelView(duel.id);
+  void playDuelVsFx(myDuelPerson(), { name: 'соперник?', unknown: true, carHint: 'ждём по ссылке' }, 'Вызов брошен · ' + duelTypeLabel(duel));
   // auto-attach last compatible run if matches type
   const cand = loadLastDuelCandidate();
   if (cand && cand.type === duel.type && (duel.type !== 'lap' || !duel.trackId || cand.trackId === duel.trackId)) {
@@ -8755,8 +8797,14 @@ async function submitMyRunToActiveDuel() {
     return;
   }
   hap(20);
+  const wasOpenForMe = !d.challenger && !duelIsMine(d.createdBy?.id);
   await showDuelView(res.id || d.id);
   await refreshDuelList();
+  if (wasOpenForMe) {
+    const cr = d.createdBy || {};
+    void playDuelVsFx({ name: cr.name, avatar: cr.avatar, car: d.creatorRun?.car, carId: d.creatorRun?.carId }, myDuelPerson(), 'Вызов принят · дуэль заключена');
+  }
+  try { void renderDuelsView(); } catch (_) {}
 }
 
 async function bootDuelFromUrl() {
@@ -8770,7 +8818,20 @@ async function bootDuelFromUrl() {
     if (!id) return;
     _pendingDuelId = id;
     const apply = () => {
+      try { goToView('duels', { sfx: false }); } catch (_) {}
       openDuelSheet({ duelId: id });
+      void (async () => {
+        try {
+          const d = await api.getDuel(id);
+          if (!d?.id || duelIsMine(d.createdBy?.id)) return;
+          rememberInboxDuel(d.id);
+          if (d.status === 'open' && !duelIsMine(d.challenger?.id)) {
+            const cr = d.createdBy || {};
+            await playDuelVsFx({ name: cr.name, avatar: cr.avatar, car: d.creatorRun?.car, carId: d.creatorRun?.carId }, myDuelPerson(), 'Тебя вызвали · ' + duelTypeLabel(d));
+          }
+          try { void renderDuelsView(); } catch (_) {}
+        } catch (_) {}
+      })();
     };
     // after intro: delay slightly so share boot doesn't conflict
     setTimeout(apply, 400);
@@ -9485,7 +9546,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v83';
+const APP_VERSION = 'v84';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -9714,3 +9775,638 @@ if (SCREEN_PARAM) {
     } catch (err) { console.warn('screen deep link', err); }
   }, 900);
 }
+
+/* ——— v84: compact app — Главная / Дуэли / компактные Топы ———
+   User text → textContent only. Discipline + track boards come from the Worker. */
+const CAR_SHORT = {
+  'g87-m2': 'BMW M2', gt3rs: '911 GT3 RS', 'mclaren-765lt': '765LT', g63: 'G63', m4: 'BMW M4',
+  m3: 'BMW M3', x6: 'BMW X6', isf: 'IS-F', 'c63-ed507': 'C63 507', spark: 'Spark GT',
+};
+const CAR_SHORT_RE = [
+  [/\bG87\b|\bM2\b/i, 'BMW M2'], [/GT3\s*RS/i, '911 GT3 RS'], [/911\s*GT3/i, '911 GT3'], [/911\s*Turbo/i, '911 Turbo'],
+  [/765\s*LT/i, '765LT'], [/\bG\s?63\b/i, 'G63'], [/\bM4\b/i, 'BMW M4'], [/\bM3\b/i, 'BMW M3'], [/\bM5\b/i, 'BMW M5'],
+  [/\bM8\b/i, 'BMW M8'], [/\bX6\b/i, 'BMW X6'], [/\bX5\s?M\b/i, 'X5 M'], [/IS-?F/i, 'IS-F'], [/C\s?63.*507/i, 'C63 507'],
+  [/C\s?63/i, 'C63'], [/E\s?63/i, 'E63'], [/Supra/i, 'Supra'], [/GT-?R/i, 'GT-R'], [/Golf\s*R/i, 'Golf R'],
+  [/RS\s?3/i, 'Audi RS3'], [/RS\s?6/i, 'Audi RS6'], [/Spark/i, 'Spark GT'], [/Camry/i, 'Camry'], [/Model\s*S/i, 'Model S'],
+];
+const CAR_BRAND_RE = /^(Mercedes-AMG|Mercedes-Benz|Mercedes|Porsche|Chevrolet|Volkswagen|Toyota|Lexus|Nissan|Audi|Honda|Subaru|Mitsubishi|Hyundai|Kia|Lada|Ford|Tesla|McLaren)\s+/i;
+function clipText(s, max = 12) {
+  const arr = Array.from(String(s || '').trim());
+  return arr.length > max ? arr.slice(0, max - 1).join('').trimEnd() + '…' : arr.join('');
+}
+function shortCarName(car, carId) {
+  if (carId && CAR_SHORT[carId]) return CAR_SHORT[carId];
+  const s = String(car || '').trim();
+  if (!s) return '';
+  for (const [re, v] of CAR_SHORT_RE) if (re.test(s)) return v;
+  return clipText(s.replace(CAR_BRAND_RE, ''), 12);
+}
+
+/** Disciplines the run screen measures (0–60 = км/ч). Same ids as Worker DRAG_DISCIPLINES. */
+const DRAG_DISC = [
+  { id: '0-100', label: '0–100', tag: '0–100', title: '0–100 км/ч' },
+  { id: '100-200', label: '100–200', tag: '100–200', title: '100–200 км/ч' },
+  { id: '200-300', label: '200–300', tag: '200–300', title: '200–300 км/ч' },
+  { id: '402m', label: '¼ мили', tag: '¼ mi', title: '¼ мили · 402 м' },
+  { id: '201m', label: '⅛ мили', tag: '⅛ mi', title: '⅛ мили · 201 м' },
+  { id: '0-200', label: '0–200', tag: '0–200', title: '0–200 км/ч' },
+  { id: '80-120', label: '80–120', tag: '80–120', title: '80–120 км/ч' },
+  { id: '0-60', label: '0–60', tag: '0–60', title: '0–60 км/ч' },
+  { id: '0-50', label: '0–50', tag: '0–50', title: '0–50 км/ч' },
+  { id: '60ft', label: '60 ft', tag: '60 ft', title: '60 футов · 18 м' },
+];
+const dragDiscMeta = (id) => DRAG_DISC.find((d) => d.id === id);
+
+/* Track silhouettes from geo/outlines.js → normalised SVG path (cached). */
+const _trackPathCache = new Map();
+function trackSilhouettePath(trackId, box = 32, pad = 3) {
+  const key = trackId + ':' + box;
+  if (_trackPathCache.has(key)) return _trackPathCache.get(key);
+  const o = TRACK_OUTLINES?.[trackId];
+  let d = '';
+  if (o && Array.isArray(o.coords) && o.coords.length > 2) {
+    const lat0 = (o.coords.reduce((a, c) => a + c[1], 0) / o.coords.length) * Math.PI / 180;
+    const k = Math.cos(lat0);
+    let pts = o.coords.map(([lon, lat]) => [lon * k, -lat]);
+    const step = Math.max(1, Math.floor(pts.length / 80));
+    pts = pts.filter((_, i) => i % step === 0);
+    const xs = pts.map((p) => p[0]); const ys = pts.map((p) => p[1]);
+    const minX = Math.min(...xs); const minY = Math.min(...ys);
+    const w = Math.max(...xs) - minX || 1; const h = Math.max(...ys) - minY || 1;
+    const sc = (box - pad * 2) / Math.max(w, h);
+    const ox = (box - w * sc) / 2; const oy = (box - h * sc) / 2;
+    d = pts.map((p, i) => (i ? 'L' : 'M') + (ox + (p[0] - minX) * sc).toFixed(1) + ' ' + (oy + (p[1] - minY) * sc).toFixed(1)).join('') + 'Z';
+  }
+  _trackPathCache.set(key, d);
+  return d;
+}
+function trackSilhouetteSvg(trackId, size = 28, cls = 'trk-sil') {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 32 32');
+  svg.setAttribute('width', String(size));
+  svg.setAttribute('height', String(size));
+  svg.setAttribute('class', cls);
+  svg.setAttribute('aria-hidden', 'true');
+  const d = trackSilhouettePath(trackId);
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', d || 'M6 22C6 10 26 10 26 16S14 26 6 22Z');
+  svg.appendChild(path);
+  return svg;
+}
+function discTag(discId) {
+  const m = dragDiscMeta(discId);
+  return padEl('span', 'disc-tag', m ? m.tag : discId);
+}
+function trackShortName(trackId) {
+  const tr = TRACKS.find((t) => t.id === trackId);
+  return tr ? tr.name : String(trackId || '');
+}
+
+/* ——— publish every discipline mark (0–100 goes via /tops/straight, mirrored server-side) ——— */
+function publishDragMark(disc, sec) {
+  try {
+    if (!dragDiscMeta(disc) || disc === '0-100') return;
+    if (!isRemoteApi() || !currentUser()) return;
+    const t = Number(sec);
+    if (!Number.isFinite(t) || t <= 0) return;
+    const gq = gpsQualityFromStraightRun();
+    const flags = (run.flags || []).slice(0, 8);
+    if (!(runRowValid(gq, flags) && canPublishTop(gq, flags))) return;
+    const car = currentCar();
+    void api.addDrag(disc, {
+      t: Number(t.toFixed(3)),
+      carId: car?.id,
+      car: car?.name,
+      name: String(pulseWho() || 'пилот').slice(0, 24),
+      gps: true,
+      valid: true,
+      gpsQ: gq.gpsQ,
+      avgAcc: gq.avgAcc,
+      hz: gq.hz,
+      flags,
+    }).catch?.(() => {});
+  } catch (err) { console.warn('publishDragMark', err); }
+}
+
+/* ——— view enter hooks (called from goToView) ——— */
+let _garageSeen = false;
+function onViewEnter(id) {
+  setTimeout(() => {
+    try {
+      if (id === 'home') renderHome();
+      else if (id === 'duels') void renderDuelsView();
+      else if (id === 'tops') void renderTopsBoard();
+      else if (id === 'garage') {
+        try { onResize(); } catch (_) {}
+        try { podiumInvalidate(400, true); } catch (_) {}
+        if (!_garageSeen) {
+          _garageSeen = true;
+          const m = MODEL_CATALOG.find((x) => x.id === podiumModelId);
+          if (m?.driveIn && glbRoot) { try { startDriveIn(glbRoot, podiumModelId); } catch (_) {} }
+        }
+      }
+    } catch (err) { console.warn('onViewEnter', id, err); }
+  }, 0);
+}
+
+/* ——— Главная ——— */
+let _hcIdx = 0; let _hcTimer = 0; let _hcPauseUntil = 0; let _hcHold = false;
+const HC_INTERVAL = 5000;
+function hcSlides() { return [...document.querySelectorAll('#homeCarouselTrack .hc-slide')]; }
+function hcGo(i, smooth = true) {
+  const track = document.getElementById('homeCarouselTrack');
+  const n = hcSlides().length;
+  if (!track || !n) return;
+  _hcIdx = ((i % n) + n) % n;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  track.scrollTo({ left: _hcIdx * track.clientWidth, behavior: smooth && !reduce ? 'smooth' : 'auto' });
+  hcSyncDots();
+}
+function hcSyncDots() {
+  document.querySelectorAll('#homeCarouselDots .hc-dot').forEach((b, i) => {
+    const on = i === _hcIdx;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+  hcSlides().forEach((s, i) => s.classList.toggle('cur', i === _hcIdx));
+}
+function hcPause(ms = 6000) { _hcPauseUntil = Date.now() + ms; }
+function setupHomeCarousel() {
+  const root = document.getElementById('homeCarousel');
+  const track = document.getElementById('homeCarouselTrack');
+  const dots = document.getElementById('homeCarouselDots');
+  if (!root || !track || !dots || root.dataset.ready) return;
+  root.dataset.ready = '1';
+  const slides = hcSlides();
+  dots.replaceChildren();
+  slides.forEach((s, i) => {
+    const b = padEl('button', 'hc-dot');
+    b.type = 'button';
+    b.setAttribute('role', 'tab');
+    b.setAttribute('aria-label', 'Слайд ' + (i + 1));
+    b.addEventListener('click', () => { hcPause(); hcGo(i); });
+    dots.appendChild(b);
+  });
+  const art = document.getElementById('hcTrackArt');
+  if (art && !art.firstChild) art.appendChild(trackSilhouetteSvg('sochi', 160, 'hc-trk'));
+  const sub = document.getElementById('hcTopsSub');
+  if (sub) sub.textContent = TRACKS.length + ' трасс и ' + DRAG_DISC.length + ' дисциплин — только валидные GPS A/B';
+  let raf = 0;
+  track.addEventListener('scroll', () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const w = track.clientWidth || 1;
+      const i = Math.round(track.scrollLeft / w);
+      if (i !== _hcIdx) { _hcIdx = i; hcSyncDots(); }
+    });
+  }, { passive: true });
+  const hold = () => { _hcHold = true; };
+  const release = () => { _hcHold = false; hcPause(4000); };
+  track.addEventListener('pointerdown', hold, { passive: true });
+  track.addEventListener('touchstart', hold, { passive: true });
+  ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'mouseleave'].forEach((ev) => track.addEventListener(ev, release, { passive: true }));
+  root.addEventListener('focusin', () => hcPause(8000));
+  slides.forEach((s) => s.addEventListener('click', () => {
+    const go = s.dataset.go;
+    if (go) { hap(10); goToView(go); }
+  }));
+  window.addEventListener('resize', () => hcGo(_hcIdx, false), { passive: true });
+  hcSyncDots();
+  clearInterval(_hcTimer);
+  _hcTimer = setInterval(() => {
+    if (_hcHold || document.hidden || Date.now() < _hcPauseUntil) return;
+    if (!document.getElementById('view-home')?.classList.contains('active')) return;
+    hcGo(_hcIdx + 1);
+  }, HC_INTERVAL);
+}
+function renderHomeCar() {
+  let id = null;
+  try { id = podiumModelId || defaultPodiumId(); } catch (_) { id = 'g87-m2'; }
+  const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
+  if (!m) return;
+  const img = document.getElementById('homeCarImg');
+  if (img && img.getAttribute('src') !== carThumbUrl(m.id)) img.src = carThumbUrl(m.id);
+  const nm = document.getElementById('homeCarName');
+  if (nm) nm.textContent = m.name;
+  const sub = document.getElementById('homeCarSub');
+  if (sub) {
+    const rec = state.meas?.[m.id] || {};
+    const bits = [m.year ? String(m.year) : ''];
+    if (rec.v0100) bits.push('0–100 · ' + Number(rec.v0100).toFixed(2) + ' с');
+    else bits.push('Открыть в гараже');
+    sub.textContent = bits.filter(Boolean).join(' · ');
+  }
+  const btn = document.getElementById('homeCar');
+  if (btn) btn.dataset.car = m.id;
+}
+let _homePostsAt = 0;
+async function renderHomeTopPosts(force = false) {
+  const box = document.getElementById('homeTopPosts');
+  if (!box) return;
+  if (!force && Date.now() - _homePostsAt < 60000 && box.childElementCount) return;
+  _homePostsAt = Date.now();
+  if (!box.childElementCount) box.appendChild(padEl('p', 'home-empty', 'Загружаем…'));
+  let rows = [];
+  try { rows = await api.listPulseTopDay(); } catch (_) { rows = []; }
+  box.replaceChildren();
+  if (!Array.isArray(rows) || !rows.length) {
+    const e = padEl('div', 'home-empty');
+    e.appendChild(padEl('b', '', 'За сутки постов пока нет'));
+    e.appendChild(padEl('span', '', 'Поделись сборкой или заездом — лучший пост дня появится здесь.'));
+    const go = padEl('button', 'home-link', 'Открыть Паддок');
+    go.type = 'button';
+    go.dataset.view = 'pulse';
+    e.appendChild(go);
+    box.appendChild(e);
+    return;
+  }
+  rows.slice(0, 5).forEach((p, i) => {
+    const card = padEl('button', 'hp-card');
+    card.type = 'button';
+    card.dataset.post = p.id;
+    card.appendChild(padEl('span', 'hp-rank', String(i + 1)));
+    card.appendChild(padAvatar(p.who, p.avatar, 34));
+    const mid = padEl('span', 'hp-mid');
+    const head = padEl('span', 'hp-head');
+    head.appendChild(padEl('b', 'hp-who', clipText(p.who || 'Пилот', 16)));
+    head.appendChild(padEl('span', 'hp-ago', padAgo(p.at)));
+    mid.appendChild(head);
+    mid.appendChild(padEl('span', 'hp-text', p.text || (p.hasImg ? 'Фото' : '')));
+    card.appendChild(mid);
+    const st = padEl('span', 'hp-stats');
+    const lk = padEl('span', 'hp-lk');
+    lk.appendChild(padIcon('heart'));
+    lk.appendChild(document.createTextNode(padCount(p.likeCount || 0)));
+    st.appendChild(lk);
+    const cm = padEl('span', 'hp-cm');
+    cm.appendChild(padIcon('bubble'));
+    cm.appendChild(document.createTextNode(padCount(p.commentCount || 0)));
+    st.appendChild(cm);
+    if (p.hasImg) st.appendChild(padEl('span', 'hp-img', 'фото'));
+    card.appendChild(st);
+    box.appendChild(card);
+  });
+}
+async function openPostInPaddock(id) {
+  goToView('pulse');
+  for (let i = 0; i < 30; i++) {
+    await new Promise((r) => setTimeout(r, 120));
+    const el = [...document.querySelectorAll('#pulseFeed [data-post]')].find((x) => x.dataset.post === id);
+    if (el) {
+      try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+      el.classList.add('pad-flash');
+      setTimeout(() => el.classList.remove('pad-flash'), 1800);
+      return;
+    }
+  }
+}
+function renderHome() {
+  setupHomeCarousel();
+  renderHomeCar();
+  void renderHomeTopPosts();
+}
+document.getElementById('homeCar')?.addEventListener('click', () => {
+  const id = document.getElementById('homeCar')?.dataset.car;
+  hap(10);
+  goToView('garage');
+  try { if (id && podiumModelId && id !== podiumModelId) loadPodiumModel(id, 0); } catch (_) {}
+});
+document.getElementById('homeTopPosts')?.addEventListener('click', (e) => {
+  const c = e.target?.closest?.('.hp-card[data-post]');
+  if (c) { hap(8); void openPostInPaddock(c.dataset.post); return; }
+  const v = e.target?.closest?.('[data-view]');
+  if (v) goToView(v.dataset.view);
+});
+document.querySelector('#view-home .home-sec-head [data-view]')?.addEventListener('click', (e) => {
+  goToView(e.currentTarget.dataset.view);
+});
+
+/* ——— Дуэли ——— */
+let _duelsTab = 'active';
+const DUEL_INBOX_KEY = 'pitlane-duels-inbox-v1';
+function rememberInboxDuel(id) {
+  if (!id || !/^[\w-]{4,64}$/.test(id)) return;
+  try {
+    const arr = JSON.parse(localStorage.getItem(DUEL_INBOX_KEY) || '[]');
+    const out = [id, ...(Array.isArray(arr) ? arr : [])].filter((x, i, a) => typeof x === 'string' && a.indexOf(x) === i).slice(0, 10);
+    localStorage.setItem(DUEL_INBOX_KEY, JSON.stringify(out));
+  } catch (_) {}
+}
+function inboxDuelIds() {
+  try { const a = JSON.parse(localStorage.getItem(DUEL_INBOX_KEY) || '[]'); return Array.isArray(a) ? a.filter((x) => typeof x === 'string') : []; } catch (_) { return []; }
+}
+function duelIsMine(id) {
+  if (!id) return false;
+  try { return id === duelPilotId() || isMyPilotId(id); } catch (_) { return false; }
+}
+function duelCategory(d) {
+  if (d.status === 'ready' || d.status === 'expired') return 'done';
+  if (!duelIsMine(d.createdBy?.id) && !duelIsMine(d.challenger?.id)) return 'inbox';
+  return 'active';
+}
+function duelTypeLabel(d) {
+  if (d.type === 'lap') return 'Круг · ' + (TRACKS.find((x) => x.id === d.trackId)?.name || d.trackId || 'трасса');
+  return '0–100 км/ч';
+}
+function duelTimeText(d, runRow) {
+  if (!runRow) return '';
+  return d.type === 'drag' ? Number(runRow.t).toFixed(2) + ' с' : String(runRow.t);
+}
+function duelStatusText(d) {
+  if (d.status === 'expired') return 'истекла';
+  if (d.status === 'ready') {
+    if (d.winner === 'tie') return 'ничья';
+    const meWin = (d.winner === 'creator' && duelIsMine(d.createdBy?.id)) || (d.winner === 'challenger' && duelIsMine(d.challenger?.id));
+    const meIn = duelIsMine(d.createdBy?.id) || duelIsMine(d.challenger?.id);
+    return meIn ? (meWin ? 'победа' : 'поражение') : 'завершена';
+  }
+  const left = d.expiresAt ? Math.max(0, Math.ceil((d.expiresAt - Date.now()) / 86400000)) : null;
+  const cat = duelCategory(d);
+  let s = cat === 'inbox' ? 'тебя вызвали' : (!d.challenger ? 'ждём соперника' : 'идёт');
+  if (left != null) s += ' · ' + left + ' д';
+  return s;
+}
+function duelSideEl(d, key) {
+  const who = key === 'creator' ? d.createdBy : d.challenger;
+  const runRow = key === 'creator' ? d.creatorRun : d.challengerRun;
+  const side = padEl('span', 'dc-p' + (key === 'challenger' ? ' r' : ''));
+  const win = d.status === 'ready' && d.winner === key;
+  if (win) side.classList.add('win');
+  side.appendChild(padAvatar(who?.name || '?', who?.avatar, 38));
+  const txt = padEl('span', 'dc-pt');
+  txt.appendChild(padEl('b', '', who ? clipText(who.name || 'пилот', 12) : 'соперник?'));
+  const sub = runRow ? [duelTimeText(d, runRow), shortCarName(runRow.car, runRow.carId)].filter(Boolean).join(' · ') : (who ? 'ждём заезд' : 'по ссылке');
+  txt.appendChild(padEl('span', '', sub));
+  side.appendChild(txt);
+  return side;
+}
+function buildDuelCard(d) {
+  const card = padEl('button', 'duel-card cat-' + duelCategory(d));
+  card.type = 'button';
+  card.dataset.duelId = d.id;
+  const top = padEl('span', 'dc-top');
+  top.appendChild(padEl('span', 'dc-type', duelTypeLabel(d)));
+  top.appendChild(padEl('span', 'dc-st st-' + (d.status || 'open'), duelStatusText(d)));
+  card.appendChild(top);
+  const vs = padEl('span', 'dc-vs');
+  vs.appendChild(duelSideEl(d, 'creator'));
+  vs.appendChild(padEl('span', 'dc-x', 'VS'));
+  vs.appendChild(duelSideEl(d, 'challenger'));
+  card.appendChild(vs);
+  return card;
+}
+let _duelsLoading = false;
+async function renderDuelsView() {
+  const list = document.getElementById('duelsList');
+  if (!list || _duelsLoading) return;
+  _duelsLoading = true;
+  try {
+    if (!list.childElementCount) list.appendChild(padEl('p', 'home-empty', 'Загружаем дуэли…'));
+    let rows = [];
+    if (isRemoteApi()) {
+      try { rows = (await api.listMyDuels(duelPilotId())) || []; } catch (_) { rows = []; }
+      const have = new Set(rows.map((d) => d.id));
+      const extra = inboxDuelIds().filter((id) => !have.has(id)).slice(0, 8);
+      const got = await Promise.all(extra.map((id) => api.getDuel(id).catch(() => null)));
+      got.forEach((d) => { if (d && d.id) rows.push(d); });
+    }
+    const cats = { active: [], inbox: [], done: [] };
+    rows.forEach((d) => { if (d && d.id) cats[duelCategory(d)].push(d); });
+    Object.values(cats).forEach((a) => a.sort((x, y) => (y.createdAt || 0) - (x.createdAt || 0)));
+    document.querySelectorAll('[data-duels-tab]').forEach((b) => {
+      const k = b.dataset.duelsTab;
+      b.classList.toggle('on', k === _duelsTab);
+      b.setAttribute('aria-selected', String(k === _duelsTab));
+      const c = b.querySelector('[data-cnt]');
+      if (c) c.textContent = cats[k]?.length ? String(cats[k].length) : '';
+    });
+    list.replaceChildren();
+    const cur = cats[_duelsTab] || [];
+    if (!cur.length) {
+      const e = padEl('div', 'duels-empty');
+      const msg = !isRemoteApi() ? ['Дуэли работают онлайн', 'Нужен Worker API.']
+        : _duelsTab === 'inbox' ? ['Входящих вызовов нет', 'Когда друг пришлёт ссылку на дуэль, она появится здесь.']
+          : _duelsTab === 'done' ? ['Завершённых дуэлей пока нет', 'Итоги появятся, когда оба пилота прикрепят заезды.']
+            : ['Активных дуэлей нет', 'Брось вызов на 0–100 или круг — отправь ссылку сопернику.'];
+      e.appendChild(padEl('b', '', msg[0]));
+      e.appendChild(padEl('span', '', msg[1]));
+      if (_duelsTab !== 'done' && isRemoteApi()) {
+        const b = padEl('button', 'go-btn duels-empty-go', 'Вызвать');
+        b.type = 'button';
+        b.addEventListener('click', () => openDuelSheet({ createOnly: true }));
+        e.appendChild(b);
+      }
+      list.appendChild(e);
+      return;
+    }
+    cur.slice(0, 30).forEach((d) => list.appendChild(buildDuelCard(d)));
+  } finally { _duelsLoading = false; }
+}
+document.querySelectorAll('[data-duels-tab]').forEach((b) => b.addEventListener('click', () => {
+  _duelsTab = b.dataset.duelsTab || 'active';
+  hap(6);
+  void renderDuelsView();
+}));
+document.getElementById('duelsList')?.addEventListener('click', (e) => {
+  const c = e.target?.closest?.('.duel-card[data-duel-id]');
+  if (c) { hap(8); openDuelSheet({ duelId: c.dataset.duelId }); }
+});
+document.getElementById('duelsPaste')?.addEventListener('click', () => {
+  document.getElementById('duelPasteOpen')?.click();
+});
+
+/* VS-анимация: пилоты съезжаются, неоновое VS, вспышка, вибрация. */
+let _vsFxBusy = false;
+function playDuelVsFx(left, right, caption) {
+  const fx = document.getElementById('duelVsFx');
+  if (!fx || _vsFxBusy) return Promise.resolve();
+  _vsFxBusy = true;
+  const fill = (side, p) => {
+    const ava = document.getElementById('dvfAva' + side);
+    if (ava) { ava.replaceChildren(padAvatar(p?.unknown ? '?' : (p?.name || '?'), p?.avatar, 72)); }
+    const nm = document.getElementById('dvfName' + side);
+    if (nm) nm.textContent = clipText(p?.name || 'соперник?', 12);
+    const car = document.getElementById('dvfCar' + side);
+    if (car) car.textContent = p?.car ? shortCarName(p.car, p.carId) : (p?.carHint || '');
+  };
+  fill('L', left);
+  fill('R', right);
+  const cap = document.getElementById('dvfCap');
+  if (cap) cap.textContent = caption || '';
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  fx.classList.remove('hidden', 'play', 'out');
+  fx.setAttribute('aria-hidden', 'false');
+  void fx.offsetWidth;
+  fx.classList.add('play');
+  if (reduce) fx.classList.add('reduce');
+  const hitAt = reduce ? 50 : 560;
+  setTimeout(() => {
+    try { if (!tmaHaptic('heavy')) navigator.vibrate?.([40, 30, 80]); } catch (_) {}
+    setTimeout(() => { try { tmaHaptic('success'); } catch (_) {} }, 180);
+  }, hitAt);
+  return new Promise((resolve) => {
+    setTimeout(() => fx.classList.add('out'), reduce ? 700 : 1700);
+    setTimeout(() => {
+      fx.classList.add('hidden');
+      fx.classList.remove('play', 'out', 'reduce');
+      fx.setAttribute('aria-hidden', 'true');
+      _vsFxBusy = false;
+      resolve();
+    }, reduce ? 900 : 2050);
+  });
+}
+function myDuelPerson() {
+  const p = profile();
+  const car = currentCar?.();
+  return { name: duelPilotNick(), avatar: p?.avatar, car: car?.name, carId: car?.id };
+}
+window.__plVsFx = playDuelVsFx;
+
+/* ——— Компактные топы: чипы (дисциплины + трассы) и одна строка на запись ——— */
+const TOPS_SEL_KEY = 'pitlane-tops-sel-v1';
+let _topsSel = (() => {
+  try {
+    const s = JSON.parse(localStorage.getItem(TOPS_SEL_KEY) || 'null');
+    if (s && (s.kind === 'drag' || s.kind === 'lap') && typeof s.id === 'string') return s;
+  } catch (_) {}
+  return { kind: 'drag', id: '0-100' };
+})();
+function renderTopsChips() {
+  const box = document.getElementById('topsChips');
+  if (!box) return;
+  if (!box.childElementCount) {
+    const mk = (kind, id, label, icon) => {
+      const b = padEl('button', 'tchip');
+      b.type = 'button';
+      b.dataset.kind = kind;
+      b.dataset.id = id;
+      if (icon) b.appendChild(icon);
+      b.appendChild(padEl('span', '', label));
+      box.appendChild(b);
+    };
+    DRAG_DISC.forEach((d) => mk('drag', d.id, d.label, null));
+    box.appendChild(padEl('span', 'tchip-sep'));
+    TRACKS.forEach((t) => mk('lap', t.id, t.name, trackSilhouetteSvg(t.id, 16, 'tchip-trk')));
+  }
+  let onEl = null;
+  box.querySelectorAll('.tchip').forEach((b) => {
+    const on = b.dataset.kind === _topsSel.kind && b.dataset.id === _topsSel.id;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+    if (on) onEl = b;
+  });
+  if (onEl && !box.dataset.scrolled) {
+    box.dataset.scrolled = '1';
+    try { box.scrollLeft = Math.max(0, box.scrollLeft + onEl.getBoundingClientRect().left - box.getBoundingClientRect().left - 16); } catch (_) {}
+  }
+}
+function lapMs(t) {
+  try { const v = parseLapMsClient(t); if (Number.isFinite(v) && v > 0) return v; } catch (_) {}
+  const m = String(t || '').match(/^(\d+):(\d{1,2})(?:[.,](\d{1,3}))?$/);
+  if (!m) return Infinity;
+  return (+m[1] * 60 + +m[2]) * 1000 + (m[3] ? +m[3].padEnd(3, '0') : 0);
+}
+function buildTopsRow(r, i, sel) {
+  const li = padEl('li', 'tb-row' + (i < 3 ? ' podium p' + (i + 1) : ''));
+  const pid = r.pilotId && isPublicPilot(r.pilotId) ? r.pilotId : '';
+  if (pid) {
+    li.dataset.pilot = pid;
+    li.tabIndex = 0;
+    li.setAttribute('role', 'button');
+  }
+  li.appendChild(padEl('span', 'tb-n', String(i + 1)));
+  li.appendChild(padAvatar(r.name || 'P', r.avatar, 28));
+  const nick = padEl('span', 'tb-nick', clipText(r.name || 'пилот', 12));
+  if ((r.name || '').length > 12) nick.title = r.name;
+  li.appendChild(nick);
+  li.appendChild(padEl('span', 'tb-car', shortCarName(r.car, r.carId) || '—'));
+  const ic = padEl('span', 'tb-ic');
+  if (sel.kind === 'lap') ic.appendChild(trackSilhouetteSvg(sel.id, 26));
+  else ic.appendChild(discTag(sel.id));
+  li.appendChild(ic);
+  const time = sel.kind === 'lap' ? String(r.t) : Number(r.t).toFixed(2);
+  const tm = padEl('span', 'tb-t', time);
+  if (r.gpsQ) tm.dataset.q = r.gpsQ;
+  li.appendChild(tm);
+  if (isMyPilotId(r.pilotId)) li.classList.add('me');
+  return li;
+}
+let _topsBoardSeq = 0;
+async function renderTopsBoard() {
+  const ol = document.getElementById('topsBoard');
+  if (!ol) return;
+  renderTopsChips();
+  const sel = { ..._topsSel };
+  const seq = ++_topsBoardSeq;
+  const title = document.getElementById('topsBoardTitle');
+  const sub = document.getElementById('topsBoardSub');
+  const wx = getTopsWeatherFilter();
+  const wxLab = { all: 'любая погода', dry: 'сухо', damp: 'влажно', wet: 'дождь' }[wx] || '';
+  const model = document.getElementById('topModelFilter')?.value || '';
+  if (title) title.textContent = sel.kind === 'lap' ? trackShortName(sel.id) : (dragDiscMeta(sel.id)?.title || sel.id);
+  if (sub) {
+    const tr = sel.kind === 'lap' ? TRACKS.find((t) => t.id === sel.id) : null;
+    sub.textContent = [sel.kind === 'lap' ? (tr?.km ? tr.km + ' км' : 'круг') : 'GPS A/B', sel.kind === 'lap' ? wxLab : '', model ? shortCarName(model) : 'все машины'].filter(Boolean).join(' · ');
+  }
+  ol.setAttribute('aria-busy', 'true');
+  let rows = [];
+  try {
+    if (sel.kind === 'lap') {
+      const raw = (await api.listLapBoard(sel.id, wx)) || [];
+      const best = new Map();
+      raw.forEach((r) => {
+        const k = r.pilotId || ('n:' + (r.name || '') + ':' + (r.car || ''));
+        const ms = lapMs(r.t);
+        if (!Number.isFinite(ms)) return;
+        const prev = best.get(k);
+        if (!prev || ms < prev._ms) best.set(k, { ...r, _ms: ms });
+      });
+      rows = [...best.values()];
+    } else {
+      rows = (await api.listDrag(sel.id, {})) || [];
+    }
+  } catch (_) { rows = []; }
+  if (seq !== _topsBoardSeq) return;
+  try { rows = filterTopRows(rows, { model }); } catch (_) {}
+  rows.sort((a, b) => (sel.kind === 'lap' ? (a._ms ?? lapMs(a.t)) - (b._ms ?? lapMs(b.t)) : Number(a.t) - Number(b.t)));
+  ol.replaceChildren();
+  ol.removeAttribute('aria-busy');
+  if (!rows.length) {
+    const li = padEl('li', 'tb-empty');
+    li.appendChild(padEl('b', '', 'Пока нет результатов'));
+    li.appendChild(padEl('span', '', sel.kind === 'lap' ? 'Проедь валидный круг с GPS A/B — и займи первую строку.' : 'Сделай замер с GPS A/B — лучший результат попадёт сюда.'));
+    const go = padEl('button', 'home-link', sel.kind === 'lap' ? 'К кругу' : 'К замеру');
+    go.type = 'button';
+    go.addEventListener('click', () => goToView(sel.kind === 'lap' ? 'lap' : 'run'));
+    li.appendChild(go);
+    ol.appendChild(li);
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  rows.slice(0, 100).forEach((r, i) => frag.appendChild(buildTopsRow(r, i, sel)));
+  ol.appendChild(frag);
+}
+document.getElementById('topsChips')?.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('.tchip');
+  if (!b) return;
+  _topsSel = { kind: b.dataset.kind, id: b.dataset.id };
+  try { localStorage.setItem(TOPS_SEL_KEY, JSON.stringify(_topsSel)); } catch (_) {}
+  hap(6);
+  try { b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch (_) {}
+  void renderTopsBoard();
+});
+document.getElementById('topsBoard')?.addEventListener('click', (e) => {
+  const li = e.target?.closest?.('.tb-row[data-pilot]');
+  if (li) void openPilotProfile(li.dataset.pilot);
+});
+document.getElementById('topsBoard')?.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const li = e.target?.closest?.('.tb-row[data-pilot]');
+  if (li) { e.preventDefault(); void openPilotProfile(li.dataset.pilot); }
+});
+['topValidOnly', 'topModelFilter'].forEach((id) => document.getElementById(id)?.addEventListener('change', () => { void renderTopsBoard(); }));
+document.getElementById('topWeatherChips')?.addEventListener('click', () => { setTimeout(() => { void renderTopsBoard(); }, 0); });
+// v84: home is the default view on cold start (no goToView call) → render it once.
+if (document.getElementById('view-home')?.classList.contains('active')) setTimeout(() => { try { renderHome(); } catch (err) { console.warn('home', err); } }, 0);
