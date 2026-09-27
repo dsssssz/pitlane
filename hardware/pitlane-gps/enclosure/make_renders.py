@@ -13,10 +13,13 @@ MATS = {
  "bat": {"color": "#a9aeb8", "rough": 0.35, "metal": 0.6}, "gold": {"color": "#d4a53a", "rough": 0.25, "metal": 1},
  "sw": {"color": "#3a3a3a", "rough": 0.5}, "led": {"color": "#e8ffe0", "rough": 0.2, "emit": 2.0},
  "strip": {"color": "#f0f0f0", "rough": 0.4},
+ "stripled": {"color": "#e9ffe0", "rough": 0.4, "emit": 1.5},
+ "cap": {"color": "#1d2f6b", "rough": 0.35},
 }
 DMAT = {"gps_pcb": "pcb_gps", "gps_under": "metal", "gps_top": "patch", "tp": "pcb_tp", "tp_usb": "metal",
         "bat": "bat", "esp": "esp", "sw": "sw", "sw_lever": "sw", "leds": "led", "leds_ring": "led", "leds_p": "led",
-        "sma": "gold", "strip_back": "strip", "strip_left": "strip", "strip_right": "strip", "strip_front": "strip"}
+        "sma": "gold", "strip_back": "stripled", "strip_left": "stripled", "strip_right": "stripled", "strip_front": "stripled",
+        "strip_status": "stripled", "cap": "cap"}
 PMAT = {"body": "shell", "lid": "shell", "cover": "shell", "ring": "neon", "pipes": "neon", "plogo": "neon"}
 
 def dummies(key):
@@ -47,13 +50,19 @@ def objs_for(key, parts, with_dummies=False, offsets=None, cut=None, mat_over=No
         o.append({"file": f, "mat": (mat_over or {}).get(p, PMAT[p]), "offset": offsets.get(p, [0, 0, 0])})
     if with_dummies:
         for d in dummies(key):
-            o.append({"file": os.path.join(B, f"{key}_dummy_{d}.stl"), "mat": DMAT[d], "offset": offsets.get("dummies", [0, 0, 0])})
+            off = offsets.get(d, offsets.get("strips" if d.startswith("strip_") and d != "strip_status" else "dummies", offsets.get("dummies", [0, 0, 0])))
+            o.append({"file": os.path.join(B, f"{key}_dummy_{d}.stl"), "mat": DMAT[d], "offset": off})
     return o
 
 only = set(sys.argv[2:])
 def want(n): return not only or n in only
 
 BOX = ["body", "ring", "lid", "pipes"]; PUCK = ["body", "cover", "ring", "plogo", "pipes"]
+# --- v2: основной вариант B с подсветкой ---
+if want("v2_lit"):  job("box_B_lit_34.png", objs_for("box-B", BOX), [-60, 30, 300], [0, 0, 11], exposure=0.3)
+if want("v2_exp"):  job("box_B_exploded.png", objs_for("box-B", BOX, True, offsets={"ring": [0, 0, 30], "strips": [0, 0, 30], "lid": [0, 0, 74], "pipes": [0, 0, 62], "strip_status": [0, 0, 50]}), [-118, 34, 560], [0, 0, 38], exposure=0.5)
+if want("v2_open"): job("box_B_open_top.png", objs_for("box-B", ["body", "ring"], True), [-90, 62, 250], [0, 0, 10], exposure=0.6)
+if want("v2_sec"):  job("box_B_section.png", objs_for("box-B", BOX, True, cut=([0, -19, 0], [0, 1, 0])), [-100, 26, 230], [0, -5, 10], exposure=0.9)
 if want("box_A_34"):  job("box_A_assembly_34.png", objs_for("box-A", BOX), [-125, 28, 330], [0, 0, 11])
 if want("box_B_34"):  job("box_B_assembly_34.png", objs_for("box-B", BOX), [-60, 38, 330], [0, 0, 11])
 if want("box_B_sec"): job("box_B_section.png", objs_for("box-B", BOX, True, cut=([0, -19, 0], [0, 1, 0])), [-100, 26, 230], [0, -5, 10], exposure=0.9)

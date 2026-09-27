@@ -1,0 +1,170 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="940" viewBox="0 0 1400 940" font-family="DejaVu Sans, Arial, sans-serif">
+<rect width="100%" height="100%" fill="#101014"/>
+<text x="30" y="40" fill="#fff" font-size="22" font-weight="bold">PITLANE GPS v2 — NEO-M9N + ESP32-C3 SuperMini + TP4056 + LiPo 103040 + подсветка WS2812B-2020</text>
+<path d="M1300,650 L1360,650 L1360,80 L360,80" fill="none" stroke="#ff5a5a" stroke-width="4" stroke-linejoin="round"/>
+<rect x="1130" y="65" width="120" height="30" rx="6" fill="#101014" stroke="#fff" stroke-width="2"/>
+<text x="1190" y="85" fill="#fff" font-size="13" text-anchor="middle">выключатель</text>
+<text x="1190" y="58" fill="#aaa" font-size="12" text-anchor="middle">SS12D00G4 (на стенке, «O / I»)</text>
+<text x="560" y="70" fill="#ff5a5a" font-size="14" text-anchor="start">VSYS = 3.0–4.2 В (OUT+ TP4056 после выключателя)</text>
+<rect x="520" y="110" width="300" height="425" rx="14" fill="#1b1b22" stroke="#ffc940" stroke-width="3"/>
+<text x="670.0" y="140" fill="#ffc940" font-size="19" font-weight="bold" text-anchor="middle">ESP32-C3 SuperMini</text>
+<text x="670.0" y="162" fill="#aaa" font-size="13" text-anchor="middle">BLE 5, USB-C (прошивка)</text>
+<circle cx="820" cy="190" r="6" fill="#ffc940"/>
+<text x="806" y="195" fill="#eee" font-size="15" text-anchor="end">GPIO20 (RX)</text>
+<circle cx="820" cy="235" r="6" fill="#ffc940"/>
+<text x="806" y="240" fill="#eee" font-size="15" text-anchor="end">GPIO21 (TX)</text>
+<circle cx="820" cy="280" r="6" fill="#ffc940"/>
+<text x="806" y="285" fill="#eee" font-size="15" text-anchor="end">3V3</text>
+<circle cx="820" cy="325" r="6" fill="#ffc940"/>
+<text x="806" y="330" fill="#eee" font-size="15" text-anchor="end">GND</text>
+<circle cx="520" cy="190" r="6" fill="#ffc940"/>
+<text x="534" y="195" fill="#eee" font-size="15" text-anchor="start">5V (вход LDO)</text>
+<circle cx="520" cy="250" r="6" fill="#ffc940"/>
+<text x="534" y="255" fill="#eee" font-size="15" text-anchor="start">GPIO3 (ADC)</text>
+<circle cx="520" cy="380" r="6" fill="#ffc940"/>
+<text x="534" y="385" fill="#eee" font-size="15" text-anchor="start">GND</text>
+<circle cx="520" cy="460" r="6" fill="#ffc940"/>
+<text x="534" y="465" fill="#eee" font-size="15" text-anchor="start">GPIO4 (данные)</text>
+<text x="670" y="495" fill="#aaa" font-size="13" text-anchor="middle">встроено: LED = GPIO8, BOOT = GPIO9</text>
+<text x="670" y="513" fill="#aaa" font-size="13" text-anchor="middle">(BOOT коротко: 10 ↔ 25 Гц)</text>
+<path d="M470,80 L470,190 L520,190" fill="none" stroke="#ff5a5a" stroke-width="4" stroke-linejoin="round"/>
+<circle cx="470" cy="80" r="5" fill="#ff5a5a"/>
+<rect x="1000" y="110" width="300" height="290" rx="14" fill="#1b1b22" stroke="#39FF14" stroke-width="3"/>
+<text x="1150.0" y="140" fill="#39FF14" font-size="19" font-weight="bold" text-anchor="middle">GNSS: GY-GPSV3-M9N</text>
+<text x="1150.0" y="162" fill="#aaa" font-size="13" text-anchor="middle">u-blox NEO-M9N, UART 3.3 В</text>
+<circle cx="1000" cy="190" r="6" fill="#39FF14"/>
+<text x="1014" y="195" fill="#eee" font-size="15" text-anchor="start">TX</text>
+<circle cx="1000" cy="235" r="6" fill="#39FF14"/>
+<text x="1014" y="240" fill="#eee" font-size="15" text-anchor="start">RX</text>
+<circle cx="1000" cy="280" r="6" fill="#39FF14"/>
+<text x="1014" y="285" fill="#eee" font-size="15" text-anchor="start">VCC</text>
+<circle cx="1000" cy="325" r="6" fill="#39FF14"/>
+<text x="1014" y="330" fill="#eee" font-size="15" text-anchor="start">GND</text>
+<text x="1150" y="350" fill="#6cf" font-size="13" text-anchor="middle">Вариант B (основной): патч-антенна</text>
+<text x="1150" y="368" fill="#6cf" font-size="13" text-anchor="middle">25×25 на плате, внутри корпуса</text>
+<text x="1150" y="388" fill="#777" font-size="12" text-anchor="middle">Вариант A: SMA-гнездо ↔ U.FL-пигтейл</text>
+<path d="M1000,190 L820,190" fill="none" stroke="#39FF14" stroke-width="4" stroke-linejoin="round"/>
+<text x="850" y="182" fill="#39FF14" font-size="13">GPS TX → ESP RX</text>
+<path d="M1000,235 L820,235" fill="none" stroke="#4fc3ff" stroke-width="4" stroke-linejoin="round"/>
+<text x="850" y="227" fill="#4fc3ff" font-size="13">GPS RX ← ESP TX</text>
+<path d="M1000,280 L820,280" fill="none" stroke="#ff5a5a" stroke-width="4" stroke-linejoin="round"/>
+<text x="890" y="272" fill="#ff5a5a" font-size="13">3.3 В</text>
+<path d="M1000,325 L820,325" fill="none" stroke="#9aa" stroke-width="4" stroke-linejoin="round"/>
+<text x="895" y="317" fill="#9aa" font-size="13">GND</text>
+<rect x="380" y="200" width="120" height="100" rx="10" fill="#1b1b22" stroke="#bbb" stroke-dasharray="6 4" stroke-width="2"/>
+<text x="440" y="220" fill="#ddd" font-size="13" text-anchor="middle">делитель</text>
+<text x="440" y="238" fill="#ddd" font-size="12" text-anchor="middle">R1 100 кОм ↑</text>
+<text x="440" y="256" fill="#ddd" font-size="12" text-anchor="middle">R2 100 кОм ↓</text>
+<text x="440" y="274" fill="#ddd" font-size="12" text-anchor="middle">C 100 нФ ∥ R2</text>
+<text x="440" y="291" fill="#999" font-size="11" text-anchor="middle">VSYS/2 ≤ 2.1 В</text>
+<path d="M440,80 L440,200" fill="none" stroke="#ff5a5a" stroke-width="4" stroke-linejoin="round"/>
+<circle cx="440" cy="80" r="5" fill="#ff5a5a"/>
+<path d="M500,250 L520,250" fill="none" stroke="#c9f" stroke-width="4" stroke-linejoin="round"/>
+<path d="M440,300 L440,380" fill="none" stroke="#9aa" stroke-width="4" stroke-linejoin="round"/>
+<circle cx="440" cy="380" r="5" fill="#9aa"/>
+<rect x="40" y="200" width="300" height="650" rx="14" fill="#1b1b22" stroke="#39FF14" stroke-width="3"/>
+<text x="190.0" y="230" fill="#39FF14" font-size="19" font-weight="bold" text-anchor="middle">Лента WS2812B-2020</text>
+<text x="190.0" y="252" fill="#aaa" font-size="13" text-anchor="middle">5 мм, 160 LED/м, 26 LED</text>
+<text x="190.0" y="270" fill="#aaa" font-size="13" text-anchor="middle">одна линия данных</text>
+<circle cx="340" cy="320" r="6" fill="#39FF14"/>
+<text x="326" y="325" fill="#eee" font-size="15" text-anchor="end">VDD (+5V)</text>
+<circle cx="340" cy="380" r="6" fill="#39FF14"/>
+<text x="326" y="385" fill="#eee" font-size="15" text-anchor="end">GND</text>
+<circle cx="340" cy="460" r="6" fill="#39FF14"/>
+<text x="326" y="465" fill="#eee" font-size="15" text-anchor="end">DIN</text>
+<path d="M360,80 L360,320 L340,320" fill="none" stroke="#ff5a5a" stroke-width="4" stroke-linejoin="round"/>
+<circle cx="360" cy="80" r="5" fill="#ff5a5a"/>
+<path d="M520,380 L340,380" fill="none" stroke="#9aa" stroke-width="4" stroke-linejoin="round"/>
+<path d="M520,460 L340,460" fill="none" stroke="#c9f" stroke-width="4" stroke-linejoin="round"/>
+<rect x="418.0" y="451" width="44" height="18" rx="3" fill="#101014" stroke="#ddd" stroke-width="2.5"/>
+<text x="440.0" y="445" fill="#ddd" font-size="13" text-anchor="middle">330 Ом</text>
+<line x1="350" y1="320" x2="350" y2="342" stroke="#ff5a5a" stroke-width="3"/>
+<line x1="340" y1="342" x2="360" y2="342" stroke="#ddd" stroke-width="3"/>
+<path d="M340,352 Q350,346 360,352" fill="none" stroke="#ddd" stroke-width="3"/>
+<line x1="350" y1="350" x2="350" y2="380" stroke="#9aa" stroke-width="3"/>
+<text x="372" y="356" fill="#ddd" font-size="12" text-anchor="start">220 мкФ 10 В</text>
+<circle cx="350" cy="320" r="5" fill="#ff5a5a"/>
+<circle cx="350" cy="380" r="5" fill="#9aa"/>
+<text x="60" y="490" fill="#ddd" font-size="13" text-anchor="start">порядок в цепочке (DIN →):</text>
+<rect x="62" y="500" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="82" y="500" width="14" height="14" rx="2" fill="#0040ff" stroke="#eee" stroke-width="1"/>
+<rect x="102" y="500" width="14" height="14" rx="2" fill="#00ff00" stroke="#eee" stroke-width="1"/>
+<text x="62" y="534" fill="#eee" font-size="13" text-anchor="start">#0–2  статус под крышкой:</text>
+<text x="62" y="551" fill="#999" font-size="12" text-anchor="start">GNSS · BLE · батарея</text>
+<path d="M126,507 l14,0 m-6,-5 l6,5 l-6,5" fill="none" stroke="#777" stroke-width="2"/>
+<rect x="62" y="566" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="82" y="566" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<text x="62" y="600" fill="#eee" font-size="13" text-anchor="start">#3–4  кольцо: спереди-справа</text>
+<text x="62" y="617" fill="#999" font-size="12" text-anchor="start">(над TP4056)</text>
+<path d="M106,573 l14,0 m-6,-5 l6,5 l-6,5" fill="none" stroke="#777" stroke-width="2"/>
+<rect x="62" y="632" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="82" y="632" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="102" y="632" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="122" y="632" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="142" y="632" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="162" y="632" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="182" y="632" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<text x="62" y="666" fill="#eee" font-size="13" text-anchor="start">#5–11  кольцо: справа</text>
+<path d="M206,639 l14,0 m-6,-5 l6,5 l-6,5" fill="none" stroke="#777" stroke-width="2"/>
+<rect x="62" y="698" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="82" y="698" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="102" y="698" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="122" y="698" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="142" y="698" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="162" y="698" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="182" y="698" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<text x="62" y="732" fill="#eee" font-size="13" text-anchor="start">#12–18  кольцо: сзади</text>
+<path d="M206,705 l14,0 m-6,-5 l6,5 l-6,5" fill="none" stroke="#777" stroke-width="2"/>
+<rect x="62" y="764" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="82" y="764" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="102" y="764" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="122" y="764" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="142" y="764" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="162" y="764" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<rect x="182" y="764" width="14" height="14" rx="2" fill="#39FF14" stroke="#eee" stroke-width="1"/>
+<text x="62" y="798" fill="#eee" font-size="13" text-anchor="start">#19–25  кольцо: слева</text>
+<text x="62" y="815" fill="#999" font-size="12" text-anchor="start">(вариант A: 5 LED)</text>
+<text x="60" y="842" fill="#777" font-size="11" text-anchor="start">провода между отрезками — в открытых углах</text>
+<rect x="1000" y="560" width="300" height="150" rx="14" fill="#1b1b22" stroke="#ff8a3d" stroke-width="3"/>
+<text x="1150.0" y="590" fill="#ff8a3d" font-size="19" font-weight="bold" text-anchor="middle">TP4056 USB-C</text>
+<text x="1150.0" y="612" fill="#aaa" font-size="13" text-anchor="middle">с защитой (DW01A + FS8205A)</text>
+<circle cx="1000" cy="610" r="6" fill="#ff8a3d"/>
+<text x="1014" y="615" fill="#eee" font-size="15" text-anchor="start">B+</text>
+<circle cx="1000" cy="660" r="6" fill="#ff8a3d"/>
+<text x="1014" y="665" fill="#eee" font-size="15" text-anchor="start">B−</text>
+<circle cx="1300" cy="650" r="6" fill="#ff8a3d"/>
+<text x="1286" y="655" fill="#eee" font-size="15" text-anchor="end">OUT+</text>
+<circle cx="1300" cy="690" r="6" fill="#ff8a3d"/>
+<text x="1286" y="695" fill="#eee" font-size="15" text-anchor="end">OUT−</text>
+<rect x="1000" y="760" width="300" height="100" rx="12" fill="#1b1b22" stroke="#e57" stroke-width="3"/>
+<text x="1150" y="795" fill="#e57" font-size="16" text-anchor="middle" font-weight="bold">LiPo 103040, 3.7 В 1200 мА·ч</text>
+<text x="1150" y="818" fill="#aaa" font-size="13" text-anchor="middle">с платой защиты, 10×30×40 мм</text>
+<circle cx="1000" cy="790" r="6" fill="#ff5a5a"/>
+<text x="1014" y="795" fill="#eee" font-size="15" text-anchor="start"></text>
+<circle cx="1000" cy="830" r="6" fill="#9aa"/>
+<text x="1014" y="835" fill="#eee" font-size="15" text-anchor="start"></text>
+<text x="982" y="782" fill="#ff5a5a" font-size="15" text-anchor="middle">+</text>
+<text x="982" y="848" fill="#9aa" font-size="15" text-anchor="middle">−</text>
+<path d="M1000,790 L960,790 L960,610 L1000,610" fill="none" stroke="#ff5a5a" stroke-width="4" stroke-linejoin="round"/>
+<path d="M1000,830 L940,830 L940,660 L1000,660" fill="none" stroke="#9aa" stroke-width="4" stroke-linejoin="round"/>
+<path d="M1300,690 L1370,690 L1370,900 L870,900 L870,325" fill="none" stroke="#9aa" stroke-width="4" stroke-linejoin="round"/>
+<circle cx="870" cy="325" r="5" fill="#9aa"/>
+<text x="880" y="893" fill="#9aa" font-size="12" text-anchor="start">общий GND</text>
+<rect x="540" y="560" width="310" height="330" rx="12" fill="#15151b" stroke="#444" stroke-width="2"/>
+<text x="554" y="586" fill="#fff" font-size="14" text-anchor="start" font-weight="bold">Проверка питания и уровней</text>
+<text x="554" y="605" fill="#ddd" font-size="12" text-anchor="start" font-weight="bold">Лента — от VSYS, не от 3V3:</text>
+<text x="554" y="624" fill="#aaa" font-size="12" text-anchor="start">• WS2812B-2020: VDD 3.7–5.3 В; 3V3 мало</text>
+<text x="554" y="643" fill="#aaa" font-size="12" text-anchor="start">  и перегрузит LDO платы</text>
+<text x="554" y="662" fill="#aaa" font-size="12" text-anchor="start">• данные 3.3 В: VIH = 0.65·VDD = 2.73 В</text>
+<text x="554" y="681" fill="#aaa" font-size="12" text-anchor="start">  при 4.2 В → сдвиг уровня не нужен</text>
+<text x="554" y="700" fill="#aaa" font-size="12" text-anchor="start">• &lt; 3.7 В лента вне спецификации: режим</text>
+<text x="554" y="719" fill="#aaa" font-size="12" text-anchor="start">  «низкий заряд» — красный (Vf ~2 В)</text>
+<text x="554" y="738" fill="#aaa" font-size="12" text-anchor="start">  &lt; 3.5 В кольцо гасится прошивкой</text>
+<text x="554" y="757" fill="#ddd" font-size="12" text-anchor="start" font-weight="bold">Ток (оценка по даташиту, 12 мА/канал):</text>
+<text x="554" y="776" fill="#aaa" font-size="12" text-anchor="start">• неон #39FF14 на яркости 32/255:</text>
+<text x="554" y="795" fill="#aaa" font-size="12" text-anchor="start">  ~2.6 мА/LED → ~60 мА на 23 LED</text>
+<text x="554" y="814" fill="#aaa" font-size="12" text-anchor="start">• покой ленты ~0.6 мА × 26 ≈ 16 мА</text>
+<text x="554" y="833" fill="#aaa" font-size="12" text-anchor="start">• выключатель SS12D00 — до 0.3–0.5 А ✓</text>
+<text x="554" y="852" fill="#ddd" font-size="12" text-anchor="start" font-weight="bold">Делитель от VSYS: в выкл. АКБ не тратит</text>
+<text x="554" y="871" fill="#aaa" font-size="12" text-anchor="start">ADC_11db: 2.1 В &lt; 2.5 В диапазона ✓</text>
+</svg>

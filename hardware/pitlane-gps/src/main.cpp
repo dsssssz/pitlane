@@ -4,6 +4,7 @@
 #include <NimBLEDevice.h>
 #include "protocol.h"
 #include "ubx.h"
+#include "lights.h"
 
 #ifndef GPS_RX_PIN
 #define GPS_RX_PIN 20
@@ -34,6 +35,9 @@ static NimBLECharacteristic* chPvt = nullptr;
 static NimBLECharacteristic* chStatus = nullptr;
 static volatile bool bleConnected = false;
 static volatile int pendingRate = -1;     // запрос смены частоты из BLE/кнопки
+static volatile int pendingMeasure = -1;  // команда замера из BLE: 1 = старт, 0 = стоп
+static bool measureManual = false, measureAuto = false;
+static uint32_t slowSinceMs = 0;
 static uint8_t seq = 0;
 static uint32_t lastPvtMs = 0, pvtCount = 0, pvtRate = 0;
 static uint16_t battmV = 0;
@@ -94,7 +98,11 @@ class ServerCB : public NimBLEServerCallbacks {
 class CtrlCB : public NimBLECharacteristicCallbacks {
   void onWrite(NimBLECharacteristic* c, NimBLEConnInfo& info) override {
     std::string v = c->getValue();
-    if (!v.empty()) pendingRate = (uint8_t)v[0];
+    if (v.empty()) return;
+    uint8_t cmd = (uint8_t)v[0];
+    if (cmd == PITLANE_CMD_MEASURE_START) pendingMeasure = 1;
+    else if (cmd == PITLANE_CMD_MEASURE_STOP) pendingMeasure = 0;
+    else pendingRate = cmd;
   }
 };
 
@@ -104,7 +112,7 @@ static void buildStatus(StatusPacket& s) {
   s.batt_mV = battmV;
   s.battPct = battPct;
   s.flags = (gps.configured() ? 1 : 0) | ((millis() - lastPvtMs < 2000) ? 2 : 0) |
-            (gps.rate() == 25 ? 4 : 0) | (gps.isM10() ? 8 : 0);
+            (gps.rate() == 25 ? 4 : 0) | (gps.isM10() ? 8 : 0) | ((measureManual || measureAuto) ? 16 : 0);
   s.pvtRate = (uint8_t)min<uint32_t>(pvtRate, 255);
   s.reserved = 0;
 }
@@ -166,6 +174,7 @@ void setup() {
   bool ok = gps.begin(GPS_RX_PIN, GPS_TX_PIN, DEFAULT_RATE_HZ);
   Serial.printf("[pitlane-gps] GNSS %s: %s, rate %u Hz\n", gps.model(), ok ? "UBX OK" : "НЕ ОТВЕЧАЕТ", gps.rate());
   readBattery();
+  lights::begin();
   setupBle();
   Serial.printf("[pitlane-gps] BLE: %s\n", devName);
 }
@@ -189,6 +198,13 @@ void loop() {
   btnPrev = b;
 #endif
 
+  if (pendingMeasure >= 0) {
+    measureManual = pendingMeasure == 1;
+    if (!measureManual) measureAuto = false;
+    pendingMeasure = -1;
+    Serial.printf("[pitlane-gps] замер: %s\n", measureManual ? "старт" : "стоп");
+  }
+
   if (pendingRate > 0) {
     int r = pendingRate; pendingRate = -1;
     bool ok = gps.setRate((uint8_t)r);
@@ -208,10 +224,22 @@ void loop() {
                   last.fixType, last.gnssFixOK, last.numSV, last.lat * 1e-7, last.lon * 1e-7,
                   last.gSpeed * 0.0036, last.sAcc / 1000.0, last.hAcc / 1000.0, (unsigned long)pvtRate,
                   battmV, battPct, bleConnected ? "on" : "off");
+    Serial.printf("  leds: %s\n", lights::modeName(lights::mode()));
     static uint32_t silentSec = 0;
     silentSec = (now - lastPvtMs > 3000) ? silentSec + 1 : 0;
     if (silentSec >= 5) { silentSec = 0; gps.begin(GPS_RX_PIN, GPS_TX_PIN, gps.rate()); }
   }
   ledTask(now);
+
+  // подсветка: авто-«замер» — BLE подключён, фикс и скорость ≥ 5 км/ч; сброс после 3 с при < 2 км/ч
+  bool alive = now - lastPvtMs < 2000;
+  bool fix = alive && last.gnssFixOK && last.fixType >= 3;
+  float kmh = last.gSpeed * 0.0036f;
+  if (bleConnected && fix && kmh >= 5.0f) measureAuto = true;
+  if (!fix || kmh >= 2.0f) slowSinceMs = now;
+  if (measureAuto && (!bleConnected || now - slowSinceMs > 3000)) measureAuto = false;
+  if (!bleConnected) measureManual = false;
+  lights::State ls{alive, fix, bleConnected, measureManual || measureAuto, battmV, battPct};
+  lights::update(now, ls);
   delay(1);
 }

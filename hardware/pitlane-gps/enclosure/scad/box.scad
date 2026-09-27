@@ -1,5 +1,5 @@
 // PITLANE GPS — «Коробочка» ~70x70x25. OpenSCAD 2021+.
-// part = assembly | body | lid | ring | pipes | dummies | dummy:<имя> ; ant = "A" (SMA) | "B" (патч внутри)
+// part = assembly | body | lid | ring | pipes | dummies | dummy:<имя> ; ant = "B" (патч внутри, ОСНОВНОЙ) | "A" (SMA, запасной)
 // print = true -> деталь повёрнута в положение для печати
 include <parts.scad>
 part = "assembly"; ant = "B"; print = false; g = 0; explode = 0;
@@ -23,13 +23,29 @@ GPS0  = [-27.7, -31.5, FLOOR + 0.5 + GPS_UNDER];   // низ PCB, z=5.5
 TP0   = [10.7, -32.6, FLOOR + 2];                  // низ PCB, z=4
 TP_USB_X = TP0.x + TP_W/2;
 TP_USB_Z = TP0.z + TP_PCB + USBC.z/2;
-BAT0  = [-26, -4.2, FLOOR];
+BAT0  = [-BAT_BOX.x/2, -3.8, FLOOR];               // 103040: x -21..21, y -3.8..26.2
 ESP0  = [-6, 5, BAT0.z + BAT_BOX.z + 0.5];
 SW0   = [-IN/2 + 0.4, 9.6, 13.0];                  // корпус выключателя: x от стенки внутрь
 SW_C  = [SW0.y + SW_L/2, SW0.z + SW_W/2];          // (y,z) центр рычага
 SMA_C = [-19, 15];                                 // (y,z) на левой стенке
-LEDS  = [[14,-22],[19,-22],[24,-22]];
-STRIP_OFF = RING_IN + 0.4; STRIP_Z = 17.6;
+// статусные LED = 3 диода той же ленты под световодами (шаг ленты 6.25): GNSS, BLE, батарея (справа налево)
+LEDS  = [[20.5,-22],[14.25,-22],[8,-22]];
+ST_Y = -22; ST_X0 = 8 - STRIP_PITCH/2; ST_X1 = 20.5 + STRIP_PITCH/2;   // отрезок 3 LED = 18.75 мм
+PIPE_FLB = [ST_X0-0.6, ST_Y-3, ST_X1+0.6, ST_Y+3];                     // планка световодов (x0,y0,x1,y1)
+// кольцевая лента: стоит «на ребре» в U-канале кольца, диоды смотрят наружу в юбку/кольцо
+STRIP_OFF = RING_IN + 0.4;              // 4.3: зазор 0.4 до юбки
+STRIP_Z = 17.6;                          // лента z 17.6..22.6, крышка с 23.0
+FIN_OFF = STRIP_OFF + STRIP_T + 0.6;     // 6.5: внутренняя стенка канала (0.6 = двусторонний скотч)
+FIN_T = 1.6; BRIDGE_Z = 15.6; BRIDGE_T = 1.6;   // дно канала z 15.6..17.2
+SEG7 = 7*STRIP_PITCH; SEG5 = 5*STRIP_PITCH; SEG2 = 2*STRIP_PITCH;      // 43.75 / 31.25 / 12.5 мм
+// отрезки ленты [от, до] вдоль стороны; B: над патчем GPS спереди ленты нет
+SEG_BACK  = [-SEG7/2, SEG7/2];
+SEG_RIGHT = [-SEG7/2, SEG7/2];
+SEG_LEFT  = ant=="A" ? [-10, -10+SEG5] : [-SEG7/2, SEG7/2];
+SEG_FRONT = ant=="A" ? [-SEG7/2, SEG7/2] : [23.5-SEG2, 23.5];
+CH_EXT = 1.5;                            // канал длиннее ленты на 1.5 с каждой стороны
+SW_KEEP = [SW0.y-0.4-1.6-0.4, SW0.y+SW_L+0.4+1.6+0.4];  // зона выключателя+щёчек (по y): канал там без дна
+CAP0 = [15, -13];                        // 220 мкФ стоит над TP4056, центр (x,y)
 
 module rr(s, r) { offset(r=r) square([s-2*r, s-2*r], center=true); }
 module slab(s, r, z0, h) { translate([0,0,z0]) linear_extrude(h) rr(s, r); }
@@ -53,9 +69,15 @@ module body() {
       for (x = [TP0.x, TP0.x+TP_W-1.6]) translate([x, TP0.y+0.4, 0]) cube([1.6, TP_L-2.4, TP0.z]);
       translate([TP0.x+2.7, TP0.y+TP_L+0.4, 0]) cube([TP_W-5.4, 1.6, 7]);
       // выключатель: опорный блок и щёчки
-      translate([-IN/2-0.1, SW0.y-0.4, 0]) cube([(BAT0.x-0.4)-(-IN/2-0.1), SW_L+0.8, SW0.z-0.4]);
+      translate([-IN/2-0.1, SW0.y-0.4, 0]) cube([(SW0.x+SW_D)-(-IN/2-0.1), SW_L+0.8, SW0.z-0.4]);
       for (y = [SW0.y-0.4-1.6, SW0.y+SW_L+0.4]) translate([-IN/2-0.1, y, 0]) cube([5.1, 1.6, 17.0]);
+      // АКБ 103040: упоры по торцам и сзади (h=3)
+      for (sx = [-1, 1]) translate([sx > 0 ? BAT0.x+BAT_BOX.x+0.4 : BAT0.x-0.4-1.6, BAT0.y+4, 0]) cube([1.6, BAT_BOX.y-8, FLOOR+3]);
+      translate([-10, BAT0.y+BAT_BOX.y+0.4, 0]) cube([20, 1.6, FLOOR+3]);
     }
+    // маркировка выключателя на левой стенке (гравировка 0.4): «O» спереди, «I» сзади
+    for (m = [["O", SW_C[0]-6.2], ["I", SW_C[0]+6.2]]) translate([-BX/2-0.01, m[1], SW_C[1]]) rotate([90,0,90]) mirror([1,0,0])
+      linear_extrude(0.41) text(m[0], size=3.2, font="Liberation Sans:style=Bold", halign="center", valign="center");
     // отверстия под саморезы M2 в бобышках
     for (p = BOSSES) translate([p.x, p.y, FLOOR+1]) cylinder(d=M2_PILOT, h=HB, $fn=24);
     // окно USB-C (под корпус вилки), передняя стенка
@@ -81,9 +103,23 @@ module ring() {
         translate([-BX/2, SMA_C[0]-5.5, SK_BOT-1]) cube([10, 11, HB-SK_BOT+1]);   // проход гайки SMA
       }
       for (p = BOSSES) translate([p.x, p.y, HB]) cylinder(r=2.8, h=RING_H);
+      // U-каналы под ленту: юбка продлена вниз, дно-мостик, внутренняя стенка до крышки
+      for (sd = sides()) side_frame(sd[0]) channel(sd[1]);
     }
     for (p = BOSSES) translate([p.x, p.y, HB-1]) cylinder(d=M2_CLR, h=RING_H+2, $fn=24);
+    // зона выключателя: снизу канала ничего ниже 17.3 (щёчки 17.0, корпус 16.9)
+    translate([-BX/2-1, SW_KEEP[0], 0]) cube([12, SW_KEEP[1]-SW_KEEP[0], 17.3]);
   }
+}
+// стороны: [угол поворота, отрезок ленты]. В локальной системе сторона — +x, отрезок идёт вдоль y
+function sides() = [[0, SEG_RIGHT], [90, [-SEG_BACK[1], -SEG_BACK[0]]], [180, [-SEG_LEFT[1], -SEG_LEFT[0]]], [270, SEG_FRONT]];
+module side_frame(a) rotate([0,0,a]) children();
+module channel(seg) {
+  y0 = seg[0]-CH_EXT; L = seg[1]-seg[0]+2*CH_EXT;
+  xo = BX/2-WALL-SK_GAP;                      // наружная грань юбки 32.7
+  translate([xo-SK_T, y0, BRIDGE_Z]) cube([SK_T, L, SK_BOT-BRIDGE_Z+0.01]);          // юбка вниз до дна
+  translate([BX/2-FIN_OFF-FIN_T, y0, BRIDGE_Z]) cube([xo-(BX/2-FIN_OFF-FIN_T), L, BRIDGE_T]);   // дно
+  translate([BX/2-FIN_OFF-FIN_T, y0, BRIDGE_Z]) cube([FIN_T, L, HB+RING_H-BRIDGE_Z]);           // стенка до крышки
 }
 
 // ---------- крышка ----------
@@ -111,12 +147,12 @@ module lid() {
 // ---------- световоды светодиодов статуса ----------
 module pipes() {
   z0 = HB + RING_H;
-  translate([0,0,z0-PIPE_FL]) linear_extrude(PIPE_FL) hull() for (l = LEDS) translate([l.x, l.y]) circle(d=4.6, $fn=32);
+  translate([PIPE_FLB[0], PIPE_FLB[1], z0-PIPE_FL]) cube([PIPE_FLB[2]-PIPE_FLB[0], PIPE_FLB[3]-PIPE_FLB[1], PIPE_FL]);
   for (l = LEDS) translate([l.x, l.y, z0-0.01]) cylinder(d=3.0, h=LID_T+0.01, $fn=24);
 }
 
 // ---------- болванки ----------
-DUMMIES = concat(["gps_pcb","gps_under","gps_top","tp","tp_usb","bat","esp","sw","sw_lever","leds",
+DUMMIES = concat(["gps_pcb","gps_under","gps_top","tp","tp_usb","bat","esp","sw","sw_lever","strip_status","cap",
                   "strip_back","strip_left","strip_right","strip_front"], ant=="A" ? ["sma"] : []);
 module dummy(n, g=0) {
   if (n=="gps_pcb")   gbox(GPS0, [GPS_L, GPS_W, GPS_PCB], g);
@@ -128,13 +164,15 @@ module dummy(n, g=0) {
   if (n=="esp")       gbox([ESP0.x-ESP_USB_OVER, ESP0.y, ESP0.z], [ESP_L+ESP_USB_OVER, ESP_W, ESP_H], g, false);
   if (n=="sw")        gbox(SW0, [SW_D, SW_L, SW_W], g, false);
   if (n=="sw_lever")  gbox([SW0.x-SW_LEVER, SW_C[0]-(SW_LEVER_SEC+SW_TRAVEL)/2, SW_C[1]-SW_LEVER_SEC/2], [SW_LEVER, SW_LEVER_SEC+SW_TRAVEL, SW_LEVER_SEC], g, false);
-  if (n=="leds")      for (l = LEDS) gcyl_z(l, LED_D, HB+RING_H-PIPE_FL-0.4-LED_H, LED_H, g, false);
+  // статусная лента: 3 LED диодами вверх, приклеена под планку световодов (0.3 — скотч)
+  if (n=="strip_status") gbox([ST_X0, ST_Y-STRIP_W/2, HB+RING_H-PIPE_FL-0.3-STRIP_T], [ST_X1-ST_X0, STRIP_W, STRIP_T], g, false);
+  if (n=="cap")       gcyl_z(CAP0, CAP_D, 9.5, CAP_H, g, false);
   if (n=="sma")       translate([-IN/2, SMA_C[0], SMA_C[1]]) rotate([0,90,0]) cylinder(d=SMA_NUT_D+2*g, h=SMA_IN+g, $fn=6);
   // лента: 4 отрезка по периметру, в варианте B над платой GPS ленты нет
-  if (n=="strip_back")  gbox([-24, BX/2-STRIP_OFF-STRIP_T, STRIP_Z], [48, STRIP_T, STRIP_W], g, false);
-  if (n=="strip_right") gbox([BX/2-STRIP_OFF-STRIP_T, -24, STRIP_Z], [STRIP_T, 48, STRIP_W], g, false);
-  if (n=="strip_left")  gbox([-BX/2+STRIP_OFF, ant=="A" ? -12.5 : -24, STRIP_Z], [STRIP_T, ant=="A" ? 36.5 : 48, STRIP_W], g, false);
-  if (n=="strip_front") gbox([ant=="A" ? -24 : 9, -BX/2+STRIP_OFF, STRIP_Z], [ant=="A" ? 48 : 15, STRIP_T, STRIP_W], g, false);
+  if (n=="strip_back")  gbox([SEG_BACK[0], BX/2-STRIP_OFF-STRIP_T, STRIP_Z], [SEG_BACK[1]-SEG_BACK[0], STRIP_T, STRIP_W], g, false);
+  if (n=="strip_right") gbox([BX/2-STRIP_OFF-STRIP_T, SEG_RIGHT[0], STRIP_Z], [STRIP_T, SEG_RIGHT[1]-SEG_RIGHT[0], STRIP_W], g, false);
+  if (n=="strip_left")  gbox([-BX/2+STRIP_OFF, SEG_LEFT[0], STRIP_Z], [STRIP_T, SEG_LEFT[1]-SEG_LEFT[0], STRIP_W], g, false);
+  if (n=="strip_front") gbox([SEG_FRONT[0], -BX/2+STRIP_OFF, STRIP_Z], [SEG_FRONT[1]-SEG_FRONT[0], STRIP_T, STRIP_W], g, false);
 }
 
 module place(n) {

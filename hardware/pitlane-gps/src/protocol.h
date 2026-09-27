@@ -5,7 +5,12 @@
 #define PITLANE_SVC_UUID    "21d60001-18f2-4d0c-aa95-1402d5296fdd"
 #define PITLANE_PVT_UUID    "21d60002-18f2-4d0c-aa95-1402d5296fdd"  // notify, 20 байт на каждую эпоху
 #define PITLANE_STATUS_UUID "21d60003-18f2-4d0c-aa95-1402d5296fdd"  // read + notify, 8 байт, 1 Гц
-#define PITLANE_CTRL_UUID   "21d60004-18f2-4d0c-aa95-1402d5296fdd"  // write: 1 байт = частота (1/5/10/25 Гц)
+#define PITLANE_CTRL_UUID   "21d60004-18f2-4d0c-aa95-1402d5296fdd"  // write: 1 байт = частота (1/5/10/25 Гц) или команда ниже
+
+// Команды в характеристике управления (не пересекаются с частотами 1..25 Гц).
+// Нужны только для подсветки «идёт замер»; без них замер включается сам: BLE + фикс + скорость ≥ 5 км/ч.
+#define PITLANE_CMD_MEASURE_START 0xA1  // приложение начало замер → кольцо показывает «комету»
+#define PITLANE_CMD_MEASURE_STOP  0xA0  // замер окончен
 
 #define PITLANE_PROTO_VER 1
 
@@ -30,7 +35,8 @@ struct StatusPacket {
   uint8_t  rateHz;     // 1 текущая частота навигации
   uint16_t batt_mV;    // 2 напряжение батареи, мВ (0 = не измеряется)
   uint8_t  battPct;    // 4 заряд, %
-  uint8_t  flags;      // 5 бит0 GPS настроен по UBX, бит1 NAV-PVT идут, бит2 режим 25 Гц, бит3 модуль M10
+  uint8_t  flags;      // 5 бит0 GPS настроен по UBX, бит1 NAV-PVT идут, бит2 режим 25 Гц, бит3 модуль M10,
+                       //   бит4 идёт замер (команда 0xA1 или авто по скорости)
   uint8_t  pvtRate;    // 6 фактически принятых NAV-PVT за последнюю секунду
   uint8_t  reserved;   // 7
 };

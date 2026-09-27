@@ -12,8 +12,8 @@ os.makedirs(BUILD, exist_ok=True)
 
 FORMS = {
   "box":  {"parts": ["body", "ring", "lid", "pipes"],
-           "dummies": {"A": ["gps_pcb","gps_under","gps_top","tp","tp_usb","bat","esp","sw","sw_lever","leds","strip_back","strip_left","strip_right","strip_front","sma"],
-                       "B": ["gps_pcb","gps_under","gps_top","tp","tp_usb","bat","esp","sw","sw_lever","leds","strip_back","strip_left","strip_right","strip_front"]}},
+           "dummies": {"A": ["gps_pcb","gps_under","gps_top","tp","tp_usb","bat","esp","sw","sw_lever","strip_status","cap","strip_back","strip_left","strip_right","strip_front","sma"],
+                       "B": ["gps_pcb","gps_under","gps_top","tp","tp_usb","bat","esp","sw","sw_lever","strip_status","cap","strip_back","strip_left","strip_right","strip_front"]}},
   "puck": {"parts": ["body", "cover", "ring", "plogo", "pipes"],
            "dummies": {"A": ["gps_pcb","gps_under","gps_top","tp","tp_usb","bat","esp","sw","sw_lever","leds","leds_ring","leds_p","sma"],
                        "B": ["gps_pcb","gps_under","gps_top","tp","tp_usb","bat","esp","sw","sw_lever","leds","leds_ring","leds_p"]}},
