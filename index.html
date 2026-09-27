@@ -891,6 +891,38 @@
       </div>
     </div>
 
+    <!-- v83: Paddock — comments sheet -->
+    <div id="padCommentsSheet" class="crew-sheet race-sheet pad-sheet hidden" aria-hidden="true" role="dialog" aria-label="Комментарии">
+      <div class="crew-sheet-inner race-sheet-inner pad-sheet-inner">
+        <button type="button" class="share-card-close pad-close" id="padCommentsClose" aria-label="Закрыть">×</button>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <h2 class="race-sheet-title">Комментарии</h2>
+        </header>
+        <div class="pad-com-list" id="padComList" aria-live="polite"></div>
+        <div class="pad-com-compose" id="padComCompose">
+          <textarea id="padComText" maxlength="500" rows="1" placeholder="Написать комментарий…" aria-label="Комментарий"></textarea>
+          <button type="button" class="pad-com-send" id="padComSend" aria-label="Отправить">
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor"/></svg>
+          </button>
+        </div>
+        <div class="pad-com-meta"><span class="tiny" id="padComMsg"></span><span class="tiny" id="padComCount">0/500</span></div>
+        <button type="button" class="go-btn race-cta hidden" id="padComLogin">Войти, чтобы комментировать</button>
+      </div>
+    </div>
+
+    <!-- v83: public pilot profile -->
+    <div id="pilotSheet" class="crew-sheet race-sheet pad-sheet hidden" aria-hidden="true" role="dialog" aria-label="Профиль пилота">
+      <div class="crew-sheet-inner race-sheet-inner pad-sheet-inner pilot-sheet-inner">
+        <button type="button" class="share-card-close pad-close" id="pilotClose" aria-label="Закрыть">×</button>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <p class="race-sheet-kicker">Пилот</p>
+        </header>
+        <div class="pilot-body" id="pilotBody"></div>
+      </div>
+    </div>
+
     <script type="module" src="./app.js"></script>
   </body>
 </html>

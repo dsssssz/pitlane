@@ -296,21 +296,29 @@ export const api = {
     saveDb(d);
     return localListPulse();
   },
-  async likePulse(id, who) {
-    const remoteRows = await remote('/pulse/' + encodeURIComponent(id) + '/like', {
-      method: 'POST',
-      body: JSON.stringify({ who }),
-    });
-    if (Array.isArray(remoteRows)) return remoteRows;
-    const d = db();
-    const p = (d.pulse || []).find((x) => x.id === id);
-    if (!p) return localListPulse();
-    p.likes = p.likes || [];
-    const i = p.likes.indexOf(who);
-    if (i >= 0) p.likes.splice(i, 1);
-    else p.likes.push(who);
-    saveDb(d);
-    return localListPulse();
+  /** v83: like toggle with explicit desired state → { ok, id, likeCount, liked } | { ok:false, status, error }. */
+  async likePulse(id, liked) {
+    if (!apiBase()) return { ok: false, error: 'offline' };
+    const body = typeof liked === 'boolean' ? { liked } : {};
+    return remoteKeep('/pulse/' + encodeURIComponent(id) + '/like', { method: 'POST', body: JSON.stringify(body) });
+  },
+  /** v83: comments under a Paddock post. */
+  async listComments(postId) {
+    if (!apiBase()) return { ok: false, error: 'offline' };
+    return remoteKeep('/pulse/' + encodeURIComponent(postId) + '/comments');
+  },
+  async addComment(postId, text) {
+    if (!apiBase()) return { ok: false, error: 'offline' };
+    return remoteKeep('/pulse/' + encodeURIComponent(postId) + '/comments', { method: 'POST', body: JSON.stringify({ text }) });
+  },
+  async delComment(postId, commentId) {
+    if (!apiBase()) return { ok: false, error: 'offline' };
+    return remoteKeep('/pulse/' + encodeURIComponent(postId) + '/comments/' + encodeURIComponent(commentId), { method: 'DELETE' });
+  },
+  /** v83: public pilot profile (public fields only). */
+  async pilotProfile(pilotId) {
+    if (!apiBase()) return { ok: false, error: 'offline' };
+    return remoteKeep('/pilot/' + encodeURIComponent(pilotId));
   },
   async delPulse(id, who) {
     const base = apiBase();

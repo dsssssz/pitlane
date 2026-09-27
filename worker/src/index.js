@@ -705,6 +705,7 @@ function sanitizePulse(body, pilot) {
   const text = cleanText(body?.text, 280);
   if (!text) return null;
   const img = body?.img ? String(body.img) : '';
+  const car = cleanLabel(body?.car, 80);
   return {
     // v80: id is always server-generated (a client-chosen id could collide with / shadow another post)
     id: Date.now().toString(36) + '-' + randB36(8),
@@ -712,28 +713,132 @@ function sanitizePulse(body, pilot) {
     who: safeName(body.who, '') || safeName(pilot.name, '') || 'Пилот',
     text,
     img: /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(img) && img.length <= 200_000 ? img : null,
+    car: car && !containsPhone(car) ? car : '',
     at: Date.now(),
     likes: [],
+    cc: 0,
     pilotId: pilot.id || null,
   };
 }
 
-/** Public pulse post: whitelisted; likes are opaque ids / names, phone-like entries masked. */
-function publicPulse(p) {
+/**
+ * Public pulse post: whitelisted. v83: likes are published as a count + `liked` (for the viewer) —
+ * the list of account ids who liked stays server-side (audit §3.7).
+ */
+function publicPulse(p, viewer = '') {
   if (!p || typeof p !== 'object') return null;
+  const likes = Array.isArray(p.likes) ? p.likes : [];
+  const car = typeof p.car === 'string' ? cleanLabel(p.car, 80) : '';
   return {
     id: p.id,
     who: safeName(p.who, 'Пилот'),
     text: String(p.text || ''),
     img: p.img || null,
+    car: car && !containsPhone(car) ? car : '',
     at: p.at || null,
-    likes: (Array.isArray(p.likes) ? p.likes : []).map((x) => (containsPhone(x) ? '•' : String(x).slice(0, 64))),
+    likeCount: likes.length,
+    liked: !!(viewer && likes.includes(viewer)),
+    commentCount: Math.max(0, Number(p.cc) || 0),
     pilotId: pubId(p.pilotId),
   };
 }
 
-function publicPulseList(rows) {
-  return (rows || []).map(publicPulse).filter(Boolean);
+function publicPulseList(rows, viewer = '') {
+  return (rows || []).map((p) => publicPulse(p, viewer)).filter(Boolean);
+}
+
+/* ———————————————————— Paddock comments (v83) ———————————————————— */
+const COMMENT_MAX = 500;
+const COMMENTS_PER_POST = 300;
+const POST_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+const COMMENT_ID_RE = /^[a-z0-9]{6,24}$/;
+
+/** Public comment: no raw ids beyond the (already public) account uuid; `mine` for the viewer. */
+function publicComment(c, viewer = '') {
+  if (!c || typeof c !== 'object') return null;
+  return {
+    id: String(c.id || ''),
+    who: safeName(c.who, 'Пилот'),
+    pilotId: pubId(c.pilotId),
+    text: String(c.text || ''),
+    at: Number(c.at) || null,
+    mine: !!(viewer && c.pilotId === viewer),
+  };
+}
+
+/* ———————————————————— Public pilot profile (v83) ———————————————————— */
+/** Per-pilot index of tops keys they posted to (so a profile never needs a KV list scan). */
+async function indexPilotTop(kv, pid, kind, id) {
+  if (!isPilotUuid(pid) || !slugOk(id)) return;
+  const key = 'ptops:' + pid;
+  const idx = (await kvJson(kv, key)) || {};
+  const list = Array.isArray(idx[kind]) ? idx[kind] : [];
+  if (list[0] === id) return;
+  idx[kind] = [id, ...list.filter((x) => x !== id)].slice(0, 20);
+  await kv.put(key, JSON.stringify({ s: idx.s || [], l: idx.l || [] }));
+}
+
+async function buildPilotProfile(kv, pid, viewer) {
+  const rec = await loadPilot(kv, pid);
+  if (!rec) return null;
+  const meta = (await kvJson(kv, 'pilotmeta:' + pid)) || {};
+  const idx = (await kvJson(kv, 'ptops:' + pid)) || {};
+  const cars = [];
+  let lastCar = { at: 0, car: '' };
+  const seen = (r) => {
+    if (r && r.car && typeof r.car === 'string' && (Number(r.at) || 0) > lastCar.at) lastCar = { at: Number(r.at) || 0, car: r.car };
+  };
+  // best 0–100 per car (public tops rules: GPS + valid)
+  for (const carId of (Array.isArray(idx.s) ? idx.s : []).filter(slugOk).slice(0, 20)) {
+    const rows = (await readList(kv, 'straight:' + carId)).filter((r) => r && r.pilotId === pid && isValidGpsRow(r));
+    if (!rows.length) continue;
+    rows.forEach(seen);
+    const b = rows.reduce((a, r) => (Number(r.t) < Number(a.t) ? r : a));
+    cars.push({ car: cleanLabel(b.car, 80), t: Number(b.t), at: b.at || null, gpsQ: b.gpsQ || null, weather: b.weather || null });
+  }
+  cars.sort((a, b) => a.t - b.t);
+  // best lap + best sectors (A/B) per track
+  const laps = [];
+  for (const trackId of (Array.isArray(idx.l) ? idx.l : []).filter(slugOk).slice(0, 20)) {
+    const rows = (await readList(kv, 'lap:' + trackId)).filter((r) => r && r.pilotId === pid && isValidGpsRow(r));
+    if (!rows.length) continue;
+    rows.forEach(seen);
+    let best = null; let bestMs = Infinity;
+    for (const r of rows) {
+      const ms = parseLapMs(r.t);
+      if (ms != null && ms < bestMs) { bestMs = ms; best = r; }
+    }
+    if (!best) continue;
+    const sec = [null, null, null];
+    for (const r of rows) {
+      if (!isAbLapRow(r)) continue;
+      const sp = sectorSplitsFromLap(r);
+      if (!sp) continue;
+      sp.forEach((v, i) => { if (Number.isFinite(v) && v > 0 && (sec[i] == null || v < sec[i])) sec[i] = Math.round(v); });
+    }
+    laps.push({
+      trackId, t: String(best.t), ms: Math.round(bestMs), car: cleanLabel(best.car, 80),
+      at: best.at || null, gpsQ: best.gpsQ || null, weather: best.weather || null,
+      sectors: sec.some((v) => v != null) ? sec : null,
+    });
+  }
+  laps.sort((a, b) => (b.at || 0) - (a.at || 0));
+  // posts in the Paddock
+  const pulse = await readList(kv, 'pulse');
+  const mine = pulse.filter((r) => r && r.pilotId === pid).sort((a, b) => (b.at || 0) - (a.at || 0));
+  mine.forEach(seen);
+  const likesReceived = mine.reduce((n, r) => n + (Array.isArray(r.likes) ? r.likes.length : 0), 0);
+  const car = lastCar.car && !containsPhone(lastCar.car) ? cleanLabel(lastCar.car, 80) : '';
+  return {
+    pilotId: pid,
+    nick: safeName(rec.nick || meta.nick, 'Пилот'),
+    avatar: sanitizeAvatar(meta.avatar) || null,
+    car,
+    best: { zeroHundred: cars, laps },
+    postCount: mine.length,
+    likesReceived,
+    posts: publicPulseList(mine.slice(0, 20), viewer),
+  };
 }
 
 function shareId() {
@@ -1759,6 +1864,28 @@ async function deleteAccount(kv, pid, currentToken) {
       kept.push(r);
     }
     if (changed) await writeList(kv, 'pulse', kept);
+    // v83: comments — threads under their posts go, their comments under others' posts go
+    const theirPosts = new Set(rows.filter((r) => r && r.pilotId === pid).map((r) => String(r.id)));
+    rep.comments = 0;
+    const counts = new Map();
+    for (const k of await kvListAll(kv, 'pcom:')) {
+      const postId = k.name.slice(5);
+      if (theirPosts.has(postId)) { await del(k.name); continue; }
+      const list = await kvJson(kv, k.name);
+      if (!Array.isArray(list)) continue;
+      const keep = list.filter((c) => !(c && c.pilotId === pid));
+      if (keep.length !== list.length) {
+        rep.comments += list.length - keep.length;
+        if (keep.length) await kv.put(k.name, JSON.stringify(keep)); else await del(k.name);
+        counts.set(postId, keep.length);
+      }
+    }
+    if (counts.size) {
+      const cur = await readList(kv, 'pulse');
+      for (const r of cur) if (r && counts.has(String(r.id))) r.cc = counts.get(String(r.id));
+      await writeList(kv, 'pulse', cur);
+    }
+    await del('ptops:' + pid);
   }
   // crews
   {
@@ -1821,7 +1948,7 @@ async function deleteAccount(kv, pid, currentToken) {
     if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.feedback++; }
   }
   // per-account rate-limit counters (short-lived anyway; removed so nothing references the uuid)
-  for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew']) await del('rl:' + b + ':p:' + pid);
+  for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx']) await del('rl:' + b + ':p:' + pid);
   // finally the account record itself
   if (rec) rep.account = 1;
   await del('pilot:' + pid);
@@ -2508,6 +2635,7 @@ export default {
         rows.push(row);
         rows.sort((a, b) => a.t - b.t);
         await writeList(env.PITLANE, key, rows);
+        await indexPilotTop(env.PITLANE, pilot.id, 's', carId);
         return json(publicRows(rows.filter(isValidGpsRow)), 200, headers);
       }
 
@@ -2542,6 +2670,7 @@ export default {
         const rows = await readList(env.PITLANE, key);
         rows.push(row);
         await writeList(env.PITLANE, key, rows);
+        await indexPilotTop(env.PITLANE, pilot.id, 'l', trackId);
         // remember nick/avatar for sector tops (A/B only; avatar optional)
         if (row.valid && (row.gpsQ === 'A' || row.gpsQ === 'B')) {
           await rememberPilotMeta(env.PITLANE, row.pilotId, row.name, av);
@@ -2573,12 +2702,13 @@ export default {
         return json({ trackId, sector, rows: publicRows(board) }, 200, headers);
       }
 
-      // —— Pulse ——
+      // —— Pulse (Paddock feed) ——
+      const viewer = pilot.authed ? pilot.id : '';
       if (path === '/pulse') {
         if (req.method === 'GET') {
           const rows = await readList(env.PITLANE, 'pulse');
           rows.sort((a, b) => (b.at || 0) - (a.at || 0));
-          return json(publicPulseList(rows.slice(0, 200)), 200, headers);
+          return json(publicPulseList(rows.slice(0, 200), viewer), 200, headers);
         }
         if (req.method === 'POST') {
           const denied = requireAuth(pilot, headers);
@@ -2591,10 +2721,11 @@ export default {
           const rows = await readList(env.PITLANE, 'pulse');
           rows.unshift(row);
           const kept = await writePulse(env.PITLANE, rows);
-          return json(publicPulseList(kept), 200, headers);
+          return json(publicPulseList(kept, viewer), 200, headers);
         }
       }
 
+      // v83: like toggle → compact answer { id, likeCount, liked } (client updates optimistically)
       m = path.match(/^\/pulse\/([^/]+)\/like$/);
       if (req.method === 'POST' && m) {
         const denied = requireAuth(pilot, headers);
@@ -2602,18 +2733,96 @@ export default {
         const id = safeDecode(m[1]).slice(0, 64);
         const lim = await limitOr429(env, headers, [['rl:like:p:' + pilot.id, 120, 3600]]);
         if (lim) return lim;
-        // Likes are keyed by the opaque account id (never a phone / nick).
+        // Likes are keyed by the opaque account id (never a phone / nick); one per account (toggle).
         const who = pilot.id;
         const rows = await readList(env.PITLANE, 'pulse');
-        const p = rows.find((x) => x.id === id);
+        const p = rows.find((x) => x && x.id === id);
         if (!p) return json({ error: 'not found' }, 404, headers);
-        p.likes = Array.isArray(p.likes) ? p.likes.slice(0, 5000) : [];
+        p.likes = Array.isArray(p.likes) ? [...new Set(p.likes)].slice(0, 5000) : [];
         const i = p.likes.indexOf(who);
-        if (i >= 0) p.likes.splice(i, 1);
-        else p.likes.push(who);
+        let want = i < 0;
+        const body = await readJson(req, 1024).catch(() => null);
+        if (body && typeof body.liked === 'boolean') want = body.liked; // idempotent explicit state
+        if (want && i < 0) p.likes.push(who);
+        if (!want && i >= 0) p.likes.splice(i, 1);
         await writePulse(env.PITLANE, rows);
-        rows.sort((a, b) => (b.at || 0) - (a.at || 0));
-        return json(publicPulseList(rows.slice(0, 200)), 200, headers);
+        return json({ ok: true, id: p.id, likeCount: p.likes.length, liked: p.likes.includes(who) }, 200, headers);
+      }
+
+      // v83: comments under a post
+      m = path.match(/^\/pulse\/([^/]+)\/comments$/);
+      if (m) {
+        const postId = safeDecode(m[1]);
+        if (!POST_ID_RE.test(postId)) return json({ error: 'not found' }, 404, headers);
+        const ckey = 'pcom:' + postId;
+        if (req.method === 'GET') {
+          const rows = await readList(env.PITLANE, 'pulse');
+          if (!rows.some((x) => x && x.id === postId)) return json({ error: 'not found' }, 404, headers);
+          const list = (await kvJson(env.PITLANE, ckey)) || [];
+          const out = (Array.isArray(list) ? list : []).map((c) => publicComment(c, viewer)).filter(Boolean);
+          return json({ postId, count: out.length, comments: out }, 200, headers);
+        }
+        if (req.method === 'POST') {
+          const denied = requireAuth(pilot, headers);
+          if (denied) return denied;
+          const body = await readJson(req, 8 * 1024);
+          const raw = String(body?.text ?? '');
+          const text = cleanText(raw, COMMENT_MAX + 1);
+          if (!text) return json({ error: 'empty comment' }, 400, headers);
+          if (text.length > COMMENT_MAX) return json({ error: 'comment too long', max: COMMENT_MAX }, 400, headers);
+          const lim = await limitOr429(env, headers, [
+            ['rl:comb:p:' + pilot.id, 3, 30], // burst: ≤ 3 per 30 s
+            ['rl:com:p:' + pilot.id, 30, 3600],
+            ['rl:comd:p:' + pilot.id, 150, 86400],
+          ]);
+          if (lim) return lim;
+          const rows = await readList(env.PITLANE, 'pulse');
+          const post = rows.find((x) => x && x.id === postId);
+          if (!post) return json({ error: 'not found' }, 404, headers);
+          let list = (await kvJson(env.PITLANE, ckey)) || [];
+          if (!Array.isArray(list)) list = [];
+          if (list.length >= COMMENTS_PER_POST) return json({ error: 'comments closed' }, 409, headers);
+          // anti-spam: the same text from the same pilot twice in a row under one post
+          const last = list.filter((c) => c && c.pilotId === pilot.id).slice(-1)[0];
+          if (last && last.text === text) return json({ error: 'duplicate' }, 409, headers);
+          const rec = await loadPilot(env.PITLANE, pilot.id);
+          const c = {
+            id: Date.now().toString(36) + randB36(6),
+            pilotId: pilot.id,
+            who: safeName(rec?.nick, '') || safeName(pilot.name, '') || 'Пилот',
+            text,
+            at: Date.now(),
+          };
+          list.push(c);
+          await env.PITLANE.put(ckey, JSON.stringify(list));
+          post.cc = list.length;
+          await writePulse(env.PITLANE, rows);
+          return json({ ok: true, postId, count: list.length, comment: publicComment(c, viewer) }, 200, headers);
+        }
+      }
+      m = path.match(/^\/pulse\/([^/]+)\/comments\/([^/]+)$/);
+      if (req.method === 'DELETE' && m) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const postId = safeDecode(m[1]);
+        const cid = safeDecode(m[2]);
+        if (!POST_ID_RE.test(postId) || !COMMENT_ID_RE.test(cid)) return json({ error: 'not found' }, 404, headers);
+        const lim = await limitOr429(env, headers, [['rl:comx:p:' + pilot.id, 60, 3600]]);
+        if (lim) return lim;
+        const ckey = 'pcom:' + postId;
+        let list = (await kvJson(env.PITLANE, ckey)) || [];
+        if (!Array.isArray(list)) list = [];
+        const c = list.find((x) => x && x.id === cid);
+        if (!c) return json({ error: 'not found' }, 404, headers);
+        // only the comment's author can delete it
+        if (c.pilotId !== pilot.id) return json({ error: 'forbidden' }, 403, headers);
+        list = list.filter((x) => x !== c);
+        if (list.length) await env.PITLANE.put(ckey, JSON.stringify(list));
+        else await env.PITLANE.delete(ckey);
+        const rows = await readList(env.PITLANE, 'pulse');
+        const post = rows.find((x) => x && x.id === postId);
+        if (post) { post.cc = list.length; await writePulse(env.PITLANE, rows); }
+        return json({ ok: true, postId, count: list.length }, 200, headers);
       }
 
       m = path.match(/^\/pulse\/([^/]+)$/);
@@ -2625,9 +2834,22 @@ export default {
         let rows = await readList(env.PITLANE, 'pulse');
         const before = rows.length;
         rows = rows.filter((x) => !(x.id === id && x.pilotId && x.pilotId === pilot.id));
-        if (rows.length !== before) await writePulse(env.PITLANE, rows);
+        if (rows.length !== before) {
+          await writePulse(env.PITLANE, rows);
+          if (POST_ID_RE.test(id)) await env.PITLANE.delete('pcom:' + id);
+        }
         rows.sort((a, b) => (b.at || 0) - (a.at || 0));
-        return json(publicPulseList(rows.slice(0, 200)), 200, headers);
+        return json(publicPulseList(rows.slice(0, 200), viewer), 200, headers);
+      }
+
+      // —— v83: public pilot profile (public fields only) ——
+      m = path.match(/^\/pilot\/([^/]+)$/);
+      if (req.method === 'GET' && m) {
+        const pid = safeDecode(m[1]);
+        if (!isPilotUuid(pid)) return json({ error: 'not found' }, 404, headers);
+        const prof = await buildPilotProfile(env.PITLANE, pid, viewer);
+        if (!prof) return json({ error: 'not found' }, 404, headers);
+        return json(prof, 200, headers);
       }
 
 

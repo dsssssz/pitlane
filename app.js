@@ -1269,7 +1269,7 @@ async function renderTops() {
   if (sEl) {
     // straight: weather optional — show all (still store when present)
     const rows = filterTopRows(straightRaw).slice().sort((a, b) => a.t - b.t);
-    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${Number(r.t).toFixed(2)} с${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>нет валидных GPS</span><strong>—</strong></li>';
+    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li${/^p_[0-9a-f-]{36}$/.test(String(r.pilotId || '')) ? ` class="tp-link" data-pilot="${esc(r.pilotId)}" role="button" tabindex="0"` : ''}><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${Number(r.t).toFixed(2)} с${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>нет валидных GPS</span><strong>—</strong></li>';
   }
   const lEl = document.getElementById('topLap');
   if (lEl) {
@@ -1284,6 +1284,7 @@ async function renderTops() {
         avatar: r.avatar,
         sub: r.car,
         timeHtml: `${esc(String(r.t))}${topsGpsBadge(r)}`,
+        pilotId: r.pilotId,
       })).join('');
     }
   }
@@ -1470,6 +1471,8 @@ function goToView(id, opts = {}) {
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
   }
 
+  // v83: Paddock feed renders on every entry (also ?view=pulse deep links, which used to show an empty feed)
+  if (id === 'pulse') setTimeout(() => { try { void renderPulse(); } catch (_) {} }, 0);
   if (already) {
     try { onResize(); } catch (_) {}
     return;
@@ -3634,10 +3637,12 @@ function topsAvatarHtml(name, avatar) {
   return `<span class="tops-av tops-av-ini" aria-hidden="true">${esc(nickInitials(name))}</span>`;
 }
 
-function topsPilotRowHtml({ rank, name, avatar, sub, timeHtml }) {
+function topsPilotRowHtml({ rank, name, avatar, sub, timeHtml, pilotId }) {
   const nick = esc(name || 'пилот');
   const subHtml = sub ? `<span class="tp-sub">${esc(sub)}</span>` : '';
-  return `<li>`
+  // v83: tap on an account row → public profile
+  const pid = /^p_[0-9a-f-]{36}$/.test(String(pilotId || '')) ? pilotId : '';
+  return (pid ? `<li class="tp-link" data-pilot="${esc(pid)}" role="button" tabindex="0" aria-label="Профиль: ${nick}">` : `<li>`)
     + `<span class="tp-rank">${rank}</span>`
     + topsAvatarHtml(name, avatar)
     + `<span class="tp-who"><span class="tp-nick">${nick}</span>${subHtml}</span>`
@@ -3727,6 +3732,7 @@ async function renderSectorTops() {
     avatar: r.avatar,
     sub: r.car || (r.gpsQ ? ('GPS ' + r.gpsQ) : ''),
     timeHtml: esc(String(r.t || fmtSectorSplit(r.ms))),
+    pilotId: r.pilotId,
   })).join('');
 }
 
@@ -5722,7 +5728,7 @@ if (isTMA) {
     ['safetySheet', 'safetyCancel'], ['deleteSheet', 'deleteClose'], ['pitHelpSheet', 'pitHelpClose'],
     ['shareCard', 'shareCardClose'], ['duelSheet', 'duelSheetClose'], ['crewSheet', 'crewSheetClose'],
     ['autodromeSheet', 'autodromeSheetClose'], ['carPickerSheet', 'carPickerClose'],
-    ['feedbackSheet', 'feedbackClose'],
+    ['feedbackSheet', 'feedbackClose'], ['padCommentsSheet', 'padCommentsClose'], ['pilotSheet', 'pilotClose'],
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
   const closeSheet = (id, btnId) => {
@@ -7841,25 +7847,507 @@ function esc(s) {
 function pulseWho() {
   return (profile()?.nick) || currentUser()?.nick || '';
 }
+
+/* ——— v83: Paddock — cards with like/comment row, comments sheet, public pilot profile ———
+   All user text goes through textContent (no innerHTML with user data). */
+const PAD_SVG = {
+  heart: 'M12 20.6s-7.6-4.6-9.3-9.4C1.5 7.9 3.6 4.6 7 4.6c2 0 3.6 1.1 5 2.9 1.4-1.8 3-2.9 5-2.9 3.4 0 5.5 3.3 4.3 6.6-1.7 4.8-9.3 9.4-9.3 9.4z',
+  bubble: 'M4 5.5A2.5 2.5 0 0 1 6.5 3h11A2.5 2.5 0 0 1 20 5.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.6 3.8c-.5.4-1.4.1-1.4-.6V16.9A2.5 2.5 0 0 1 4 14.6z',
+  trash: 'M9 3.5h6M4.5 6.5h15M6.5 6.5l.9 12.3c.1 1 .9 1.7 1.9 1.7h5.4c1 0 1.8-.7 1.9-1.7l.9-12.3M10 10.5v6M14 10.5v6',
+};
+function padIcon(name, cls = '') {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('width', '22');
+  svg.setAttribute('height', '22');
+  svg.setAttribute('aria-hidden', 'true');
+  if (cls) svg.setAttribute('class', cls);
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', PAD_SVG[name]);
+  svg.appendChild(path);
+  return svg;
+}
+function padEl(tag, cls, text) {
+  const el = document.createElement(tag);
+  if (cls) el.className = cls;
+  if (text != null) el.textContent = String(text);
+  return el;
+}
+const PAD_IMG_RE = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i;
+const PAD_AVA_RE = /^https:\/\/([\w-]+\.)*(telegram\.org|t\.me|telesco\.pe)\/[^"'<>\s]+$/i;
+const isPublicPilot = (id) => /^p_[0-9a-f-]{36}$/.test(String(id || ''));
+function padInitials(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  const s = parts.length > 1 ? parts[0][0] + parts[1][0] : (parts[0] || 'P').slice(0, 2);
+  return s.toUpperCase();
+}
+function padAvatar(name, avatar, size = 40) {
+  const el = padEl('span', 'pad-ava');
+  el.style.width = el.style.height = size + 'px';
+  if (avatar && (PAD_IMG_RE.test(avatar) || PAD_AVA_RE.test(avatar))) {
+    const img = document.createElement('img');
+    img.alt = '';
+    img.loading = 'lazy';
+    img.referrerPolicy = 'no-referrer';
+    img.src = avatar;
+    el.appendChild(img);
+  } else {
+    el.textContent = padInitials(name);
+    el.style.fontSize = Math.round(size * 0.38) + 'px';
+  }
+  return el;
+}
+function padAgo(at) {
+  const t = Number(at) || 0;
+  if (!t) return '';
+  const s = Math.max(0, (Date.now() - t) / 1000);
+  if (s < 60) return 'только что';
+  if (s < 3600) return Math.floor(s / 60) + ' мин';
+  if (s < 86400) return Math.floor(s / 3600) + ' ч';
+  if (s < 7 * 86400) return Math.floor(s / 86400) + ' д';
+  return new Date(t).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+function padCount(n) {
+  n = Number(n) || 0;
+  if (n >= 10000) return Math.round(n / 1000) + 'k';
+  if (n >= 1000) return (n / 1000).toFixed(1).replace('.0', '') + 'k';
+  return String(n);
+}
+/** Author chip (avatar + nick + meta); a button opening the public profile when the id is an account. */
+function padAuthor({ name, pilotId, avatar, meta, size = 40 }) {
+  const clickable = isPublicPilot(pilotId);
+  const el = padEl(clickable ? 'button' : 'div', 'pad-author');
+  if (clickable) { el.type = 'button'; el.dataset.pilot = pilotId; el.setAttribute('aria-label', 'Профиль: ' + (name || 'Пилот')); }
+  el.appendChild(padAvatar(name, avatar, size));
+  const who = padEl('span', 'pad-who');
+  who.appendChild(padEl('span', 'pad-nick', name || 'Пилот'));
+  if (meta) who.appendChild(padEl('span', 'pad-meta', meta));
+  el.appendChild(who);
+  return el;
+}
+
+const _padPosts = new Map(); // id → public post (shared by feed + profile)
+const _padLikeSeq = new Map();
+
+function padActionBtn(kind, count, on) {
+  const b = padEl('button', 'pad-act pad-' + kind + (on ? ' on' : ''));
+  b.type = 'button';
+  b.appendChild(padIcon(kind === 'like' ? 'heart' : 'bubble', 'pad-ico'));
+  b.appendChild(padEl('span', 'pad-cnt', padCount(count)));
+  return b;
+}
+function padSyncActions(id) {
+  const p = _padPosts.get(id);
+  if (!p) return;
+  document.querySelectorAll('.pulse-card').forEach((card) => {
+    if (card.dataset.post !== id) return;
+    const like = card.querySelector('.pad-like');
+    if (like) {
+      like.classList.toggle('on', !!p.liked);
+      like.setAttribute('aria-pressed', p.liked ? 'true' : 'false');
+      like.setAttribute('aria-label', (p.liked ? 'Убрать лайк' : 'Нравится') + ', ' + (p.likeCount || 0));
+      like.querySelector('.pad-cnt').textContent = padCount(p.likeCount);
+    }
+    const com = card.querySelector('.pad-comment');
+    if (com) {
+      com.querySelector('.pad-cnt').textContent = padCount(p.commentCount);
+      com.setAttribute('aria-label', 'Комментарии, ' + (p.commentCount || 0));
+    }
+  });
+}
+function buildPostCard(p, { compact = false } = {}) {
+  _padPosts.set(p.id, p);
+  const card = padEl('article', 'pulse-card' + (compact ? ' compact' : ''));
+  card.dataset.post = p.id;
+  const head = padEl('header', 'pad-head');
+  const meta = [p.car, padAgo(p.at)].filter(Boolean).join(' · ');
+  head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, meta }));
+  const myPid = accountPilotId();
+  if (p.pilotId && myPid && p.pilotId === myPid) {
+    const del = padEl('button', 'pad-act pad-del');
+    del.type = 'button';
+    del.dataset.del = p.id;
+    del.setAttribute('aria-label', 'Удалить пост');
+    del.appendChild(padIcon('trash', 'pad-ico pad-ico-line'));
+    head.appendChild(del);
+  }
+  card.appendChild(head);
+  if (p.text) card.appendChild(padEl('p', 'pad-text', p.text));
+  if (p.img && PAD_IMG_RE.test(String(p.img))) {
+    const img = document.createElement('img');
+    img.className = 'pad-img';
+    img.alt = '';
+    img.loading = 'lazy';
+    img.src = p.img;
+    card.appendChild(img);
+  }
+  const bar = padEl('div', 'pad-actions');
+  const like = padActionBtn('like', p.likeCount, p.liked);
+  like.dataset.like = p.id;
+  const com = padActionBtn('comment', p.commentCount, false);
+  com.dataset.comments = p.id;
+  bar.append(like, com);
+  card.appendChild(bar);
+  setTimeout(() => padSyncActions(p.id), 0);
+  return card;
+}
+
 async function renderPulse() {
   const feed = document.getElementById('pulseFeed');
   if (!feed) return;
   const rows = await api.listPulse();
-  const myPid = accountPilotId();
-  feed.innerHTML = rows.map((p) => {
-    const likes = (p.likes || []).length;
-    return `<article class="pulse-card" data-id="${esc(p.id)}">
-      <header><b>${esc(p.who || 'Пилот')}</b><span>${new Date(p.at).toLocaleString('ru-RU')}</span></header>
-      <p>${esc(p.text || '')}</p>
-      ${p.img && /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(String(p.img)) ? `<img src="${esc(p.img)}" alt="">` : ''}
-      <div class="pulse-actions">
-        <button type="button" data-like="${esc(p.id)}">♥ ${likes}</button>
-        ${(!p.pilotId || (myPid && p.pilotId === myPid)) ? `<button type="button" data-del="${esc(p.id)}">удалить</button>` : ''}
-      </div>
-    </article>`;
-  }).join('') || '<p class="muted">пока тихо</p>';
+  feed.replaceChildren();
+  if (!rows || !rows.length) {
+    const empty = padEl('div', 'pad-empty');
+    empty.appendChild(padIcon('bubble', 'pad-empty-ico'));
+    empty.appendChild(padEl('p', '', 'Пока тихо. Напиши первый пост после входа.'));
+    feed.appendChild(empty);
+    return;
+  }
+  for (const p of rows) {
+    if (!p || !p.id) continue;
+    // v82 API compatibility (likes array) → count
+    if (p.likeCount == null && Array.isArray(p.likes)) p.likeCount = p.likes.length;
+    feed.appendChild(buildPostCard(p));
+  }
 }
+
+async function padToggleLike(id, btn) {
+  if (!currentUser()) {
+    padCloseSheets();
+    needLogin('Лайк — после входа');
+    return;
+  }
+  const p = _padPosts.get(id);
+  if (!p) return;
+  const want = !p.liked;
+  const prev = { liked: p.liked, likeCount: p.likeCount };
+  p.liked = want;
+  p.likeCount = Math.max(0, (Number(p.likeCount) || 0) + (want ? 1 : -1));
+  padSyncActions(id);
+  if (want && btn) {
+    document.querySelectorAll('.pulse-card').forEach((c) => {
+      if (c.dataset.post !== id) return;
+      const b = c.querySelector('.pad-like');
+      if (!b) return;
+      b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+    });
+    try { tmaHaptic('light'); } catch (_) {}
+  }
+  const seq = (_padLikeSeq.get(id) || 0) + 1;
+  _padLikeSeq.set(id, seq);
+  const res = await api.likePulse(id, want);
+  if (_padLikeSeq.get(id) !== seq) return; // a newer tap won
+  if (res && res.ok) {
+    p.liked = !!res.liked;
+    p.likeCount = Number(res.likeCount) || 0;
+  } else {
+    p.liked = prev.liked;
+    p.likeCount = prev.likeCount;
+    const msg = document.getElementById('pulseMsg');
+    if (msg) msg.textContent = res && res.status === 429 ? 'Слишком часто — попробуй через минуту' : 'Не удалось поставить лайк';
+    if (res && res.status === 401) needLogin('Сессия истекла — войди снова');
+  }
+  padSyncActions(id);
+}
+
+async function padOnCardClick(e) {
+  const pil = e.target.closest('[data-pilot]');
+  if (pil) { void openPilotProfile(pil.dataset.pilot); return; }
+  const like = e.target.closest('[data-like]');
+  if (like) { void padToggleLike(like.dataset.like, like); return; }
+  const com = e.target.closest('[data-comments]');
+  if (com) { void openComments(com.dataset.comments); return; }
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    if (!confirm('Удалить пост?')) return;
+    await api.delPulse(del.dataset.del, pulseWho());
+    void renderPulse();
+    const ps = document.getElementById('pilotSheet');
+    if (ps && !ps.classList.contains('hidden') && _pilotOpen) void openPilotProfile(_pilotOpen);
+  }
+}
+
+/* ——— sheets ——— */
+function padShow(id, on) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('hidden', !on);
+  el.setAttribute('aria-hidden', on ? 'false' : 'true');
+  document.body.classList.toggle('pad-lock', !!document.querySelector('.pad-sheet:not(.hidden)'));
+}
+function padCloseSheets() { padShow('padCommentsSheet', false); padShow('pilotSheet', false); }
+
+let _comPost = null;
+function renderComments(list) {
+  const box = document.getElementById('padComList');
+  if (!box) return;
+  box.replaceChildren();
+  if (!list.length) {
+    const empty = padEl('div', 'pad-empty pad-empty-sm');
+    empty.appendChild(padIcon('bubble', 'pad-empty-ico'));
+    empty.appendChild(padEl('p', '', 'Комментариев пока нет. Будь первым.'));
+    box.appendChild(empty);
+    return;
+  }
+  for (const c of list) {
+    const row = padEl('div', 'pad-com');
+    row.dataset.cid = c.id;
+    row.appendChild(padAuthor({ name: c.who, pilotId: c.pilotId, meta: padAgo(c.at), size: 34 }));
+    if (c.mine) {
+      const del = padEl('button', 'pad-act pad-del');
+      del.type = 'button';
+      del.dataset.cdel = c.id;
+      del.setAttribute('aria-label', 'Удалить комментарий');
+      del.appendChild(padIcon('trash', 'pad-ico pad-ico-line'));
+      row.appendChild(del);
+    }
+    row.appendChild(padEl('p', 'pad-com-text', c.text));
+    box.appendChild(row);
+  }
+}
+function padComposerState() {
+  const logged = !!currentUser();
+  document.getElementById('padComCompose')?.classList.toggle('hidden', !logged);
+  document.querySelector('#padCommentsSheet .pad-com-meta')?.classList.toggle('hidden', !logged);
+  document.getElementById('padComLogin')?.classList.toggle('hidden', logged);
+}
+async function openComments(postId) {
+  _comPost = postId;
+  const msg = document.getElementById('padComMsg');
+  if (msg) msg.textContent = '';
+  padComposerState();
+  const box = document.getElementById('padComList');
+  if (box) { box.replaceChildren(padEl('p', 'pad-loading', 'Загрузка…')); }
+  padShow('padCommentsSheet', true);
+  const res = await api.listComments(postId);
+  if (_comPost !== postId) return;
+  if (!res || res.ok === false) {
+    if (box) box.replaceChildren(padEl('p', 'pad-loading', res && res.status === 404 ? 'Пост удалён' : 'Нет связи — попробуй позже'));
+    return;
+  }
+  const list = Array.isArray(res.comments) ? res.comments : [];
+  renderComments(list);
+  const p = _padPosts.get(postId);
+  if (p) { p.commentCount = list.length; padSyncActions(postId); }
+}
+async function sendComment() {
+  const ta = document.getElementById('padComText');
+  const msg = document.getElementById('padComMsg');
+  const btn = document.getElementById('padComSend');
+  if (!ta || !_comPost) return;
+  if (!currentUser()) { padCloseSheets(); needLogin('Комментарии — после входа'); return; }
+  const text = ta.value.trim();
+  if (!text) return;
+  if (text.length > 500) { if (msg) msg.textContent = 'Максимум 500 символов'; return; }
+  const postId = _comPost;
+  if (btn) btn.disabled = true;
+  const res = await api.addComment(postId, text);
+  if (btn) btn.disabled = false;
+  if (!res || res.ok === false) {
+    const code = res && res.status;
+    if (msg) msg.textContent = code === 429 ? 'Слишком часто — подожди немного'
+      : code === 409 && res.error === 'duplicate' ? 'Такой комментарий уже есть'
+      : code === 409 ? 'Комментарии закрыты'
+      : code === 401 ? 'Сессия истекла — войди снова'
+      : code === 404 ? 'Пост удалён' : 'Не отправилось — нет связи';
+    return;
+  }
+  ta.value = '';
+  ta.style.height = '';
+  const cnt = document.getElementById('padComCount');
+  if (cnt) cnt.textContent = '0/500';
+  if (msg) msg.textContent = '';
+  const p = _padPosts.get(postId);
+  if (p) { p.commentCount = Number(res.count) || (p.commentCount || 0) + 1; padSyncActions(postId); }
+  await openComments(postId);
+  const box = document.getElementById('padComList');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+document.getElementById('padComSend')?.addEventListener('click', () => { void sendComment(); });
+document.getElementById('padComText')?.addEventListener('input', (e) => {
+  const ta = e.target;
+  const cnt = document.getElementById('padComCount');
+  if (cnt) cnt.textContent = ta.value.length + '/500';
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(120, ta.scrollHeight) + 'px';
+});
+document.getElementById('padComText')?.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void sendComment(); }
+});
+document.getElementById('padComLogin')?.addEventListener('click', () => { padCloseSheets(); needLogin('Комментарии — после входа'); });
+document.getElementById('padCommentsClose')?.addEventListener('click', () => padShow('padCommentsSheet', false));
+document.getElementById('padCommentsSheet')?.addEventListener('click', async (e) => {
+  if (e.target?.id === 'padCommentsSheet') { padShow('padCommentsSheet', false); return; }
+  const pil = e.target.closest('[data-pilot]');
+  if (pil) { void openPilotProfile(pil.dataset.pilot); return; }
+  const del = e.target.closest('[data-cdel]');
+  if (del && _comPost) {
+    if (!confirm('Удалить комментарий?')) return;
+    const postId = _comPost;
+    const res = await api.delComment(postId, del.dataset.cdel);
+    if (res && res.ok) {
+      const p = _padPosts.get(postId);
+      if (p) { p.commentCount = Number(res.count) || 0; padSyncActions(postId); }
+      void openComments(postId);
+    } else {
+      const msg = document.getElementById('padComMsg');
+      if (msg) msg.textContent = 'Не удалось удалить';
+    }
+  }
+});
+
+/* ——— public pilot profile ——— */
+let _pilotOpen = null;
+function fmtSplitMs(ms) {
+  const n = Number(ms);
+  if (!Number.isFinite(n) || n <= 0) return '—';
+  const s = n / 1000;
+  if (s >= 60) return Math.floor(s / 60) + ':' + (s % 60).toFixed(2).padStart(5, '0');
+  return s.toFixed(2);
+}
+function padSection(title) {
+  const sec = padEl('section', 'pilot-sec');
+  sec.appendChild(padEl('h3', 'pilot-sec-title', title));
+  return sec;
+}
+function padEmptyLine(text) { return padEl('p', 'pilot-empty', text); }
+function renderPilotProfile(pr) {
+  const body = document.getElementById('pilotBody');
+  if (!body) return;
+  body.replaceChildren();
+  const head = padEl('div', 'pilot-head');
+  head.appendChild(padAvatar(pr.nick, pr.avatar, 84));
+  const who = padEl('div', 'pilot-who');
+  who.appendChild(padEl('h2', 'pilot-nick', pr.nick || 'Пилот'));
+  who.appendChild(padEl('p', 'pilot-car', pr.car || 'Машина не указана'));
+  if (isMyPilotId(pr.pilotId)) who.appendChild(padEl('span', 'pilot-you', 'это ты'));
+  head.appendChild(who);
+  body.appendChild(head);
+
+  const stats = padEl('div', 'pilot-stats');
+  const zh = (pr.best && pr.best.zeroHundred) || [];
+  const laps = (pr.best && pr.best.laps) || [];
+  const best0100 = zh.length ? Math.min(...zh.map((r) => Number(r.t))) : null;
+  [
+    ['0–100', best0100 != null ? best0100.toFixed(2) + ' с' : '—'],
+    ['Трасс', String(laps.length)],
+    ['Постов', String(pr.postCount || 0)],
+    ['Лайков', padCount(pr.likesReceived || 0)],
+  ].forEach(([k, v]) => {
+    const s = padEl('div', 'pilot-stat');
+    s.appendChild(padEl('b', '', v));
+    s.appendChild(padEl('span', '', k));
+    stats.appendChild(s);
+  });
+  body.appendChild(stats);
+
+  const secRuns = padSection('Лучшие заезды');
+  if (!zh.length && !laps.length) {
+    secRuns.appendChild(padEmptyLine('Пока нет заездов в топах. Результаты появятся после валидных GPS-замеров.'));
+  }
+  if (zh.length) {
+    secRuns.appendChild(padEl('h4', 'pilot-sub', '0–100 км/ч'));
+    const ul = padEl('ul', 'pilot-list');
+    zh.forEach((r) => {
+      const li = padEl('li', '');
+      const l = padEl('span', 'pl-l');
+      l.appendChild(padEl('span', 'pl-main', r.car || 'Машина'));
+      l.appendChild(padEl('span', 'pl-sub', [r.gpsQ ? 'GPS ' + r.gpsQ : '', padAgo(r.at)].filter(Boolean).join(' · ')));
+      li.appendChild(l);
+      li.appendChild(padEl('strong', 'pl-time', Number(r.t).toFixed(2) + ' с'));
+      ul.appendChild(li);
+    });
+    secRuns.appendChild(ul);
+  }
+  if (laps.length) {
+    secRuns.appendChild(padEl('h4', 'pilot-sub', 'Круги и сектора'));
+    const ul = padEl('ul', 'pilot-list');
+    laps.forEach((r) => {
+      const tr = TRACKS.find((t) => t.id === r.trackId);
+      const li = padEl('li', 'pilot-lap');
+      const l = padEl('span', 'pl-l');
+      l.appendChild(padEl('span', 'pl-main', tr?.name || r.trackId));
+      l.appendChild(padEl('span', 'pl-sub', [r.car, r.gpsQ ? 'GPS ' + r.gpsQ : '', padAgo(r.at)].filter(Boolean).join(' · ')));
+      li.appendChild(l);
+      li.appendChild(padEl('strong', 'pl-time', r.t));
+      if (Array.isArray(r.sectors)) {
+        const sec = padEl('div', 'pl-secs');
+        r.sectors.forEach((ms, i) => {
+          const chip = padEl('span', 'pl-sec');
+          chip.appendChild(padEl('i', '', 'S' + (i + 1)));
+          chip.appendChild(document.createTextNode(' ' + fmtSplitMs(ms)));
+          sec.appendChild(chip);
+        });
+        li.appendChild(sec);
+      }
+      ul.appendChild(li);
+    });
+    secRuns.appendChild(ul);
+  }
+  body.appendChild(secRuns);
+
+  const secPosts = padSection('Посты в Паддоке');
+  const posts = Array.isArray(pr.posts) ? pr.posts : [];
+  if (!posts.length) secPosts.appendChild(padEmptyLine('Пилот ещё ничего не публиковал.'));
+  const wrap = padEl('div', 'pulse-feed pilot-posts');
+  posts.forEach((p) => wrap.appendChild(buildPostCard(p, { compact: true })));
+  secPosts.appendChild(wrap);
+  body.appendChild(secPosts);
+}
+async function openPilotProfile(pid) {
+  if (!isPublicPilot(pid)) return;
+  _pilotOpen = pid;
+  padShow('padCommentsSheet', false);
+  const body = document.getElementById('pilotBody');
+  if (body) {
+    body.replaceChildren();
+    const sk = padEl('div', 'pilot-head pilot-skel');
+    sk.appendChild(padEl('span', 'pad-ava'));
+    sk.appendChild(padEl('p', 'pad-loading', 'Загрузка профиля…'));
+    body.appendChild(sk);
+  }
+  padShow('pilotSheet', true);
+  if (body) body.scrollTop = 0;
+  const res = await api.pilotProfile(pid);
+  if (_pilotOpen !== pid) return;
+  if (!res || res.ok === false) {
+    if (body) {
+      body.replaceChildren();
+      const empty = padEl('div', 'pad-empty');
+      empty.appendChild(padEl('p', '', res && res.status === 404 ? 'Профиль не найден — возможно, аккаунт удалён.' : 'Нет связи — попробуй позже.'));
+      body.appendChild(empty);
+    }
+    return;
+  }
+  renderPilotProfile(res);
+  if (body) body.scrollTop = 0;
+}
+document.getElementById('pilotClose')?.addEventListener('click', () => { _pilotOpen = null; padShow('pilotSheet', false); });
+document.getElementById('pilotSheet')?.addEventListener('click', (e) => {
+  if (e.target?.id === 'pilotSheet') { _pilotOpen = null; padShow('pilotSheet', false); return; }
+  void padOnCardClick(e);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!document.getElementById('padCommentsSheet')?.classList.contains('hidden')) padShow('padCommentsSheet', false);
+  else if (!document.getElementById('pilotSheet')?.classList.contains('hidden')) padShow('pilotSheet', false);
+});
+// tops rows → public profile
+['topLap', 'topSector', 'topStraight'].forEach((id) => {
+  document.getElementById(id)?.addEventListener('click', (e) => {
+    const row = e.target.closest('[data-pilot]');
+    if (row) void openPilotProfile(row.dataset.pilot);
+  });
+  document.getElementById(id)?.addEventListener('keydown', (e) => {
+    const row = e.target.closest('[data-pilot]');
+    if (row && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); void openPilotProfile(row.dataset.pilot); }
+  });
+});
+
 function compressPulseImg(file) {
+
   return new Promise((res) => {
     const im = new Image();
     im.onload = () => {
@@ -7905,20 +8393,7 @@ document.getElementById('pulseSend')?.addEventListener('click', async () => {
   if (msg) msg.textContent = '';
   void renderPulse();
 });
-document.getElementById('pulseFeed')?.addEventListener('click', async (e) => {
-  const like = e.target.closest('[data-like]');
-  const del = e.target.closest('[data-del]');
-  if (like) {
-    if (needLogin('Лайк после входа')) return;
-    await api.likePulse(like.dataset.like, pulseWho());
-    void renderPulse();
-  }
-  if (del) {
-    await api.delPulse(del.dataset.del, pulseWho());
-    void renderPulse();
-  }
-});
-document.querySelector('[data-view="pulse"]')?.addEventListener('click', renderPulse);
+document.getElementById('pulseFeed')?.addEventListener('click', (e) => { void padOnCardClick(e); });
 
 try { hydratePassportGpsFromGarage(); } catch (_) {}
 void bootShareFromUrl();
@@ -9010,7 +9485,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v82';
+const APP_VERSION = 'v83';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

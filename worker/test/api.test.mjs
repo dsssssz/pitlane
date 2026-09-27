@@ -111,7 +111,7 @@ await kv.put('sessidx:' + uuid2, JSON.stringify([tok2, 'nonick']));
 r = await call(envNoNick, 'POST', '/pulse', { token: 'nonick', body: { text: 'nameless' } });
 ok(r.data[0].who === 'Пилот', 'pulse fallback name = «Пилот» (not id)');
 r = await call(env, 'POST', '/pulse/p2/like', { token: tok2 });
-ok(r.data.find((x) => x.id === 'p2').likes.includes(uuid2), 'like stored as uuid');
+ok(r.data.liked === true && r.data.likeCount >= 1 && JSON.parse(await kv.get('pulse')).find((x) => x.id === 'p2').likes.includes(uuid2), 'like stored as uuid (response: count + liked only)');
 r = await call(env, 'POST', '/pulse/p2/like', { token: tok2 });
 await call(env, 'POST', '/pulse/p2/like', { token: tok2 });
 r = await call(env, 'DELETE', '/pulse/p2', { token: tok2 });
