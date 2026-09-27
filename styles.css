@@ -949,7 +949,7 @@ body.pad-lock { overflow:hidden; }
 .pilot-head { display:flex; align-items:center; gap:14px; margin:2px 0 16px; min-width:0; }
 .pilot-head .pad-ava { border-width:2px; box-shadow:0 0 18px rgba(57,255,20,.18); }
 .pilot-skel .pad-ava { width:84px; height:84px; }
-.pilot-who { min-width:0; }
+.pilot-who { min-width:0; flex:1; overflow:hidden; }
 .pilot-nick { margin:0; font:800 28px/1.05 "Barlow Condensed", sans-serif; letter-spacing:.03em; color:#f0f0f0; overflow-wrap:anywhere; }
 .pilot-car { margin:4px 0 0; color:#b5b5b5; font-size:14px; }
 .pilot-you { display:inline-block; margin-top:6px; font-size:11px; font-weight:700; color:#1a1a1a; background:#39FF14; border-radius:999px; padding:2px 8px; }
