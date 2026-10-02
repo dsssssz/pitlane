@@ -22,7 +22,7 @@
     <title>Pitlane — гараж и телеметрия</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Manrope:wght@400;500;600;700&family=Oswald:wght@600;700&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="./styles.css" />
     <link rel="stylesheet" href="./vendor/leaflet/leaflet.css" />
   </head>
@@ -147,24 +147,35 @@
         <section id="view-home" class="view active">
           <div class="home-carousel" id="homeCarousel" role="region" aria-roledescription="карусель" aria-label="Разделы Pitlane">
             <div class="hc-track" id="homeCarouselTrack">
-              <button type="button" class="hc-slide hc-duel" data-go="duels" aria-label="Дуэли — вызови соперника">
-                <span class="hc-art" aria-hidden="true">
-                  <img class="hc-car hc-car-l" src="./img/cars/g87-m2.webp" alt="" loading="lazy" decoding="async">
-                  <img class="hc-car hc-car-r" src="./img/cars/gt3rs.webp" alt="" loading="lazy" decoding="async">
-                  <span class="hc-vs">VS</span>
+              <button type="button" class="hc-slide hc-duel" data-go="duels" aria-label="Дуэли — вызови любого пилота 1 на 1">
+                <span class="hc-art" aria-hidden="true"><img class="hc-bg" src="./img/banners/duels-800.webp" srcset="./img/banners/duels-800.webp 800w, ./img/banners/duels-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 640px" width="1280" height="720" alt="" fetchpriority="high" decoding="async"></span>
+                <span class="hc-txt">
+                  <span class="hc-tag">0–100 · ¼ мили · круг</span>
+                  <b class="hc-title">Дуэли</b>
+                  <span class="hc-sub">Вызови любого пилота 1 на 1</span>
+                  <span class="hc-cta">Открыть<i aria-hidden="true"></i></span>
                 </span>
-                <span class="hc-copy"><b>Дуэли</b><span>Вызови соперника на 0–100 или круг — честный GPS A/B</span></span>
+                <span class="hc-mark" aria-hidden="true">PITLANE</span>
               </button>
-              <button type="button" class="hc-slide hc-tops" data-go="tops" aria-label="Топы автодромов">
-                <span class="hc-art" aria-hidden="true"><img class="hc-banner" src="./img/tg/banner.jpg" alt="" loading="lazy" decoding="async"></span>
-                <span class="hc-copy"><b>Топы автодромов</b><span id="hcTopsSub">Круги, сектора и замеры — только валидные GPS</span></span>
-              </button>
-              <button type="button" class="hc-slide hc-pad" data-go="pulse" aria-label="Паддок — посты пилотов">
-                <span class="hc-art" aria-hidden="true">
-                  <span class="hc-track-svg" id="hcTrackArt"></span>
-                  <img class="hc-car hc-car-c" src="./img/cars/mclaren-765lt.webp" alt="" loading="lazy" decoding="async">
+              <button type="button" class="hc-slide hc-tops" data-go="tops" aria-label="Топы автодромов — лидерборд">
+                <span class="hc-art" aria-hidden="true"><img class="hc-bg" src="./img/banners/tracks-800.webp" srcset="./img/banners/tracks-800.webp 800w, ./img/banners/tracks-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 640px" width="1280" height="720" alt="" loading="lazy" decoding="async"></span>
+                <span class="hc-txt">
+                  <span class="hc-tag">Лидерборд</span>
+                  <b class="hc-title hc-title-long">Топы автодромов</b>
+                  <span class="hc-sub" id="hcTopsSub">16 трасс · 10 дисциплин</span>
+                  <span class="hc-cta">Открыть<i aria-hidden="true"></i></span>
                 </span>
-                <span class="hc-copy"><b>Паддок</b><span>Сборки, заезды и комментарии пилотов</span></span>
+                <span class="hc-mark" aria-hidden="true">PITLANE</span>
+              </button>
+              <button type="button" class="hc-slide hc-pad" data-go="pulse" aria-label="Paddock — сообщество пилотов">
+                <span class="hc-art" aria-hidden="true"><img class="hc-bg" src="./img/banners/paddock-800.webp" srcset="./img/banners/paddock-800.webp 800w, ./img/banners/paddock-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 640px" width="1280" height="720" alt="" loading="lazy" decoding="async"></span>
+                <span class="hc-txt">
+                  <span class="hc-tag">Посты · заезды · экипажи</span>
+                  <b class="hc-title">Paddock</b>
+                  <span class="hc-sub">Сообщество пилотов</span>
+                  <span class="hc-cta">Открыть<i aria-hidden="true"></i></span>
+                </span>
+                <span class="hc-mark" aria-hidden="true">PITLANE</span>
               </button>
             </div>
             <div class="hc-dots" id="homeCarouselDots" role="tablist" aria-label="Слайды"></div>
@@ -456,8 +467,8 @@
           </div>
           <h2 data-i18n="lap.title">Круг</h2>
           <p class="muted">Выбери трассу барабаном, старт на линии, финиш на той же.</p>
-          <div class="grid-2">
-            <article class="card">
+          <div class="grid-2 lap-grid">
+            <article class="card lap-track-card">
               <h3 data-i18n="lap.track">Трасса</h3>
               <select id="trackSelect" class="sr-select"></select>
               <div class="wheel" id="trackWheel"></div>
@@ -470,7 +481,7 @@
               </div>
               <p class="tiny" id="lapGpsMsg">сессия не идёт</p>
             </article>
-            <article class="card">
+            <article class="card lap-howto">
               <h3 data-i18n="lap.gps">Круг по GPS</h3>
               <p class="muted">Старт открывает HUD (карта, погода). Красная «Старт» внутри — вооружение. С/Ф на трассе стартует и финиширует честно. Ручной финиш не в топ.</p>
             </article>
@@ -514,11 +525,11 @@
         <section id="view-tops" class="view">
           <div class="tops-head">
             <h2 data-i18n="top.title">Топы</h2>
+            <a class="method-link" href="./method.html" id="topsMethodLink">Методика</a>
             <div class="tops-head-actions race-toolbar">
               <button type="button" class="crew-btn" id="btnCrewOpen">Экипаж</button>
               <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen">Секторы</button>
               <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
-              <a class="method-link" href="./method.html" id="topsMethodLink">методика</a>
             </div>
           </div>
           <div class="tops-chips" id="topsChips" role="tablist" aria-label="Трасса или замер"></div>
@@ -581,7 +592,7 @@
 
           <details class="tops-classic card">
             <summary>Внутри модели и карта трассы</summary>
-          <div class="grid-2">
+          <div class="grid-2 tops-classic-grid">
             <article class="card">
               <h3>Прямая 0–100 · <span id="topCarName">GT RS</span></h3>
               <ol id="topStraight" class="laps"></ol>

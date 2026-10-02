@@ -2929,7 +2929,11 @@ function revealRunMark(key, label, value) {
   if (!ul) return;
   const li = document.createElement('li');
   li.className = 'run-mark-in';
-  li.innerHTML = `<span>${label}</span><strong>${value}</strong>`;
+  const lb = document.createElement('span');
+  lb.textContent = String(label);
+  const vl = document.createElement('strong');
+  vl.textContent = String(value);
+  li.append(lb, vl);
   ul.appendChild(li);
   hap([10, 30, 10]);
   try { ul.scrollTop = ul.scrollHeight; } catch (_) {}
@@ -9250,15 +9254,25 @@ async function renderSessionOfDay() {
   }
   const tops = Array.isArray(data.tops) ? data.tops : [];
   listEl.classList.add('tops-pilot-list');
-  listEl.innerHTML = tops.length
-    ? tops.map((r, i) => topsPilotRowHtml({
-        rank: i + 1,
-        name: r.name,
-        avatar: r.avatar,
-        sub: r.car || '',
-        timeHtml: `${esc(String(r.t))}${topsGpsBadge(r)}`,
-      })).join('')
-    : '<li class="tp-empty"><span class="tp-who"><span class="tp-nick">пока нет кругов A/B за сегодня</span></span><span class="tp-time">—</span></li>';
+  if (tops.length) {
+    listEl.innerHTML = tops.map((r, i) => topsPilotRowHtml({
+      rank: i + 1,
+      name: r.name,
+      avatar: r.avatar,
+      sub: r.car || '',
+      timeHtml: `${esc(String(r.t))}${topsGpsBadge(r)}`,
+    })).join('');
+  } else {
+    // пустое состояние: без псевдо-строки «п… —», только текст через textContent
+    const li = document.createElement('li');
+    li.className = 'sd-empty';
+    const b = document.createElement('b');
+    b.textContent = 'Сегодня кругов A/B ещё нет';
+    const sp = document.createElement('span');
+    sp.textContent = 'Проедь валидный круг на ' + (tr?.name || 'этой трассе') + ' — он первым попадёт в топ дня.';
+    li.append(b, sp);
+    listEl.replaceChildren(li);
+  }
 
   const atts = Array.isArray(data.attendees) ? data.attendees : [];
   if (attEl) {
@@ -9564,7 +9578,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v87';
+const APP_VERSION = 'v88';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -9973,7 +9987,7 @@ function setupHomeCarousel() {
   const art = document.getElementById('hcTrackArt');
   if (art && !art.firstChild) art.appendChild(trackSilhouetteSvg('sochi', 160, 'hc-trk'));
   const sub = document.getElementById('hcTopsSub');
-  if (sub) sub.textContent = TRACKS.length + ' трасс и ' + DRAG_DISC.length + ' дисциплин — только валидные GPS A/B';
+  if (sub) sub.textContent = TRACKS.length + ' трасс · ' + DRAG_DISC.length + ' дисциплин';
   const real = hcSlides();
   _hcN = real.length;
   if (_hcN > 1) {
