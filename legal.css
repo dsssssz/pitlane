@@ -39,3 +39,23 @@ html.tma .tma-only { display: block; }
 html.tma .tma-hide, html.tma a[href$="offer.html"] { display: none !important; }
 html.tma .offer-doc > :not(.back):not(h1):not(.tma-only):not(footer) { display: none !important; }
 html.tma .legal { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); }
+
+/* v87: стиль v86 — #0c0c0c, тихие заголовки, пилюли, неон точечно */
+html, body { background: #0c0c0c; color: #ededed; }
+.legal .back { color: #a3a3a3; font-weight: 600; letter-spacing: .16em; font-size: 10.5px; }
+.legal .back:hover { color: #f0f0f0; text-decoration: none; }
+.legal h1 { font: 700 30px/1.15 Manrope, system-ui, sans-serif; letter-spacing: -.01em; text-transform: none; color: #f5f5f5; text-shadow: none; }
+.legal .meta { color: #696969; letter-spacing: .04em; }
+.legal h2 { font: 700 17px/1.3 Manrope, system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: #f0f0f0; border-top-color: rgba(255,255,255,.06); }
+.legal p, .legal li, .legal th, .legal td { color: #b9b9b9; }
+.legal a { color: #e8e8e8; text-decoration-color: rgba(57,255,20,.55); text-underline-offset: 3px; }
+.legal .note { border-left-color: rgba(57,255,20,.6); background: rgba(255,255,255,.03); }
+.card { background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02)), #121212; border: 1px solid rgba(255,255,255,.07); border-radius: 22px; }
+.btn { border-radius: 999px; border: 1px solid rgba(255,255,255,.1); background: #39FF14; color: #0c0c0c; font: 700 14px/1 Manrope, sans-serif; letter-spacing: 0; text-transform: none; }
+.btn-danger { border-color: rgba(255,90,79,.35); background: rgba(255,90,79,.08); color: #ff6b61; }
+.field input { border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: #151515; }
+.field input:focus { outline: none; border-color: rgba(57,255,20,.5); }
+.legal th, .legal td { overflow-wrap: anywhere; hyphens: auto; }
+@media (max-width: 380px) { .legal table { font-size: 12px; table-layout: fixed; } .legal td mark.ph { white-space: normal; } .legal th, .legal td { padding: 7px 5px; } }
+.legal h1 { overflow-wrap: break-word; hyphens: auto; }
+@media (max-width: 360px) { .legal h1 { font-size: 26px; } }

@@ -1627,6 +1627,8 @@ function qPersist() {
   try { localStorage.setItem(Q_KEY, JSON.stringify({ tier: Q.tier, at: Date.now(), gpu: Q.gpu || (Q.stored && Q.stored.gpu) || '' })); } catch (_) {}
 }
 console.info(`[pitlane] 3D quality: ${Q.tier} (${Q.source}${Q.gpu ? ', ' + Q.gpu : ''})`);
+// v87: UI-класс слабого устройства — выключает backdrop-filter во всём интерфейсе
+try { if (Q.tier === 'low') document.documentElement.classList.add('q-low'); } catch (_) {}
 
 const canvas = document.getElementById('view3d');
 const renderer = new THREE.WebGLRenderer({
@@ -2205,7 +2207,7 @@ function qMeasureStep(now, rendered) {
       console.info(`[pitlane] 3D quality: ${from} ${fps.toFixed(1)} fps (median ${med.toFixed(1)} ms) → ${Q.tier}`);
       qPersist();
       applyQualityTier();
-      if (Q.tier === 'low') { qm.done = true; qm.phase = 'done'; } else { qm.phase = 'warm'; qm.t0 = now; }
+      if (Q.tier === 'low') { qm.done = true; qm.phase = 'done'; document.documentElement.classList.add('q-low'); } else { qm.phase = 'warm'; qm.t0 = now; }
     } else {
       console.info(`[pitlane] 3D quality: ${Q.tier} ok — ${fps.toFixed(1)} fps (median ${med.toFixed(1)} ms)`);
       if (Q.source !== 'measured') Q.source = Q.source + '+measured';
@@ -3218,8 +3220,8 @@ function extGpsRender(info) {
     parts.push('ждём данные…');
   }
   const s = info.status;
-  if (s && s.battmV) parts.push(`🔋 ${s.battPct}%`);
-  if (s && !s.configured) parts.push('⚠ приёмник не настроен');
+  if (s && s.battmV) parts.push(`АКБ ${s.battPct}%`);
+  if (s && !s.configured) parts.push('приёмник не настроен');
   if (info.lost) parts.push(`потери ${info.lost}`);
   bar.textContent = parts.join(' · ');
   const good = p && p.fixOk && p.fixType >= 3 && p.hAcc <= 2.5 && p.numSV >= 8 && info.hz >= 8;
@@ -4656,7 +4658,22 @@ function pushSlip() {
 function renderSlips() {
   const el = document.getElementById('runHistory');
   if (!el) return;
-  el.innerHTML = (state.slips || []).map((s) => `<li>${s.car} · 0–100 ${s.v0100 ?? '—'} · 100–200 ${s.v100200 ?? '—'}</li>`).join('') || '<li>пусто</li>';
+  // v87: строки слипов через DOM/textContent (крупные табличные цифры)
+  el.replaceChildren();
+  const rows = state.slips || [];
+  if (!rows.length) { el.appendChild(padEl('li', 'slip-empty', 'Слипов пока нет — сделай первый замер.')); return; }
+  rows.forEach((s) => {
+    const li = padEl('li', 'slip-row');
+    li.appendChild(padEl('span', 'slip-car', s.car || '—'));
+    const v = padEl('span', 'slip-v');
+    const a = padEl('b', '', s.v0100 ?? '—');
+    a.appendChild(padEl('small', '', '0–100'));
+    const b = padEl('b', '', s.v100200 ?? '—');
+    b.appendChild(padEl('small', '', '100–200'));
+    v.appendChild(a); v.appendChild(b);
+    li.appendChild(v);
+    el.appendChild(li);
+  });
 }
 document.getElementById('btnShareRun')?.addEventListener('click', async () => {
   const rec = state.meas[state.carId] || {};
@@ -9547,7 +9564,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v86';
+const APP_VERSION = 'v87';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
