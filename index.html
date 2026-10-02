@@ -170,85 +170,92 @@
             <div class="hc-dots" id="homeCarouselDots" role="tablist" aria-label="Слайды"></div>
           </div>
 
-          <!-- v85: hero «Моя машина» -->
-          <article class="home-hero" id="homeHero">
+          <!-- v86: hero «Моя машина» — премиальная карточка -->
+          <article class="home-hero h-rv" id="homeHero">
             <button type="button" class="hh-stage" id="homeHeroStage" aria-label="Открыть машину в гараже">
-              <span class="hh-glow" aria-hidden="true"></span>
               <img id="homeHeroImg" class="hh-img" src="./img/cars/hero/g87-m2.webp" alt="" decoding="async" fetchpriority="high">
-              <span class="hh-kicker">Моя машина</span>
+              <span class="hh-kicker"><i class="h-dot" aria-hidden="true"></i>Моя машина</span>
+              <span class="hh-open" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 16L16 8M9 8h7v7"/></svg></span>
             </button>
             <div class="hh-body">
-              <h2 id="homeHeroName" class="hh-name">—</h2>
               <p id="homeHeroSub" class="hh-sub"></p>
+              <h2 id="homeHeroName" class="hh-name">—</h2>
               <div id="homeHeroStats" class="hh-stats"></div>
               <div class="hh-actions">
-                <button type="button" class="hh-btn" id="homeHeroGarage">В гараж</button>
-                <button type="button" class="hh-btn hh-btn-go" id="homeHeroRun">Замер</button>
+                <button type="button" class="hh-btn" id="homeHeroGarage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 20v-5h6v5"/></svg>В гараж</button>
+                <button type="button" class="hh-btn hh-btn-go" id="homeHeroRun"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V10M10 3h4"/></svg>Замер</button>
               </div>
             </div>
           </article>
 
-          <!-- v85: быстрые действия -->
-          <div class="home-quick" id="homeQuick">
-            <button type="button" class="hq-btn" data-hq="run"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7"/><path d="M12 13l4.5-4.5"/><path d="M9 3h6"/></svg></span><b>Замер</b></button>
-            <button type="button" class="hq-btn" data-hq="lap"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 17c-2-4 1-10 7-10s9 3 7 7-6 2-8 4-4 3-6-1z"/><path d="M12 7V4l3 1.5-3 1.5"/></svg></span><b>Круг</b></button>
-            <button type="button" class="hq-btn" data-hq="duel"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7l6 5-6 5"/><path d="M21 7l-6 5 6 5"/><path d="M12 8v8"/></svg></span><b>Дуэль</b></button>
-            <button type="button" class="hq-btn" data-hq="post"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20l1-4L16 5l3 3L8 19z"/><path d="M14 7l3 3"/></svg></span><b>Пост</b></button>
+          <!-- v86: быстрые действия — иконки-плитки -->
+          <div class="home-quick h-rv" id="homeQuick">
+            <button type="button" class="hq-btn" data-hq="run"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M10 2.8h4M18.4 6.6l1.3-1.3"/></svg></span><b>Замер</b></button>
+            <button type="button" class="hq-btn" data-hq="lap"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 3.8v3.6h-3.6"/><circle cx="12" cy="12" r="1.6"/></svg></span><b>Круг</b></button>
+            <button type="button" class="hq-btn" data-hq="duel"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 7l5.5 5-5.5 5M20.5 7L15 12l5.5 5M12 7.5v9"/></svg></span><b>Дуэль</b></button>
+            <button type="button" class="hq-btn" data-hq="post"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h4.2L19 9.2a2.8 2.8 0 0 0-4-4L4.2 16z"/><path d="M13.6 6.6l3.8 3.8"/></svg></span><b>Пост</b></button>
           </div>
 
-          <!-- v85: мои дуэли -->
-          <section class="home-sec" id="homeDuelsSec">
+          <!-- v86: мои дуэли -->
+          <section class="home-sec h-rv" id="homeDuelsSec">
             <div class="home-sec-head">
               <h3>Мои дуэли</h3>
-              <button type="button" class="home-link" data-view="duels">Все</button>
+              <span class="hsh-lead" aria-hidden="true"></span>
+              <button type="button" class="home-link hsec-all" data-view="duels" aria-label="Все дуэли">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
             </div>
             <div id="homeDuels" class="home-rail"></div>
           </section>
 
-          <!-- v85: трасса дня -->
-          <section class="home-sec">
+          <!-- v86: трасса дня -->
+          <section class="home-sec h-rv">
             <div class="home-sec-head">
               <h3>Трасса дня</h3>
-              <button type="button" class="home-link" id="homeTrackOpen">Топ трассы</button>
+              <span class="hsh-lead" aria-hidden="true"></span>
+              <button type="button" class="home-link hsec-all" id="homeTrackOpen" aria-label="Топ трассы дня">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
             </div>
             <article class="home-track" id="homeTrack">
-              <div class="ht-art" id="homeTrackArt" aria-hidden="true"></div>
-              <div class="ht-info">
-                <b id="homeTrackName">—</b>
-                <span id="homeTrackMeta" class="ht-meta"></span>
-                <ol id="homeTrackTop" class="ht-top"></ol>
+              <div class="ht-head">
+                <div class="ht-info">
+                  <b id="homeTrackName">—</b>
+                  <div id="homeTrackMeta" class="ht-meta"></div>
+                </div>
+                <div class="ht-art" id="homeTrackArt" aria-hidden="true"></div>
               </div>
+              <ol id="homeTrackTop" class="ht-top"></ol>
             </article>
           </section>
 
-          <!-- v85: лидеры 0–100 -->
-          <section class="home-sec">
+          <!-- v86: лидеры 0–100 -->
+          <section class="home-sec h-rv">
             <div class="home-sec-head">
               <h3>Лидеры 0–100</h3>
-              <button type="button" class="home-link" id="homeLeadersOpen">Все топы</button>
+              <span class="hsh-lead" aria-hidden="true"></span>
+              <button type="button" class="home-link hsec-all" id="homeLeadersOpen" aria-label="Все топы 0–100">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
             </div>
             <div id="homeLeaders" class="home-podium"></div>
           </section>
 
-          <!-- v85: мой прогресс -->
-          <section class="home-sec">
+          <!-- v86: мой прогресс -->
+          <section class="home-sec h-rv">
             <div class="home-sec-head"><h3>Мой прогресс</h3></div>
             <div id="homeStats" class="home-stats"></div>
           </section>
 
-          <!-- v85: машины Pitlane -->
-          <section class="home-sec">
+          <!-- v86: машины на подиуме -->
+          <section class="home-sec h-rv">
             <div class="home-sec-head">
               <h3>Машины на подиуме</h3>
-              <button type="button" class="home-link" data-view="garage">Гараж</button>
+              <span class="hsh-lead" aria-hidden="true"></span>
+              <button type="button" class="home-link hsec-all" data-view="garage" aria-label="Все машины в гараже">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
             </div>
             <div id="homeCars" class="home-rail home-cars"></div>
           </section>
 
-          <section class="home-sec">
+          <section class="home-sec h-rv">
             <div class="home-sec-head">
               <h3>Топ постов за сутки</h3>
-              <button type="button" class="home-link" data-view="pulse">Паддок</button>
+              <span class="hsh-lead" aria-hidden="true"></span>
+              <button type="button" class="home-link hsec-all" data-view="pulse" aria-label="Все посты в Паддоке">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
             </div>
             <div id="homeTopPosts" class="home-posts"></div>
           </section>

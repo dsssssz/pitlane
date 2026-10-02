@@ -9547,7 +9547,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v85';
+const APP_VERSION = 'v86';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -10140,10 +10140,12 @@ async function homeRemote() {
   return _homeCache;
 }
 
-function homeStatTile(k, v, sub, cls = '') {
+function homeStatTile(k, v, sub, cls = '', unit = '') {
   const t = padEl('div', 'hh-stat ' + cls);
   t.appendChild(padEl('span', 'hh-k', k));
-  t.appendChild(padEl('b', 'hh-v', v));
+  const b = padEl('b', 'hh-v', v);
+  if (unit) b.appendChild(padEl('small', 'hh-u', unit));
+  t.appendChild(b);
   if (sub) t.appendChild(padEl('span', 'hh-s', sub));
   return t;
 }
@@ -10181,20 +10183,34 @@ async function renderHomeHero() {
     }
     box.replaceChildren();
     const tiles = [];
-    if (b0100 != null) tiles.push(homeStatTile('0–100', b0100.toFixed(2) + ' с', 'GPS A/B'));
-    if (bQ != null) tiles.push(homeStatTile('¼ мили', bQ.toFixed(2) + ' с', '402 м'));
+    if (b0100 != null) tiles.push(homeStatTile('0–100 км/ч', b0100.toFixed(2), 'GPS A/B', '', 'с'));
+    if (bQ != null) tiles.push(homeStatTile('¼ мили', bQ.toFixed(2), '402 м', '', 'с'));
     if (lap) tiles.push(homeStatTile('Лучший круг', fmtLapTime(lap.ms), clipText(trackShortName(lap.trackId), 14)));
     if (rank) tiles.push(homeStatTile('Топ 0–100', '#' + rank.n, 'из ' + rank.of, 'hh-rank'));
     if (!tiles.length) {
-      const cta = padEl('div', 'hh-cta');
-      cta.appendChild(padEl('b', '', 'Сделай первый замер'));
-      cta.appendChild(padEl('span', '', 'Здесь появятся твои рекорды: 0–100, ¼ мили, лучший круг и место в топе. Только честный GPS A/B.'));
+      // v86: аккуратное пустое состояние — «призрачные» рекорды + подсказка
+      const main = homeStatTile('0–100 км/ч', '0.00', 'GPS A/B', 'hh-main ghost', 'с');
+      box.appendChild(main);
+      const row = padEl('div', 'hh-row');
+      row.appendChild(homeStatTile('¼ мили', '—', '402 м', 'ghost'));
+      row.appendChild(homeStatTile('Лучший круг', '—', 'GPS-круг', 'ghost'));
+      row.appendChild(homeStatTile('Топ 0–100', '—', 'место', 'ghost'));
+      box.appendChild(row);
+      const cta = padEl('p', 'hh-cta');
+      cta.appendChild(padEl('b', '', 'Сделай первый замер.'));
+      cta.appendChild(document.createTextNode(' Здесь появятся твои рекорды — только честный GPS A/B.'));
       box.appendChild(cta);
       document.getElementById('homeHero')?.classList.add('empty');
       return;
     }
     document.getElementById('homeHero')?.classList.remove('empty');
-    tiles.forEach((t) => box.appendChild(t));
+    tiles[0].classList.add('hh-main');
+    box.appendChild(tiles[0]);
+    if (tiles.length > 1) {
+      const row = padEl('div', 'hh-row');
+      tiles.slice(1).forEach((t) => row.appendChild(t));
+      box.appendChild(row);
+    }
   };
   draw(null);
   try { draw(await homeRemote()); } catch (_) {}
@@ -10276,7 +10292,20 @@ async function renderHomeTrack() {
   const nm = document.getElementById('homeTrackName');
   if (nm) nm.textContent = tr.name;
   const meta = document.getElementById('homeTrackMeta');
-  if (meta) meta.textContent = [tr.km ? tr.km + ' км' : '', tr.turns ? tr.turns + ' поворотов' : '', tr.cult ? 'культовая' : ''].filter(Boolean).join(' · ');
+  if (meta) {
+    meta.replaceChildren();
+    const spec = (v, u, k) => {
+      const el = padEl('span', 'ht-spec');
+      const b = padEl('b', '', v);
+      if (u) b.appendChild(padEl('small', '', u));
+      el.appendChild(b);
+      el.appendChild(padEl('span', '', k));
+      meta.appendChild(el);
+    };
+    if (tr.km) spec(String(tr.km), 'км', 'длина');
+    if (tr.turns) spec(String(tr.turns), '', 'поворотов');
+    if (tr.cult) meta.appendChild(padEl('span', 'ht-chip', 'культовая'));
+  }
   const ol = document.getElementById('homeTrackTop');
   if (!ol) return;
   let rows = [];
@@ -10302,8 +10331,8 @@ async function renderHomeTrack() {
   rows.forEach((r, i) => {
     const li = padEl('li', 'ht-row');
     if (r.pilotId && isPublicPilot(r.pilotId)) li.dataset.pilot = r.pilotId;
-    li.appendChild(padEl('span', 'ht-n', String(i + 1)));
-    li.appendChild(padEl('span', 'ht-who', clipText(r.name || 'пилот', 12)));
+    li.appendChild(padEl('span', 'ht-n', String(i + 1).padStart(2, '0')));
+    li.appendChild(padEl('span', 'ht-who', clipText(r.name || 'пилот', 16)));
     li.appendChild(padEl('span', 'ht-t', String(r.t)));
     ol.appendChild(li);
   });
@@ -10325,63 +10354,112 @@ async function renderHomeLeaders() {
     col.appendChild(r ? padAvatar(r.name || 'P', r.avatar, i === 0 ? 52 : 42) : padEl('span', 'pad-ava hl-q', '?'));
     col.appendChild(padEl('b', 'hl-name', r ? clipText(r.name || 'пилот', 10) : 'Свободно'));
     col.appendChild(padEl('span', 'hl-car', r ? (shortCarName(r.car, r.carId) || '—') : 'займи место'));
+    const tm = padEl('span', 'hl-t', r ? Number(r.t).toFixed(2) : '—');
+    if (r) tm.appendChild(padEl('small', '', 'с'));
+    col.appendChild(tm);
+    const gap = r && i > 0 && board[0] ? Number(r.t) - Number(board[0].t) : null;
+    col.appendChild(padEl('span', 'hl-gap', gap != null && Number.isFinite(gap) ? '+' + gap.toFixed(2) : (r && i === 0 ? 'лидер' : '\u00a0')));
     const step = padEl('span', 'hl-step');
     step.appendChild(padEl('i', '', String(i + 1)));
-    step.appendChild(padEl('span', 'hl-t', r ? Number(r.t).toFixed(2) + ' с' : '—'));
     col.appendChild(step);
     box.appendChild(col);
   });
   if (!board.length) {
-    const cta = padEl('button', 'home-link hl-cta', 'Займи первое место — к замеру');
+    const cta = padEl('button', 'home-link hl-cta', 'Займи первое место — к замеру →');
     cta.type = 'button';
     cta.dataset.hq = 'run';
     box.appendChild(cta);
   }
 }
 
+function homeSparkline(hist) {
+  // v86: тонкий линейный график последних замеров 0–100 (ниже время — выше точка)
+  const ns = 'http://www.w3.org/2000/svg';
+  const W = 168, H = 64, P = 6;
+  const mx = Math.max(...hist), mn = Math.min(...hist);
+  const span = mx - mn || 1;
+  const pts = hist.map((v, i) => [P + (hist.length === 1 ? 0 : i * (W - 2 * P) / (hist.length - 1)), mx === mn ? H / 2 : P + (v - mn) / span * (H - 2 * P)]);
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('class', 'hs-spark');
+  svg.setAttribute('aria-hidden', 'true');
+  const defs = document.createElementNS(ns, 'defs');
+  const lg = document.createElementNS(ns, 'linearGradient');
+  lg.setAttribute('id', 'hsSparkFill'); lg.setAttribute('x1', '0'); lg.setAttribute('y1', '0'); lg.setAttribute('x2', '0'); lg.setAttribute('y2', '1');
+  [['0', '.16'], ['1', '0']].forEach(([o, a]) => { const st = document.createElementNS(ns, 'stop'); st.setAttribute('offset', o); st.setAttribute('stop-color', '#ffffff'); st.setAttribute('stop-opacity', a); lg.appendChild(st); });
+  defs.appendChild(lg); svg.appendChild(defs);
+  [0.25, 0.5, 0.75].forEach((f) => { const g = document.createElementNS(ns, 'line'); g.setAttribute('x1', '0'); g.setAttribute('x2', String(W)); g.setAttribute('y1', String(H * f)); g.setAttribute('y2', String(H * f)); g.setAttribute('class', 'hs-grid-l'); svg.appendChild(g); });
+  const line = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' ');
+  const area = document.createElementNS(ns, 'path');
+  area.setAttribute('d', line + ` L${pts[pts.length - 1][0].toFixed(1)} ${H} L${pts[0][0].toFixed(1)} ${H} Z`);
+  area.setAttribute('class', 'hs-area'); area.setAttribute('fill', 'url(#hsSparkFill)');
+  svg.appendChild(area);
+  const path = document.createElementNS(ns, 'path');
+  path.setAttribute('d', line); path.setAttribute('class', 'hs-line'); path.setAttribute('pathLength', '1');
+  svg.appendChild(path);
+  const bi = hist.indexOf(mn);
+  const dot = (i, cls, r) => { const c = document.createElementNS(ns, 'circle'); c.setAttribute('cx', pts[i][0].toFixed(1)); c.setAttribute('cy', pts[i][1].toFixed(1)); c.setAttribute('r', String(r)); c.setAttribute('class', cls); svg.appendChild(c); };
+  if (bi !== hist.length - 1) dot(hist.length - 1, 'hs-pt', 2.2);
+  dot(bi, 'hs-pt-best-ring', 5.5);
+  dot(bi, 'hs-pt-best', 2.6);
+  return svg;
+}
 function renderHomeStats() {
   const box = document.getElementById('homeStats');
   if (!box) return;
   const s = localStats();
   box.replaceChildren();
-  const grid = padEl('div', 'hs-grid');
+  const card = padEl('div', 'hs-card');
+  const hist = s.slips.map((x) => Number(x.v0100)).filter((x) => Number.isFinite(x) && x > 0).slice(0, 10).reverse();
+  // top: hero number + sparkline
+  const top = padEl('div', 'hs-top');
+  const lead = padEl('div', 'hs-lead');
+  lead.appendChild(padEl('span', 'h-cap', 'Лучший 0–100'));
+  const big = padEl('b', 'hs-big' + (s.best0100 != null ? '' : ' ghost'), s.best0100 != null ? s.best0100.toFixed(2) : '0.00');
+  big.appendChild(padEl('small', '', 'с'));
+  lead.appendChild(big);
+  if (hist.length >= 2) {
+    const last = hist[hist.length - 1], prev = hist[hist.length - 2];
+    const d = last - prev;
+    const delta = padEl('span', 'hs-delta' + (d < 0 ? ' up' : ''), (d < 0 ? '▲ ' : d > 0 ? '▼ ' : '') + (d === 0 ? 'без изменений' : Math.abs(d).toFixed(2) + ' с к прошлому'));
+    lead.appendChild(delta);
+  } else {
+    lead.appendChild(padEl('span', 'hs-delta', s.best0100 != null ? 'GPS A/B' : 'нет замеров'));
+  }
+  top.appendChild(lead);
+  const chart = padEl('div', 'hs-chart');
+  if (hist.length >= 2) {
+    chart.appendChild(homeSparkline(hist));
+    chart.appendChild(padEl('span', 'hs-chart-s', 'последние ' + hist.length + ' замеров'));
+  } else {
+    chart.classList.add('empty');
+    chart.appendChild(padEl('span', 'hs-chart-s', 'график — после 2 замеров'));
+  }
+  top.appendChild(chart);
+  card.appendChild(top);
+  // bottom: hairline-separated counters
+  const row = padEl('div', 'hs-row');
   [
     [s.runsCapped ? '20+' : String(s.runs), 'замеров 0–100'],
     [String(s.laps), 'кругов GPS'],
     [String(s.tracks), s.tracks === 1 ? 'трасса' : 'трасс'],
-    [s.best0100 != null ? s.best0100.toFixed(2) : '—', 'лучший 0–100, с'],
   ].forEach(([v, k]) => {
-    const t = padEl('div', 'hs-tile');
+    const t = padEl('div', 'hs-tile' + (v === '0' ? ' zero' : ''));
     t.appendChild(padEl('b', '', v));
     t.appendChild(padEl('span', '', k));
-    grid.appendChild(t);
+    row.appendChild(t);
   });
-  box.appendChild(grid);
-  const hist = s.slips.map((x) => Number(x.v0100)).filter((x) => Number.isFinite(x) && x > 0).slice(0, 10).reverse();
-  if (hist.length >= 2) {
-    const wrap = padEl('div', 'hs-hist');
-    wrap.appendChild(padEl('span', 'hs-hist-k', 'Последние замеры 0–100'));
-    const bars = padEl('div', 'hs-bars');
-    const mx = Math.max(...hist); const mn = Math.min(...hist);
-    hist.forEach((v, i) => {
-      const b = padEl('span', 'hs-bar' + (v === mn ? ' best' : ''));
-      b.style.height = Math.round(30 + 70 * (mx === mn ? 1 : (mx - v) / (mx - mn))) + '%';
-      b.style.animationDelay = (i * 40) + 'ms';
-      b.title = v.toFixed(2) + ' с';
-      bars.appendChild(b);
-    });
-    wrap.appendChild(bars);
-    wrap.appendChild(padEl('span', 'hs-hist-s', 'лучший ' + mn.toFixed(2) + ' с · последний ' + hist[hist.length - 1].toFixed(2) + ' с'));
-    box.appendChild(wrap);
-  } else if (!s.runs && !s.laps) {
+  card.appendChild(row);
+  if (!s.runs && !s.laps) {
     const cta = padEl('div', 'hs-cta');
     cta.appendChild(padEl('span', '', 'Первый замер откроет историю и прогресс.'));
-    const b = padEl('button', 'home-link', 'Сделать замер');
+    const b = padEl('button', 'home-link', 'Сделать замер →');
     b.type = 'button';
     b.dataset.hq = 'run';
     cta.appendChild(b);
-    box.appendChild(cta);
+    card.appendChild(cta);
   }
+  box.appendChild(card);
 }
 
 function renderHomeCars() {
@@ -10423,8 +10501,32 @@ function homeQuick(kind) {
     setTimeout(() => { const t = document.getElementById('pulseText'); try { t?.focus({ preventScroll: false }); t?.scrollIntoView({ block: 'center' }); } catch (_) {} }, 250);
   }
 }
+// v86: плавное появление блоков Главной при прокрутке (stagger fade/slide); prefers-reduced-motion — без анимации
+let _homeIO = null;
+function homeReveal() {
+  const root = document.getElementById('view-home');
+  if (!root) return;
+  const els = [...root.querySelectorAll('.h-rv:not(.in)')];
+  if (!els.length) return;
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || typeof IntersectionObserver === 'undefined') { els.forEach((e) => e.classList.add('in')); return; }
+  if (!_homeIO) {
+    _homeIO = new IntersectionObserver((ents) => {
+      let k = 0;
+      ents.forEach((en) => {
+        if (!en.isIntersecting) return;
+        en.target.style.setProperty('--rv-d', (k++ * 70) + 'ms');
+        en.target.classList.add('in');
+        _homeIO.unobserve(en.target);
+      });
+    }, { rootMargin: '0px 0px -6% 0px', threshold: 0.06 });
+  }
+  document.documentElement.classList.add('h-rv-on');
+  els.forEach((e) => _homeIO.observe(e));
+}
 function renderHome() {
   try { if (Q.tier === 'low') document.documentElement.classList.add('q-low'); } catch (_) {}
+  try { homeReveal(); } catch (_) { document.querySelectorAll('#view-home .h-rv').forEach((e) => e.classList.add('in')); }
   setupHomeCarousel();
   try { hcGoPos(_hcPos, false); } catch (_) {}
   void renderHomeHero();
