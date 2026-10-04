@@ -111,7 +111,7 @@ ok(pr.best.zeroHundred.length === 1 && pr.best.zeroHundred[0].t === 4.12, 'best 
 ok(pr.best.laps.length === 1 && pr.best.laps[0].t === '2:01.500' && pr.best.laps[0].trackId === 'sochi', 'best lap on sochi = 2:01.500 (B\'s faster lap not mixed in)');
 ok(JSON.stringify(pr.best.laps[0].sectors) === JSON.stringify([39000, 41000, 40500]), 'best sectors per split ' + JSON.stringify(pr.best.laps[0].sectors));
 ok(pr.postCount === 1 && pr.posts[0].id === post.id && pr.likesReceived === 1 && pr.posts[0].liked === false, 'profile posts + likes received');
-ok(Object.keys(pr).sort().join() === 'avatar,best,car,likesReceived,nick,pilotId,postCount,posts', 'profile top-level fields whitelisted');
+ok(Object.keys(pr).sort().join() === 'avatar,banner,best,car,likesReceived,nick,pilotId,postCount,posts', 'profile top-level fields whitelisted');
 noLeak('GET /pilot/:id', r.text);
 r = await call('GET', '/pilot/' + C.id);
 ok(r.status === 200 && r.data.best.zeroHundred.length === 0 && r.data.best.laps.length === 0 && r.data.postCount === 0, 'empty profile renders empty lists');

@@ -95,15 +95,15 @@ noPhone('GET /pilot', r.text);
 console.log('\n[paddock top of the day]');
 const now = Date.now();
 await kv.put('pulse', JSON.stringify([
-  { id: 'p-new', who: 'x', text: 'свежий, 1 лайк', at: now - 3600e3, likes: ['p_a'], pilotId: A.id, img: 'data:image/jpeg;base64,AAAA' },
-  { id: 'p-hot', who: 'y', text: 'горячий, 3 лайка', at: now - 5 * 3600e3, likes: ['p_a', 'p_b', 'p_c'], pilotId: B.id },
+  { id: 'p-new', who: 'x', text: 'свежий, 1 лайк', at: now - 3600e3, likes: ['p_liker_a'], pilotId: A.id, img: 'data:image/jpeg;base64,AAAA' },
+  { id: 'p-hot', who: 'y', text: 'горячий, 3 лайка', at: now - 5 * 3600e3, likes: ['p_liker_a', 'p_liker_b', 'p_liker_c'], pilotId: B.id },
   { id: 'p-zero', who: 'z', text: 'без лайков', at: now - 60e3, likes: [], pilotId: B.id },
   { id: 'p-old', who: 'o', text: 'вчерашний, 9 лайков', at: now - 30 * 3600e3, likes: Array.from({ length: 9 }, (_, i) => 'p_' + i), pilotId: A.id },
 ]));
 r = await call('GET', '/pulse?top=day');
 ok(r.status === 200 && r.data.map((p) => p.id).join() === 'p-hot,p-new,p-zero', 'last 24 h only, sorted by likes then recency: ' + r.data.map((p) => p.id).join());
 ok(r.data[1].img === null && r.data[1].hasImg === true, 'images stripped (hasImg flag) — light payload');
-ok(!/"likes"\s*:\s*\[/.test(r.text) && !r.text.includes('p_a'), 'liker ids not exposed');
+ok(!/"likes"\s*:\s*\[/.test(r.text) && !r.text.includes('p_liker_'), 'liker ids not exposed');
 await kv.put('pulse', '[]');
 r = await call('GET', '/pulse?top=day');
 ok(r.status === 200 && Array.isArray(r.data) && r.data.length === 0, 'empty feed → []');

@@ -239,7 +239,9 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
   }
 
   /* ---------- симулятор: стоим 4 с, разгон ~0–100 за ~4.2 с до 230 км/ч, затем торможение ---------- */
-  const sim = { t: 0, v: 0, x: 0, iTOW: 0, seq: 0, phase: 'stand', lat0: 55.5716, lon0: 38.1419, head: 72 };
+  const sim = { t: 0, v: 0, x: 0, iTOW: 0, seq: 0, phase: 'stand', lat0: 55.5716, lon0: 38.1419, head: 72, k: 1 };
+  /* v89: режим «по трассе» — едем по контуру (geo/outlines.js) с профилем скорости по кривизне */
+  let route = null; // { plan, st:{ s, v, lap }, hold }
   function simProfileAccel(v) {
     // м/с² — падает с ростом скорости (сопротивление + передачи)
     const kmh = v * 3.6;
@@ -248,11 +250,15 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
     return 1.5;
   }
   function simStep() {
-    const dt = 1 / s.simHz;
+    // v89: шаг по реальному времени — штамп iTOW не отстаёт от часов, даже если таймер подтормаживает
+    const nowMs = Date.now();
+    const dt = sim.lastMs ? Math.min(0.5, Math.max(0.02, (nowMs - sim.lastMs) / 1000)) : 1 / s.simHz;
+    sim.lastMs = nowMs;
+    if (route) { routeStep(dt); return; }
     sim.t += dt;
-    if (sim.phase === 'stand' && sim.t > 4) sim.phase = 'go';
+    if (sim.phase === 'stand' && sim.t > 4) { sim.phase = 'go'; sim.k = 0.95 + Math.random() * 0.1; }
     if (sim.phase === 'go') {
-      sim.v += simProfileAccel(sim.v) * dt;
+      sim.v += simProfileAccel(sim.v) * sim.k * dt;
       if (sim.v * 3.6 >= 230) sim.phase = 'brake';
     } else if (sim.phase === 'brake') {
       sim.v = Math.max(0, sim.v - 9 * dt);
@@ -278,6 +284,32 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
       emitStatus();
     }
   }
+  function emitSimPoint(lat, lon, v, heading) {
+    const pkt = buildPvtPacket({
+      seq: sim.seq++, fixType: 3, fixOk: true, numSV: s.simHz >= 25 ? 11 : 24,
+      hAcc: s.simHz >= 25 ? 1.4 : 0.9, iTOW: sim.iTOW, lat, lon, speed: v, sAcc: 0.12, heading,
+    });
+    ingestPvt(parsePvtPacket(pkt));
+    if (sim.seq % s.simHz === 0) {
+      s.status = parseStatusPacket(buildStatusPacket({ rateHz: s.simHz, battmV: 3950, battPct: 70, configured: true, pvtAlive: true, fast: s.simHz >= 25, pvtRate: s.simHz }));
+      emitStatus();
+    }
+  }
+  function routeStep(dt) {
+    sim.iTOW = (sim.iTOW + Math.round(dt * 1000)) % 604800000;
+    const p = route.hold ? simPlanPos(route.plan, route.st.s) : simPlanStep(route.plan, route.st, dt);
+    if (route.hold) route.st.v = 0;
+    const noise = () => (Math.random() - 0.5) * 0.3e-5;
+    emitSimPoint(p.lat + noise() * 0.6, p.lon + noise(), Math.max(0, route.st.v + (Math.random() - 0.5) * 0.06), p.heading);
+  }
+  /** route: { pts:[{lat,lon}], sf:{lat,lon} } | null; hold — стоять на старте (за ~150 м до С/Ф) до release */
+  function setRoute(r, { hold = true, pace = 1 } = {}) {
+    if (!r) { route = null; return; }
+    const plan = buildSimPlan(r.pts, { sf: r.sf, pace });
+    if (!plan) { route = null; return; }
+    route = { plan, st: { s: plan.startS, v: 0, lap: 0 }, hold };
+  }
+  function releaseRoute() { if (route) route.hold = false; }
   function restartSimTimer() {
     if (s.simTimer) clearInterval(s.simTimer);
     s.simTimer = setInterval(simStep, Math.round(1000 / s.simHz));
@@ -285,7 +317,7 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
   function startSim(rateHz = 10) {
     disconnect();
     s.simHz = rateHz;
-    Object.assign(sim, { t: 0, v: 0, x: 0, iTOW: 300000000 + Math.floor(Math.random() * 1000) * 100, seq: 0, phase: 'stand' });
+    Object.assign(sim, { t: 0, v: 0, x: 0, iTOW: 300000000 + Math.floor(Math.random() * 1000) * 100, seq: 0, phase: 'stand', lastMs: 0 });
     resetStream();
     emitState('sim');
     restartSimTimer();
@@ -301,6 +333,9 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
     disconnect,
     startSim,
     stopSim,
+    setRoute,
+    releaseRoute,
+    routeActive: () => !!route,
     setRate,
     ingestPvt,
     active: () => s.state === 'ble' || s.state === 'sim',
@@ -308,4 +343,79 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
     info,
     unsupportedReason: () => extGpsUnsupportedReason({ isTMA }),
   };
+}
+
+/* ---------- v89: план симулятора по контуру трассы (чистые функции — их же использует харнесс) ---------- */
+const SIM_R = 6371000;
+/**
+ * pts: [{lat,lon}] (замкнутый контур), sf: {lat,lon}. Ресэмпл каждые 5 м, скорость в повороте √(aLat·R),
+ * торможение/разгон проходами назад/вперёд. → { xs, ys, L, prof, startS, sfS, lat0, lon0, kx, pace }
+ */
+export function buildSimPlan(pts, { sf, pace = 1, vmax = 66, aLat = 15, aAcc = 4.6, aBrake = 9 } = {}) {
+  if (!Array.isArray(pts) || pts.length < 3) return null;
+  const lat0 = (sf || pts[0]).lat; const lon0 = (sf || pts[0]).lon;
+  const kx = SIM_R * Math.PI / 180 * Math.cos(lat0 * Math.PI / 180); const ky = SIM_R * Math.PI / 180;
+  let P = pts.map((p) => [(p.lon - lon0) * kx, (p.lat - lat0) * ky]);
+  const f = P[0]; const l = P[P.length - 1];
+  if (Math.hypot(f[0] - l[0], f[1] - l[1]) > 1) P.push([f[0], f[1]]);
+  // S/F detour: if the gate is off the outline, splice a spur to it at the nearest segment
+  let sfIdx = 0;
+  if (sf) {
+    let best = { d: Infinity, i: 0, px: 0, py: 0 };
+    for (let i = 0; i < P.length - 1; i++) {
+      const [ax, ay] = P[i]; const [bx, by] = P[i + 1]; const dx = bx - ax; const dy = by - ay;
+      const k = Math.max(0, Math.min(1, (-ax * dx - ay * dy) / (dx * dx + dy * dy || 1)));
+      const px = ax + dx * k; const py = ay + dy * k; const d = Math.hypot(px, py);
+      if (d < best.d) best = { d, i, px, py };
+    }
+    const ins = best.d > 12 ? [[best.px, best.py], [0, 0], [best.px + 0.5, best.py + 0.5]] : [[best.px, best.py]];
+    P = [...P.slice(0, best.i + 1), ...ins, ...P.slice(best.i + 1)];
+    sfIdx = best.i + (best.d > 12 ? 2 : 1);
+  }
+  // resample every 5 m
+  const xs = []; const ys = []; let acc = 0; let sfS = 0;
+  xs.push(P[0][0]); ys.push(P[0][1]);
+  let carry = 0;
+  for (let i = 1; i < P.length; i++) {
+    const [ax, ay] = P[i - 1]; const [bx, by] = P[i]; const seg = Math.hypot(bx - ax, by - ay);
+    let pos = 5 - carry;
+    while (pos <= seg) { xs.push(ax + (bx - ax) * pos / seg); ys.push(ay + (by - ay) * pos / seg); pos += 5; }
+    carry = seg - (pos - 5);
+    acc += seg;
+    if (i === sfIdx) sfS = acc;
+  }
+  const n = xs.length; const L = n * 5;
+  // curvature → corner speed
+  const prof = new Array(n);
+  for (let i = 0; i < n; i++) {
+    const a = (i - 3 + n) % n; const b = (i + 3) % n;
+    const h1 = Math.atan2(ys[i] - ys[a], xs[i] - xs[a]); const h2 = Math.atan2(ys[b] - ys[i], xs[b] - xs[i]);
+    let dh = Math.abs(h2 - h1); if (dh > Math.PI) dh = 2 * Math.PI - dh;
+    const R = dh > 1e-4 ? 30 / dh : 1e6;
+    prof[i] = Math.max(5, Math.min(vmax, Math.sqrt(aLat * R)));
+  }
+  for (let pass = 0; pass < 2; pass++) for (let i = n - 1; i >= 0; i--) prof[i] = Math.min(prof[i], Math.sqrt(prof[(i + 1) % n] ** 2 + 2 * aBrake * 5));
+  for (let pass = 0; pass < 2; pass++) for (let i = 0; i < n; i++) prof[i] = Math.min(prof[i], Math.sqrt(prof[(i - 1 + n) % n] ** 2 + 2 * aAcc * 5));
+  return { xs, ys, n, L, prof, sfS, startS: ((sfS - 150) % L + L) % L, lat0, lon0, kx, ky, pace, aAcc, aBrake };
+}
+
+export function simPlanPos(plan, s) {
+  const { xs, ys, n, L } = plan;
+  const ss = ((s % L) + L) % L; const f = ss / 5; const i = Math.floor(f) % n; const j = (i + 1) % n; const k = f - Math.floor(f);
+  const x = xs[i] + (xs[j] - xs[i]) * k; const y = ys[i] + (ys[j] - ys[i]) * k;
+  const heading = (Math.atan2(xs[j] - xs[i], ys[j] - ys[i]) * 180 / Math.PI + 360) % 360;
+  return { lat: plan.lat0 + y / plan.ky, lon: plan.lon0 + x / plan.kx, heading, i };
+}
+
+/** Advance st { s, v, lap } by dt seconds; pace varies a little along the lap so a ghost delta moves both ways. */
+export function simPlanStep(plan, st, dt) {
+  const { L, prof, n } = plan;
+  const i = Math.floor((((st.s % L) + L) % L) / 5) % n;
+  const wobble = 1 + 0.03 * Math.sin((2 * Math.PI * st.s) / L * 3 + st.lap * 1.3 + 0.7);
+  const target = prof[i] * plan.pace * wobble;
+  if (st.v < target) st.v = Math.min(target, st.v + plan.aAcc * dt);
+  else st.v = Math.max(target, st.v - plan.aBrake * 1.2 * dt);
+  st.s += st.v * dt;
+  if (st.s >= L) { st.s -= L; st.lap++; }
+  return simPlanPos(plan, st.s);
 }

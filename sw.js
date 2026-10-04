@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v88';
+const CACHE = 'pitlane-v89';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -17,6 +17,20 @@ const CORE = [
   './app.js',
   './plates.js',
   './ext-gps.js',
+  './ghost.js',
+  './ghost-codec.js',
+  './img/profile-banners/neon-sochi-600.webp',
+  './img/profile-banners/neon-moscow-600.webp',
+  './img/profile-banners/neon-nring-600.webp',
+  './img/profile-banners/telemetry-600.webp',
+  './img/profile-banners/carbon-600.webp',
+  './img/profile-banners/asphalt-600.webp',
+  './img/profile-banners/stripes-600.webp',
+  './img/profile-banners/sunset-600.webp',
+  './img/profile-banners/ice-600.webp',
+  './img/profile-banners/photo-duels-600.webp',
+  './img/profile-banners/photo-tracks-600.webp',
+  './img/profile-banners/photo-paddock-600.webp',
   './track-sat-map.js',
   './geo/outlines.js',
   './vendor/leaflet/leaflet.js',

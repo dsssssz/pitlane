@@ -35,6 +35,13 @@ type = "ratelimit"
 namespace_id = "8002"
 simple = { limit = 40, period = 60 }
 
+# v89: ghost traces / profile banner images (bigger payloads) — extra per-IP read limit
+[[unsafe.bindings]]
+name = "RL_GHOST"
+type = "ratelimit"
+namespace_id = "8003"
+simple = { limit = 60, period = 60 }
+
 # Secrets (never in git):  npx wrangler@3.114.17 secret put <NAME>
 #   TWILIO_SID / TWILIO_TOKEN / TWILIO_FROM  — SMS login
 #   TELEGRAM_BOT_TOKEN                       — Telegram login (from @BotFather)

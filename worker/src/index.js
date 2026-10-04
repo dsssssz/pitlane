@@ -21,6 +21,8 @@
  */
 // v80: production origin only (Telegram Mini App loads the same GitHub Pages origin).
 // Local dev: add origins via the EXTRA_ORIGINS var (never commit localhost into prod config).
+import { decodeGhost, checkGhost, GHOST_MAX_CHARS } from '../../ghost-codec.js';
+
 const DEFAULT_ORIGINS = ['https://dsssssz.github.io'];
 
 const SHARE_TTL = 30 * 24 * 60 * 60; // 30 days
@@ -83,6 +85,8 @@ const BODY_LIMITS = {
   pulse: 256 * 1024,
   feedback: 720 * 1024,
   garage: 1_600_000,
+  ghost: 34 * 1024,
+  banner: 210 * 1024,
 };
 
 /** Read a JSON body with a hard byte cap (streamed; Content-Length is checked first). Bad JSON → null. */
@@ -473,7 +477,7 @@ function sanitizeWeather(v) {
 
 const PUBLIC_ROW_FIELDS = [
   'car', 't', 'gps', 'valid', 'gpsQ', 'flags', 'avgAcc', 'hz', 'weather',
-  'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc',
+  'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost',
 ];
 
 /** Whitelisted public tops row (straight / lap / sector / duel run). No phone, ever. */
@@ -931,6 +935,7 @@ async function buildPilotProfile(kv, pid, viewer) {
     pilotId: pid,
     nick: safeName(rec.nick || meta.nick, 'Пилот'),
     avatar: sanitizeAvatar(meta.avatar) || null,
+    banner: publicBanner(rec),
     car,
     best: { zeroHundred: cars, laps, drag },
     postCount: mine.length,
@@ -963,7 +968,7 @@ function sanitizeSharePayload(p) {
     brand: 'PITLANE',
     car: cleanLabel(p.car, 80) || '—',
     nick: safeName(p.nick),
-    type: p.type === 'lap' || p.type === 'круг' ? 'lap' : '0-100',
+    type: p.type === 'lap' || p.type === 'круг' ? 'lap' : (p.type === '402m' ? '402m' : '0-100'),
     track: cleanLabel(p.track, 80),
     time: cleanLabel(p.time, 24) || '—',
     valid: p.valid !== false,
@@ -981,6 +986,9 @@ function sanitizeSharePayload(p) {
     if (sec.every((x) => x != null)) out.sectors = sec;
   }
   const ms = boundedNum(p.ms, 0, LAP_MAX_MS); if (ms != null) out.ms = ms;
+  // v89: ghost race line («Побил на 0.42 с») + who the ghost was
+  const gl = cleanLabel(p.ghost, 60); if (gl) out.ghost = gl;
+  const gv = cleanLabel(p.ghostVs, 40); if (gv) out.ghostVs = gv;
   return out;
 }
 
@@ -1076,6 +1084,12 @@ async function sendTwilioSms(env, phone, code) {
 
 const DUEL_TTL = 7 * 24 * 60 * 60; // 7 days
 const DUEL_TTL_MS = DUEL_TTL * 1000;
+
+/** KV TTL for a duel record: its own expiry + 1 day grace (v89: 1/3/7-day duels). */
+function duelKvTtl(d) {
+  const left = Math.ceil(((Number(d?.expiresAt) || Date.now() + DUEL_TTL_MS) - Date.now()) / 1000);
+  return Math.max(86400, Math.min(DUEL_TTL + 86400, left + 86400));
+}
 
 function duelId() {
   return 'd' + Date.now().toString(36) + randB36(10);
@@ -1203,6 +1217,9 @@ function publicDuel(d) {
     creatorRun: d.creatorRun ? publicTopRow(d.creatorRun) : null,
     challengerRun: d.challengerRun ? publicTopRow(d.challengerRun) : null,
     winner: d.winner || null,
+    days: d.days || 7,
+    ghostId: d.ghostId || null,
+    disc: d.disc || null,
   };
 }
 
@@ -1871,6 +1888,155 @@ async function forwardFeedbackToTelegram(env, rec, key, shot) {
   }
 }
 
+/* ———————————————————— v89: Ghosts (compact lap / run traces) ———————————————————— */
+/**
+ *   ghost:<id>               → { id, kind, ref, pilotId, name, car, carId, tMs, gpsQ, at, data, duel? }
+ *                               metadata { pid, kind, ref } — account deletion lists keys without reading values
+ *   ghosts:<kind>:<ref>      → board [{ id, pilotId, name, car, carId, tMs, gpsQ, at }], best ghost per pilot
+ * kind 'lap' → ref = track slug; kind 'drag' → ref ∈ GHOST_DRAG_DISCS.
+ * Duel ghosts are frozen copies (ghost:<id> with TTL = duel life) so a later best can't change a running duel.
+ */
+const GHOST_DRAG_DISCS = ['0-100', '402m'];
+const GHOST_BOARD_MAX = 50;
+
+function ghostId() {
+  return 'g' + Date.now().toString(36) + randB36(10);
+}
+const GHOST_ID_RE = /^g[a-z0-9]{8,30}$/;
+
+function ghostRef(kind, ref) {
+  const r = String(ref || '');
+  if (kind === 'lap') return slugOk(r) ? r : '';
+  if (kind === 'drag') return GHOST_DRAG_DISCS.includes(r) ? r : '';
+  return '';
+}
+
+function ghostTimeBounds(kind, ref) {
+  if (kind === 'lap') return { lo: LAP_MIN_MS, hi: LAP_MAX_MS };
+  const b = DRAG_DISCIPLINES[ref];
+  return b ? { lo: b.lo * 1000, hi: b.hi * 1000 } : null;
+}
+
+/** Validate POST /ghost body → { row, data } or { error } */
+function sanitizeGhostBody(body) {
+  const kind = body?.kind === 'drag' ? 'drag' : body?.kind === 'lap' ? 'lap' : '';
+  if (!kind) return { error: 'kind must be lap|drag' };
+  const ref = ghostRef(kind, body?.ref);
+  if (!ref) return { error: kind === 'lap' ? 'bad track id' : 'ghosts only for 0-100 and 402m' };
+  const tMs = Math.round(Number(body?.tMs));
+  const b = ghostTimeBounds(kind, ref);
+  if (!Number.isFinite(tMs) || !b || tMs < b.lo || tMs > b.hi) return { error: 'implausible time' };
+  const { valid, gpsQ, flags } = computeValid({ ...body, gps: true });
+  if (!valid || (gpsQ !== 'A' && gpsQ !== 'B')) return { error: 'only valid GPS A/B ghosts' };
+  if (body?.valid === false) return { error: 'only valid GPS A/B ghosts' };
+  const g = body?.ghost;
+  if (!g || typeof g !== 'object' || typeof g.p !== 'string' || g.p.length > GHOST_MAX_CHARS) return { error: 'ghost too large or missing' };
+  const dec = decodeGhost(g);
+  if (!dec) return { error: 'malformed ghost' };
+  const chk = checkGhost(dec, { kind, disc: kind === 'drag' ? ref : undefined, tMs });
+  if (!chk.ok) return { error: 'implausible ghost: ' + chk.why };
+  const data = { v: g.v, n: dec.n, hz: Math.round((Number(g.hz) || 10) * 10) / 10, la0: Number(g.la0), lo0: Number(g.lo0), p: g.p };
+  const carId = slugOk(body?.carId) ? String(body.carId) : null;
+  const car = cleanLabel(body?.car, 80);
+  return {
+    row: { kind, ref, tMs, gpsQ, flags, car: car && !containsPhone(car) ? car : '', carId, dist: Math.round(chk.dist) },
+    data,
+  };
+}
+
+function publicGhostMeta(g) {
+  if (!g) return null;
+  return {
+    id: g.id, kind: g.kind, ref: g.ref, name: safeName(g.name), pilotId: pubId(g.pilotId),
+    car: g.car || '', carId: g.carId || null, tMs: g.tMs, gpsQ: g.gpsQ || null, at: g.at || null,
+    dist: g.dist || null,
+  };
+}
+
+function publicGhost(g) {
+  if (!g) return null;
+  return { ...publicGhostMeta(g), duel: g.duel || null, ghost: g.data };
+}
+
+/** Upsert pilot's best ghost on ghosts:<kind>:<ref>. → { stored, id, rank } */
+async function upsertGhost(kv, pilot, name, row, data) {
+  const bkey = 'ghosts:' + row.kind + ':' + row.ref;
+  const board = await readList(kv, bkey);
+  const prev = board.find((r) => r && r.pilotId === pilot.id);
+  if (prev && Number(prev.tMs) <= row.tMs) {
+    return { stored: false, id: prev.id, rank: board.indexOf(prev) + 1 };
+  }
+  const id = ghostId();
+  const rec = { id, ...row, pilotId: pilot.id, name, at: Date.now(), data };
+  await kv.put('ghost:' + id, JSON.stringify(rec), { metadata: { pid: pilot.id, kind: row.kind, ref: row.ref } });
+  if (prev?.id) await kv.delete('ghost:' + prev.id);
+  const next = board.filter((r) => r && r.pilotId !== pilot.id);
+  next.push({ id, pilotId: pilot.id, name, car: row.car, carId: row.carId, tMs: row.tMs, gpsQ: row.gpsQ, at: rec.at, dist: row.dist });
+  next.sort((a, b) => a.tMs - b.tMs);
+  for (const ev of next.slice(GHOST_BOARD_MAX)) if (ev?.id) await kv.delete('ghost:' + ev.id);
+  const kept = next.slice(0, GHOST_BOARD_MAX);
+  await kv.put(bkey, JSON.stringify(kept));
+  return { stored: true, id, rank: kept.findIndex((r) => r.id === id) + 1 };
+}
+
+async function ghostTop(kv, kind, ref) {
+  const board = (await readList(kv, 'ghosts:' + kind + ':' + ref)).filter((r) => r && r.id).sort((a, b) => a.tMs - b.tMs);
+  let leader = null;
+  for (const r of board.slice(0, 3)) {
+    const g = await kvJson(kv, 'ghost:' + r.id);
+    if (g) { leader = g; break; }
+  }
+  return { kind, ref, leader: publicGhost(leader), top: board.slice(0, 3).map(publicGhostMeta) };
+}
+
+function fmtLapMsStr(ms) {
+  const m = Math.floor(ms / 60000);
+  const s = (ms % 60000) / 1000;
+  return m + ':' + s.toFixed(3).padStart(6, '0');
+}
+
+/* ———————————————————— v89: Profile banners ———————————————————— */
+/**
+ * pilot:<uuid>.banner = '<builtin id>' | 'custom:<ver>'   (absent = default look)
+ * pbanner:<uuid>       → { mime, b64, v, at }  — custom 3:1 photo (client-cropped, ≤ PBANNER_MAX bytes)
+ * GET /banner/:pilotId serves the custom image; built-in ids are whitelisted below (img/profile-banners/<id>-1200.webp).
+ */
+const PROFILE_BANNERS = [
+  'neon-sochi', 'neon-moscow', 'neon-nring', 'telemetry', 'carbon', 'asphalt',
+  'stripes', 'sunset', 'ice', 'photo-duels', 'photo-tracks', 'photo-paddock',
+];
+const PBANNER_MAX = 150 * 1024;
+
+function bannerIdOk(v) {
+  return PROFILE_BANNERS.includes(String(v || ''));
+}
+
+/** data:image/(webp|jpeg);base64,… → { mime, b64, bytes } after magic-byte check, or { error } */
+function sanitizeBannerImage(v) {
+  const s = String(v || '');
+  const m = s.match(/^data:image\/(webp|jpeg|jpg);base64,([A-Za-z0-9+/]+={0,2})$/);
+  if (!m) return { error: 'only webp or jpeg data URL' };
+  const b64 = m[2];
+  const bytes = Math.floor(b64.length * 3 / 4) - (b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0);
+  if (bytes > PBANNER_MAX) return { error: 'banner too large (≤150 KB)' };
+  if (bytes < 200) return { error: 'banner too small' };
+  let head;
+  try { head = atob(b64.slice(0, 24)); } catch { return { error: 'bad base64' }; }
+  const c = (i) => head.charCodeAt(i);
+  const isJpeg = c(0) === 0xff && c(1) === 0xd8 && c(2) === 0xff;
+  const isWebp = head.slice(0, 4) === 'RIFF' && head.slice(8, 12) === 'WEBP';
+  const mime = m[1] === 'webp' ? 'image/webp' : 'image/jpeg';
+  if ((mime === 'image/webp' && !isWebp) || (mime === 'image/jpeg' && !isJpeg)) return { error: 'content does not match MIME' };
+  return { mime, b64, bytes };
+}
+
+function publicBanner(rec) {
+  const b = rec && rec.banner ? String(rec.banner) : '';
+  if (!b) return null;
+  if (b.startsWith('custom:')) return { custom: true, v: b.slice(7, 40) };
+  return bannerIdOk(b) ? { id: b } : null;
+}
+
 /* ———————————————————— KV scan helpers ———————————————————— */
 
 async function kvListAll(kv, prefix, limit = 20000) {
@@ -2045,8 +2211,24 @@ async function deleteAccount(kv, pid, currentToken) {
   for (const k of await kvListAll(kv, 'feedback:')) {
     if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.feedback++; }
   }
+  // v89: ghosts (own bests + frozen duel copies — KV metadata carries the pid) and ghost boards
+  rep.ghosts = 0;
+  for (const k of await kvListAll(kv, 'ghost:')) {
+    if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.ghosts++; }
+  }
+  for (const k of await kvListAll(kv, 'ghosts:')) {
+    const rows = await readList(kv, k.name);
+    const kept = rows.filter((r) => !(r && r.pilotId === pid));
+    if (kept.length !== rows.length) {
+      for (const r of rows) if (r && r.pilotId === pid && r.id) { await del('ghost:' + r.id); }
+      await kv.put(k.name, JSON.stringify(kept));
+    }
+  }
+  // v89: custom profile banner
+  rep.banner = (await kv.get('pbanner:' + pid)) || rec?.banner ? 1 : 0;
+  await del('pbanner:' + pid);
   // per-account rate-limit counters (short-lived anyway; removed so nothing references the uuid)
-  for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx', 'drag']) await del('rl:' + b + ':p:' + pid);
+  for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx', 'drag', 'ghost', 'ghostd', 'ban']) await del('rl:' + b + ':p:' + pid);
   // finally the account record itself
   if (rec) rep.account = 1;
   await del('pilot:' + pid);
@@ -2596,7 +2778,7 @@ export default {
             await savePilot(env.PITLANE, rec);
           }
         }
-        return json({ ok: true, pilotId: rec.id, nick: rec.nick, user: ownerUser(rec) }, 200, headers);
+        return json({ ok: true, pilotId: rec.id, nick: rec.nick, user: ownerUser(rec), banner: publicBanner(rec) }, 200, headers);
       }
 
       // —— Account deletion (Google Play / 152-ФЗ) ——
@@ -2998,6 +3180,94 @@ export default {
       }
 
 
+      // —— v89: Ghosts ——
+      if (req.method === 'POST' && path === '/ghost') {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const lim = await limitOr429(env, headers, [
+          ['rl:ghost:ip:' + ip, 40, 3600], ['rl:ghost:p:' + pilot.id, 20, 3600], ['rl:ghostd:p:' + pilot.id, 100, 86400],
+        ]);
+        if (lim) return lim;
+        const body = await readJson(req, BODY_LIMITS.ghost);
+        if (!body) return json({ error: 'invalid json' }, 400, headers);
+        if (body.pilotId && String(body.pilotId) !== pilot.id) return json({ error: 'pilot mismatch' }, 403, headers);
+        const res = sanitizeGhostBody(body);
+        if (res.error) return json({ error: res.error }, 400, headers);
+        const rec = await loadPilot(env.PITLANE, pilot.id);
+        const name = safeName(rec?.nick || pilot.name);
+        const up = await upsertGhost(env.PITLANE, pilot, name, res.row, res.data);
+        const top = (await readList(env.PITLANE, 'ghosts:' + res.row.kind + ':' + res.row.ref)).slice(0, 3).map(publicGhostMeta);
+        return json({ ok: true, ...up, top }, 200, headers);
+      }
+      m = path.match(/^\/ghost\/([^/]+)$/);
+      if (req.method === 'GET' && m) {
+        if (await burstLimited(env, 'RL_GHOST', ip)) return json({ error: 'rate limit', retry: 60 }, 429, { ...headers, 'Retry-After': '60' });
+        const id = safeDecode(m[1]);
+        if (!GHOST_ID_RE.test(id)) return json({ error: 'not found' }, 404, headers);
+        const g = await kvJson(env.PITLANE, 'ghost:' + id);
+        if (!g) return json({ error: 'not found' }, 404, headers);
+        return json(publicGhost(g), 200, headers);
+      }
+      m = path.match(/^\/ghosts\/top\/(?:(drag)\/)?([^/]+)$/);
+      if (req.method === 'GET' && m) {
+        if (await burstLimited(env, 'RL_GHOST', ip)) return json({ error: 'rate limit', retry: 60 }, 429, { ...headers, 'Retry-After': '60' });
+        const kind = m[1] ? 'drag' : 'lap';
+        const ref = ghostRef(kind, safeDecode(m[2]));
+        if (!ref) return json({ error: kind === 'drag' ? 'ghosts only for 0-100 and 402m' : 'bad track id' }, 400, headers);
+        return json(await ghostTop(env.PITLANE, kind, ref), 200, headers);
+      }
+
+      // —— v89: Profile banner ——
+      if (path === '/me/banner' && (req.method === 'PUT' || req.method === 'DELETE')) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const lim = await limitOr429(env, headers, [['rl:ban:ip:' + ip, 40, 3600], ['rl:ban:p:' + pilot.id, 20, 3600]]);
+        if (lim) return lim;
+        const rec = await loadPilot(env.PITLANE, pilot.id);
+        if (!rec) return json({ error: 'account not found' }, 404, headers);
+        const body = req.method === 'PUT' ? await readJson(req, BODY_LIMITS.banner) : null;
+        if (req.method === 'DELETE' || body?.id === null || body?.id === '') {
+          delete rec.banner;
+          await env.PITLANE.delete('pbanner:' + pilot.id);
+        } else if (body?.image) {
+          const img = sanitizeBannerImage(body.image);
+          if (img.error) return json({ error: img.error }, 400, headers);
+          const v = Date.now().toString(36);
+          await env.PITLANE.put('pbanner:' + pilot.id, JSON.stringify({ mime: img.mime, b64: img.b64, v, at: Date.now() }));
+          rec.banner = 'custom:' + v;
+        } else if (body?.id != null) {
+          if (!bannerIdOk(body.id)) return json({ error: 'unknown banner' }, 400, headers);
+          rec.banner = String(body.id);
+          await env.PITLANE.delete('pbanner:' + pilot.id);
+        } else {
+          return json({ error: 'id or image required' }, 400, headers);
+        }
+        await savePilot(env.PITLANE, rec);
+        return json({ ok: true, pilotId: rec.id, banner: publicBanner(rec) }, 200, headers);
+      }
+      m = path.match(/^\/banner\/([^/]+)$/);
+      if (req.method === 'GET' && m) {
+        if (await burstLimited(env, 'RL_GHOST', ip)) return json({ error: 'rate limit', retry: 60 }, 429, { ...headers, 'Retry-After': '60' });
+        const pid = safeDecode(m[1]);
+        if (!isPilotUuid(pid)) return json({ error: 'not found' }, 404, headers);
+        const b = await kvJson(env.PITLANE, 'pbanner:' + pid);
+        if (!b || !b.b64 || (b.mime !== 'image/webp' && b.mime !== 'image/jpeg')) return json({ error: 'not found' }, 404, headers);
+        const bin = atob(b.b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Response(bytes, {
+          status: 200,
+          headers: {
+            ...headers,
+            'Content-Type': b.mime,
+            'X-Content-Type-Options': 'nosniff',
+            'Content-Security-Policy': "default-src 'none'",
+            'Cross-Origin-Resource-Policy': 'cross-origin',
+            'Cache-Control': 'public, max-age=86400',
+          },
+        });
+      }
+
       // —— Duels / Challenge ——
       if (req.method === 'POST' && path === '/duel') {
         const body = await readJson(req);
@@ -3011,6 +3281,9 @@ export default {
         const lim = await limitOr429(env, headers, [['rl:duel:ip:' + ip, 20, 3600], ['rl:duel:p:' + who.id, 20, 86400]]);
         if (lim) return lim;
         const note = body?.note != null ? cleanLabel(body.note, 140) : '';
+        // v89: duel length 1 / 3 / 7 days (default 7 — old clients unchanged)
+        const days = body?.days == null ? 7 : Number(body.days);
+        if (![1, 3, 7].includes(days)) return json({ error: 'days must be 1, 3 or 7' }, 400, headers);
         const id = duelId();
         const now = Date.now();
         const duel = {
@@ -3020,14 +3293,45 @@ export default {
           note,
           status: 'open',
           createdAt: now,
-          expiresAt: now + DUEL_TTL_MS,
+          expiresAt: now + days * 86400_000,
+          days,
           createdBy: who,
           challenger: null,
           creatorRun: null,
           challengerRun: null,
           winner: null,
         };
-        await env.PITLANE.put('duel:' + id, JSON.stringify(duel), { expirationTtl: DUEL_TTL + 86400 });
+        // v89: "beat my lap / run" — attach the creator's ghost (frozen copy) and lock in the target time
+        if (body?.ghostId != null) {
+          if (!pilot.authed) return json({ error: 'auth required for ghost duel' }, 401, headers);
+          const gid = String(body.ghostId);
+          const src = GHOST_ID_RE.test(gid) ? await kvJson(env.PITLANE, 'ghost:' + gid) : null;
+          if (!src) return json({ error: 'ghost not found' }, 404, headers);
+          if (src.pilotId !== pilot.id) return json({ error: 'not your ghost' }, 403, headers);
+          if (type === 'lap' && (src.kind !== 'lap' || src.ref !== trackId)) return json({ error: 'ghost track mismatch' }, 400, headers);
+          if (type === 'drag' && src.kind !== 'drag') return json({ error: 'ghost discipline mismatch' }, 400, headers);
+          const dgid = ghostId();
+          const copy = { ...src, id: dgid, duel: id, at: Date.now() };
+          await env.PITLANE.put('ghost:' + dgid, JSON.stringify(copy), {
+            expirationTtl: days * 86400 + 86400,
+            metadata: { pid: pilot.id, kind: src.kind, ref: src.ref, duel: id },
+          });
+          duel.ghostId = dgid;
+          if (type === 'drag') duel.disc = src.ref;
+          duel.creatorRun = {
+            name: who.name,
+            car: src.car || '',
+            t: type === 'lap' ? fmtLapMsStr(src.tMs) : Math.round(src.tMs) / 1000,
+            ms: type === 'lap' ? src.tMs : undefined,
+            gps: true,
+            valid: true,
+            gpsQ: src.gpsQ,
+            pilotId: pilot.id,
+            ghost: true,
+            at: now,
+          };
+        }
+        await env.PITLANE.put('duel:' + id, JSON.stringify(duel), { expirationTtl: days * 86400 + 86400 });
         // index for mine list
         const ikey = 'duelidx:' + who.id;
         let idx = [];
@@ -3062,7 +3366,7 @@ export default {
             const before = d.status;
             d = refreshDuelStatus(d);
             if (d.status !== before) {
-              await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: DUEL_TTL + 86400 });
+              await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: duelKvTtl(d) });
             }
             out.push(publicDuel(d));
           } catch (_) {}
@@ -3080,9 +3384,19 @@ export default {
         const before = d.status;
         d = refreshDuelStatus(d);
         if (d.status !== before) {
-          await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: DUEL_TTL + 86400 });
+          await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: duelKvTtl(d) });
         }
-        return json(publicDuel(d), 200, headers);
+        const out = publicDuel(d);
+        // v89: profile banners for the VS header (2 bounded reads, accounts only)
+        for (const k of ['createdBy', 'challenger']) {
+          const pid = d[k]?.id;
+          if (out[k] && isPilotUuid(pid)) {
+            const prec = await loadPilot(env.PITLANE, pid);
+            const b = publicBanner(prec);
+            if (b) out[k].banner = b;
+          }
+        }
+        return json(out, 200, headers);
       }
 
       m = path.match(/^\/duel\/([^/]+)\/run$/);
@@ -3107,6 +3421,10 @@ export default {
         }
         if (d.type === 'lap' && d.trackId && body?.trackId && String(body.trackId) !== String(d.trackId)) {
           return json({ error: 'track mismatch' }, 400, headers);
+        }
+        if (d.disc && GHOST_DRAG_DISCS.includes(d.disc)) {
+          const b = DRAG_DISCIPLINES[d.disc];
+          if (!(run.t >= b.lo && run.t <= b.hi)) return json({ error: 'implausible time for ' + d.disc }, 400, headers);
         }
 
         const isCreator = !!(who.id && d.createdBy?.id && who.id === d.createdBy.id);
@@ -3160,7 +3478,7 @@ export default {
         }
 
         d = refreshDuelStatus(d);
-        await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: DUEL_TTL + 86400 });
+        await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: duelKvTtl(d) });
         return json(publicDuel(d), 200, headers);
       }
 

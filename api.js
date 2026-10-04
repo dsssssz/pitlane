@@ -394,7 +394,32 @@ export const api = {
     return { ok: true, ...d.garage };
   },
 
-  /** POST /duel { type, trackId?, createdBy, note? } */
+  /* —— v89: ghosts —— */
+  async postGhost(body) {
+    return await remoteKeep('/ghost', { method: 'POST', body: JSON.stringify(body || {}) });
+  },
+  async getGhost(id) {
+    if (!id) return null;
+    const r = await remote('/ghost/' + encodeURIComponent(id));
+    return r && r.id ? r : null;
+  },
+  /** kind 'lap' → ref = trackId; kind 'drag' → '0-100' | '402m' */
+  async ghostTop(kind, ref) {
+    if (!ref) return null;
+    const path = kind === 'drag' ? '/ghosts/top/drag/' + encodeURIComponent(ref) : '/ghosts/top/' + encodeURIComponent(ref);
+    return await remote(path);
+  },
+  /* —— v89: profile banner —— */
+  async setBanner(body) {
+    return await remoteKeep('/me/banner', { method: 'PUT', body: JSON.stringify(body || {}), timeoutMs: 20000 });
+  },
+  bannerUrl(pilotId, v) {
+    const base = apiBase();
+    if (!base || !pilotId) return '';
+    return base + '/banner/' + encodeURIComponent(pilotId) + (v ? '?v=' + encodeURIComponent(v) : '');
+  },
+
+  /** POST /duel { type, trackId?, createdBy, note?, days?, ghostId? } */
   async createDuel(payload) {
     const body = {
       type: payload?.type === 'lap' ? 'lap' : 'drag',
@@ -402,6 +427,8 @@ export const api = {
       createdBy: payload?.createdBy || undefined,
       note: payload?.note || undefined,
       name: payload?.name || payload?.createdBy || undefined,
+      days: payload?.days || undefined,
+      ghostId: payload?.ghostId || undefined,
     };
     const remoteRes = await remote('/duel', { method: 'POST', body: JSON.stringify(body) });
     if (remoteRes && remoteRes.id) {

@@ -425,6 +425,7 @@
             <div class="speed-unit">км/ч · GPS <span id="gpsAcc">—</span></div>
             <div class="run-status" id="runStatus">ожидание GPS</div>
             <div class="ext-gps-bar" id="extGpsBar" aria-live="polite">Источник: GPS телефона</div>
+            <div class="ghost-pick" id="runGhostPick" data-scope="run"></div>
             <div class="form-row">
               <button type="button" class="go-btn" id="btnArm" data-i18n="run.start">Старт</button>
             </div>
@@ -650,6 +651,9 @@
 
         <section id="view-account" class="view">
           <h2 data-i18n="acc.title">Аккаунт</h2>
+          <div class="prof-banner" id="accBanner">
+            <button type="button" class="prof-banner-edit" id="accBannerEdit" aria-label="Сменить баннер профиля">Баннер</button>
+          </div>
           <div class="prof-head">
             <label class="avatar-btn" title="аватар">
               <img id="accAvatar" src="" alt="" />
@@ -739,6 +743,10 @@
       <div class="run-drive-top">
         <p class="run-drive-label">ЗАМЕР</p>
         <div class="run-drive-speed"><strong id="runDriveSpeed">0</strong><span>км/ч</span></div>
+        <div class="ghost-delta hidden" id="runGhostDelta">
+          <div class="gd-top"><span class="gd-lab" id="runGhostWho">призрак</span><strong class="gd-num" id="runGhostNum">±0.00</strong></div>
+          <div class="gd-bar" aria-hidden="true"><i id="runGhostBar"></i></div>
+        </div>
         <p class="tiny" id="runDriveMsg">GPS…</p>
         <p class="tiny" id="runDriveDist">0 м</p>
       </div>
@@ -757,6 +765,10 @@
           <div class="lap-drive-clock" id="lapDriveClock">0:00.0</div>
           <div class="lap-drive-speed"><strong id="lapDriveSpeed">0</strong><span>км/ч</span></div>
         </div>
+        <div class="ghost-delta hidden" id="lapGhostDelta">
+          <div class="gd-top"><span class="gd-lab" id="lapGhostWho">призрак</span><strong class="gd-num" id="lapGhostNum">±0.00</strong></div>
+          <div class="gd-bar" aria-hidden="true"><i id="lapGhostBar"></i></div>
+        </div>
         <div class="lap-drive-session">
           <span id="lapDriveLapN">круг 1</span>
           <span id="lapDriveLast">посл. —</span>
@@ -771,6 +783,7 @@
           <span id="lapDriveS2">S2 —</span>
           <span id="lapDriveS3">S3 —</span>
         </div>
+        <div class="ghost-pick" id="lapGhostPick" data-scope="lap"></div>
         <div class="lap-drive-weather" id="lapDriveWeather">погода…</div>
         <p class="tiny lap-drive-warn" id="lapDriveWarn"></p>
         <p class="tiny" id="lapDriveMsg">GPS</p>
@@ -802,6 +815,12 @@
           </svg>
           <span id="shareTrackLabel">—</span>
         </div>
+        <div class="share-ghost" id="shareGhost" hidden>
+          <span class="share-ghost-k" id="shareGhostK">ПРИЗРАК</span>
+          <strong class="share-ghost-v" id="shareGhostV">—</strong>
+          <span class="share-ghost-s" id="shareGhostS"></span>
+          <div class="share-ghost-chart" id="shareGhostChart" aria-hidden="true"></div>
+        </div>
         <p class="share-type" id="shareType">—</p>
         <p class="share-time" id="shareTime">—</p>
         <div class="share-meta-row">
@@ -816,6 +835,26 @@
           <button type="button" class="go-btn" id="shareCardBtn">Поделиться</button>
           <button type="button" id="shareCardCopy">Копировать ссылку</button>
           <button type="button" class="duel-challenge-btn" id="shareCardDuel">Вызвать на дуэль</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="ghostResult" class="ghost-result hidden" aria-hidden="true" role="dialog" aria-label="Итог заезда с призраком">
+      <div class="ghost-result-inner">
+        <button type="button" class="share-card-close" id="ghostResultClose" aria-label="Закрыть">×</button>
+        <p class="gr-kicker" id="grKicker">ПРИЗРАК</p>
+        <p class="gr-verdict" id="grVerdict">—</p>
+        <p class="gr-sub" id="grSub"></p>
+        <div class="gr-times">
+          <div class="gr-time me"><span>ты</span><strong id="grMine">—</strong></div>
+          <div class="gr-time gh"><span id="grGhostLab">призрак</span><strong id="grGhost">—</strong></div>
+        </div>
+        <div class="gr-chart" id="grChart"></div>
+        <ul class="gr-sectors" id="grSectors"></ul>
+        <p class="gr-duel" id="grDuel" hidden></p>
+        <div class="gr-actions">
+          <button type="button" class="go-btn" id="grShare">Поделиться</button>
+          <button type="button" id="grAgain">Ещё заезд</button>
         </div>
       </div>
     </div>
@@ -837,6 +876,17 @@
           <label class="duel-field" id="duelTrackWrap" hidden>Трек
             <select id="duelTrackSelect"></select>
           </label>
+          <div class="duel-field duel-days">Срок
+            <div class="duel-days-row seg-control" role="group" aria-label="Срок дуэли">
+              <button type="button" class="seg-btn" data-duel-days="1">1 день</button>
+              <button type="button" class="seg-btn" data-duel-days="3">3 дня</button>
+              <button type="button" class="seg-btn on" data-duel-days="7">7 дней</button>
+            </div>
+          </div>
+          <label class="duel-ghost-opt" id="duelGhostOpt">
+            <input type="checkbox" id="duelGhostOn" checked />
+            <span><b>Побей мой призрак</b><small id="duelGhostInfo">ищем твой лучший заезд…</small></span>
+          </label>
           <label class="duel-field">Заметка
             <input id="duelNote" maxlength="140" placeholder="по желанию" />
           </label>
@@ -846,11 +896,18 @@
           <button type="button" class="go-btn race-cta" id="duelCreateBtn">Создать дуэль</button>
         </div>
         <div id="duelViewPane" class="race-sheet-body" hidden>
+          <div class="duel-banners" id="duelBanners" aria-hidden="true"><i class="db-l" id="duelBannerL"></i><i class="db-r" id="duelBannerR"></i></div>
           <p class="duel-status" id="duelStatusLine">—</p>
           <p class="duel-vs" id="duelVsLine">—</p>
           <div class="duel-sides" id="duelSides"></div>
           <p class="duel-result" id="duelResult" hidden></p>
           <p class="duel-note" id="duelNoteView" hidden></p>
+          <div class="duel-ghost-box" id="duelGhostBox" hidden>
+            <div class="dg-row"><span class="dg-k">Цель</span><strong class="dg-target" id="duelGhostTarget">—</strong></div>
+            <div class="dg-row"><span class="dg-k">Осталось</span><strong class="dg-left" id="duelGhostLeft">—</strong></div>
+            <button type="button" class="go-btn race-cta dg-ride" id="duelRideGhost">Ехать против призрака</button>
+            <p class="tiny muted" id="duelGhostHint">Призрак едет рядом в HUD. Валидный заезд A/B засчитается сам.</p>
+          </div>
           <div class="duel-actions">
             <button type="button" class="go-btn race-cta" id="duelCopyLink">Копировать ссылку</button>
             <button type="button" class="btn-secondary" id="duelSubmitRun">Прикрепить мой заезд</button>
@@ -1078,6 +1135,26 @@
         </div>
         <div class="pad-com-meta"><span class="tiny" id="padComMsg"></span><span class="tiny" id="padComCount">0/500</span></div>
         <button type="button" class="go-btn race-cta hidden" id="padComLogin">Войти, чтобы комментировать</button>
+      </div>
+    </div>
+
+    <!-- v89: баннер профиля -->
+    <div id="bannerSheet" class="crew-sheet race-sheet pad-sheet hidden" aria-hidden="true" role="dialog" aria-label="Баннер профиля">
+      <div class="crew-sheet-inner race-sheet-inner pad-sheet-inner banner-sheet-inner">
+        <button type="button" class="share-card-close pad-close" id="bannerClose" aria-label="Закрыть">×</button>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <h2 class="race-sheet-title">Баннер профиля</h2>
+          <p class="race-sheet-sub">Шапка над аватаркой · видна в профиле и в дуэлях</p>
+        </header>
+        <div class="banner-preview" id="bannerPreview"><span class="bp-ava" id="bannerPreviewAva"></span></div>
+        <div class="banner-grid" id="bannerGrid" role="listbox" aria-label="Баннеры"></div>
+        <label class="banner-own" id="bannerOwn">
+          <input type="file" id="bannerFile" accept="image/jpeg,image/png,image/webp" hidden />
+          <span class="banner-own-ico" aria-hidden="true"></span>
+          <span><b>Своё фото</b><small id="bannerOwnHint">обрежем до 3:1 · до 150 КБ</small></span>
+        </label>
+        <p class="tiny" id="bannerMsg" role="status"></p>
       </div>
     </div>
 

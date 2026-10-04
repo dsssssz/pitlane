@@ -13,6 +13,7 @@ import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { attachPitlanePlates, isPitlanePlate } from './plates.js';
 import { createExtGps } from './ext-gps.js';
 import { TRACK_OUTLINES } from './geo/outlines.js';
+import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
@@ -26,7 +27,7 @@ import {
   unmountLapSatMap,
   isLapSatMapActive,
   setLapSatMapMode,
-  updateLapSatMapGps,
+  updateLapSatMapGps, updateLapSatMapGhost,
   trackOutlineQuality,
 } from './track-sat-map.js';
 
@@ -36,7 +37,7 @@ function hap(ms = 12) {
     const kind = Array.isArray(ms) ? (Math.max(...ms) >= 30 ? 'heavy' : 'medium') : (ms >= 18 ? 'medium' : (ms <= 10 ? 'select' : 'light'));
     if (tmaHaptic(kind)) return;
   }
-  try { navigator.vibrate?.(ms); } catch (_) {}
+  try { if (navigator.userActivation?.hasBeenActive !== false) navigator.vibrate?.(ms); } catch (_) {}
 }
 document.addEventListener('click', (e) => {
   if (e.target.closest('button')) hap(10);
@@ -1108,9 +1109,15 @@ function mountWheel(selId, wheelId) {
 /** Client-side tops publish gate: need valid + gps + A/B (C only if filter unchecked). */
 function canPublishTop(gq, flags) {
   const fl = flags || [];
-  if (fl.includes('teleport') || fl.includes('speed')) return false;
+  if (fl.includes('teleport') || fl.includes('speed') || fl.includes('sim')) return false;
+  if (simOnProd()) return false; // v89: simulator never writes to production tops
   const q = gq?.gpsQ || gq;
-  const allowC = 
+  const allowC = document.getElementById('topValidOnly')?.checked === false;
+  if (q === 'A' || q === 'B') return true;
+  if (q === 'C' && allowC) return true;
+  return false;
+}
+// v89: these listeners used to sit inside canPublishTop (registered again on every publish check)
 document.getElementById('topWeatherChips')?.addEventListener('click', (e) => {
   const btn = e.target?.closest?.('.wx-chip');
   if (!btn?.dataset?.wx) return;
@@ -1123,11 +1130,6 @@ document.addEventListener('click', (e) => {
     try { alert(b.dataset.tip); } catch (_) {}
   }
 });
-document.getElementById('topValidOnly')?.checked === false;
-  if (q === 'A' || q === 'B') return true;
-  if (q === 'C' && allowC) return true;
-  return false;
-}
 
 function runRowValid(gq, flags) {
   const fl = flags || [];
@@ -2641,7 +2643,10 @@ const GpsFusion = (() => {
       return getState();
     }
 
+    // v89: a filter that rejected 6+ good fixes in a row has diverged (e.g. a hairpin while coasting) → re-anchor
+    if (st.ready && (st.rejN || 0) >= 6 && acc <= 25) { st.ready = false; st.rejN = 0; }
     if (!st.ready) {
+      st.rejN = 0;
       st.anchorLat = coords.latitude;
       st.anchorLon = coords.longitude;
       st.e = 0;
@@ -2667,7 +2672,9 @@ const GpsFusion = (() => {
 
     const dt = st.lastGpsTs ? clamp((ts - st.lastGpsTs) / 1000, 0.05, 2.8) : 0.25;
     const accelerating = st.imuOn && Math.hypot(st.ax, st.ay) > 1.2;
-    predict(dt, accelerating);
+    // v89: tick() may already have coasted the state up to this fix — predict only the rest (was predicted twice)
+    const from = Math.max(st.lastGpsTs || 0, st.lastTick || 0);
+    predict(from ? clamp((ts - from) / 1000, 0, 2.8) : dt, accelerating);
 
     const en = toEnu(coords.latitude, coords.longitude);
     // Jump vs possible motion → coast only
@@ -2675,6 +2682,7 @@ const GpsFusion = (() => {
     const maxJump = Math.hypot(st.vE, st.vN) * dt + Math.max(12, acc * 1.4) + 18;
     if (jump > maxJump && jump > 35) {
       // teleport: do not update with this fix
+      st.rejN = (st.rejN || 0) + 1;
       applyZupt(dt);
       publish(Math.max(acc, st.accEst || acc));
       st.lastGpsTs = ts;
@@ -2686,6 +2694,7 @@ const GpsFusion = (() => {
     else if (acc > 22) R *= 1.8;
 
     const up = updatePos(en.e, en.n, R);
+    st.rejN = up.accept ? 0 : (st.rejN || 0) + 1;
     if (up.accept) {
       // Optional Doppler velocity from speed+heading
       const hasSpd = coords.speed != null && Number.isFinite(coords.speed) && coords.speed >= 0;
@@ -2986,6 +2995,7 @@ function onGpsPoint(pos) {
     // ZUPT helps clean 0–100: trust fused near-zero
     if (v < 8 || fus.zupt) {
       run.t0 = now;
+      ghostRunStill(now, pos.coords.latitude, pos.coords.longitude);
       if (pos.coords?.ext) {
         // Внешний GNSS: точный доплер позволяет брать старт с момента трогания (1 км/ч, интерполяция), как у Dragy
         if (v < 1) { run.extStill = { t: now, v }; run.t0Ext = null; }
@@ -3004,6 +3014,7 @@ function onGpsPoint(pos) {
       setRunText('runStatus', 'Идёт разгон…');
       setRunText('runDriveMsg', 'поехали!');
       run.dist = 0; run.prevDist = 0; run.lastPos = null; run.lastFusT = now;
+      ghostRunLaunch(now, v, pos.coords.latitude, pos.coords.longitude);
     } else {
       setRunText('runStatus', 'Для чистого 0–100 почти остановитесь (< 8 км/ч)');
     }
@@ -3029,6 +3040,7 @@ function onGpsPoint(pos) {
     run.lastFusT = now;
     setRunText('runDriveDist', `${Math.round(run.dist || 0)} м`);
   }
+  ghostRunPoint(now, v);
 
   if (!prev) return;
   for (const gate of [50, 60, 80, 100, 120, 200, 300]) {
@@ -3104,6 +3116,7 @@ function onGpsPoint(pos) {
     setRunText('slipHero', `${sec.toFixed(2)}s`);
     revealRunMark('0100', '0–100', fmtRunSec(sec));
     run.saved0100 = true;
+    ghostRunMark('0-100', t100 - run.t0);
     publishDragMark('0-100', sec);
     tmaHaptic('success');
     void publishGps(sec, t100 && t200 ? (t200 - t100) / 1000 : null, t200 && t300 ? (t300 - t200) / 1000 : null);
@@ -3130,6 +3143,7 @@ function onGpsPoint(pos) {
     const sec = (run.marks['d14'] - run.t0) / 1000;
     revealRunMark('14', '¼ мили', fmtRunSec(sec));
     run.saved14 = true;
+    ghostRunMark('402m', run.marks['d14'] - run.t0);
     publishDragMark('402m', sec);
   }
   if (t200 && t300 && !run.saved200300) {
@@ -3361,6 +3375,7 @@ function armRun() {
   setRunText('runFrom', 'вооружён');
   setRunText('runStatus', 'Вооружён. Почти остановитесь и газуйте');
   openRunDrive();
+  ghostRunArm();
 }
 
 function stopRun() {
@@ -3959,6 +3974,8 @@ function openLapDrivePreview() {
   }
   openLapDrive();
   startWatch();
+  ghostSimRoute(trackId, true);
+  void ghostLoad('lap');
   const orb = document.getElementById('btnLapArmedStart');
   orb?.classList.remove('on');
   document.getElementById('lapDrive')?.classList.remove('armed');
@@ -4017,6 +4034,7 @@ function openLapDrive() {
   lapDrive.timerId = setInterval(() => {
     if (!lapRun.active || lapRun.phase !== 'running' || !lapRun.t0) return;
     document.getElementById('lapDriveClock').textContent = fmtLapClock(Date.now() - lapRun.t0);
+    ghostLapTick();
   }, 100);
   void fetchLapWeather(trackId, true);
 }
@@ -4024,6 +4042,8 @@ function openLapDrive() {
 function closeLapDrive() {
   const el = document.getElementById('lapDrive');
   if (!el) return;
+  ghostLapStop();
+  ghostSimRouteOff();
   try { unmountLapSatMap(); } catch (_) {}
   el.classList.add('hidden');
   el.setAttribute('aria-hidden', 'true');
@@ -4160,6 +4180,8 @@ function armLapRun() {
   lapSession.bestMs = null;
   lapSession.bestValid = false;
   if (!lapDrive.open) openLapDrive();
+  ghostSimRoute(trackId, false);
+  if (ghostRace.lap.ref !== trackId) void ghostLoad('lap');
   updateSessionHud();
   document.getElementById('lapDrive')?.classList.add('armed');
   document.getElementById('btnLapArmedStart')?.classList.add('on');
@@ -4186,6 +4208,7 @@ function endLapSession(reason) {
   }
   lapRun.active = false;
   resetLapRunSoft();
+  ghostLapStop();
   lapSession.on = false;
   if (!run.armed) void keepAwake(false);
   const msg = n
@@ -4266,7 +4289,7 @@ function lapValidEnough(ms) {
   return { ok: true, why: '' };
 }
 
-async function completeLapRun(how, atTs) {
+async function completeLapRun(how, atTs, gsnap) {
   // how: 'gate' | 'manual' — gate continues session (flying), manual ends current as invalid and keeps session
   if (!lapRun.active || lapRun.phase !== 'running' || !lapRun.t0) return;
   const finishAt = atTs || Date.now();
@@ -4362,6 +4385,13 @@ async function completeLapRun(how, atTs) {
       ms: rec.ms,
       at: rec.at,
     }));
+  }
+  if (gsnap && how === 'gate') {
+    const gqG = valid ? { gpsQ: rec.gpsQ, avgAcc: rec.avgAcc, hz: rec.hz } : gpsQualityFromLapRun(ms);
+    void ghostAfterFinish({
+      kind: 'lap', ref: trackId, snap: gsnap, tMs: ms, gq: gqG, flags: rec.flags,
+      topOk: !!(valid && rec.valid), why: rec.why || (valid && !rec.valid ? 'GPS слабее B — без топа' : ''),
+    });
   }
 
   updateSessionHud();
@@ -4530,12 +4560,14 @@ function onLapGps(pos, vKmh) {
   }
 
   const moved = (vKmh || 0) >= 12;
+  if (lapRun.phase === 'running' && lapRun.t0) ghostLapPoint(pt, now);
 
   if (lapRun.phase === 'armed') {
     if (moved && inGate && (!lapRun.last || !lapRun.last.inGate)) {
       lapRun.phase = 'running';
       lapRun.t0 = now;
       resetLapCounters();
+      ghostLapStart(pt, now);
       lapRun.leftGate = false;
       setLapMsg(`старт круга ${lapSession.laps.length + 1}!`);
       hap([30, 20, 30]);
@@ -4550,7 +4582,9 @@ function onLapGps(pos, vKmh) {
     const minT = 25000;
     if (lapRun.leftGate && inGate && moved && (!lapRun.last || !lapRun.last.inGate)
         && lapRun.dist >= need * 0.85 && (now - lapRun.t0) >= minT) {
-      void completeLapRun('gate', now);
+      const gsnap = ghostLapFinish(pt, now);
+      void completeLapRun('gate', now, gsnap);
+      ghostLapStart(pt, now);
       lapRun.last = { ...pt, inGate: true };
       return;
     }
@@ -4798,6 +4832,8 @@ function sharePublicUrl(payload, shareId) {
 function openShareCard(payload) {
   _sharePayload = payload;
   try { rememberDuelCandidateFromShare(payload); } catch (_) {}
+  // v89: a ghost race shows its own result sheet first; the card opens from «Поделиться» there
+  if (ghostRace.holdShare && payload && !payload.ghost) { ghostRace.pendingShare = payload; return; }
   const card = document.getElementById('shareCard');
   if (!card) return;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -4807,8 +4843,9 @@ function openShareCard(payload) {
   set('shareDate', payload.date || '');
 
   const isLap = payload.type === 'lap' || payload.type === 'круг';
-  const typeLabel = isLap ? 'круг' : '0–100';
+  const typeLabel = isLap ? 'круг' : (payload.type === '402m' ? '¼ мили' : '0–100');
   set('shareType', typeLabel);
+  renderShareGhost(payload);
 
   const trackRow = document.getElementById('shareTrackRow');
   const trackLab = document.getElementById('shareTrackLabel');
@@ -4903,13 +4940,14 @@ function openShareCard(payload) {
 function closeShareCard() {
   const card = document.getElementById('shareCard');
   if (!card) return;
+  card.classList.remove('over-hud');
   card.classList.add('hidden');
   card.setAttribute('aria-hidden', 'true');
 }
 
 function shareTextRu(p) {
   const isLap = p.type === 'lap' || p.type === 'круг';
-  const typeLabel = isLap ? ('круг' + (p.track ? ' · ' + p.track : '')) : '0–100';
+  const typeLabel = isLap ? ('круг' + (p.track ? ' · ' + p.track : '')) : (p.type === '402m' ? '¼ мили' : '0–100');
   const grade = gpsGradeLabel(p.gpsQ);
   const wx = weatherLabelRu(p.weather);
   const lines = [
@@ -4918,6 +4956,7 @@ function shareTextRu(p) {
   ];
   if (grade && grade !== 'GPS') lines.push(`GPS: ${grade}`);
   if (wx) lines.push(`Погода: ${wx}`);
+  if (p.ghost) lines.push(`Призрак: ${p.ghost}${p.ghostVs ? ' · vs ' + p.ghostVs : ''}`);
   if (p.valid === false || p.gpsQ === 'C') lines.push('не в публичный топ');
   else lines.push('VALID');
   return lines.join('\n');
@@ -5770,6 +5809,7 @@ if (isTMA) {
     ['shareCard', 'shareCardClose'], ['duelSheet', 'duelSheetClose'], ['crewSheet', 'crewSheetClose'],
     ['autodromeSheet', 'autodromeSheetClose'], ['carPickerSheet', 'carPickerClose'],
     ['feedbackSheet', 'feedbackClose'], ['padCommentsSheet', 'padCommentsClose'], ['pilotSheet', 'pilotClose'],
+    ['bannerSheet', 'bannerClose'], ['ghostResult', 'ghostResultClose'],
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
   const closeSheet = (id, btnId) => {
@@ -8258,7 +8298,10 @@ function renderPilotProfile(pr) {
   const body = document.getElementById('pilotBody');
   if (!body) return;
   body.replaceChildren();
-  const head = padEl('div', 'pilot-head');
+  const ban = padEl('div', 'pilot-banner');
+  paintBannerImg(ban, pr.banner, pr.pilotId, 1200);
+  body.appendChild(ban);
+  const head = padEl('div', 'pilot-head' + (ban.classList.contains('has-banner') ? ' on-banner' : ''));
   head.appendChild(padAvatar(pr.nick, pr.avatar, 84));
   const who = padEl('div', 'pilot-who');
   who.appendChild(padEl('h2', 'pilot-nick', pr.nick || 'Пилот'));
@@ -8603,6 +8646,7 @@ function setDuelType(type) {
   });
   const wrap = document.getElementById('duelTrackWrap');
   if (wrap) wrap.hidden = _duelType !== 'lap';
+  void refreshDuelGhostOpt();
 }
 
 function openDuelSheet(opts = {}) {
@@ -8615,6 +8659,7 @@ function openDuelSheet(opts = {}) {
   if (opts.trackId) {
     const sel = document.getElementById('duelTrackSelect');
     if (sel) sel.value = opts.trackId;
+    void refreshDuelGhostOpt();
   }
   sheet.classList.remove('hidden');
   sheet.setAttribute('aria-hidden', 'false');
@@ -8679,7 +8724,7 @@ async function showDuelView(id) {
   document.getElementById('duelCreatePane').hidden = true;
   document.getElementById('duelViewPane').hidden = false;
   const trackName = d.trackId ? (TRACKS.find((x) => x.id === d.trackId)?.name || d.trackId) : '';
-  const typeLab = d.type === 'lap' ? ('круг' + (trackName ? ' · ' + trackName : '')) : '0–100';
+  const typeLab = d.type === 'lap' ? ('круг' + (trackName ? ' · ' + trackName : '')) : (d.disc === '402m' ? '¼ мили' : '0–100');
   const st = document.getElementById('duelStatusLine');
   if (st) st.textContent = statusLabelRu(d.status) + ' · ' + typeLab;
   const vs = document.getElementById('duelVsLine');
@@ -8699,7 +8744,7 @@ async function showDuelView(id) {
       else res.textContent = 'Результат';
     } else if (d.status === 'expired') {
       res.hidden = false;
-      res.textContent = 'Срок истёк (7 дней)';
+      res.textContent = 'Срок истёк (' + (d.days || 7) + ' дн.)';
     } else {
       res.hidden = true;
       res.textContent = '';
@@ -8715,6 +8760,7 @@ async function showDuelView(id) {
   const iAmCreator = d.createdBy?.id && (d.createdBy.id === myId || isMyPilotId(d.createdBy.id));
   const iAmChallenger = d.challenger?.id && (d.challenger.id === myId || isMyPilotId(d.challenger.id));
   const myRun = iAmCreator ? d.creatorRun : (iAmChallenger ? d.challengerRun : null);
+  renderDuelGhostBox(d, { iAmCreator, myRun });
   const submitBtn = document.getElementById('duelSubmitRun');
   if (submitBtn) {
     const locked = d.status === 'ready' || d.status === 'expired' || !!myRun;
@@ -8724,7 +8770,7 @@ async function showDuelView(id) {
   const hint = document.getElementById('duelHint');
   if (hint) {
     if (!isRemoteApi()) hint.textContent = 'Нужен Worker API (meta pitlane-api).';
-    else if (d.status === 'open') hint.textContent = 'Нужен честный GPS A или B. C не принимается. Ссылка действует 7 дней.';
+    else if (d.status === 'open') hint.textContent = 'Нужен честный GPS A или B. C не принимается. Ссылка действует ' + (d.days || 7) + ' дн.';
     else hint.textContent = 'Дуэль зафиксирована. C не может победить — такие заезды отклоняются.';
   }
 }
@@ -8757,16 +8803,28 @@ async function createDuelFromUi() {
   }
   const note = (document.getElementById('duelNote')?.value || '').trim();
   const trackId = _duelType === 'lap' ? (document.getElementById('duelTrackSelect')?.value || TRACKS[0]?.id) : undefined;
+  let ghostId;
+  if (document.getElementById('duelGhostOn')?.checked && _duelGhostCand) {
+    const g = await ensureDuelGhostId();
+    if (!g.id) {
+      const hint = document.getElementById('duelHint');
+      if (hint) hint.textContent = 'Призрак не прикрепился: ' + String(g.error || 'ошибка').slice(0, 80) + '. Сними галочку или попробуй позже.';
+      return;
+    }
+    ghostId = g.id;
+  }
   const duel = await api.createDuel({
     type: _duelType,
     trackId,
     createdBy: nick,
     name: nick,
     note: note || undefined,
+    days: _duelDays,
+    ghostId,
   });
   if (!duel?.id) {
     const hint = document.getElementById('duelHint');
-    if (hint) hint.textContent = 'Не удалось создать дуэль. Проверь сеть / Worker.';
+    if (hint) hint.textContent = 'Не удалось создать дуэль' + (duel?.error ? ': ' + String(duel.error).slice(0, 80) : '. Проверь сеть / Worker.');
     return;
   }
   try {
@@ -8912,6 +8970,862 @@ document.getElementById('shareCardDuel')?.addEventListener('click', () => {
 });
 
 void bootDuelFromUrl();
+
+/* ———————— v89: ghosts — pick, live delta, result sheet, async duels with a ghost ————————
+   All user-facing text via textContent. Hot path (GPS point / 100 ms timer): one bsearch + cached DOM writes. */
+var ghostRace = {
+  lap: { choice: 'best', ref: null, track: null, tMs: null, who: '', opts: {}, duel: null, token: 0, status: 'idle' },
+  run: { choice: 'best', disc: '0-100', ref: null, track: null, tMs: null, who: '', opts: {}, duel: null, token: 0, status: 'idle' },
+  lapRec: null, lapProg: null, lapLive: null, lineRef: null, lineFor: null,
+  runRec: null, runLive: null, runDone: {},
+  holdShare: false, pendingShare: null, result: null, shareSeries: null,
+};
+const GHOST_CHOICE_LS = 'pitlane-ghost-choice-v1';
+const GHOST_CHOICES = [['best', 'Мой лучший'], ['leader', 'Лидер'], ['duel', 'Соперник'], ['none', 'Без призрака']];
+const GHOST_DISCS = [['0-100', '0–100'], ['402m', '¼ мили']];
+try {
+  const c = JSON.parse(localStorage.getItem(GHOST_CHOICE_LS) || '{}');
+  if (['best', 'leader', 'none'].includes(c.lap)) ghostRace.lap.choice = c.lap;
+  if (['best', 'leader', 'none'].includes(c.run)) ghostRace.run.choice = c.run;
+  if (c.disc === '402m' || c.disc === '0-100') ghostRace.run.disc = c.disc;
+} catch (_) {}
+function ghostSaveChoice() {
+  const keep = (x) => (x === 'duel' ? 'best' : x);
+  try { localStorage.setItem(GHOST_CHOICE_LS, JSON.stringify({ lap: keep(ghostRace.lap.choice), run: keep(ghostRace.run.choice), disc: ghostRace.run.disc })); } catch (_) {}
+}
+/** Simulator against the production API never feeds public tops / ghosts / duels. */
+function simOnProd() {
+  try { return extGps?.state() === 'sim' && /workers\.dev/i.test(apiBase() || ''); } catch (_) { return false; }
+}
+function ghostCanUpload() {
+  const tok = getSessionToken();
+  return !!(currentUser() && tok && !String(tok).startsWith('local-') && isRemoteApi() && !simOnProd());
+}
+function lapGhostMode(trackId) { return trackOutlineQuality(trackId) === 'full' ? 'line' : 'traj'; }
+function ghostLineRef(trackId) {
+  if (ghostRace.lineFor === trackId) return ghostRace.lineRef;
+  ghostRace.lineFor = trackId;
+  const o = TRACK_OUTLINES[trackId];
+  ghostRace.lineRef = o && o.quality === 'full' ? makeLineRef(o.coords, o.sf) : null;
+  return ghostRace.lineRef;
+}
+function fmtGhostT(kind, ms) {
+  if (!Number.isFinite(ms)) return '—';
+  return kind === 'lap' ? fmtLapTime(ms) : (ms / 1000).toFixed(2) + ' с';
+}
+function ghostScopeKind(scope) { return scope === 'lap' ? 'lap' : 'drag'; }
+function ghostScopeRef(scope) {
+  return scope === 'lap' ? (lapRun.trackId || document.getElementById('trackSelect')?.value || TRACKS[0].id) : ghostRace.run.disc;
+}
+function ghostDuelFits(g, kind, ref) { return !!(g.duel && g.duel.kind === kind && g.duel.ref === ref); }
+
+async function ghostLoad(scope) {
+  const g = ghostRace[scope];
+  const kind = ghostScopeKind(scope);
+  const ref = ghostScopeRef(scope);
+  const tok = ++g.token;
+  g.ref = ref;
+  g.status = 'loading';
+  if (g.choice === 'duel' && !ghostDuelFits(g, kind, ref)) g.choice = 'best';
+  renderGhostPick(scope);
+  const [mine, top] = await Promise.all([
+    bestGhostLocal(kind, ref).catch(() => null),
+    isRemoteApi() ? api.ghostTop(kind, ref).catch(() => null) : Promise.resolve(null),
+  ]);
+  if (tok !== g.token) return;
+  const mode = kind === 'lap' ? lapGhostMode(ref) : 'traj';
+  const lead = top && top.leader && top.leader.ghost ? top.leader : null;
+  g.opts = {
+    best: mine ? { rec: { data: mine.data, tMs: mine.tMs, mode: mine.mode || mode, L: mine.L, kind }, tMs: mine.tMs, who: 'твой лучший' } : null,
+    leader: lead ? {
+      rec: { ghost: lead.ghost, tMs: lead.tMs, mode, kind }, tMs: lead.tMs,
+      who: isMyPilotId(lead.pilotId) ? 'лидер — ты' : 'лидер · ' + clipText(lead.name || 'пилот', 16),
+    } : null,
+    duel: ghostDuelFits(g, kind, ref) ? { rec: g.duel.rec, tMs: g.duel.tMs, who: 'соперник · ' + clipText(g.duel.who || 'пилот', 16) } : null,
+  };
+  if (g.choice !== 'none' && !g.opts[g.choice]) {
+    // remembered choice not available here → fall back quietly, don't overwrite the stored preference
+    g.track = null; g.tMs = null; g.who = '';
+    g.status = 'ready';
+    renderGhostPick(scope);
+    return;
+  }
+  ghostApplyChoice(scope);
+}
+function ghostApplyChoice(scope) {
+  const g = ghostRace[scope];
+  const o = g.choice !== 'none' ? g.opts[g.choice] : null;
+  g.track = o ? ghostTrack(o.rec) : null;
+  g.tMs = o && g.track ? o.tMs : null;
+  g.who = o && g.track ? o.who : '';
+  g.status = 'ready';
+  renderGhostPick(scope);
+  ghostDeltaHead(scope);
+}
+function renderGhostPick(scope) {
+  const box = document.getElementById(scope === 'lap' ? 'lapGhostPick' : 'runGhostPick');
+  if (!box) return;
+  const g = ghostRace[scope];
+  const kind = ghostScopeKind(scope);
+  box.replaceChildren();
+  const head = padEl('div', 'gp-head');
+  head.appendChild(padEl('span', 'gp-title', 'Призрак'));
+  if (scope === 'run') {
+    const seg = padEl('div', 'gp-disc');
+    GHOST_DISCS.forEach(([id, lab]) => {
+      const b = padEl('button', 'gp-disc-btn' + (g.disc === id ? ' on' : ''), lab);
+      b.type = 'button';
+      b.dataset.ghostDisc = id;
+      b.setAttribute('aria-pressed', g.disc === id ? 'true' : 'false');
+      seg.appendChild(b);
+    });
+    head.appendChild(seg);
+  }
+  box.appendChild(head);
+  const row = padEl('div', 'gp-chips');
+  GHOST_CHOICES.forEach(([id, lab]) => {
+    if (id === 'duel' && !ghostDuelFits(g, kind, g.ref)) return;
+    const o = g.opts[id];
+    const loading = g.status === 'loading' && id !== 'none';
+    const b = padEl('button', 'gp-chip' + (g.choice === id ? ' on' : '') + (id === 'duel' ? ' duel' : ''));
+    b.type = 'button';
+    b.dataset.ghostChoice = id;
+    b.setAttribute('aria-pressed', g.choice === id ? 'true' : 'false');
+    b.appendChild(padEl('b', '', lab));
+    const sub = id === 'none' ? 'чистый заезд'
+      : loading ? 'загрузка…'
+      : o ? fmtGhostT(kind, o.tMs) + (id === 'leader' && /ты$/.test(o.who) ? ' · ты' : '')
+      : (id === 'leader' ? 'пока нет' : 'нет записи');
+    b.appendChild(padEl('small', '', sub));
+    if (id !== 'none' && !o && !loading) b.disabled = true;
+    row.appendChild(b);
+  });
+  box.appendChild(row);
+}
+function ghostPickClick(scope, e) {
+  const g = ghostRace[scope];
+  const d = e.target?.closest?.('[data-ghost-disc]');
+  if (d && scope === 'run') {
+    if (run.armed) return;
+    g.disc = d.dataset.ghostDisc === '402m' ? '402m' : '0-100';
+    ghostSaveChoice();
+    hap(8);
+    void ghostLoad('run');
+    return;
+  }
+  const c = e.target?.closest?.('[data-ghost-choice]');
+  if (!c || c.disabled) return;
+  if (scope === 'lap' && lapRun.phase === 'running') return;
+  if (scope === 'run' && run.launched) return;
+  g.choice = c.dataset.ghostChoice;
+  ghostSaveChoice();
+  hap(8);
+  ghostApplyChoice(scope);
+}
+document.getElementById('lapGhostPick')?.addEventListener('click', (e) => ghostPickClick('lap', e));
+document.getElementById('runGhostPick')?.addEventListener('click', (e) => ghostPickClick('run', e));
+
+/* —— live delta HUD —— */
+const _gdCache = { lap: {}, run: {} };
+function ghostDeltaHead(scope) {
+  const g = ghostRace[scope];
+  const box = document.getElementById(scope + 'GhostDelta');
+  if (!box) return;
+  const on = !!g.track;
+  box.classList.toggle('hidden', !on);
+  const who = document.getElementById(scope + 'GhostWho');
+  if (who) who.textContent = on ? g.who + ' · ' + fmtGhostT(ghostScopeKind(scope), g.tMs) : '';
+  if (on) ghostDeltaUi(scope, null);
+}
+function ghostDeltaUi(scope, sec) {
+  const c = _gdCache[scope];
+  const txt = fmtDelta(sec);
+  if (c.txt !== txt) {
+    c.txt = txt;
+    const n = document.getElementById(scope + 'GhostNum');
+    if (n) n.textContent = txt;
+  }
+  const st = sec == null || !Number.isFinite(sec) ? '' : sec > 0.005 ? 'slow' : sec < -0.005 ? 'fast' : 'even';
+  if (c.st !== st) {
+    c.st = st;
+    const box = document.getElementById(scope + 'GhostDelta');
+    if (box) box.dataset.state = st;
+  }
+  const k = sec == null || !Number.isFinite(sec) ? 0 : Math.min(1, Math.abs(sec) / 2);
+  const kq = Math.round(k * 50) / 50;
+  if (c.k !== kq) {
+    c.k = kq;
+    const bar = document.getElementById(scope + 'GhostBar');
+    if (bar) bar.style.transform = 'scaleX(' + kq + ')';
+  }
+}
+
+/* —— lap recording —— */
+function ghostLapStart(pt, now) {
+  const trackId = lapRun.trackId;
+  const ref = ghostLineRef(trackId);
+  ghostRace.lapRec = createRecorder(95);
+  ghostRace.lapProg = ref ? createLineProgress(ref) : null;
+  const d0 = ghostRace.lapProg ? ghostRace.lapProg.update(pt.lat, pt.lon) : 0;
+  ghostRace.lapLive = { t0: now, d: d0, v: pt.v || 0, wall: Date.now(), last: { lat: pt.lat, lon: pt.lon }, trackId, mode: ref ? 'line' : 'traj', L: ref ? ref.L : trackLenM(trackId) };
+  ghostRace.lapRec.push({ t: 0, d: d0, v: pt.v || 0, lat: pt.lat, lon: pt.lon });
+  document.getElementById('lapDrive')?.classList.add('ghost-racing');
+  if (ghostRace.lap.track) ghostDeltaHead('lap');
+}
+function ghostLapPoint(pt, now) {
+  const live = ghostRace.lapLive;
+  if (!live || !ghostRace.lapRec) return;
+  let d;
+  if (ghostRace.lapProg) d = ghostRace.lapProg.update(pt.lat, pt.lon);
+  else {
+    const step = haversineM(live.last, pt);
+    d = live.d + (step < 120 ? step : 0);
+  }
+  live.d = d; live.v = pt.v || 0; live.wall = Date.now(); live.last = { lat: pt.lat, lon: pt.lon };
+  const t = now - live.t0;
+  ghostRace.lapRec.push({ t, d, v: live.v, lat: pt.lat, lon: pt.lon });
+  const tr = ghostRace.lap.track;
+  if (tr) ghostDeltaUi('lap', deltaAt(tr, 'd', d, t));
+}
+/** 100 ms clock tick: extrapolate own progress between GPS fixes + move the ghost dot. */
+function ghostLapTick() {
+  const tr = ghostRace.lap.track;
+  const live = ghostRace.lapLive;
+  if (!tr || !live || lapRun.phase !== 'running') return;
+  const wall = Date.now();
+  const elapsed = wall - live.t0;
+  const dtx = Math.min(1.5, Math.max(0, (wall - live.wall) / 1000));
+  const x = live.d + (live.v / 3.6) * dtx;
+  ghostDeltaUi('lap', deltaAt(tr, 'd', x, elapsed));
+  if (lapDrive.open && isLapSatMapActive() && elapsed <= tr.tMs + 4000) {
+    const p = tr.posAt(Math.min(elapsed, tr.t[tr.n - 1]));
+    updateLapSatMapGhost(p);
+  }
+}
+function ghostLapFinish(pt, now) {
+  const live = ghostRace.lapLive;
+  const recd = ghostRace.lapRec;
+  if (!live || !recd) return null;
+  const t = now - live.t0;
+  recd.finish({ t, d: live.d, v: pt.v || live.v, lat: pt.lat, lon: pt.lon });
+  const g = ghostRace.lap;
+  const snap = {
+    points: recd.points(), tMs: t, mode: live.mode, L: live.L, trackId: live.trackId,
+    ghost: g.track ? { track: g.track, tMs: g.tMs, who: g.who, choice: g.choice, duel: g.choice === 'duel' ? g.duel : null } : null,
+  };
+  if (snap.ghost) ghostRace.holdShare = true;
+  ghostRace.lapRec = null;
+  ghostRace.lapLive = null;
+  return snap;
+}
+function ghostLapStop() {
+  ghostRace.lapRec = null;
+  ghostRace.lapLive = null;
+  try { updateLapSatMapGhost(null); } catch (_) {}
+  document.getElementById('lapDrive')?.classList.remove('ghost-racing');
+  ghostDeltaUi('lap', null);
+}
+
+/* —— straight run (0–100 / ¼ mile) recording —— */
+function ghostRunArm() {
+  ghostRace.runRec = null;
+  ghostRace.runLive = null;
+  ghostRace.runDone = {};
+  ghostDeltaHead('run');
+}
+function ghostRunStill(now, lat, lon) {
+  if (lat == null || lon == null) return;
+  ghostRace.runLive = { still: { t: now, lat, lon } };
+}
+function ghostRunLaunch(now, v, lat, lon) {
+  const st = ghostRace.runLive?.still || { lat, lon };
+  ghostRace.runRec = createRecorder(95);
+  ghostRace.runRec.push({ t: 0, d: 0, v: 0, lat: st.lat ?? lat, lon: st.lon ?? lon });
+  ghostRace.runLive = { launched: true };
+  if (lat != null && lon != null && run.t0) ghostRace.runRec.push({ t: Math.max(1, now - run.t0), d: 0, v, lat, lon });
+}
+function ghostRunPoint(now, v) {
+  const recd = ghostRace.runRec;
+  if (!recd || !run.t0 || !run.lastPos) return;
+  const t = now - run.t0;
+  recd.push({ t, d: run.dist || 0, v, lat: run.lastPos.lat, lon: run.lastPos.lon });
+  const g = ghostRace.run;
+  if (g.track && !ghostRace.runDone[g.disc]) {
+    const axis = g.disc === '0-100' ? 'v' : 'd';
+    ghostDeltaUi('run', deltaAt(g.track, axis, axis === 'v' ? v : (run.dist || 0), t));
+  }
+}
+/** A discipline mark was crossed at tMs after launch → cut the trace there and finish that ghost. */
+function ghostRunMark(disc, tMs) {
+  const recd = ghostRace.runRec;
+  if (!recd || ghostRace.runDone[disc] || !(tMs > 0)) return;
+  ghostRace.runDone[disc] = true;
+  const all = recd.points();
+  const pts = all.filter((p) => p.t < tMs - 1);
+  if (pts.length < 2) return;
+  const last = all[all.length - 1];
+  const prevP = pts[pts.length - 1];
+  const dEnd = disc === '402m' ? 402.336 : Math.max(prevP.d, last.d * Math.min(1, tMs / Math.max(1, last.t)));
+  pts.push({ t: tMs, d: Math.max(prevP.d, dEnd), v: disc === '0-100' ? Math.max(100, prevP.v) : Math.max(prevP.v, last.v), lat: last.lat, lon: last.lon });
+  const g = ghostRace.run;
+  const raced = g.disc === disc && g.track;
+  const snap = {
+    points: pts, tMs, mode: 'traj', L: disc === '402m' ? 402.336 : null, disc,
+    ghost: raced ? { track: g.track, tMs: g.tMs, who: g.who, choice: g.choice, duel: g.choice === 'duel' ? g.duel : null } : null,
+  };
+  if (raced) {
+    ghostRace.holdShare = true;
+    ghostDeltaUi('run', (tMs - g.tMs) / 1000);
+  }
+  const gq = gpsQualityFromStraightRun();
+  const flags = (run.flags || []).slice(0, 8);
+  const topOk = runRowValid(gq, flags) && canPublishTop(gq, flags);
+  void ghostAfterFinish({ kind: 'drag', ref: disc, snap, tMs, gq, flags, topOk, why: topOk ? '' : 'GPS слабее B — без топа' });
+}
+
+/* —— after a finish: store, upload best, auto-submit duel, show the result —— */
+async function ghostAfterFinish(o) {
+  let shown = false;
+  try { shown = await ghostAfterFinishInner(o); } catch (e) { console.warn('[ghost] finish', e); }
+  if (!shown && o.snap?.ghost) {
+    ghostRace.holdShare = false;
+    const p = ghostRace.pendingShare;
+    ghostRace.pendingShare = null;
+    if (p) openShareCard(p);
+  }
+}
+async function ghostAfterFinishInner(o) {
+  const { kind, ref, snap, tMs, gq, flags, topOk } = o;
+  let data = null;
+  try { data = encodeGhost(snap.points, { hz: 10 }); } catch (_) {}
+  const car = currentCar();
+  if (data) {
+    const prevBest = await bestGhostLocal(kind, ref, { abOnly: true }).catch(() => null);
+    const localId = await saveGhostLocal({
+      kind, ref, tMs, valid: !!topOk, gpsQ: gq?.gpsQ || null, car: car?.name || '', carId: state.carId || null,
+      mode: snap.mode, L: snap.L, data, at: Date.now(),
+    }).catch(() => null);
+    const isPb = topOk && (!prevBest || tMs < prevBest.tMs);
+    if (topOk && ghostCanUpload() && (isPb || !prevBest?.serverId)) {
+      const res = await api.postGhost({
+        kind, ref, tMs, gpsQ: gq.gpsQ, avgAcc: gq.avgAcc, hz: gq.hz, flags, valid: true,
+        car: car?.name || '', carId: state.carId || undefined, ghost: data,
+      }).catch(() => null);
+      if (res && res.ok && res.id && localId != null) void markGhostUploaded(localId, res.id);
+    }
+    const scope = kind === 'lap' ? 'lap' : 'run';
+    if (isPb && ghostScopeRef(scope) === ref) {
+      ghostRace[scope].opts.best = { rec: { data, tMs, mode: snap.mode, L: snap.L, kind }, tMs, who: 'твой лучший' };
+      if (ghostRace[scope].choice === 'best' && !(scope === 'lap' && snap.ghost)) ghostApplyChoice(scope);
+      else renderGhostPick(scope);
+    }
+  }
+  if (!snap.ghost) return false;
+  const gh = snap.ghost;
+  const axis = kind === 'drag' && ref === '0-100' ? 'v' : 'd';
+  const series = deltaSeries(snap.points, gh.track, axis);
+  const finalDelta = (tMs - gh.tMs) / 1000;
+  const total = axis === 'v' ? 100 : (snap.points[snap.points.length - 1]?.d || 0);
+  const sectors = kind === 'lap' ? sectorGains(series, total, finalDelta) : [];
+  let duelLine = '';
+  if (gh.duel && !gh.duel.submitted) {
+    if (!topOk) duelLine = 'В дуэль не засчитано: нужен валидный заезд GPS A/B.';
+    else if (simOnProd()) duelLine = 'Симулятор — в дуэль не засчитывается.';
+    else {
+      gh.duel.submitted = true;
+      const body = {
+        type: kind === 'lap' ? 'lap' : 'drag',
+        trackId: kind === 'lap' ? ref : undefined,
+        t: kind === 'lap' ? fmtLapTime(tMs) : Math.round(tMs) / 1000,
+        car: car?.name || '', carId: state.carId || undefined, gps: true, valid: true,
+        gpsQ: gq.gpsQ, avgAcc: gq.avgAcc, hz: gq.hz, flags, name: duelPilotNick(),
+        weather: kind === 'lap' ? (lapDrive.weather || undefined) : undefined,
+      };
+      const res = await api.submitDuelRun(gh.duel.id, body).catch(() => null);
+      if (!res || res.error || res.ok === false) {
+        gh.duel.submitted = false;
+        duelLine = 'Дуэль: не принято — ' + String(res?.error || 'нет связи').slice(0, 80);
+      } else {
+        const d = res.duel || res;
+        const meCh = d.challenger?.id && isMyPilotId(d.challenger.id);
+        if (d.status === 'ready' && d.winner) {
+          const won = (d.winner === 'challenger' && meCh) || (d.winner === 'creator' && !meCh);
+          duelLine = d.winner === 'tie' ? 'Дуэль: ничья — засчитано обоим.' : (won ? 'Дуэль: победа — засчитано, сопернику видно.' : 'Дуэль: поражение — засчитано, сопернику видно.');
+        } else duelLine = 'Дуэль: заезд засчитан, итог увидят оба.';
+        try { if (_activeDuel?.id === gh.duel.id) _activeDuel = d; } catch (_) {}
+      }
+    }
+  }
+  showGhostResult({ kind, ref, tMs, gh, series, sectors, finalDelta, axis, total, duelLine, gq, topOk, why: o.why });
+  return true;
+}
+
+function ghostVerdict(sec) {
+  if (!Number.isFinite(sec)) return '—';
+  if (Math.abs(sec) < 0.005) return 'Ровно в призрак';
+  return sec < 0 ? 'Побил на ' + Math.abs(sec).toFixed(2) + ' с' : 'Уступил ' + sec.toFixed(2) + ' с';
+}
+function ghostChartSvg(series, total, axis, { w = 320, h = 128, mini = false } = {}) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.setAttribute('class', 'gr-svg');
+  svg.setAttribute('preserveAspectRatio', 'none');
+  const el = (tag, attrs) => { const n = document.createElementNS(ns, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+  if (!series.length || !(total > 0)) return svg;
+  const padT = mini ? 4 : 10; const padB = mini ? 4 : 16;
+  const maxAbs = Math.max(0.2, ...series.map((s) => Math.abs(s.dt)));
+  const y0 = padT + (h - padT - padB) / 2;
+  const ky = (h - padT - padB) / 2 / maxAbs;
+  const X = (x) => Math.max(0, Math.min(w, (x / total) * w));
+  const Y = (dt) => y0 - dt * ky; // slower (plus) draws up
+  const uid = 'g' + Math.random().toString(36).slice(2, 8);
+  const defs = el('defs', {});
+  const cA = el('clipPath', { id: uid + 'a' }); cA.appendChild(el('rect', { x: 0, y: 0, width: w, height: y0 }));
+  const cB = el('clipPath', { id: uid + 'b' }); cB.appendChild(el('rect', { x: 0, y: y0, width: w, height: h - y0 }));
+  defs.append(cA, cB);
+  svg.appendChild(defs);
+  if (!mini) {
+    [1, 2].forEach((i) => {
+      const x = (w * i) / 3;
+      svg.appendChild(el('line', { x1: x, x2: x, y1: padT, y2: h - padB, class: 'gr-sec-line' }));
+    });
+  }
+  svg.appendChild(el('line', { x1: 0, x2: w, y1: y0, y2: y0, class: 'gr-zero' }));
+  let line = '';
+  series.forEach((s, i) => { line += (i ? 'L' : 'M') + X(s.x).toFixed(1) + ' ' + Y(s.dt).toFixed(1) + ' '; });
+  const area = line + `L${X(series[series.length - 1].x).toFixed(1)} ${y0} L${X(series[0].x).toFixed(1)} ${y0} Z`;
+  svg.appendChild(el('path', { d: area, class: 'gr-area slow', 'clip-path': `url(#${uid}a)` }));
+  svg.appendChild(el('path', { d: area, class: 'gr-area fast', 'clip-path': `url(#${uid}b)` }));
+  svg.appendChild(el('path', { d: line, class: 'gr-line' }));
+  if (!mini) {
+    const t1 = el('text', { x: 4, y: padT + 8, class: 'gr-ax' }); t1.textContent = '+' + maxAbs.toFixed(1) + ' с · медленнее';
+    const t2 = el('text', { x: 4, y: h - padB - 3, class: 'gr-ax' }); t2.textContent = '−' + maxAbs.toFixed(1) + ' с · быстрее';
+    const t3 = el('text', { x: w - 4, y: h - 3, class: 'gr-ax end' }); t3.textContent = axis === 'v' ? Math.round(total) + ' км/ч' : Math.round(total) + ' м';
+    svg.append(t1, t2, t3);
+  }
+  return svg;
+}
+function showGhostResult(r) {
+  ghostRace.result = r;
+  const box = document.getElementById('ghostResult');
+  if (!box) return;
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  const where = r.kind === 'lap' ? (TRACKS.find((t) => t.id === r.ref)?.name || r.ref) : (r.ref === '402m' ? '¼ мили' : '0–100 км/ч');
+  set('grKicker', 'ПРИЗРАК · ' + where.toUpperCase());
+  set('grVerdict', ghostVerdict(r.finalDelta));
+  box.dataset.state = r.finalDelta < -0.005 ? 'fast' : r.finalDelta > 0.005 ? 'slow' : 'even';
+  set('grSub', 'против: ' + r.gh.who + (r.topOk ? '' : ' · ' + (r.why || 'без топа')));
+  set('grMine', fmtGhostT(r.kind, r.tMs));
+  set('grGhost', fmtGhostT(r.kind, r.gh.tMs));
+  set('grGhostLab', r.gh.choice === 'best' ? 'твой лучший' : r.gh.choice === 'leader' ? 'лидер' : r.gh.choice === 'duel' ? 'соперник' : 'призрак');
+  const chart = document.getElementById('grChart');
+  if (chart) {
+    chart.replaceChildren(ghostChartSvg(r.series, r.total, r.axis));
+    chart.appendChild(padEl('span', 'gr-chart-cap', r.axis === 'v' ? 'дельта по скорости' : 'дельта по дистанции'));
+  }
+  const ul = document.getElementById('grSectors');
+  if (ul) {
+    ul.replaceChildren();
+    if (r.sectors.length) {
+      r.sectors.forEach((s) => {
+        const won = s.gain < -0.005; const lost = s.gain > 0.005;
+        const li = padEl('li', won ? 'won' : lost ? 'lost' : '');
+        li.appendChild(padEl('b', '', 'S' + (s.i + 1)));
+        li.appendChild(padEl('strong', '', fmtDelta(s.gain)));
+        li.appendChild(padEl('span', '', won ? 'выиграл' : lost ? 'проиграл' : 'вровень'));
+        ul.appendChild(li);
+      });
+      ul.hidden = false;
+    } else {
+      // straight run: split the chart in two halves
+      const mid = r.series.length ? r.series[Math.floor(r.series.length / 2)] : null;
+      if (mid) {
+        const a = mid.dt; const b = r.finalDelta - mid.dt;
+        [[r.axis === 'v' ? 'старт' : '1-я половина', a], [r.axis === 'v' ? 'до 100' : '2-я половина', b]].forEach(([lab, g]) => {
+          const li = padEl('li', g < -0.005 ? 'won' : g > 0.005 ? 'lost' : '');
+          li.appendChild(padEl('b', '', lab));
+          li.appendChild(padEl('strong', '', fmtDelta(g)));
+          li.appendChild(padEl('span', '', g < -0.005 ? 'выиграл' : g > 0.005 ? 'проиграл' : 'вровень'));
+          ul.appendChild(li);
+        });
+      }
+      ul.hidden = !mid;
+    }
+  }
+  const du = document.getElementById('grDuel');
+  if (du) { du.hidden = !r.duelLine; du.textContent = r.duelLine || ''; }
+  box.classList.remove('hidden');
+  box.setAttribute('aria-hidden', 'false');
+  hap(r.finalDelta < 0 ? [30, 30, 60] : [14, 40, 14]);
+}
+function closeGhostResult() {
+  const box = document.getElementById('ghostResult');
+  box?.classList.add('hidden');
+  box?.setAttribute('aria-hidden', 'true');
+  ghostRace.holdShare = false;
+  ghostRace.pendingShare = null;
+}
+function ghostSharePayload(r) {
+  const base = ghostRace.pendingShare;
+  let p;
+  if (base) p = { ...base };
+  else {
+    const gq = r.gq || {};
+    p = buildSharePayload({
+      type: r.kind === 'lap' ? 'lap' : (r.ref === '402m' ? '402m' : '0-100'),
+      time: r.kind === 'lap' ? fmtLapTime(r.tMs) : (r.tMs / 1000).toFixed(2) + ' с',
+      trackName: r.kind === 'lap' ? (TRACKS.find((t) => t.id === r.ref)?.name || r.ref) : '',
+      valid: !!r.topOk, gpsQ: gq.gpsQ, avgAcc: gq.avgAcc, hz: gq.hz,
+      trackId: r.kind === 'lap' ? r.ref : undefined, ms: r.kind === 'lap' ? r.tMs : undefined,
+    });
+  }
+  p.ghost = ghostVerdict(r.finalDelta);
+  p.ghostVs = String(r.gh.who || '').slice(0, 40);
+  return p;
+}
+document.getElementById('ghostResultClose')?.addEventListener('click', closeGhostResult);
+document.getElementById('grAgain')?.addEventListener('click', closeGhostResult);
+document.getElementById('ghostResult')?.addEventListener('click', (e) => { if (e.target?.id === 'ghostResult') closeGhostResult(); });
+document.getElementById('grShare')?.addEventListener('click', () => {
+  const r = ghostRace.result;
+  if (!r) return;
+  const p = ghostSharePayload(r);
+  ghostRace.shareSeries = { payload: p, series: r.series, total: r.total, axis: r.axis };
+  closeGhostResult();
+  document.getElementById('shareCard')?.classList.add('over-hud');
+  openShareCard(p);
+});
+function renderShareGhost(payload) {
+  const box = document.getElementById('shareGhost');
+  if (!box) return;
+  const line = typeof payload?.ghost === 'string' ? payload.ghost : '';
+  box.hidden = !line;
+  if (!line) return;
+  const won = /^Побил/.test(line);
+  box.dataset.state = won ? 'fast' : /^Уступил/.test(line) ? 'slow' : 'even';
+  document.getElementById('shareGhostK').textContent = 'ПРИЗРАК';
+  document.getElementById('shareGhostV').textContent = line;
+  document.getElementById('shareGhostS').textContent = payload.ghostVs ? 'vs ' + payload.ghostVs : '';
+  const ch = document.getElementById('shareGhostChart');
+  if (ch) {
+    const s = ghostRace.shareSeries;
+    if (s && s.payload === payload && s.series.length) { ch.replaceChildren(ghostChartSvg(s.series, s.total, s.axis, { w: 300, h: 44, mini: true })); ch.hidden = false; }
+    else { ch.replaceChildren(); ch.hidden = true; }
+  }
+}
+
+/* —— simulator drives the circuit outline while the lap HUD is open —— */
+function ghostSimRoute(trackId, hold) {
+  try {
+    if (!extGps || extGps.state() !== 'sim' || typeof extGps.setRoute !== 'function') return;
+    const o = TRACK_OUTLINES[trackId];
+    const geo = TRACK_GEO[trackId];
+    if (!o || !Array.isArray(o.coords) || o.coords.length < 4 || !geo) { extGps.setRoute(null); return; }
+    if (extGps.routeActive() && ghostRace.simTrack === trackId) { if (!hold) extGps.releaseRoute(); return; }
+    ghostRace.simTrack = trackId;
+    extGps.setRoute({ pts: o.coords.map(([lon, lat]) => ({ lat, lon })), sf: { lat: geo.lat, lon: geo.lon } }, { hold: !!hold });
+  } catch (e) { console.warn('[ghost] sim route', e); }
+}
+function ghostSimRouteOff() {
+  ghostRace.simTrack = null;
+  try { if (extGps?.routeActive?.()) extGps.setRoute(null); } catch (_) {}
+}
+
+/* —— duel: ride against the creator's ghost —— */
+async function rideDuelGhost(d) {
+  const hint = document.getElementById('duelGhostHint');
+  if (!d?.ghostId) return;
+  const btn = document.getElementById('duelRideGhost');
+  if (btn) btn.disabled = true;
+  const g = await api.getGhost(d.ghostId).catch(() => null);
+  if (btn) btn.disabled = false;
+  if (!g || !g.ghost) { if (hint) hint.textContent = 'Призрак не загрузился — проверь сеть.'; return; }
+  const kind = d.type === 'lap' ? 'lap' : 'drag';
+  const ref = kind === 'lap' ? (d.trackId || g.ref) : (d.disc || g.ref || '0-100');
+  const scope = kind === 'lap' ? 'lap' : 'run';
+  ghostRace[scope].duel = {
+    id: d.id, kind, ref, tMs: g.tMs, who: d.createdBy?.name || g.name || 'соперник',
+    rec: { ghost: g.ghost, tMs: g.tMs, kind, mode: kind === 'lap' ? lapGhostMode(ref) : 'traj' }, submitted: false,
+  };
+  ghostRace[scope].choice = 'duel';
+  closeDuelSheet();
+  if (kind === 'lap') {
+    const sel = document.getElementById('trackSelect');
+    if (sel && sel.value !== ref) { sel.value = ref; sel.dispatchEvent(new Event('change')); }
+    goToView('lap', { sfx: false });
+    lapRun.trackId = ref;
+    openLapDrivePreview();
+  } else {
+    ghostRace.run.disc = ref === '402m' ? '402m' : '0-100';
+    goToView('run', { sfx: false });
+    void ghostLoad('run');
+    try { document.getElementById('runGhostPick')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+  }
+}
+document.getElementById('duelRideGhost')?.addEventListener('click', () => { if (_activeDuel) void rideDuelGhost(_activeDuel); });
+
+function fmtLeft(ms) {
+  if (!(ms > 0)) return 'срок вышел';
+  const h = Math.floor(ms / 3600000);
+  if (h >= 24) return Math.floor(h / 24) + ' д ' + (h % 24) + ' ч';
+  if (h >= 1) return h + ' ч ' + Math.floor((ms % 3600000) / 60000) + ' мин';
+  return Math.max(1, Math.floor(ms / 60000)) + ' мин';
+}
+function renderDuelGhostBox(d, { iAmCreator, myRun } = {}) {
+  const box = document.getElementById('duelGhostBox');
+  const strip = document.getElementById('duelBanners');
+  if (strip) {
+    paintBannerImg(document.getElementById('duelBannerL'), d.createdBy?.banner, d.createdBy?.id, 600);
+    paintBannerImg(document.getElementById('duelBannerR'), d.challenger?.banner, d.challenger?.id, 600);
+    strip.classList.toggle('has-any', !!(d.createdBy?.banner || d.challenger?.banner));
+  }
+  if (!box) return;
+  if (!d.ghostId) { box.hidden = true; return; }
+  box.hidden = false;
+  const target = d.creatorRun ? duelTimeText(d, d.creatorRun) : '—';
+  document.getElementById('duelGhostTarget').textContent = target + (d.type === 'drag' ? (d.disc === '402m' ? ' · ¼ мили' : ' · 0–100') : '');
+  const left = Number(d.expiresAt) - Date.now();
+  document.getElementById('duelGhostLeft').textContent = d.status === 'open' ? fmtLeft(left) : (d.status === 'ready' ? 'итог есть' : 'срок вышел');
+  const btn = document.getElementById('duelRideGhost');
+  const hint = document.getElementById('duelGhostHint');
+  const canRide = d.status === 'open' && !iAmCreator && !myRun;
+  if (btn) { btn.hidden = !canRide; btn.disabled = false; }
+  if (hint) {
+    hint.textContent = iAmCreator
+      ? (d.status === 'open' ? 'Твой призрак ждёт соперника. Срок ' + (d.days || 7) + ' дн.' : 'Дуэль закрыта.')
+      : (canRide ? 'Призрак едет рядом в HUD. Валидный заезд A/B засчитается сам.' : (myRun ? 'Твой заезд уже засчитан.' : 'Дуэль закрыта.'));
+  }
+}
+
+/* —— duel create: days + attach my ghost —— */
+let _duelDays = 7;
+let _duelGhostCand = null;
+document.querySelectorAll('[data-duel-days]').forEach((b) => b.addEventListener('click', () => {
+  _duelDays = Number(b.getAttribute('data-duel-days')) || 7;
+  document.querySelectorAll('[data-duel-days]').forEach((x) => x.classList.toggle('on', x === b));
+  hap(8);
+}));
+async function refreshDuelGhostOpt() {
+  const info = document.getElementById('duelGhostInfo');
+  const cb = document.getElementById('duelGhostOn');
+  const wrap = document.getElementById('duelGhostOpt');
+  if (!info || !cb) return;
+  _duelGhostCand = null;
+  const kind = _duelType === 'lap' ? 'lap' : 'drag';
+  const refs = kind === 'lap' ? [document.getElementById('duelTrackSelect')?.value || TRACKS[0]?.id] : ['0-100', '402m'];
+  let best = null;
+  for (const ref of refs) {
+    best = await bestGhostLocal(kind, ref, { abOnly: true }).catch(() => null);
+    if (best) break;
+  }
+  const loggedIn = ghostCanUpload();
+  if (!best) {
+    cb.checked = false; cb.disabled = true;
+    info.textContent = kind === 'lap' ? 'нет валидного круга A/B на этом треке — проедь и вернись' : 'нет валидного 0–100 / ¼ мили A/B';
+  } else if (!loggedIn) {
+    cb.checked = false; cb.disabled = true;
+    info.textContent = 'войди в аккаунт, чтобы прикрепить призрак ' + fmtGhostT(kind, best.tMs);
+  } else {
+    cb.disabled = false;
+    _duelGhostCand = best;
+    info.textContent = (kind === 'drag' ? (best.ref === '402m' ? '¼ мили · ' : '0–100 · ') : '') + fmtGhostT(kind, best.tMs) + ' · GPS ' + (best.gpsQ || 'A');
+  }
+  wrap?.classList.toggle('off', cb.disabled);
+}
+document.getElementById('duelTrackSelect')?.addEventListener('change', () => { void refreshDuelGhostOpt(); });
+/** → server ghost id for the duel (uploads the local best if it never went up). */
+async function ensureDuelGhostId() {
+  const c = _duelGhostCand;
+  if (!c) return { id: null };
+  if (c.serverId) return { id: c.serverId };
+  const res = await api.postGhost({
+    kind: c.kind, ref: c.ref, tMs: c.tMs, gpsQ: c.gpsQ, valid: true, car: c.car || '', carId: c.carId || undefined, ghost: c.data,
+  }).catch(() => null);
+  if (res && res.ok && res.id) { void markGhostUploaded(c.id, res.id); return { id: res.id }; }
+  return { id: null, error: res?.error || 'нет связи' };
+}
+
+/* ———————— v89: profile banners ———————— */
+const PROFILE_BANNERS = [
+  ['neon-sochi', 'Сочи · неон'], ['neon-moscow', 'Moscow · неон'], ['neon-nring', 'NRING · неон'],
+  ['telemetry', 'Телеметрия'], ['carbon', 'Карбон'], ['asphalt', 'Асфальт'],
+  ['stripes', 'Полосы'], ['sunset', 'Закат'], ['ice', 'Лёд'],
+  ['photo-duels', 'Дуэль'], ['photo-tracks', 'Трасса'], ['photo-paddock', 'Паддок'],
+];
+const BANNER_IDS = new Set(PROFILE_BANNERS.map((b) => b[0]));
+const MY_BANNER_LS = 'pitlane-banner-v1';
+function normBanner(b) {
+  if (!b) return null;
+  if (typeof b === 'string') return b.startsWith('custom:') ? { custom: true, v: b.slice(7) } : (BANNER_IDS.has(b) ? { id: b } : null);
+  if (b.id && BANNER_IDS.has(b.id)) return { id: b.id };
+  if (b.custom && b.v) return { custom: true, v: String(b.v).slice(0, 40) };
+  return null;
+}
+function bannerSrc(b, pid, size = 1200) {
+  const n = normBanner(b);
+  if (!n) return '';
+  if (n.id) return './img/profile-banners/' + n.id + '-' + (size <= 600 ? 600 : 1200) + '.webp';
+  if (n.custom && isPublicPilot(pid)) return api.bannerUrl(pid, n.v);
+  return '';
+}
+/** el = banner host; one <img> child (no CSS url() with remote data). */
+function paintBannerImg(el, b, pid, size = 1200) {
+  if (!el) return;
+  const src = bannerSrc(b, pid, size);
+  let img = el.querySelector('img.pb-img');
+  if (!src) { img?.remove(); el.classList.remove('has-banner'); return; }
+  if (!img) {
+    img = document.createElement('img');
+    img.className = 'pb-img';
+    img.alt = '';
+    img.decoding = 'async';
+    img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', () => { img.remove(); el.classList.remove('has-banner'); });
+    el.prepend(img);
+  }
+  if (img.getAttribute('src') !== src) img.src = src;
+  el.classList.add('has-banner');
+}
+function myBanner() {
+  try { return normBanner(JSON.parse(localStorage.getItem(MY_BANNER_LS) || 'null')); } catch (_) { return null; }
+}
+function setMyBannerLocal(b) {
+  const n = normBanner(b);
+  try { if (n) localStorage.setItem(MY_BANNER_LS, JSON.stringify(n)); else localStorage.removeItem(MY_BANNER_LS); } catch (_) {}
+  renderAccBanner();
+  renderBannerSheet();
+}
+function renderAccBanner() {
+  paintBannerImg(document.getElementById('accBanner'), myBanner(), accountPilotId(), 1200);
+}
+async function syncMyBanner() {
+  if (!ghostCanUploadBanner()) return;
+  const me = await api.me().catch(() => null);
+  if (me && me.ok !== false && 'banner' in me) setMyBannerLocal(me.banner);
+}
+function ghostCanUploadBanner() {
+  const tok = getSessionToken();
+  return !!(currentUser() && tok && !String(tok).startsWith('local-') && isRemoteApi());
+}
+function bannerMsg(t) { const e = document.getElementById('bannerMsg'); if (e) e.textContent = t || ''; }
+function renderBannerSheet() {
+  const grid = document.getElementById('bannerGrid');
+  if (!grid) return;
+  const cur = myBanner();
+  const curKey = cur ? (cur.id || 'custom') : 'none';
+  grid.replaceChildren();
+  const opts = [['none', 'Без баннера']].concat(PROFILE_BANNERS);
+  if (cur?.custom) opts.splice(1, 0, ['custom', 'Своё фото']);
+  opts.forEach(([id, lab]) => {
+    const b = padEl('button', 'banner-opt' + (curKey === id ? ' on' : '') + (id === 'none' ? ' none' : ''));
+    b.type = 'button';
+    b.dataset.bannerId = id;
+    b.setAttribute('role', 'option');
+    b.setAttribute('aria-selected', curKey === id ? 'true' : 'false');
+    b.setAttribute('aria-label', lab);
+    const th = padEl('span', 'banner-thumb');
+    if (id !== 'none') paintBannerImg(th, id === 'custom' ? cur : { id }, accountPilotId(), 600);
+    b.appendChild(th);
+    b.appendChild(padEl('span', 'banner-lab', lab));
+    grid.appendChild(b);
+  });
+  const prev = document.getElementById('bannerPreview');
+  paintBannerImg(prev, cur, accountPilotId(), 1200);
+  const ava = document.getElementById('bannerPreviewAva');
+  if (ava) {
+    const p = profile();
+    ava.replaceChildren(padAvatar(p.nick || currentUser()?.nick || 'Пилот', p.avatar, 56));
+  }
+  const own = document.getElementById('bannerOwn');
+  const can = ghostCanUploadBanner();
+  own?.classList.toggle('off', !can);
+  const hint = document.getElementById('bannerOwnHint');
+  if (hint) hint.textContent = can ? 'обрежем до 3:1 · до 150 КБ' : 'войди в аккаунт, чтобы загрузить своё фото';
+}
+function openBannerSheet() {
+  bannerMsg('');
+  renderBannerSheet();
+  padShow('bannerSheet', true);
+}
+async function pickBanner(id) {
+  const next = id === 'none' ? null : (id === 'custom' ? myBanner() : { id });
+  if (id === 'custom') return;
+  if (ghostCanUploadBanner()) {
+    bannerMsg('сохраняю…');
+    const res = await api.setBanner({ id: next ? next.id : null });
+    if (!res || res.ok === false || res.error) { bannerMsg('Не сохранилось: ' + String(res?.error || 'нет связи').slice(0, 80)); return; }
+    setMyBannerLocal(res.banner ?? next);
+    bannerMsg('Готово — баннер виден в профиле и дуэлях');
+  } else {
+    setMyBannerLocal(next);
+    bannerMsg('Сохранено на устройстве. Войди — и баннер увидят все.');
+  }
+  hap(10);
+}
+document.getElementById('bannerGrid')?.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('[data-banner-id]');
+  if (b) void pickBanner(b.dataset.bannerId);
+});
+document.getElementById('accBannerEdit')?.addEventListener('click', openBannerSheet);
+document.getElementById('accBanner')?.addEventListener('click', (e) => { if (e.target?.id === 'accBanner' || e.target?.classList?.contains('pb-img')) openBannerSheet(); });
+document.getElementById('bannerClose')?.addEventListener('click', () => padShow('bannerSheet', false));
+document.getElementById('bannerSheet')?.addEventListener('click', (e) => { if (e.target?.id === 'bannerSheet') padShow('bannerSheet', false); });
+document.getElementById('bannerOwn')?.addEventListener('click', (e) => {
+  if (!ghostCanUploadBanner()) { e.preventDefault(); bannerMsg('Своё фото — только после входа в аккаунт.'); }
+});
+/** File → centre crop 3:1 → webp (jpeg fallback) ≤ 150 KB → data URL. */
+async function bannerFromFile(file) {
+  if (!file || !/^image\/(jpeg|png|webp)$/i.test(file.type || '')) throw new Error('нужен JPEG, PNG или WebP');
+  if (file.size > 20 * 1024 * 1024) throw new Error('файл больше 20 МБ');
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('не открылось')); im.src = url; });
+    const sw = img.naturalWidth; const sh = img.naturalHeight;
+    if (sw < 300 || sh < 100) throw new Error('слишком маленькое фото');
+    let cw = sw; let ch = Math.round(sw / 3);
+    if (ch > sh) { ch = sh; cw = sh * 3; }
+    const sx = Math.round((sw - cw) / 2); const sy = Math.round((sh - ch) / 2);
+    const LIMIT = 150 * 1024;
+    for (const W of [1200, 900, 600]) {
+      const w = Math.min(W, cw); const h = Math.round(w / 3);
+      const cv = document.createElement('canvas');
+      cv.width = w; cv.height = h;
+      const ctx = cv.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, sx, sy, cw, ch, 0, 0, w, h);
+      for (const q of [0.86, 0.78, 0.7, 0.6, 0.5]) {
+        let blob = await new Promise((r) => cv.toBlob(r, 'image/webp', q));
+        if (!blob || blob.type !== 'image/webp') blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', q));
+        if (blob && blob.size <= LIMIT) {
+          return await new Promise((r, j) => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.onerror = j; fr.readAsDataURL(blob); });
+        }
+      }
+    }
+    throw new Error('не удалось сжать до 150 КБ');
+  } finally { URL.revokeObjectURL(url); }
+}
+document.getElementById('bannerFile')?.addEventListener('change', async (e) => {
+  const f = e.target.files?.[0];
+  e.target.value = '';
+  if (!f) return;
+  if (!ghostCanUploadBanner()) { bannerMsg('Своё фото — только после входа в аккаунт.'); return; }
+  bannerMsg('обрезаю и сжимаю…');
+  try {
+    const dataUrl = await bannerFromFile(f);
+    bannerMsg('загружаю…');
+    const res = await api.setBanner({ image: dataUrl });
+    if (!res || res.ok === false || res.error) { bannerMsg('Не загрузилось: ' + String(res?.error || 'нет связи').slice(0, 80)); return; }
+    setMyBannerLocal(res.banner);
+    bannerMsg('Своё фото стоит в шапке профиля');
+    hap(14);
+  } catch (err) {
+    bannerMsg('Фото: ' + String(err?.message || err).slice(0, 80));
+  }
+});
+renderAccBanner();
+setTimeout(() => { void syncMyBanner(); }, 1500);
+setTimeout(() => { void ghostLoad('run'); }, 900);
 
 /* -------- Crews / Экипажи MVP -------- */
 let _activeCrew = null;
@@ -9578,7 +10492,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v88';
+const APP_VERSION = 'v89';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -10760,7 +11674,7 @@ function playDuelVsFx(left, right, caption) {
   if (reduce) fx.classList.add('reduce');
   const hitAt = reduce ? 50 : 560;
   setTimeout(() => {
-    try { if (!tmaHaptic('heavy')) navigator.vibrate?.([40, 30, 80]); } catch (_) {}
+    try { if (!tmaHaptic('heavy') && navigator.userActivation?.hasBeenActive !== false) navigator.vibrate?.([40, 30, 80]); } catch (_) {}
     setTimeout(() => { try { tmaHaptic('success'); } catch (_) {} }, 180);
   }, hitAt);
   return new Promise((resolve) => {

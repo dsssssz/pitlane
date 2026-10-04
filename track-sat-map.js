@@ -115,6 +115,7 @@ function destroyMap() {
   state.outline = null;
   state.sf = null;
   state.car = null;
+  state.ghost = null;
   state.tiles = null;
   state.dark = null;
   state.trackId = null;
@@ -388,6 +389,35 @@ export function updateLapSatMapGps(pt) {
     const z = Math.max(state.map.getZoom(), 17);
     state.map.setView([pt.lat, pt.lon], z, { animate: true });
   }
+}
+
+/** v89: ghost marker — pt {lat,lon} or null to hide. Cheap: one divIcon, setLatLng only. */
+export function updateLapSatMapGhost(pt) {
+  if (!state.map) return;
+  const L = Lref();
+  if (!L) return;
+  if (!pt || pt.lat == null || pt.lon == null) {
+    if (state.ghost) {
+      try { state.ghost.remove(); } catch (_) {}
+      state.ghost = null;
+    }
+    return;
+  }
+  if (!state.ghost) {
+    state.ghost = L.marker([pt.lat, pt.lon], {
+      icon: L.divIcon({
+        className: 'sat-ghost-icon',
+        html: '<span class="sat-ghost"></span>',
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+      }),
+      interactive: false,
+      keyboard: false,
+      zIndexOffset: 700,
+    }).addTo(state.map);
+    return;
+  }
+  state.ghost.setLatLng([pt.lat, pt.lon]);
 }
 
 export function trackOutlineQuality(trackId) {
