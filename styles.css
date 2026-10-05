@@ -5116,15 +5116,15 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
   .pilot-lap .pl-tm { width: 56px; height: 38px; }
 }
 
-/* v92: animated neon dot on home track-of-day map */
+/* v92/v93: animated white dot on home track-of-day map */
 #view-home .ht-art { position: relative; }
 #view-home .ht-overlay {
   position: absolute; inset: 0; width: 100%; height: 100%;
   pointer-events: none; display: block;
 }
 #view-home .ht-race { fill: none; stroke: rgba(57,255,20,.14); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-#view-home .ht-dot { fill: #39FF14; stroke: #0c0c0c; stroke-width: 1.2; }
-#view-home .ht-dot-glow { fill: rgba(57,255,20,.28); stroke: none; }
+#view-home .ht-dot { fill: #ffffff; stroke: rgba(0,0,0,.55); stroke-width: 1.4; filter: drop-shadow(0 0 3px rgba(255,255,255,.85)); }
+#view-home .ht-dot-glow { fill: rgba(255,255,255,.35); stroke: none; }
 @media (prefers-reduced-motion: reduce) {
   #view-home .ht-overlay { display: none; }
 }
