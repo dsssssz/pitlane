@@ -10580,7 +10580,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v94';
+const APP_VERSION = 'v95';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -11476,6 +11476,85 @@ function sochiCurbMarks(curve, halfW, scene) {
   }
 }
 
+
+/** Racing Armco rails + red/white Tecpro-style blocks along both edges. */
+function sochiArmcoBarriers(curve, halfW, scene) {
+  const steel = new THREE.MeshStandardMaterial({ color: 0xd0d0d0, roughness: 0.28, metalness: 0.9 });
+  const steelDark = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, roughness: 0.35, metalness: 0.75 });
+  const red = new THREE.MeshStandardMaterial({ color: 0xd32f2f, roughness: 0.5, metalness: 0.12 });
+  const white = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.08 });
+  const postGeo = new THREE.BoxGeometry(0.16, 1.25, 0.16);
+  const railGeo = new THREE.BoxGeometry(3.2, 0.2, 0.12);
+  const blockGeo = new THREE.BoxGeometry(2.8, 1.15, 0.85);
+  const N = 220;
+  for (let i = 0; i < N; i++) {
+    const t = i / N;
+    const p = curve.getPointAt(t);
+    const tan = curve.getTangentAt(t).normalize();
+    const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+    const yaw = Math.atan2(tan.x, tan.z);
+    for (const sgn of [1, -1]) {
+      const edge = p.clone().addScaledVector(side, sgn * (halfW + 0.45));
+      // post
+      const post = new THREE.Mesh(postGeo, steelDark);
+      post.position.set(edge.x, 0.62, edge.z);
+      scene.add(post);
+      // three corrugated Armco rails
+      for (const hy of [0.35, 0.62, 0.9]) {
+        const rail = new THREE.Mesh(railGeo, steel);
+        rail.position.set(edge.x, hy, edge.z);
+        rail.rotation.y = yaw;
+        scene.add(rail);
+      }
+      // continuous red/white Tecpro wall (alternating) — close to Armco
+      {
+        const blk = new THREE.Mesh(blockGeo, (i % 2) ? red : white);
+        const bp = p.clone().addScaledVector(side, sgn * (halfW + 0.85));
+        blk.position.set(bp.x, 0.55, bp.z);
+        blk.rotation.y = yaw;
+        scene.add(blk);
+      }
+    }
+  }
+}
+
+/** Volumetric white chase “car”: nose = local +Z (forward along tangent). */
+function makeSochiChaseCar() {
+  const g = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.35,
+    roughness: 0.28, metalness: 0.2,
+  });
+  const matShade = new THREE.MeshStandardMaterial({
+    color: 0xf0f0f0, emissive: 0xdddddd, emissiveIntensity: 0.12,
+    roughness: 0.38, metalness: 0.15,
+  });
+  // wedge body via extruded-looking stacked taper (length +Z, nose forward)
+  const rear = new THREE.Mesh(new THREE.BoxGeometry(1.35, 0.55, 0.7), matShade);
+  rear.position.set(0, 0.4, -0.55);
+  g.add(rear);
+  const mid = new THREE.Mesh(new THREE.BoxGeometry(1.15, 0.5, 0.85), mat);
+  mid.position.set(0, 0.42, 0.15);
+  g.add(mid);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.62, 1.35, 4), mat);
+  nose.rotation.x = -Math.PI / 2;
+  nose.rotation.z = Math.PI / 4; // diamond cross-section
+  nose.position.set(0, 0.4, 1.15);
+  g.add(nose);
+  // cabin hump
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.4, 0.65), matShade);
+  cab.position.set(0, 0.78, -0.05);
+  g.add(cab);
+  // rear wing
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(1.45, 0.1, 0.32), mat);
+  wing.position.set(0, 0.72, -0.95);
+  g.add(wing);
+  const light = new THREE.PointLight(0xffffff, 1.6, 24, 2);
+  light.position.set(0, 1.0, 0.3);
+  g.add(light);
+  return g;
+}
+
 function stopSochiChase() {
   sochiChase.running = false;
   if (sochiChase.raf) { try { cancelAnimationFrame(sochiChase.raf); } catch (_) {} sochiChase.raf = 0; }
@@ -11534,13 +11613,13 @@ function sochiChaseApplyCam(u) {
   const s = sochiChaseSample(u);
   if (!s || !sochiChase.camera || !sochiChase.car) return;
   const { p, tan } = s;
-  // car / neon arrow
-  sochiChase.car.position.set(p.x, 0.35, p.z);
+  // car: local +Z = nose forward along tangent
+  sochiChase.car.position.set(p.x, 0.02, p.z);
   sochiChase.car.rotation.y = Math.atan2(tan.x, tan.z);
   // chase: behind + above, look ahead
-  const back = 9.5;
-  const up = 3.6;
-  const lookAhead = 22;
+  const back = 11;
+  const up = 4.4;
+  const lookAhead = 24;
   const camPos = p.clone().addScaledVector(tan, -back);
   camPos.y = up;
   const look = p.clone().addScaledVector(tan, lookAhead);
@@ -11591,94 +11670,85 @@ function startSochiChase(host) {
   renderer.setClearColor(0x0c0c0c, 1);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.05;
+  renderer.toneMappingExposure = 1.25;
   sochiChase.renderer = renderer;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0c0c0c);
-  scene.fog = new THREE.FogExp2(0x0c0c0c, 0.0065);
+  scene.fog = new THREE.FogExp2(0x101010, 0.0032);
   sochiChase.scene = scene;
 
   const camera = new THREE.PerspectiveCamera(55, 1, 0.2, 400);
   sochiChase.camera = camera;
 
-  scene.add(new THREE.AmbientLight(0x8a9098, 0.62));
-  const hemi = new THREE.HemisphereLight(0xa8b4c4, 0x1a1a1a, 0.7);
+  scene.add(new THREE.AmbientLight(0xc0c4cc, 0.95));
+  const hemi = new THREE.HemisphereLight(0xd0d6e0, 0x3a3a3a, 0.95);
   scene.add(hemi);
-  const key = new THREE.DirectionalLight(0xe8eef8, 1.25);
+  const key = new THREE.DirectionalLight(0xffffff, 1.55);
   key.position.set(40, 80, 20);
   scene.add(key);
-  const fill = new THREE.DirectionalLight(0x39ff14, 0.18);
+  const fill = new THREE.DirectionalLight(0xd0d4dc, 0.35);
   fill.position.set(-30, 20, -10);
   scene.add(fill);
 
   // ground disc
   const ground = new THREE.Mesh(
     new THREE.CircleGeometry(220, 64),
-    new THREE.MeshStandardMaterial({ color: 0x121412, roughness: 0.95, metalness: 0 }),
+    new THREE.MeshLambertMaterial({ color: 0x1c1c1c }),
   );
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.02;
   scene.add(ground);
 
   const halfW = 6.2;
-  // runoff
+  // runoff / gravel apron
   const runoff = new THREE.Mesh(
     sochiRibbonGeo(curve, halfW + 4.5, 0.005, 240),
-    new THREE.MeshStandardMaterial({ color: 0x2a2a28, roughness: 1, metalness: 0 }),
+    new THREE.MeshStandardMaterial({ color: 0x3d3a34, roughness: 1, metalness: 0 }),
   );
   scene.add(runoff);
-  // asphalt
-  const asphalt = new THREE.Mesh(
-    sochiRibbonGeo(curve, halfW, 0.03, 300),
-    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.82, metalness: 0.08 }),
-  );
+  // normal grey asphalt (road surface) — Lambert so it stays readable in chase light
+  const asphaltMat = new THREE.MeshLambertMaterial({ color: 0x8f8f8f, side: THREE.DoubleSide });
+  const asphalt = new THREE.Mesh(sochiRibbonGeo(curve, halfW, 0.04, 320), asphaltMat);
   scene.add(asphalt);
-  // neon center line (thin)
-  const neonLine = new THREE.Mesh(
-    sochiRibbonGeo(curve, 0.18, 0.05, 300),
-    new THREE.MeshStandardMaterial({
-      color: 0x39ff14, emissive: 0x39ff14, emissiveIntensity: 0.9, roughness: 0.4, metalness: 0.2,
-    }),
+  const lane = new THREE.Mesh(
+    sochiRibbonGeo(curve, halfW * 0.62, 0.045, 300),
+    new THREE.MeshLambertMaterial({ color: 0xa4a4a4, side: THREE.DoubleSide }),
   );
-  scene.add(neonLine);
-
-  // barriers (lighter concrete)
-  const barMat = new THREE.MeshStandardMaterial({ color: 0x6a6a6a, roughness: 0.5, metalness: 0.22 });
-  scene.add(new THREE.Mesh(sochiBarrierGeo(curve, 1, halfW + 0.15, 0.9), barMat));
-  scene.add(new THREE.Mesh(sochiBarrierGeo(curve, -1, halfW + 0.15, 0.9), barMat));
-  // neon top rail on each side
-  const railMat = new THREE.MeshStandardMaterial({ color: 0x39ff14, emissive: 0x39ff14, emissiveIntensity: 1.1, roughness: 0.35 });
-  // edge rails as offset samples
+  scene.add(lane);
+  // white edge lines + dashed center
   {
-    const N = 220;
-    for (const sgn of [1, -1]) {
-      const pos = []; const idx = [];
-      for (let i = 0; i <= N; i++) {
-        const t = i / N;
-        const p = curve.getPointAt(t);
-        const tan = curve.getTangentAt(t).normalize();
-        const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
-        const c = p.clone().addScaledVector(side, sgn * (halfW + 0.28));
-        const w = 0.14;
-        pos.push(c.x + side.x * (-w), 0.88, c.z + side.z * (-w));
-        pos.push(c.x + side.x * w, 0.88, c.z + side.z * w);
-        pos.push(c.x + side.x * w, 0.98, c.z + side.z * w);
-        pos.push(c.x + side.x * (-w), 0.98, c.z + side.z * (-w));
-        if (i < N) {
-          const o = i * 4, n = o + 4;
-          idx.push(o, o + 1, n + 1, o, n + 1, n);
-          idx.push(o + 1, o + 2, n + 2, o + 1, n + 2, n + 1);
-          idx.push(o + 3, o + 2, n + 2, o + 3, n + 2, n + 3);
-        }
+    const edgeMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.05 });
+    const dashMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.65, metalness: 0.05 });
+    const dashGeo = new THREE.BoxGeometry(0.22, 0.045, 2.4);
+    const edgeGeo = new THREE.BoxGeometry(0.16, 0.04, 3.5);
+    const N = 120;
+    for (let i = 0; i < N; i++) {
+      const t = (i + 0.5) / N;
+      const p = curve.getPointAt(t);
+      const tan = curve.getTangentAt(t).normalize();
+      const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+      const yaw = Math.atan2(tan.x, tan.z);
+      // center dashes
+      if (i % 2 === 0) {
+        const m = new THREE.Mesh(dashGeo, dashMat);
+        m.position.set(p.x, 0.06, p.z);
+        m.rotation.y = yaw;
+        scene.add(m);
       }
-      const g = new THREE.BufferGeometry();
-      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-      g.setIndex(idx);
-      g.computeVertexNormals();
-      scene.add(new THREE.Mesh(g, railMat));
+      // solid-ish edge lines both sides
+      for (const sgn of [1, -1]) {
+        const ep = p.clone().addScaledVector(side, sgn * (halfW - 0.25));
+        const e = new THREE.Mesh(edgeGeo, edgeMat);
+        e.position.set(ep.x, 0.055, ep.z);
+        e.rotation.y = yaw;
+        scene.add(e);
+      }
     }
   }
+
+  // Armco + red/white racing barriers (both sides)
+  try { sochiArmcoBarriers(curve, halfW, scene); } catch (_) {}
   try { sochiCurbMarks(curve, halfW, scene); } catch (_) {}
 
   // S/F gate
@@ -11694,7 +11764,7 @@ function startSochiChase(host) {
       m.position.y = 1.6;
       scene.add(m);
     }
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(halfW * 2 + 2.2, 0.25, 0.25), new THREE.MeshStandardMaterial({ color: 0x39ff14, emissive: 0x39ff14, emissiveIntensity: 0.6 }));
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(halfW * 2 + 2.2, 0.25, 0.25), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffff, emissiveIntensity: 0.25 }));
     beam.position.copy(p0); beam.position.y = 3.1;
     scene.add(beam);
     // checker strip on asphalt
@@ -11708,18 +11778,8 @@ function startSochiChase(host) {
     scene.add(chk);
   }
 
-  // neon "car" chevron
-  const car = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.ConeGeometry(0.7, 2.2, 3),
-    new THREE.MeshStandardMaterial({ color: 0x39ff14, emissive: 0x39ff14, emissiveIntensity: 1.2, roughness: 0.35 }),
-  );
-  body.rotation.x = Math.PI / 2;
-  body.position.y = 0.15;
-  car.add(body);
-  const glow = new THREE.PointLight(0x39ff14, 2.2, 28, 2);
-  glow.position.y = 0.5;
-  car.add(glow);
+  // white volumetric chase car (nose = +Z)
+  const car = makeSochiChaseCar();
   scene.add(car);
   sochiChase.car = car;
 
