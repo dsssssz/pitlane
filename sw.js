@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v89';
+const CACHE = 'pitlane-v90';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -31,6 +31,22 @@ const CORE = [
   './img/profile-banners/photo-duels-600.webp',
   './img/profile-banners/photo-tracks-600.webp',
   './img/profile-banners/photo-paddock-600.webp',
+  './img/track-maps/sochi-thumb.webp',
+  './img/track-maps/moscow-thumb.webp',
+  './img/track-maps/igora-thumb.webp',
+  './img/track-maps/kazan-thumb.webp',
+  './img/track-maps/smolensk-thumb.webp',
+  './img/track-maps/nring-thumb.webp',
+  './img/track-maps/adm-thumb.webp',
+  './img/track-maps/grozny-thumb.webp',
+  './img/track-maps/redring-thumb.webp',
+  './img/track-maps/spb-thumb.webp',
+  './img/track-maps/tlt-thumb.webp',
+  './img/track-maps/lipetsk-thumb.webp',
+  './img/track-maps/auto-msk-thumb.webp',
+  './img/track-maps/neva-thumb.webp',
+  './img/track-maps/ufa-thumb.webp',
+  './img/track-maps/don-thumb.webp',
   './track-sat-map.js',
   './geo/outlines.js',
   './vendor/leaflet/leaflet.js',

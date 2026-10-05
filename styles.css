@@ -5071,3 +5071,47 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 #bannerMsg { min-height: 1.3em; margin: 10px 2px 0; color: var(--h-sub); }
 @media (min-width: 560px) { .banner-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (prefers-reduced-motion: reduce) { .gd-bar i { transition: none; } .ghost-result-inner { animation: none; } }
+
+
+/* ═══════════ v90: premium track maps ═══════════
+   Статичные webp вид сверху; live HUD по-прежнему SVG. Без новых !important. */
+.tm-static { display: grid; gap: 8px; }
+.tm-static .tm-img,
+.track-map .tm-img,
+.ht-art .tm-img,
+.pl-tm .tm-img,
+.ad-detail-map .tm-img,
+.duel-track-map .tm-img {
+  display: block; width: 100%; height: auto; border-radius: 14px;
+  background: #0c0c0c; border: 1px solid var(--h-line, rgba(255,255,255,.08));
+}
+.tm-cap { text-align: center; color: var(--h-sub, #696969); font: 600 12px/1.35 Manrope, sans-serif; margin: 0; }
+.tm-cap small { font-weight: 500; color: var(--h-mute, #555); }
+.tm-static:not(.tm-compact) .tm-cap { display: none; }
+.tm-compact .tm-cap { display: none; }
+.tm-compact .track-notes { display: none; }
+#app .track-map { padding: 8px; overflow: hidden; }
+#app .track-map .tm-static { gap: 6px; }
+#view-home .ht-art {
+  width: 128px; height: 86px; flex: none; display: grid; place-items: stretch;
+  border-radius: 12px; overflow: hidden; background: #0c0c0c;
+  border: 1px solid var(--h-line, rgba(255,255,255,.08));
+}
+#view-home .ht-art .tm-img { width: 100%; height: 100%; object-fit: cover; border-radius: 0; border: 0; }
+#view-home .home-track .ht-head { align-items: center; gap: 12px; }
+.duel-track-map { margin: 0 0 12px; }
+.duel-track-map.hidden { display: none; }
+.ad-detail-map { margin: 10px 0 14px; padding: 6px; }
+.pilot-lap { display: grid; grid-template-columns: 72px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.pilot-lap .pl-tm { display: block; width: 72px; height: 48px; border-radius: 10px; overflow: hidden; background: #0c0c0c; }
+.pilot-lap .pl-tm .tm-img { width: 100%; height: 100%; object-fit: cover; border-radius: 0; border: 0; }
+.pilot-lap .pl-secs { grid-column: 1 / -1; }
+.tops-classic .track-map .tm-cap { display: none; }
+.tops-board-map { margin: 8px 0 12px; padding: 6px; }
+.tops-board-map.hidden { display: none; }
+.tops-board-map .tm-cap { display: none; }
+@media (max-width: 360px) {
+  #view-home .ht-art { width: 104px; height: 70px; }
+  .pilot-lap { grid-template-columns: 56px minmax(0, 1fr) auto; }
+  .pilot-lap .pl-tm { width: 56px; height: 38px; }
+}

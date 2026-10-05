@@ -539,6 +539,7 @@
               <h3 id="topsBoardTitle">0–100 км/ч</h3>
               <span class="tiny muted" id="topsBoardSub">все машины · GPS A/B</span>
             </div>
+            <div class="tops-board-map track-map hidden" id="topsBoardMap" aria-hidden="true"></div>
             <ol id="topsBoard" class="tops-board" aria-live="polite"></ol>
           </article>
 
@@ -876,6 +877,7 @@
           <label class="duel-field" id="duelTrackWrap" hidden>Трек
             <select id="duelTrackSelect"></select>
           </label>
+          <div class="duel-track-map track-map hidden" id="duelTrackMap" aria-hidden="true"></div>
           <div class="duel-field duel-days">Срок
             <div class="duel-days-row seg-control" role="group" aria-label="Срок дуэли">
               <button type="button" class="seg-btn" data-duel-days="1">1 день</button>
@@ -1038,6 +1040,7 @@
         <div id="autodromeDetailPane" class="race-sheet-body" hidden>
           <button type="button" class="ad-back" id="autodromeBackBtn">← к списку</button>
           <h3 class="ad-detail-name" id="autodromeDetailName">—</h3>
+          <div class="ad-detail-map track-map" id="autodromeDetailMap"></div>
           <div id="autodromeDetailBody" class="ad-detail-body"></div>
           <button type="button" class="go-btn race-cta" id="autodromeSelectBtn">Выбрать этот трек</button>
         </div>

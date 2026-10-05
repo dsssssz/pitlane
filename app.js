@@ -89,13 +89,13 @@ const TRACKS = [
   { id: 'adm', name: 'ADM Raceway Мячково', cult: true, ref: '1:19.00', km: '3.25', turns: '16' , corners: 'Мячково: старое кольцо, короткие прямые, много направления.'},
   { id: 'grozny', name: 'Fort Grozny Autodrom', cult: true, ref: '1:18.80', km: '3.08', turns: '11' , corners: 'Крепость: относительно короткое GP, понятные зоны торможения.'},
   { id: 'redring', name: 'Красное Кольцо Красноярск', cult: true, ref: '1:26.00', km: '2.80', turns: '10' , corners: 'Компактное кольцо, меньше поворотов, акцент на ритм.'},
-  { id: 'spb', name: 'Автодром Санкт-Петербург', ref: '1:27.00' , corners: 'Городской/короткий профиль, тесные связки.'},
-  { id: 'tlt', name: 'Тольятти Ринг', ref: '1:23.00' , corners: 'Кольцо с средней длиной прямых.'},
-  { id: 'lipetsk', name: 'Липецкий автодром', ref: '1:20.00' , corners: 'Короткий автодром, стоп-энд-гоу.'},
-  { id: 'auto-msk', name: 'Автодром Москва', ref: '1:25.00' , corners: 'Городской автодром, смена направления часто.'},
-  { id: 'neva', name: 'Нева Ринг', ref: '1:29.00' , corners: 'Нева: средние дуги, мало ультрамедленных шпилек.'},
-  { id: 'ufa', name: 'Уфа Ринг', ref: '1:31.00' , corners: 'Региональное кольцо, ритм важнее пиковой скорости.'},
-  { id: 'don', name: 'Донринг Ростов', ref: '1:30.00' , corners: 'Донринг: смесь прямых и средних дуг.'},
+  { id: 'spb', name: 'Автодром Санкт-Петербург', ref: '1:27.00', km: '2.90', turns: '9' , corners: 'Городской/короткий профиль, тесные связки.'},
+  { id: 'tlt', name: 'Тольятти Ринг', ref: '1:23.00', km: '2.96', turns: '10' , corners: 'Кольцо с средней длиной прямых.'},
+  { id: 'lipetsk', name: 'Липецкий автодром', ref: '1:20.00', km: '2.87', turns: '8' , corners: 'Короткий автодром, стоп-энд-гоу.'},
+  { id: 'auto-msk', name: 'Автодром Москва', ref: '1:25.00', km: '2.94', turns: '10' , corners: 'Городской автодром, смена направления часто.'},
+  { id: 'neva', name: 'Нева Ринг', ref: '1:29.00', km: '2.88', turns: '9' , corners: 'Нева: средние дуги, мало ультрамедленных шпилек.'},
+  { id: 'ufa', name: 'Уфа Ринг', ref: '1:31.00', km: '2.97', turns: '10' , corners: 'Региональное кольцо, ритм важнее пиковой скорости.'},
+  { id: 'don', name: 'Донринг Ростов', ref: '1:30.00', km: '2.92', turns: '10' , corners: 'Донринг: смесь прямых и средних дуг.'},
 ];
 
 function tracksOrdered() {
@@ -333,6 +333,31 @@ function pointOnTrack(d, progress) {
 }
 
 
+
+/** v90: static premium track maps (img/track-maps/<id>-{full,thumb}.webp). */
+function trackMapUrl(id, size) {
+  const ok = TRACKS.some((t) => t.id === id);
+  const tid = ok ? id : (TRACKS[0] && TRACKS[0].id) || 'sochi';
+  const sz = size === 'thumb' ? 'thumb' : 'full';
+  return './img/track-maps/' + tid + '-' + sz + '.webp';
+}
+function paintTrackMapImg(el, id, size, alt) {
+  if (!el) return;
+  const tid = id || 'sochi';
+  el.replaceChildren();
+  const im = document.createElement('img');
+  im.src = trackMapUrl(tid, size);
+  im.alt = alt || '';
+  im.loading = 'lazy';
+  im.decoding = 'async';
+  im.className = 'tm-img tm-' + (size === 'thumb' ? 'thumb' : 'full');
+  im.width = size === 'thumb' ? 480 : 1440;
+  im.height = size === 'thumb' ? 320 : 960;
+  el.appendChild(im);
+  el.classList.add('has-tm');
+  el.dataset.track = tid;
+}
+
 function drawTrack(id, elId, opts) {
   const el = document.getElementById(elId);
   if (!el) return;
@@ -371,12 +396,40 @@ function drawTrack(id, elId, opts) {
     // reset smooth mapper when (re)drawing live HUD
     try { resetLapMapSmooth(id); } catch (_) {}
   }
-  if (compact || live) {
-    el.innerHTML = '<div class="lap-map-inner' + (live ? ' lap-map-live' : '') + '">' + svg
-      + '<p class="lap-map-cap">' + (tr.name || '') + '<br><small>' + meta + '</small></p></div>';
+  if (live) {
+    el.innerHTML = '<div class="lap-map-inner lap-map-live">' + svg
+      + '<p class="lap-map-cap"></p></div>';
+    const cap = el.querySelector('.lap-map-cap');
+    if (cap) {
+      cap.appendChild(document.createTextNode(tr.name || ''));
+      cap.appendChild(document.createElement('br'));
+      const sm = document.createElement('small');
+      sm.textContent = meta;
+      cap.appendChild(sm);
+    }
     return;
   }
-  el.innerHTML = svg + '<p>' + (tr.name || '') + '<br><small>' + meta + '</small></p><p class="track-notes">' + (tr.corners || '') + '</p>';
+  // v90: static premium map (webp). Keep SVG only for live HUD.
+  const wrap = document.createElement('div');
+  wrap.className = 'tm-static' + (compact ? ' tm-compact' : '');
+  paintTrackMapImg(wrap, id, compact ? 'thumb' : 'full', tr.name || '');
+  const cap = document.createElement('p');
+  cap.className = 'tm-cap';
+  cap.appendChild(document.createTextNode(tr.name || ''));
+  if (meta) {
+    cap.appendChild(document.createElement('br'));
+    const sm = document.createElement('small');
+    sm.textContent = meta;
+    cap.appendChild(sm);
+  }
+  wrap.appendChild(cap);
+  if (!compact && tr.corners) {
+    const notes = document.createElement('p');
+    notes.className = 'track-notes';
+    notes.textContent = tr.corners;
+    wrap.appendChild(notes);
+  }
+  el.replaceChildren(wrap);
 }
 
 
@@ -8367,6 +8420,11 @@ function renderPilotProfile(pr) {
     laps.forEach((r) => {
       const tr = TRACKS.find((t) => t.id === r.trackId);
       const li = padEl('li', 'pilot-lap');
+      if (tr) {
+        const thumb = padEl('span', 'pl-tm');
+        paintTrackMapImg(thumb, tr.id, 'thumb', tr.name || '');
+        li.appendChild(thumb);
+      }
       const l = padEl('span', 'pl-l');
       l.appendChild(padEl('span', 'pl-main', tr?.name || r.trackId));
       l.appendChild(padEl('span', 'pl-sub', [r.car, r.gpsQ ? 'GPS ' + r.gpsQ : '', padAgo(r.at)].filter(Boolean).join(' · ')));
@@ -8647,6 +8705,7 @@ function setDuelType(type) {
   const wrap = document.getElementById('duelTrackWrap');
   if (wrap) wrap.hidden = _duelType !== 'lap';
   void refreshDuelGhostOpt();
+  try { refreshDuelTrackMap(); } catch (_) {}
 }
 
 function openDuelSheet(opts = {}) {
@@ -8661,6 +8720,7 @@ function openDuelSheet(opts = {}) {
     if (sel) sel.value = opts.trackId;
     void refreshDuelGhostOpt();
   }
+  try { refreshDuelTrackMap(); } catch (_) {}
   sheet.classList.remove('hidden');
   sheet.setAttribute('aria-hidden', 'false');
   if (opts.duelId) {
@@ -9606,6 +9666,23 @@ document.querySelectorAll('[data-duel-days]').forEach((b) => b.addEventListener(
   document.querySelectorAll('[data-duel-days]').forEach((x) => x.classList.toggle('on', x === b));
   hap(8);
 }));
+function refreshDuelTrackMap() {
+  const wrap = document.getElementById('duelTrackWrap');
+  const map = document.getElementById('duelTrackMap');
+  const sel = document.getElementById('duelTrackSelect');
+  if (!map || !sel) return;
+  const lap = !wrap?.hidden;
+  if (!lap) {
+    map.classList.add('hidden');
+    map.setAttribute('aria-hidden', 'true');
+    map.replaceChildren();
+    return;
+  }
+  map.classList.remove('hidden');
+  map.setAttribute('aria-hidden', 'false');
+  try { drawTrack(sel.value || TRACKS[0].id, 'duelTrackMap', { compact: true }); } catch (_) {}
+}
+
 async function refreshDuelGhostOpt() {
   const info = document.getElementById('duelGhostInfo');
   const cb = document.getElementById('duelGhostOn');
@@ -9633,7 +9710,7 @@ async function refreshDuelGhostOpt() {
   }
   wrap?.classList.toggle('off', cb.disabled);
 }
-document.getElementById('duelTrackSelect')?.addEventListener('change', () => { void refreshDuelGhostOpt(); });
+document.getElementById('duelTrackSelect')?.addEventListener('change', () => { void refreshDuelGhostOpt(); try { refreshDuelTrackMap(); } catch (_) {} });
 /** → server ghost id for the duel (uploads the local best if it never went up). */
 async function ensureDuelGhostId() {
   const c = _duelGhostCand;
@@ -10285,6 +10362,7 @@ function showAutodromeDetail(id) {
   const nameEl = document.getElementById('autodromeDetailName');
   const bodyEl = document.getElementById('autodromeDetailBody');
   if (nameEl) nameEl.textContent = t.name;
+  try { drawTrack(id, 'autodromeDetailMap', { compact: true }); } catch (_) {}
   const km = t.km ? `${t.km} км` : '';
   const turns = t.turns ? `${t.turns} пов.` : '';
   const meta = [km, turns, t.ref ? `реф ${t.ref}` : ''].filter(Boolean).join(' · ');
@@ -10492,7 +10570,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v89';
+const APP_VERSION = 'v90';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -11217,22 +11295,7 @@ async function renderHomeTrack() {
   const art = document.getElementById('homeTrackArt');
   if (art && art.dataset.track !== tr.id) {
     art.dataset.track = tr.id;
-    const svg = trackSilhouetteSvg(tr.id, 120, 'ht-sil');
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    const d = trackSilhouettePath(tr.id);
-    if (d && !reduce) {
-      const ns = 'http://www.w3.org/2000/svg';
-      const dot = document.createElementNS(ns, 'circle');
-      dot.setAttribute('r', '1.6');
-      dot.setAttribute('class', 'ht-dot');
-      const mo = document.createElementNS(ns, 'animateMotion');
-      mo.setAttribute('dur', '7s');
-      mo.setAttribute('repeatCount', 'indefinite');
-      mo.setAttribute('path', d);
-      dot.appendChild(mo);
-      svg.appendChild(dot);
-    }
-    art.replaceChildren(svg);
+    paintTrackMapImg(art, tr.id, 'thumb', tr.name || '');
   }
   const nm = document.getElementById('homeTrackName');
   if (nm) nm.textContent = tr.name;
@@ -11780,6 +11843,22 @@ async function renderTopsBoard() {
   if (sub) {
     const tr = sel.kind === 'lap' ? TRACKS.find((t) => t.id === sel.id) : null;
     sub.textContent = [sel.kind === 'lap' ? (tr?.km ? tr.km + ' км' : 'круг') : 'GPS A/B', sel.kind === 'lap' ? wxLab : '', model ? shortCarName(model) : 'все машины'].filter(Boolean).join(' · ');
+  }
+  const bm = document.getElementById('topsBoardMap');
+  if (bm) {
+    if (sel.kind === 'lap') {
+      bm.classList.remove('hidden');
+      bm.setAttribute('aria-hidden', 'false');
+      if (bm.dataset.track !== sel.id) {
+        try { drawTrack(sel.id, 'topsBoardMap', { compact: true }); } catch (_) {}
+        bm.dataset.track = sel.id;
+      }
+    } else {
+      bm.classList.add('hidden');
+      bm.setAttribute('aria-hidden', 'true');
+      bm.replaceChildren();
+      delete bm.dataset.track;
+    }
   }
   ol.setAttribute('aria-busy', 'true');
   let rows = [];
