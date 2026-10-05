@@ -5128,3 +5128,30 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 @media (prefers-reduced-motion: reduce) {
   #view-home .ht-overlay { display: none; }
 }
+
+/* v94: Sochi chase-cam on Трасса дня */
+#view-home .home-track.chase-on { display: grid; }
+#view-home .home-track.chase-on .ht-chase {
+  display: block; position: relative; width: 100%; height: 168px;
+  background: #0c0c0c; border-top: 1px solid var(--h-line, rgba(255,255,255,.08));
+  overflow: hidden;
+}
+#view-home .ht-chase.hidden { display: none; }
+#view-home .ht-chase-canvas { display: block; width: 100%; height: 100%; }
+#view-home .home-track.chase-on .ht-art.ht-art-mini {
+  width: 72px; height: 48px; border-radius: 10px;
+}
+#view-home .ht-mode {
+  margin-top: 8px; display: inline-flex; gap: 0; max-width: 180px;
+}
+#view-home .ht-mode.hidden { display: none; }
+#view-home .ht-mode .seg-btn {
+  flex: 1; font: 600 11px/1 Manrope, sans-serif; padding: 6px 8px;
+}
+@media (max-width: 360px) {
+  #view-home .home-track.chase-on .ht-chase { height: 140px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #view-home .home-track.chase-on .ht-chase { display: none; }
+  #view-home .ht-mode { display: none; }
+}

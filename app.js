@@ -1531,6 +1531,16 @@ function goToView(id, opts = {}) {
     });
   }
   try { onViewEnter(id); } catch (_) {}
+  // v94: pause Sochi chase off Home; resume when returning
+  try {
+    if (id !== 'home') {
+      if (sochiChase.raf) { cancelAnimationFrame(sochiChase.raf); sochiChase.raf = 0; }
+      sochiChase.running = false;
+    } else if (sochiChase.renderer && sochiChase.mode === 'chase' && !sochiChase.raf) {
+      sochiChase.running = true;
+      sochiChase.raf = requestAnimationFrame(sochiChaseTick);
+    }
+  } catch (_) {}
   if (nav) activateNavBtn(nav);
   else if (id === 'account') {
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
@@ -10570,7 +10580,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v93';
+const APP_VERSION = 'v94';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -11332,10 +11342,484 @@ function homeTrackRacePathD(trackId, vbW = 640, vbH = 360) {
   return mapped.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('') + 'Z';
 }
 
+
+/* ═══════════ v94: Sochi chase-cam on «Трасса дня» (Three.js, independent of podium) ═══════════ */
+const sochiChase = {
+  mode: 'chase', // 'chase' | 'top'
+  running: false,
+  raf: 0,
+  t0: 0,
+  dur: 11,
+  renderer: null,
+  scene: null,
+  camera: null,
+  car: null,
+  curve: null,
+  host: null,
+  canvas: null,
+  ro: null,
+  frozen: false,
+};
+
+function sochiCenterlineXZ() {
+  const o = TRACK_OUTLINES?.sochi;
+  if (!o?.coords?.length) return null;
+  const midLat = o.coords.reduce((a, c) => a + c[1], 0) / o.coords.length;
+  const midLon = o.coords.reduce((a, c) => a + c[0], 0) / o.coords.length;
+  const k = Math.cos(midLat * Math.PI / 180);
+  const mPerDeg = 111320;
+  let pts = o.coords.map(([lo, la]) => {
+    const x = (lo - midLon) * mPerDeg * k;
+    const z = -(la - midLat) * mPerDeg;
+    return new THREE.Vector3(x, 0, z);
+  });
+  // drop near-duplicates
+  const cleaned = [pts[0]];
+  for (let i = 1; i < pts.length; i++) {
+    if (cleaned[cleaned.length - 1].distanceTo(pts[i]) > 2) cleaned.push(pts[i]);
+  }
+  if (cleaned.length < 8) return null;
+  // close loop if needed
+  if (cleaned[0].distanceTo(cleaned[cleaned.length - 1]) > 5) cleaned.push(cleaned[0].clone());
+  return cleaned;
+}
+
+function sochiRibbonGeo(curve, halfW, y = 0.02, segs = 280) {
+  const pos = [];
+  const norm = [];
+  const uv = [];
+  const idx = [];
+  const N = segs;
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const p = curve.getPointAt(t);
+    const tan = curve.getTangentAt(t).normalize();
+    const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+    const L = p.clone().addScaledVector(side, halfW); L.y = y;
+    const R = p.clone().addScaledVector(side, -halfW); R.y = y;
+    pos.push(L.x, L.y, L.z, R.x, R.y, R.z);
+    norm.push(0, 1, 0, 0, 1, 0);
+    uv.push(0, t * 20, 1, t * 20);
+    if (i < N) {
+      const a = i * 2, b = a + 1, c = a + 2, d = a + 3;
+      idx.push(a, b, c, b, d, c);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(norm, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  return g;
+}
+
+function sochiBarrierGeo(curve, sideSign, halfW, h = 0.55, segs = 200) {
+  // thin wall along one edge
+  const pos = [];
+  const idx = [];
+  const N = segs;
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const p = curve.getPointAt(t);
+    const tan = curve.getTangentAt(t).normalize();
+    const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize().multiplyScalar(sideSign);
+    const base = p.clone().addScaledVector(side, halfW);
+    const x0 = base.x, z0 = base.z;
+    const thick = 0.12;
+    // 4 verts per ring: inner-bottom, outer-bottom, outer-top, inner-top
+    pos.push(
+      x0 - side.x * 0.02, 0.02, z0 - side.z * 0.02,
+      x0 + side.x * thick, 0.02, z0 + side.z * thick,
+      x0 + side.x * thick, h, z0 + side.z * thick,
+      x0 - side.x * 0.02, h, z0 - side.z * 0.02,
+    );
+    if (i < N) {
+      const o = i * 4;
+      const n = o + 4;
+      // outer face
+      idx.push(o + 1, n + 1, n + 2, o + 1, n + 2, o + 2);
+      // top
+      idx.push(o + 2, n + 2, n + 3, o + 2, n + 3, o + 3);
+      // inner
+      idx.push(o + 3, n + 3, n, o + 3, n, o);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+function sochiCurbMarks(curve, halfW, scene) {
+  const matW = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.7, metalness: 0.05 });
+  const matR = new THREE.MeshStandardMaterial({ color: 0xc62828, roughness: 0.7, metalness: 0.05 });
+  const box = new THREE.BoxGeometry(1.6, 0.08, 0.45);
+  for (let i = 0; i < 48; i++) {
+    const t = i / 48;
+    const p = curve.getPointAt(t);
+    const tan = curve.getTangentAt(t).normalize();
+    const c2 = curve.getPointAt((t + 0.01) % 1);
+    const c0 = curve.getPointAt((t + 0.99) % 1);
+    const ang = Math.abs(Math.atan2(c2.z - p.z, c2.x - p.x) - Math.atan2(p.z - c0.z, p.x - c0.x));
+    const bend = Math.min(ang, Math.PI * 2 - ang);
+    if (bend < 0.18) continue;
+    const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+    for (const sgn of [1, -1]) {
+      const m = new THREE.Mesh(box, (i % 2) ? matR : matW);
+      const pos = p.clone().addScaledVector(side, sgn * (halfW + 0.15));
+      pos.y = 0.06;
+      m.position.copy(pos);
+      m.rotation.y = Math.atan2(tan.x, tan.z);
+      scene.add(m);
+    }
+  }
+}
+
+function stopSochiChase() {
+  sochiChase.running = false;
+  if (sochiChase.raf) { try { cancelAnimationFrame(sochiChase.raf); } catch (_) {} sochiChase.raf = 0; }
+  if (sochiChase.ro) { try { sochiChase.ro.disconnect(); } catch (_) {} sochiChase.ro = null; }
+  if (sochiChase.renderer) {
+    try {
+      sochiChase.scene?.traverse((o) => {
+        if (o.geometry) try { o.geometry.dispose(); } catch (_) {}
+        if (o.material) {
+          const ms = Array.isArray(o.material) ? o.material : [o.material];
+          ms.forEach((m) => { try { m.dispose(); } catch (_) {} });
+        }
+      });
+    } catch (_) {}
+    try { sochiChase.renderer.dispose(); } catch (_) {}
+    try { sochiChase.renderer.forceContextLoss?.(); } catch (_) {}
+  }
+  if (sochiChase.canvas?.parentNode) sochiChase.canvas.parentNode.removeChild(sochiChase.canvas);
+  sochiChase.renderer = null;
+  sochiChase.scene = null;
+  sochiChase.camera = null;
+  sochiChase.car = null;
+  sochiChase.curve = null;
+  sochiChase.canvas = null;
+  sochiChase.host = null;
+  const host = document.getElementById('homeTrackChase');
+  if (host) { host.classList.add('hidden'); host.setAttribute('aria-hidden', 'true'); host.replaceChildren(); }
+  document.getElementById('homeTrack')?.classList.remove('chase-on');
+  document.getElementById('homeTrackMode')?.classList.add('hidden');
+}
+
+function sochiChaseResize() {
+  const host = sochiChase.host;
+  const ren = sochiChase.renderer;
+  const cam = sochiChase.camera;
+  if (!host || !ren || !cam) return;
+  const w = Math.max(2, host.clientWidth);
+  const h = Math.max(2, host.clientHeight);
+  const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+  ren.setPixelRatio(dpr);
+  ren.setSize(w, h, false);
+  cam.aspect = w / h;
+  cam.updateProjectionMatrix();
+}
+
+function sochiChaseSample(u) {
+  const curve = sochiChase.curve;
+  if (!curve) return null;
+  const t = ((u % 1) + 1) % 1;
+  const p = curve.getPointAt(t);
+  const tan = curve.getTangentAt(t).normalize();
+  return { p, tan, t };
+}
+
+function sochiChaseApplyCam(u) {
+  const s = sochiChaseSample(u);
+  if (!s || !sochiChase.camera || !sochiChase.car) return;
+  const { p, tan } = s;
+  // car / neon arrow
+  sochiChase.car.position.set(p.x, 0.35, p.z);
+  sochiChase.car.rotation.y = Math.atan2(tan.x, tan.z);
+  // chase: behind + above, look ahead
+  const back = 9.5;
+  const up = 3.6;
+  const lookAhead = 22;
+  const camPos = p.clone().addScaledVector(tan, -back);
+  camPos.y = up;
+  const look = p.clone().addScaledVector(tan, lookAhead);
+  look.y = 0.4;
+  sochiChase.camera.position.lerp(camPos, sochiChase.frozen ? 1 : 0.18);
+  if (sochiChase.frozen) sochiChase.camera.position.copy(camPos);
+  sochiChase.camera.lookAt(look);
+}
+
+function sochiChaseTick(now) {
+  if (!sochiChase.running || !sochiChase.renderer) return;
+  sochiChase.raf = requestAnimationFrame(sochiChaseTick);
+  if (sochiChase.frozen) {
+    sochiChase.renderer.render(sochiChase.scene, sochiChase.camera);
+    return;
+  }
+  if (!sochiChase.t0) sochiChase.t0 = now;
+  const u = ((now - sochiChase.t0) / 1000) / sochiChase.dur;
+  sochiChaseApplyCam(u);
+  sochiChase.renderer.render(sochiChase.scene, sochiChase.camera);
+}
+
+function startSochiChase(host) {
+  stopSochiChase();
+  if (!host || typeof THREE === 'undefined') return false;
+  const pts = sochiCenterlineXZ();
+  if (!pts) return false;
+  const curve = new THREE.CatmullRomCurve3(pts, true, 'catmullrom', 0.15);
+  sochiChase.curve = curve;
+  sochiChase.host = host;
+  sochiChase.frozen = false;
+  sochiChase.t0 = 0;
+
+  const canvas = document.createElement('canvas');
+  canvas.className = 'ht-chase-canvas';
+  canvas.setAttribute('aria-hidden', 'true');
+  host.replaceChildren(canvas);
+  host.classList.remove('hidden');
+  host.setAttribute('aria-hidden', 'false');
+  sochiChase.canvas = canvas;
+
+  const renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: false,
+    powerPreference: 'low-power',
+  });
+  renderer.setClearColor(0x0c0c0c, 1);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+  sochiChase.renderer = renderer;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0c0c0c);
+  scene.fog = new THREE.FogExp2(0x0c0c0c, 0.0065);
+  sochiChase.scene = scene;
+
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.2, 400);
+  sochiChase.camera = camera;
+
+  scene.add(new THREE.AmbientLight(0x8a9098, 0.62));
+  const hemi = new THREE.HemisphereLight(0xa8b4c4, 0x1a1a1a, 0.7);
+  scene.add(hemi);
+  const key = new THREE.DirectionalLight(0xe8eef8, 1.25);
+  key.position.set(40, 80, 20);
+  scene.add(key);
+  const fill = new THREE.DirectionalLight(0x39ff14, 0.18);
+  fill.position.set(-30, 20, -10);
+  scene.add(fill);
+
+  // ground disc
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(220, 64),
+    new THREE.MeshStandardMaterial({ color: 0x121412, roughness: 0.95, metalness: 0 }),
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.02;
+  scene.add(ground);
+
+  const halfW = 6.2;
+  // runoff
+  const runoff = new THREE.Mesh(
+    sochiRibbonGeo(curve, halfW + 4.5, 0.005, 240),
+    new THREE.MeshStandardMaterial({ color: 0x2a2a28, roughness: 1, metalness: 0 }),
+  );
+  scene.add(runoff);
+  // asphalt
+  const asphalt = new THREE.Mesh(
+    sochiRibbonGeo(curve, halfW, 0.03, 300),
+    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.82, metalness: 0.08 }),
+  );
+  scene.add(asphalt);
+  // neon center line (thin)
+  const neonLine = new THREE.Mesh(
+    sochiRibbonGeo(curve, 0.18, 0.05, 300),
+    new THREE.MeshStandardMaterial({
+      color: 0x39ff14, emissive: 0x39ff14, emissiveIntensity: 0.9, roughness: 0.4, metalness: 0.2,
+    }),
+  );
+  scene.add(neonLine);
+
+  // barriers (lighter concrete)
+  const barMat = new THREE.MeshStandardMaterial({ color: 0x6a6a6a, roughness: 0.5, metalness: 0.22 });
+  scene.add(new THREE.Mesh(sochiBarrierGeo(curve, 1, halfW + 0.15, 0.9), barMat));
+  scene.add(new THREE.Mesh(sochiBarrierGeo(curve, -1, halfW + 0.15, 0.9), barMat));
+  // neon top rail on each side
+  const railMat = new THREE.MeshStandardMaterial({ color: 0x39ff14, emissive: 0x39ff14, emissiveIntensity: 1.1, roughness: 0.35 });
+  // edge rails as offset samples
+  {
+    const N = 220;
+    for (const sgn of [1, -1]) {
+      const pos = []; const idx = [];
+      for (let i = 0; i <= N; i++) {
+        const t = i / N;
+        const p = curve.getPointAt(t);
+        const tan = curve.getTangentAt(t).normalize();
+        const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+        const c = p.clone().addScaledVector(side, sgn * (halfW + 0.28));
+        const w = 0.14;
+        pos.push(c.x + side.x * (-w), 0.88, c.z + side.z * (-w));
+        pos.push(c.x + side.x * w, 0.88, c.z + side.z * w);
+        pos.push(c.x + side.x * w, 0.98, c.z + side.z * w);
+        pos.push(c.x + side.x * (-w), 0.98, c.z + side.z * (-w));
+        if (i < N) {
+          const o = i * 4, n = o + 4;
+          idx.push(o, o + 1, n + 1, o, n + 1, n);
+          idx.push(o + 1, o + 2, n + 2, o + 1, n + 2, n + 1);
+          idx.push(o + 3, o + 2, n + 2, o + 3, n + 2, n + 3);
+        }
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      scene.add(new THREE.Mesh(g, railMat));
+    }
+  }
+  try { sochiCurbMarks(curve, halfW, scene); } catch (_) {}
+
+  // S/F gate
+  {
+    const p0 = curve.getPointAt(0);
+    const tan = curve.getTangentAt(0).normalize();
+    const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
+    const gateMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 });
+    const post = new THREE.BoxGeometry(0.35, 3.2, 0.35);
+    for (const sgn of [-1, 1]) {
+      const m = new THREE.Mesh(post, gateMat);
+      m.position.copy(p0).addScaledVector(side, sgn * (halfW + 0.8));
+      m.position.y = 1.6;
+      scene.add(m);
+    }
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(halfW * 2 + 2.2, 0.25, 0.25), new THREE.MeshStandardMaterial({ color: 0x39ff14, emissive: 0x39ff14, emissiveIntensity: 0.6 }));
+    beam.position.copy(p0); beam.position.y = 3.1;
+    scene.add(beam);
+    // checker strip on asphalt
+    const chk = new THREE.Mesh(
+      new THREE.PlaneGeometry(halfW * 2, 2.2),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 }),
+    );
+    chk.rotation.x = -Math.PI / 2;
+    chk.position.copy(p0); chk.position.y = 0.04;
+    chk.rotation.z = Math.atan2(tan.x, tan.z);
+    scene.add(chk);
+  }
+
+  // neon "car" chevron
+  const car = new THREE.Group();
+  const body = new THREE.Mesh(
+    new THREE.ConeGeometry(0.7, 2.2, 3),
+    new THREE.MeshStandardMaterial({ color: 0x39ff14, emissive: 0x39ff14, emissiveIntensity: 1.2, roughness: 0.35 }),
+  );
+  body.rotation.x = Math.PI / 2;
+  body.position.y = 0.15;
+  car.add(body);
+  const glow = new THREE.PointLight(0x39ff14, 2.2, 28, 2);
+  glow.position.y = 0.5;
+  car.add(glow);
+  scene.add(car);
+  sochiChase.car = car;
+
+  document.getElementById('homeTrack')?.classList.add('chase-on');
+  const modeEl = document.getElementById('homeTrackMode');
+  if (modeEl) modeEl.classList.remove('hidden');
+
+  sochiChaseResize();
+  if (typeof ResizeObserver !== 'undefined') {
+    sochiChase.ro = new ResizeObserver(() => sochiChaseResize());
+    sochiChase.ro.observe(host);
+  }
+
+  sochiChase.running = true;
+  sochiChaseApplyCam(0);
+  sochiChase.raf = requestAnimationFrame(sochiChaseTick);
+  return true;
+}
+
+function setHomeTrackViewMode(mode) {
+  sochiChase.mode = mode === 'top' ? 'top' : 'chase';
+  document.querySelectorAll('#homeTrackMode [data-ht-mode]').forEach((b) => {
+    b.classList.toggle('on', b.getAttribute('data-ht-mode') === sochiChase.mode);
+  });
+  const chase = document.getElementById('homeTrackChase');
+  const art = document.getElementById('homeTrackArt');
+  const card = document.getElementById('homeTrack');
+  if (sochiChase.mode === 'top') {
+    sochiChase.running = false;
+    if (sochiChase.raf) { cancelAnimationFrame(sochiChase.raf); sochiChase.raf = 0; }
+    chase?.classList.add('hidden');
+    card?.classList.remove('chase-on');
+    if (art) art.classList.remove('ht-art-mini');
+  } else {
+    if (chase && sochiChase.renderer) {
+      chase.classList.remove('hidden');
+      card?.classList.add('chase-on');
+      sochiChase.running = true;
+      sochiChase.t0 = 0;
+      sochiChase.raf = requestAnimationFrame(sochiChaseTick);
+      if (art) art.classList.add('ht-art-mini');
+    }
+  }
+}
+
+document.getElementById('homeTrackMode')?.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('[data-ht-mode]');
+  if (!b) return;
+  setHomeTrackViewMode(b.getAttribute('data-ht-mode'));
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    if (sochiChase.running && sochiChase.raf) { cancelAnimationFrame(sochiChase.raf); sochiChase.raf = 0; }
+  } else if (sochiChase.renderer && sochiChase.mode === 'chase' && document.getElementById('view-home')?.classList.contains('active')) {
+    if (!sochiChase.raf) { sochiChase.running = true; sochiChase.raf = requestAnimationFrame(sochiChaseTick); }
+  }
+});
+try {
+  window.__plSochiChase = {
+    start: () => {
+      const card = document.getElementById('homeTrack');
+      const nm = document.getElementById('homeTrackName');
+      const meta = document.getElementById('homeTrackMeta');
+      if (nm) nm.textContent = 'Сочи Автодром';
+      if (card) card.dataset.track = 'sochi';
+      if (meta) {
+        meta.replaceChildren();
+        const mk = (v, u, k) => { const el = padEl('span', 'ht-spec'); const b = padEl('b', '', v); if (u) b.appendChild(padEl('small', '', u)); el.appendChild(b); el.appendChild(padEl('span', '', k)); meta.appendChild(el); };
+        mk('5.85', 'км', 'длина'); mk('18', '', 'поворотов');
+        meta.appendChild(padEl('span', 'ht-chip', 'культовая'));
+      }
+      const a = document.getElementById('homeTrackArt');
+      if (a) { a.dataset.track = ''; paintHomeTrackArt(a, 'sochi', 'Сочи Автодром'); }
+      return !!sochiChase.renderer;
+    },
+    stop: stopSochiChase,
+    setU: (u) => { sochiChase.frozen = true; sochiChaseApplyCam(Number(u) || 0); if (sochiChase.renderer) sochiChase.renderer.render(sochiChase.scene, sochiChase.camera); },
+    thaw: () => { sochiChase.frozen = false; sochiChase.t0 = 0; if (!sochiChase.raf && sochiChase.renderer) { sochiChase.running = true; sochiChase.raf = requestAnimationFrame(sochiChaseTick); } },
+    get: () => ({ running: sochiChase.running, mode: sochiChase.mode, has: !!sochiChase.renderer }),
+  };
+} catch (_) {}
+
 function paintHomeTrackArt(art, trackId, name) {
   if (!art) return;
+  stopSochiChase();
+  art.classList.remove('ht-art-mini');
   paintTrackMapImg(art, trackId, 'thumb', name || '');
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const wantChase = trackId === 'sochi' && !reduce;
+  if (wantChase) {
+    const host = document.getElementById('homeTrackChase');
+    if (host && startSochiChase(host)) {
+      art.classList.add('ht-art-mini');
+      sochiChase.mode = 'chase';
+      setHomeTrackViewMode('chase');
+      return;
+    }
+  }
+  // top-down map + white dot (all other tracks, or reduced-motion / chase fail)
   const d = homeTrackRacePathD(trackId, 640, 360);
   if (!d || reduce) return;
   const ns = 'http://www.w3.org/2000/svg';

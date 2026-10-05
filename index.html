@@ -229,9 +229,14 @@
                 <div class="ht-info">
                   <b id="homeTrackName">—</b>
                   <div id="homeTrackMeta" class="ht-meta"></div>
+                  <div class="ht-mode seg-control hidden" id="homeTrackMode" role="group" aria-label="Вид трассы">
+                    <button type="button" class="seg-btn on" data-ht-mode="chase" id="htModeChase">сзади</button>
+                    <button type="button" class="seg-btn" data-ht-mode="top" id="htModeTop">сверху</button>
+                  </div>
                 </div>
                 <div class="ht-art" id="homeTrackArt" aria-hidden="true"></div>
               </div>
+              <div class="ht-chase hidden" id="homeTrackChase" aria-hidden="true"></div>
               <ol id="homeTrackTop" class="ht-top"></ol>
             </article>
           </section>
