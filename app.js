@@ -10570,7 +10570,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v91';
+const APP_VERSION = 'v92';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -11284,6 +11284,92 @@ async function renderHomeDuels() {
   rows.slice(0, 6).forEach((d) => box.appendChild(buildDuelCard(d)));
 }
 
+
+/** v92: SVG race-path for home «Трасса дня» overlay (matches map centerline: sochi=outline, else TRACK_SVG). */
+function homeTrackRacePathD(trackId, vbW = 640, vbH = 360) {
+  const padX = vbW * 0.09, padY = vbH * 0.08;
+  const box = { x: padX, y: padY, w: vbW - padX * 2, h: vbH * 0.72 };
+  let pts = null;
+  const o = TRACK_OUTLINES?.[trackId];
+  const useOutline = trackId === 'sochi' && o && Array.isArray(o.coords) && o.coords.length > 40;
+  if (useOutline) {
+    const mid = o.coords.reduce((a, c) => a + c[1], 0) / o.coords.length;
+    const k = Math.cos(mid * Math.PI / 180);
+    pts = o.coords.map(([lo, la]) => [lo * k, -la]);
+  } else {
+    const d = TRACK_SVG[trackId] || TRACK_SVG.sochi;
+    if (d && typeof document !== 'undefined') {
+      try {
+        const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        path.setAttribute('d', d);
+        const len = path.getTotalLength() || 1;
+        pts = [];
+        const n = 120;
+        for (let i = 0; i <= n; i++) {
+          const p = path.getPointAtLength((i / n) * len);
+          pts.push([p.x, p.y]);
+        }
+      } catch (_) { pts = null; }
+    }
+  }
+  if (!pts || pts.length < 3) {
+    const sil = trackSilhouettePath(trackId, 32, 2);
+    return sil || '';
+  }
+  // light isometric (same spirit as v91 maps)
+  const shear = 0.22, squash = 0.82, cy = 0;
+  const midY = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+  pts = pts.map(([x, y]) => {
+    const dy = y - midY;
+    return [x + dy * shear * 0.35, midY + dy * squash];
+  });
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const [x, y] of pts) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+  const sc = Math.min(box.w / Math.max(1e-6, x1 - x0), box.h / Math.max(1e-6, y1 - y0));
+  const ox = box.x + (box.w - (x1 - x0) * sc) / 2;
+  const oy = box.y + (box.h - (y1 - y0) * sc) / 2;
+  const mapped = pts.map(([x, y]) => [ox + (x - x0) * sc, oy + (y - y0) * sc]);
+  return mapped.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('') + 'Z';
+}
+
+function paintHomeTrackArt(art, trackId, name) {
+  if (!art) return;
+  paintTrackMapImg(art, trackId, 'thumb', name || '');
+  const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  const d = homeTrackRacePathD(trackId, 640, 360);
+  if (!d || reduce) return;
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 640 360');
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+  svg.setAttribute('class', 'ht-overlay');
+  svg.setAttribute('aria-hidden', 'true');
+  const guide = document.createElementNS(ns, 'path');
+  guide.setAttribute('d', d);
+  guide.setAttribute('class', 'ht-race');
+  svg.appendChild(guide);
+  const dot = document.createElementNS(ns, 'circle');
+  dot.setAttribute('r', '5');
+  dot.setAttribute('class', 'ht-dot');
+  const glow = document.createElementNS(ns, 'circle');
+  glow.setAttribute('r', '10');
+  glow.setAttribute('class', 'ht-dot-glow');
+  const mo1 = document.createElementNS(ns, 'animateMotion');
+  mo1.setAttribute('dur', '8s');
+  mo1.setAttribute('repeatCount', 'indefinite');
+  mo1.setAttribute('path', d);
+  mo1.setAttribute('rotate', 'auto');
+  const mo2 = document.createElementNS(ns, 'animateMotion');
+  mo2.setAttribute('dur', '8s');
+  mo2.setAttribute('repeatCount', 'indefinite');
+  mo2.setAttribute('path', d);
+  glow.appendChild(mo2);
+  dot.appendChild(mo1);
+  svg.appendChild(glow);
+  svg.appendChild(dot);
+  art.appendChild(svg);
+}
+
 async function renderHomeTrack() {
   let data = null;
   try { data = await api.getSessionToday(); } catch (_) { data = null; }
@@ -11295,7 +11381,7 @@ async function renderHomeTrack() {
   const art = document.getElementById('homeTrackArt');
   if (art && art.dataset.track !== tr.id) {
     art.dataset.track = tr.id;
-    paintTrackMapImg(art, tr.id, 'thumb', tr.name || '');
+    paintHomeTrackArt(art, tr.id, tr.name || '');
   }
   const nm = document.getElementById('homeTrackName');
   if (nm) nm.textContent = tr.name;
