@@ -14,6 +14,8 @@
  */
 
 /* ——— season / limits (Мага меняет здесь) ——— */
+import { PAY, msgSeasonPaid } from './botcopy.js';
+
 export const ROOM_SEASON_DAYS = 90; // длительность оплаченного сезона
 export const ROOM_SEASON_STARS = 500; // цена сезона в Telegram Stars (XTR) — ЗАГЛУШКА
 export const ROOM_FREE_SESSIONS = 3; // бесплатно: сессий на комнату
@@ -196,11 +198,11 @@ async function ensurePaymentUpdates(env, origin, h) {
 function invoiceSpec(room, pilotId, h) {
   const name = h.safeName(room.name, 'экипаж');
   return {
-    title: 'Сезон экипажа',
-    description: `«${name}» · ${ROOM_SEASON_DAYS} дней: новые круги, дуэли и топ комнаты — для всех участников. Одна оплата на комнату.`.slice(0, 255),
+    title: PAY.title,
+    description: PAY.description(name, ROOM_SEASON_DAYS),
     payload: `rs1:${room.id}:${pilotId}`,
     currency: 'XTR',
-    prices: [{ label: `Сезон ${ROOM_SEASON_DAYS} дн.`, amount: ROOM_SEASON_STARS }],
+    prices: [{ label: PAY.label(ROOM_SEASON_DAYS), amount: ROOM_SEASON_STARS }],
   };
 }
 
@@ -483,12 +485,12 @@ export async function roomsPreCheckout(env, q, h) {
   };
   if (!q || typeof q.id !== 'string') return { ok: false, msg: 'bad query' };
   const mm = String(q.invoice_payload || '').match(PAYLOAD_RE);
-  if (!mm) return await fail('Счёт устарел — открой оплату заново в PITLANE.');
-  if (q.currency !== 'XTR' || Number(q.total_amount) !== ROOM_SEASON_STARS) return await fail('Цена сезона изменилась — открой оплату заново.');
+  if (!mm) return await fail(PAY.errStale);
+  if (q.currency !== 'XTR' || Number(q.total_amount) !== ROOM_SEASON_STARS) return await fail(PAY.errPrice);
   const room = await loadRoom(env.PITLANE, mm[1], h);
-  if (!room) return await fail('Комната не найдена.');
+  if (!room) return await fail(PAY.errRoom);
   const payerPid = await env.PITLANE.get(h.providerKey('tg', String(q.from?.id || '')));
-  if (!payerPid || !isMember(room, payerPid)) return await fail('Оплатить сезон может только участник экипажа (войди в PITLANE через Telegram).');
+  if (!payerPid || !isMember(room, payerPid)) return await fail(PAY.errMember);
   await h.tgCall(env, 'answerPreCheckoutQuery', { pre_checkout_query_id: q.id, ok: true });
   return { ok: true, roomId: room.id };
 }
@@ -522,10 +524,13 @@ export async function roomsSuccessfulPayment(env, msg, h) {
   await saveRoom(env.PITLANE, room);
   const until = new Date(room.paidUntil).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow' });
   if (Number.isSafeInteger(msg.chat?.id)) {
+    const m = msgSeasonPaid({ name: h.safeName(room.name, 'команда'), until, roomId: room.id });
     await h.tgCall(env, 'sendMessage', {
       chat_id: msg.chat.id,
-      text: `✅ Сезон экипажа «${h.tgEsc(h.safeName(room.name, 'экипаж'))}» оплачен до ${until}. Доступ получили все участники комнаты.`,
+      text: m.text,
       parse_mode: 'HTML',
+      link_preview_options: { is_disabled: true },
+      reply_markup: { inline_keyboard: m.keyboard },
     });
   }
   return { ok: true, roomId: room.id, paidUntil: room.paidUntil };

@@ -47,9 +47,10 @@ console.log('\n[command routing]');
 let s = sent.pop();
 ok(s.method === 'sendPhoto' && s.body.chat_id === 555 && /banner\.jpg(\?v=\d+)?$/.test(s.body.photo), '/start → sendPhoto banner to chat');
 const kb = s.body.reply_markup.inline_keyboard;
-ok(kb.length === 3 && kb[0][0].text === '🏁 Открыть PITLANE' && kb[0][0].web_app.url === 'https://dsssssz.github.io/pitlane/', 'big open button');
-ok(kb[1][0].text === '🏆 Топы' && /view=tops/.test(kb[1][0].web_app.url) && kb[1][1].text === '⚔️ Дуэль' && /screen=duel/.test(kb[1][1].web_app.url), 'Топы / Дуэль row');
-ok(kb[2][0].text === '💬 Обратная связь' && /screen=feedback/.test(kb[2][0].web_app.url), 'feedback button');
+ok(kb.length === 3 && kb[0][0].text === 'Открыть PITLANE' && kb[0][0].web_app.url === 'https://dsssssz.github.io/pitlane/', 'big open button');
+ok(kb[1][0].text === 'Круг' && /view=lap/.test(kb[1][0].web_app.url) && kb[1][1].text === 'Команда' && /screen=teams/.test(kb[1][1].web_app.url), 'Круг / Команда row');
+ok(kb[2][0].text === 'Гараж' && /view=garage/.test(kb[2][0].web_app.url) && kb[2][1].text === 'Топ' && /view=tops/.test(kb[2][1].web_app.url), 'Гараж / Топ row');
+ok(s.body.parse_mode === 'HTML' && /^<b>PITLANE<\/b>/.test(s.body.caption), 'HTML caption with bold title');
 ok(!/\bpro\b|₽|руб\.|рубл|цена|стоимост|подписк/i.test(s.body.caption), 'no Pro/prices in caption');
 await hook('/start duel_Ab12-x');
 s = sent.pop();
@@ -100,7 +101,7 @@ ok(sent.filter((x) => x.method === 'setMyCommands').some((x) => x.body.language_
 ok(sent.find((x) => x.method === 'setChatMenuButton').body.menu_button.text === 'PITLANE', 'menu button PITLANE');
 ok(!methods.includes('sendMessage') && !methods.includes('sendPhoto'), 'setup does not message anyone');
 ok(r.data.result.getWebhookInfo.urlMatches === true, 'verification reported');
-ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.length === 9, 'description lengths within limits');
+ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.length === 5 && BOT_COMMANDS.map((c) => c.command).join() === 'garage,team,duel,tops,help', 'description lengths within limits');
 ok(!/\bpro\b|₽|руб\.|рубл|цена|стоимост|подписк/i.test(BOT_DESCRIPTION + BOT_SHORT_DESCRIPTION), 'no Pro/prices in descriptions');
 ok(tgRoute('/START').cmd === 'start', 'commands case-insensitive');
 

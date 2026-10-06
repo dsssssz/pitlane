@@ -1,3 +1,4 @@
+import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner } from './botcopy.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
@@ -1607,97 +1608,45 @@ function tgEsc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
-function appUrl(params) {
-  const q = new URLSearchParams(params || {}).toString();
-  return APP_URL + (q ? '?' + q : '');
-}
-
-const webAppBtn = (text, params) => ({ text, web_app: { url: appUrl(params) } });
-
-const BOT_TEXT = {
-  start:
-    '<b>PITLANE — пит-лейн у тебя в кармане</b>\n\n' +
-    '⏱ Замеры 0–100 и времени круга по GPS — с честной оценкой точности\n' +
-    '🏆 Топы автодромов и секторов\n' +
-    '⚔️ Дуэли один на один и 👥 экипажи\n' +
-    '🚘 3D-гараж твоей машины\n\n' +
-    'Жми «Открыть PITLANE» — и на старт 🏁',
-  garage: '🚘 <b>3D-гараж</b>\nВыбери машину, покрась её, смотри паспорт и свои замеры.',
-  tops: '🏆 <b>Топы автодромов</b>\nЛучшие круги и секторы по трассам России. В зачёт идут только заезды с точным GPS (A/B).',
-  duel: '⚔️ <b>Дуэль</b>\nСоздай вызов и отправь ссылку другу. Побеждает лучший GPS-заезд за 7 дней.',
-  car: '🚘 <b>Это моя машина</b>\nВыбери активную машину и резину. Каждый сохранённый круг навсегда привязывается к ним — без машины круг в зачёт не идёт.',
-  room: '👥 <b>Комната экипажа</b>\nСоздай комнату, позови своих по ссылке. Внутри — дуэли кругов одного трека и топ по модели + резине. Бесплатно 3 сессии и 1 трек, дальше экипаж оплачивает сезон (одна оплата на всех).',
-  team: '🏁 <b>Команды</b>\nПубличные страницы команд: аватар, описание, участники и лента новостей. Найди команду и попросись в неё — или собери свою.',
-  feedback: '💬 <b>Обратная связь</b>\nНашёл ошибку или есть идея? Напиши нам прямо в приложении — можно приложить скриншот.',
-  help:
-    '<b>Как пользоваться PITLANE</b>\n\n' +
-    '1. Открой приложение кнопкой ниже или через меню «PITLANE» слева от поля ввода.\n' +
-    '2. <b>Замер</b>: вкладка «Замер» → разреши геопозицию → старт с места, 0–100 фиксируется сам.\n' +
-    '3. <b>Круг</b>: вкладка «Круг» → выбери автодром → старт и финиш ловятся по GPS.\n' +
-    '4. <b>Топы</b>: попадают только заезды с точным GPS (A/B). Там же — дуэли, экипажи и секторы.\n' +
-    '5. Войди через Telegram в «Профиле», чтобы результаты сохранялись.\n\n' +
-    'Команды: /garage /tops /duel /feedback\n\n' +
-    '⚠️ Замеряй только на закрытых площадках и треках.',
-  other: 'Я понимаю команды из меню 🙂 Открой PITLANE кнопкой ниже или загляни в /help.',
-};
-
-/** Extra line on /start when the user came from a shared deep link (t.me/<bot>?start=<param>). */
-function startPayloadLine(param) {
-  const kind = String(param).split('_')[0];
-  if (kind === 'duel') return '⚔️ Тебе бросили вызов — открой дуэль кнопкой ниже.';
-  if (kind === 'crew') return '👥 Тебя зовут в экипаж — открой приглашение кнопкой ниже.';
-  if (kind === 'room') return '🏁 Тебя зовут в комнату экипажа — открой приглашение кнопкой ниже.';
-  if (kind === 'team') return '🏁 Открой страницу команды кнопкой ниже.';
-  if (kind === 's' || kind === 'lap' || kind === 'run') return '📊 С тобой поделились результатом — открой его кнопкой ниже.';
-  if (kind === 'track') return '📍 Открой трассу кнопкой ниже.';
-  if (kind === 'tops') return '🏆 Открой топы кнопкой ниже.';
-  return '';
-}
+/* v99 copy: all bot texts live in ./botcopy.js (premium tone, HTML, escaped user text). */
 
 /** Pure router: text → reply spec { method, payload } (chat id filled by caller). Exported for tests. */
-function tgRoute(text) {
+function tgRoute(text, info) {
   const t = String(text || '').trim();
   const m = t.match(/^\/([a-z_]{1,32})(?:@[A-Za-z0-9_]{3,64})?(?:\s+([\s\S]*))?$/i);
   const cmd = m ? m[1].toLowerCase() : '';
   const arg = m && m[2] ? m[2].trim() : '';
-  const openRow = [webAppBtn('🏁 Открыть PITLANE', {})];
   if (cmd === 'start') {
     const param = TMA_PARAM_RE.test(arg) ? arg : '';
-    const extra = param ? startPayloadLine(param) : '';
-    const caption = BOT_TEXT.start + (extra ? '\n\n' + extra : '');
+    const extra = param ? startPayloadLine(param, info) : '';
+    const caption = extra ? extra + '\n' + COPY_RULE + '\n' + START_CAPTION : START_CAPTION;
     return {
       cmd,
       method: 'sendPhoto',
-      payload: {
-        photo: TG_BANNER_URL,
-        caption,
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [
-            [webAppBtn(param ? '🏁 Открыть в PITLANE' : '🏁 Открыть PITLANE', param ? { startapp: param } : {})],
-            [webAppBtn('🏆 Топы', { view: 'tops', skipIntro: '1' }), webAppBtn('⚔️ Дуэль', { screen: 'duel' })],
-            [webAppBtn('💬 Обратная связь', { screen: 'feedback' })],
-          ],
-        },
-      },
+      payload: { photo: TG_BANNER_URL, caption, parse_mode: 'HTML', reply_markup: { inline_keyboard: startKeyboard(param) } },
     };
   }
-  const simple = {
-    garage: [BOT_TEXT.garage, [webAppBtn('🚘 Открыть гараж', { view: 'garage', skipIntro: '1' })]],
-    tops: [BOT_TEXT.tops, [webAppBtn('🏆 Открыть топы', { view: 'tops', skipIntro: '1' })]],
-    duel: [BOT_TEXT.duel, [webAppBtn('⚔️ Создать дуэль', { screen: 'duel' })]],
-    car: [BOT_TEXT.car, [webAppBtn('🚘 Это моя машина', { screen: 'mycar' })]],
-    room: [BOT_TEXT.room, [webAppBtn('👥 Комнаты экипажа', { screen: 'rooms' })]],
-    team: [BOT_TEXT.team, [webAppBtn('🏁 Команды', { screen: 'teams' })]],
-    feedback: [BOT_TEXT.feedback, [webAppBtn('💬 Написать', { screen: 'feedback' })]],
-    help: [BOT_TEXT.help, openRow],
-  };
-  const [body, row] = simple[cmd] || [BOT_TEXT.other, openRow];
+  const simple = simpleRoutes();
+  const [body, row] = simple[cmd] || [BOT_TEXT.other, [webAppBtn('Открыть PITLANE', {})]];
   return {
     cmd: simple[cmd] ? cmd : 'other',
     method: 'sendMessage',
     payload: { text: body, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: [row] } },
   };
+}
+
+/** Deep-link context for /start (team name for invites) — KV read only, never trusts the payload for anything else. */
+async function startInfo(env, text) {
+  try {
+    const m = String(text || '').match(/^\/start(?:@\S+)?\s+(room|team)_([A-Za-z0-9_-]{1,56})$/i);
+    if (!m) return null;
+    let rid = m[2];
+    if (m[1].toLowerCase() === 'room') rid = await env.PITLANE.get('roominv:' + m[2].toUpperCase());
+    if (!rid || !/^r[a-z0-9]{10,24}$/.test(rid)) return null;
+    const room = await kvJson(env.PITLANE, 'room:' + rid);
+    if (!room || !(room.members || []).length) return null;
+    return { name: safeName(room.name, 'команда'), members: room.members.length };
+  } catch (_) { return null; }
 }
 
 async function tgCall(env, method, payload) {
@@ -1727,7 +1676,8 @@ async function tgHandleMessage(env, msg) {
   if (msg?.chat?.type !== 'private' || !Number.isSafeInteger(chatId)) return null;
   // per-chat flood guard: 12 replies / minute, then silence (fixed window, no writes once over)
   if (await rateHit(env.PITLANE, 'rl:tgchat:' + chatId, 12, 60)) return { cmd: 'limited' };
-  const route = tgRoute(typeof msg.text === 'string' ? msg.text.slice(0, 512) : '');
+  const text = typeof msg.text === 'string' ? msg.text.slice(0, 512) : '';
+  const route = tgRoute(text, await startInfo(env, text));
   let r = await tgCall(env, route.method, { chat_id: chatId, ...route.payload });
   if (!r?.ok && route.method === 'sendPhoto') {
     // banner unreachable → same text without the photo
@@ -1737,25 +1687,6 @@ async function tgHandleMessage(env, msg) {
   return { ...route, sent: !!r?.ok };
 }
 
-const BOT_COMMANDS = [
-  { command: 'start', description: 'Главное меню' },
-  { command: 'garage', description: '3D-гараж' },
-  { command: 'tops', description: 'Топы автодромов' },
-  { command: 'duel', description: 'Вызвать на дуэль' },
-  { command: 'car', description: 'Это моя машина' },
-  { command: 'room', description: 'Комната экипажа' },
-  { command: 'team', description: 'Команды' },
-  { command: 'feedback', description: 'Обратная связь' },
-  { command: 'help', description: 'Как пользоваться' },
-];
-const BOT_DESCRIPTION =
-  'PITLANE — гараж и телеметрия для трека прямо в Telegram.\n\n' +
-  '⏱ Замеры 0–100 и времени круга по GPS смартфона с оценкой точности\n' +
-  '🏆 Топы автодромов России и секторов — только честные заезды\n' +
-  '⚔️ Дуэли с друзьями и 👥 экипажи с общим бордом\n' +
-  '🚘 3D-гараж твоей машины\n\n' +
-  'Нажми «Старт» или кнопку «PITLANE». Замеряй только на закрытых площадках и треках.';
-const BOT_SHORT_DESCRIPTION = 'Замеры 0–100 и кругов по GPS, топы автодромов, дуэли, экипажи и 3D-гараж — прямо в Telegram 🏁';
 const BOT_NAME = 'PITLANE';
 
 /** One-shot bot configuration (POST /tg/setup, admin-secret guarded). Idempotent. */
@@ -1848,7 +1779,7 @@ function sanitizeFeedback(body) {
   return { rec: { type, text, contact, diag }, shot };
 }
 
-function feedbackMessage(rec, key) {
+function feedbackMessagePlain(rec, key) {
   const lines = [
     '📝 Pitlane · обратная связь · ' + FEEDBACK_TYPES[rec.type],
     '',
@@ -1867,6 +1798,25 @@ function feedbackMessage(rec, key) {
   return lines.join('\n').slice(0, 4000);
 }
 
+/** Owner-chat message: HTML (all user text escaped via botcopy.esc); falls back to plain text when escaping would overflow 4096. */
+function feedbackMessage(rec, key) {
+  const html = msgFeedbackOwner({
+    typeLabel: FEEDBACK_TYPES[rec.type],
+    text: rec.text,
+    contact: rec.contact,
+    nick: rec.nick,
+    account: rec.authed ? rec.pilotId : '',
+    diagLine: 'App ' + (rec.diag.app || '?') + ' · SW ' + (rec.diag.sw || '?') + ' · 3D ' + (rec.diag.tier || '?') +
+      ' · TMA ' + (rec.diag.tma ? 'да' + (rec.diag.tgPlatform ? ' (' + rec.diag.tgPlatform + ')' : '') : 'нет') +
+      ' · вкладка ' + (rec.diag.tab || '?') + (rec.diag.queued ? ' · из офлайн-очереди' : ''),
+    ua: 'UA: ' + (rec.diag.ua || '?') + (rec.diag.screen ? ' · ' + rec.diag.screen : ''),
+    key,
+    full: true,
+  });
+  if (html) return { text: html, parse_mode: 'HTML' };
+  return { text: feedbackMessagePlain(rec, key) };
+}
+
 /** Forward to the owner's chat. Returns true when Telegram accepted the message. Never throws. */
 async function forwardFeedbackToTelegram(env, rec, key, shot) {
   const token = String(env.TELEGRAM_BOT_TOKEN || '').trim();
@@ -1883,7 +1833,7 @@ async function forwardFeedbackToTelegram(env, rec, key, shot) {
     const res = await withTimeout(api + '/sendMessage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chat, text: feedbackMessage(rec, key), link_preview_options: { is_disabled: true } }),
+      body: JSON.stringify({ chat_id: chat, ...feedbackMessage(rec, key), link_preview_options: { is_disabled: true } }),
     });
     const data = await res.json().catch(() => null);
     if (!data?.ok) return false;
@@ -2244,7 +2194,7 @@ async function deleteAccount(kv, pid, currentToken) {
   Object.assign(rep, await deleteAccountRooms(kv, pid, ROOM_H));
   // per-account rate-limit counters (short-lived anyway; removed so nothing references the uuid)
   for (const b of ROOM_RL_BUCKETS) await del('rl:' + b + ':p:' + pid);
-  for (const b of TEAM_RL_BUCKETS) await del('rl:' + b + ':p:' + pid);
+  for (const b of [...TEAM_RL_BUCKETS, 'tgnote']) await del('rl:' + b + ':p:' + pid);
   for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx', 'drag', 'ghost', 'ghostd', 'ban']) await del('rl:' + b + ':p:' + pid);
   // finally the account record itself
   if (rec) rep.account = 1;
@@ -2499,6 +2449,67 @@ async function migratePilots(kv, { dry = false } = {}) {
   return rep;
 }
 
+/* ———————— bot notifications (team best lap, duels) — only to pilots linked to Telegram ———————— */
+async function tgChatOf(env, pid) {
+  if (!isPilotUuid(String(pid || ''))) return null;
+  const rec = await loadPilot(env.PITLANE, pid);
+  const id = String((rec?.providers || []).find((p) => p.type === 'tg')?.id || '');
+  return /^\d{1,20}$/.test(id) ? Number(id) : null;
+}
+async function tgNotify(env, pid, m) {
+  try {
+    if (!telegramConfig(env).enabled) return false;
+    const chat = await tgChatOf(env, pid);
+    if (!chat) return false;
+    if (await rateHit(env.PITLANE, 'rl:tgnote:p:' + pid, 20, 3600)) return false; // per-pilot cap
+    const r = await tgCall(env, 'sendMessage', { chat_id: chat, text: m.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: m.keyboard } });
+    return !!r?.ok;
+  } catch (_) { return false; }
+}
+function honestRoomLap(l) { return !!l && l.valid && (l.gpsQ === 'A' || l.gpsQ === 'B') && Number(l.ms) > 0; }
+/** New room best on a track → tell the other members (inside the room, so private laps are fine here). */
+async function notifyRoomBest(env, room, lap, laps) {
+  if (!honestRoomLap(lap)) return 0;
+  let best = null;
+  for (const l of laps) if (l.id !== lap.id && l.trackId === lap.trackId && honestRoomLap(l) && (!best || l.ms < best.ms)) best = l;
+  if (best && lap.ms >= best.ms) return 0;
+  if (!best) return 0; // first lap on a track is not news
+  if (await rateHit(env.PITLANE, 'rl:tgnote:r:' + room.id, 6, 3600)) return 0;
+  const m = msgRoomBest({
+    teamName: safeName(room.name, 'команда'), roomId: room.id, nick: safeName(lap.nick), t: lap.t, trackId: lap.trackId,
+    model: lap.model, tyre: lap.tyre, prevNick: best.pilotId !== lap.pilotId ? safeName(best.nick) : null, delta: best.ms - lap.ms,
+  });
+  const to = (room.members || []).map((x) => x.pilotId).filter((pid) => pid !== lap.pilotId).slice(0, 30);
+  const res = await Promise.allSettled(to.map((pid) => tgNotify(env, pid, m)));
+  return res.filter((x) => x.status === 'fulfilled' && x.value).length;
+}
+function duelTimeStr(type, run) {
+  if (!run) return '—';
+  if (type === 'drag') { const t = Number(run.t); return Number.isFinite(t) ? t.toFixed(2) + ' с' : String(run.t || '—'); }
+  return String(run.t || '—');
+}
+/** Duel events → the other side: «вызов принят» (creator still to drive) or the final result. */
+async function notifyDuel(env, d, submitterId) {
+  const sides = [
+    { who: d.createdBy, run: d.creatorRun, mine: 'creator' },
+    { who: d.challenger, run: d.challengerRun, mine: 'challenger' },
+  ];
+  const me = sides.find((x) => x.who?.id === submitterId);
+  const other = sides.find((x) => x !== me);
+  if (!me || !other?.who?.id || other.who.id === submitterId) return false;
+  if (d.status === 'ready') {
+    const a = runScoreMs(d.type, other.run); const b = runScoreMs(d.type, me.run);
+    return await tgNotify(env, other.who.id, msgDuelResult({
+      duelId: d.id, won: d.winner === other.mine, tie: d.winner === 'tie', myT: duelTimeStr(d.type, other.run),
+      rivalName: safeName(me.who.name), rivalT: duelTimeStr(d.type, me.run), delta: a != null && b != null ? b - a : null, trackId: d.trackId,
+    }));
+  }
+  if (me.mine === 'challenger' && !d.creatorRun) {
+    return await tgNotify(env, other.who.id, msgDuelAccepted({ duelId: d.id, rivalName: safeName(me.who.name), t: duelTimeStr(d.type, me.run), trackId: d.trackId }));
+  }
+  return false;
+}
+
 /** Helpers handed to ./rooms.js (avoids a circular import). */
 const ROOM_H = {
   json, readJson, limitOr429, cleanLabel, cleanText, safeName, containsPhone, slugOk, kvJson, randB36, pubId,
@@ -2512,8 +2523,10 @@ const ROOM_H = {
 };
 
 export default {
-  async fetch(req, env) {
+  async fetch(req, env, ectx) {
     const headers = corsHeaders(req, env);
+    // background work (bot notifications): waitUntil in production, awaited in tests
+    const defer = async (p) => { const q = Promise.resolve(p).catch(() => null); if (ectx && typeof ectx.waitUntil === 'function') { ectx.waitUntil(q); return null; } return await q; };
     if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers });
 
     if (!env.PITLANE) {
@@ -3523,6 +3536,7 @@ export default {
 
         d = refreshDuelStatus(d);
         await env.PITLANE.put('duel:' + id, JSON.stringify(d), { expirationTtl: duelKvTtl(d) });
+        await defer(notifyDuel(env, d, who.id));
         return json(publicDuel(d), 200, headers);
       }
 
@@ -3531,7 +3545,7 @@ export default {
       {
         const tr = await teamsRoute({ req, env, path, url, pilot, headers, ip, h: ROOM_H });
         if (tr) return tr;
-        const rr = await roomsRoute({ req, env, path, url, pilot, headers, ip, h: ROOM_H, onRoomLap: (room, lap, laps) => teamsOnLap(env, room, lap, laps, ROOM_H) });
+        const rr = await roomsRoute({ req, env, path, url, pilot, headers, ip, h: ROOM_H, onRoomLap: async (room, lap, laps) => { await teamsOnLap(env, room, lap, laps, ROOM_H); await defer(notifyRoomBest(env, room, lap, laps)); } });
         if (rr) return rr;
       }
 

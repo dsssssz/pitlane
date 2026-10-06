@@ -221,7 +221,7 @@ r = await call(tgEnv, 'POST', '/feedback', { body: fb({ type: 'idea', text: '<b>
 ok(r.status === 200 && r.data.forwarded === true, 'forwarded when FEEDBACK_CHAT_ID set');
 const msg = sent.find((x) => x.url.endsWith('/sendMessage'));
 const mb = msg && JSON.parse(msg.init.body);
-ok(mb && mb.chat_id === '123456' && !mb.parse_mode && mb.text.includes('<b>жирный</b>') && mb.text.includes('Идея'), 'sendMessage: plain text (no parse_mode → no markup injection)');
+ok(mb && mb.chat_id === '123456' && mb.parse_mode === 'HTML' && mb.text.includes('&lt;b&gt;жирный&lt;/b&gt; &amp; &lt;a href=&quot;x&quot;&gt;') && !mb.text.includes('<b>жирный') && mb.text.includes('Идея'), 'sendMessage: HTML with user text escaped (no markup injection)');
 const ph = sent.find((x) => x.url.endsWith('/sendPhoto'));
 ok(ph && ph.init.body instanceof FormData && ph.init.body.get('photo').size === 2000, 'sendPhoto with the JPEG');
 r = await call({ ...tgEnv, FEEDBACK_CHAT_ID: '' }, 'POST', '/feedback', { body: fb(), ip: '10.4.4.5' });
