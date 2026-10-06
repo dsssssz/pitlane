@@ -1,6 +1,6 @@
 import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner } from './botcopy.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
-import { roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
+import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
  * Pitlane shared tops API — Cloudflare Worker + KV
  * Bindings: PITLANE (KV namespace)
@@ -2558,6 +2558,8 @@ export default {
           return json({ ok: true, paid: !!r?.ok, duplicate: !!r?.duplicate }, 200, headers);
         }
         if (msg) {
+          // payments self-heal: make sure pre_checkout_query is subscribed (one KV read once done)
+          await defer(ensurePaymentUpdates(env, 'https://' + url.host, ROOM_H));
           const r = await tgHandleMessage(env, msg);
           return json({ ok: true, cmd: r?.cmd || null }, 200, headers);
         }

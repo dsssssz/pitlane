@@ -180,7 +180,7 @@ function roomAdmitLap(room, trackId, h, now = Date.now()) {
 }
 
 /** Telegram: make sure the webhook also receives pre_checkout_query (once; flag in KV). */
-async function ensurePaymentUpdates(env, origin, h) {
+export async function ensurePaymentUpdates(env, origin, h) {
   try {
     if (await env.PITLANE.get('tg:wh:pay1')) return;
     const secret = String(env.TG_WEBHOOK_SECRET || '');

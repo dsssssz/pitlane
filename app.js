@@ -17,6 +17,7 @@ import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, make
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
+import { initTips, tipsOnView, resetTips } from './tips.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -1536,6 +1537,8 @@ function goToView(id, opts = {}) {
   try { onViewEnter(id); } catch (_) {}
   // v96: Sochi chase-navigator renders only on «Круг» (or the live lap HUD); paused elsewhere
   try { sochiChase.curView = id; sochiChaseSync(); } catch (_) {}
+  // v99: first-visit tip / first-launch tour
+  try { tipsOnView(id); } catch (_) {}
   if (nav) activateNavBtn(nav);
   else if (id === 'account') {
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
@@ -2410,6 +2413,8 @@ function clearDeepLinkUrl() {
       try { startGlbPrefetch(podiumModelId || state.carId || 'g87-m2'); } catch (_) {}
     }, 30);
     try { prefetchEngineStart(); } catch (_) {}
+    // v99: tour / first tip for the screen we land on
+    setTimeout(() => { try { tipsOnView((document.querySelector('.view.active')?.id || 'view-home').slice(5)); } catch (_) {} }, 700);
   };
   let seen = false;
   try { seen = sessionStorage.getItem(KEY) === '1'; } catch (_) {}
@@ -10524,6 +10529,7 @@ initCrewRooms({
   share: roomShare,
   openTeam: (id) => void openTeamPage(id),
   openTeamEditor: (id) => void openTeamEditor(id),
+  onSheet: () => { try { tipsOnView('teams'); } catch (_) {} },
 });
 initTeams({
   tracks: () => TRACKS,
@@ -10532,12 +10538,19 @@ initTeams({
   openRooms: (opts) => openRoomSheet(opts || {}),
   share: roomShare,
   teamLink: (id) => publicLinkFor('team_' + id, roomWebUrl('team_' + id)),
+  onSheet: () => { try { tipsOnView('teams'); } catch (_) {} },
   report: (text) => {
     document.getElementById('teamSheet')?.classList.add('hidden');
     openFeedbackSheet();
     const ta = document.getElementById('fbText');
     if (ta) { ta.value = String(text || '').slice(0, 1900); ta.dispatchEvent(new Event('input')); ta.focus(); }
   },
+});
+initTips();
+document.getElementById('btnTipsReset')?.addEventListener('click', () => {
+  resetTips();
+  plFlash('Подсказки снова включены');
+  goToView('home');
 });
 document.getElementById('btnRoomsOpen')?.addEventListener('click', () => void openTeamsList());
 document.getElementById('btnRoomsAcc')?.addEventListener('click', () => void openTeamsList());
@@ -10659,7 +10672,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v98';
+const APP_VERSION = 'v99';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

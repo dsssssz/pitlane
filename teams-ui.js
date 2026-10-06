@@ -18,7 +18,7 @@ function el(tag, cls, text) {
 function btn(cls, text, on) { const b = el('button', cls, text); b.type = 'button'; if (on) b.addEventListener('click', on); return b; }
 function body() { return document.getElementById('teamBody'); }
 function render(nodes) { const b = body(); if (!b) return; b.replaceChildren(...nodes.filter(Boolean)); const s = document.querySelector('#teamSheet .team-inner'); if (s) s.scrollTop = 0; }
-function openSheet() { const s = document.getElementById('teamSheet'); if (!s) return; s.classList.remove('hidden'); s.setAttribute('aria-hidden', 'false'); }
+function openSheet() { const s = document.getElementById('teamSheet'); if (!s) return; s.classList.remove('hidden'); s.setAttribute('aria-hidden', 'false'); try { D.onSheet?.(); } catch (_) {} }
 function closeSheet() { const s = document.getElementById('teamSheet'); if (!s) return; s.classList.add('hidden'); s.setAttribute('aria-hidden', 'true'); }
 function loggedIn() { try { return !!D.isAuthed(); } catch (_) { return false; } }
 function fmtAgo(at) {
@@ -215,13 +215,13 @@ function postRow(t, p) {
     c.appendChild(el('span', 'team-auto-k', 'Новый лучший круг'));
     c.appendChild(el('b', 'team-auto-t', p.meta.t));
     c.appendChild(el('span', 'team-auto-sub', trackName(p.meta.trackId) + ' · ' + p.meta.model + ' · ' + p.meta.tyre));
-    if (p.meta.prevNick && Number.isFinite(p.meta.delta)) c.appendChild(el('span', 'team-auto-gap', 'быстрее ' + p.meta.prevNick + ' на ' + fmtDelta(p.meta.delta)));
+    if (p.meta.prevNick && Number.isFinite(p.meta.delta)) c.appendChild(el('span', 'team-auto-gap', 'прежний рекорд: ' + p.meta.prevNick + ' · −' + fmtDelta(p.meta.delta)));
     li.appendChild(c);
   } else if (p.kind === 'duel' && p.meta) {
     const c = el('div', 'team-auto');
     c.appendChild(el('span', 'team-auto-k', 'Выиграл дуэль'));
     c.appendChild(el('b', 'team-auto-t', p.meta.t + '  vs  ' + p.meta.vsT));
-    c.appendChild(el('span', 'team-auto-sub', 'против ' + p.meta.vsNick + ' · ' + trackName(p.meta.trackId) + ' · ' + fmtDelta(p.meta.delta) + ' с'));
+    c.appendChild(el('span', 'team-auto-sub', 'соперник: ' + p.meta.vsNick + ' · ' + trackName(p.meta.trackId) + ' · ' + fmtDelta(p.meta.delta) + ' с'));
     li.appendChild(c);
   }
   if (p.text) li.appendChild(el('p', 'team-post-text', p.text));

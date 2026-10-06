@@ -41,7 +41,11 @@ ok(r.status === 404 && sent.length === 0, 'right header but wrong path → 404')
 r = await worker.fetch(new Request('https://api.test' + P, { method: 'POST', headers: { 'X-Telegram-Bot-Api-Secret-Token': 'short' }, body: '{}' }), { ...env, TG_WEBHOOK_SECRET: 'short' });
 ok(r.status === 404, 'short/unset secret disables the webhook');
 r = await hook('/start');
-ok(r.status === 200 && sent.length === 1, 'valid secret + path → 200 and one reply');
+ok(r.status === 200 && sent.length === 2 && sent[0].method === 'setWebhook' && JSON.stringify(sent[0].body.allowed_updates) === '["message","pre_checkout_query"]', 'first verified update self-heals payment updates (setWebhook once)');
+sent.shift();
+ok(sent.length === 1, 'valid secret + path → 200 and one reply');
+r = await hook('/help', 556); sent.pop();
+ok(!sent.some((x) => x.method === 'setWebhook'), 'self-heal runs only once (KV flag)');
 
 console.log('\n[command routing]');
 let s = sent.pop();

@@ -46,6 +46,7 @@ function openSheet(id) {
   if (!s) return;
   s.classList.remove('hidden');
   s.setAttribute('aria-hidden', 'false');
+  if (id === 'roomSheet') { try { D?.onSheet?.(); } catch (_) {} }
 }
 function closeSheet(id) {
   const s = document.getElementById(id);

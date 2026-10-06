@@ -5295,3 +5295,39 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 .room-team-row .btn-secondary { flex: 1; }
 .btn-secondary.has-badge { border-color: rgba(255,180,67,.6); color: #ffd27a; }
 .room-duel-post { width: 100%; margin-top: 10px; }
+
+/* ═══════════ v99: навигационные подсказки + тур первого запуска (стиль v86–v89) ═══════════ */
+.acc-tips-btn { display: block; margin: 8px 0 6px; }
+.pl-tip {
+  position: fixed; left: 50%; bottom: calc(100px + var(--sab, 0px)); z-index: 12700;
+  width: min(360px, calc(100vw - 24px)); box-sizing: border-box; padding: 14px 16px 14px;
+  border-radius: 18px; border: 1px solid rgba(255,255,255,.12);
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02)), rgba(18,18,18,.97);
+  box-shadow: 0 22px 48px -18px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.05);
+  color: #f2f2f2; transform: translate(-50%, 14px); opacity: 0; transition: opacity .2s var(--h-ease, ease), transform .2s var(--h-ease, ease);
+  display: grid; grid-template-columns: 1fr auto; grid-template-areas: "head ok" "text ok"; column-gap: 14px; align-items: center;
+}
+.pl-tip.on { opacity: 1; transform: translate(-50%, 0); }
+.pl-tip::before { content: ""; position: absolute; left: 16px; top: -1px; width: 36px; height: 2px; border-radius: 2px; background: #39FF14; box-shadow: 0 0 10px rgba(57,255,20,.5); }
+.pl-tip-head { display: grid; gap: 3px; }
+.pl-tip > .pl-tip-head { grid-area: head; }
+.pl-tip > .pl-tip-text { grid-area: text; }
+.pl-tip > .pl-tip-ok { grid-area: ok; }
+.pl-tip-k { font: 600 9.5px/1 Manrope, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #696969; }
+.pl-tip-title { font: 800 17px/1.1 "Barlow Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #f2f2f2; }
+.pl-tip-text { margin: 6px 0 0; font: 500 13px/1.45 Manrope, sans-serif; color: #bdbdbd; }
+.pl-tip-ok { appearance: none; min-height: 40px; padding: 0 16px; border-radius: 999px; border: 0; background: #39FF14; color: #0c0c0c; font: 800 13px/1 Manrope, sans-serif; letter-spacing: .02em; cursor: pointer; box-shadow: 0 0 18px rgba(57,255,20,.25); }
+.pl-tip-ok:active { transform: scale(.97); }
+@media (min-width: 901px) { .pl-tip { bottom: 24px; left: auto; right: 24px; transform: translateY(14px); } .pl-tip.on { transform: none; } }
+.pl-tour { position: fixed; inset: 0; z-index: 13500; opacity: 0; transition: opacity .22s var(--h-ease, ease); }
+.pl-tour.on { opacity: 1; }
+.pl-tour-ring { position: fixed; border-radius: 20px; box-shadow: 0 0 0 9999px rgba(4,4,4,.72), 0 0 0 2px #39FF14, 0 0 24px rgba(57,255,20,.45); transition: left .28s var(--h-ease, ease), top .28s var(--h-ease, ease), width .28s var(--h-ease, ease), height .28s var(--h-ease, ease); pointer-events: none; }
+.pl-tour-card { position: fixed; box-sizing: border-box; padding: 16px 16px 14px; border-radius: 18px; border: 1px solid rgba(57,255,20,.32); background: linear-gradient(165deg, #242424 0%, #1a1a1a 55%, #161616 100%); box-shadow: 0 24px 60px -20px rgba(0,0,0,.95); color: #f2f2f2; display: flex; flex-direction: column; gap: 4px; }
+.pl-tour-card .pl-tip-title { font-size: 22px; color: #39FF14; text-shadow: 0 0 16px rgba(57,255,20,.25); }
+.pl-tour-card .pl-tip-text { margin: 2px 0 8px; font-size: 13.5px; }
+.pl-tour-row { display: flex; align-items: center; gap: 10px; }
+.pl-tour-dots { display: flex; gap: 5px; margin-right: auto; }
+.pl-tour-dots i { width: 6px; height: 6px; border-radius: 50%; background: #3a3a3a; }
+.pl-tour-dots i.on { width: 18px; border-radius: 6px; background: #39FF14; }
+.pl-tour-skip { appearance: none; border: 0; background: none; color: #8a8a8a; font: 600 12.5px/1 Manrope, sans-serif; padding: 10px 4px; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .pl-tip, .pl-tour, .pl-tour-ring { transition: none; } }
