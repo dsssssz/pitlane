@@ -25,6 +25,7 @@ export const TEAM_RL_BUCKETS = ['tpost', 'tpostt', 'timg', 'treq', 'tedit', 'tmo
 const POST_ID_RE = /^p[a-z0-9]{8,24}$/;
 const LAP_ID_RE = /^l[a-z0-9]{8,24}$/;
 const DAY = 86400;
+export const TEAM_REQ_TTL_MS = 14 * DAY * 1000;
 
 function publicPost(p, viewer, room, h) {
   const me = viewer ? memberOf(room, viewer) : null;
@@ -146,7 +147,8 @@ export async function teamsRoute(ctx) {
   const { req, env, path, url, pilot, headers, ip, h } = ctx;
   if (path !== '/teams' && !path.startsWith('/teams/')) return null;
   const kv = env.PITLANE;
-  const viewer = pilot && pilot.id ? pilot.id : null;
+  // v102: only a signed-in account counts as viewer (guest device ids are client-chosen)
+  const viewer = pilot && pilot.authed && pilot.id ? pilot.id : null;
 
   // —— public: list / search ——
   if (path === '/teams' && req.method === 'GET') {
@@ -200,8 +202,15 @@ export async function teamsRoute(ctx) {
   // «Попроситься» в команду
   if (sub === 'request' && !arg) {
     if (req.method === 'DELETE') {
-      room.requests = (room.requests || []).filter((r) => r.pilotId !== pilot.id);
-      await saveRoom(kv, room);
+      // v102: rate-limited + write only when something actually changed (no KV write amplification)
+      const limD = await h.limitOr429(env, headers, [['rl:treqd:p:' + pilot.id, 30, 3600]]);
+      if (limD) return limD;
+      const reqs = Array.isArray(room.requests) ? room.requests : [];
+      const rest = reqs.filter((r) => r.pilotId !== pilot.id);
+      if (rest.length !== reqs.length) {
+        room.requests = rest;
+        await saveRoom(kv, room);
+      }
       return h.json({ ok: true }, 200, headers);
     }
     if (req.method !== 'POST') return h.json({ error: 'method' }, 405, headers);
@@ -210,6 +219,9 @@ export async function teamsRoute(ctx) {
     if (lim) return lim;
     const body = await h.readJson(req, 2048);
     room.requests = Array.isArray(room.requests) ? room.requests : [];
+    // v102: stale requests (no answer in 14 days) expire so sockpuppets can't keep the list full forever
+    const nowR = Date.now();
+    room.requests = room.requests.filter((r) => r && nowR - (Number(r.at) || 0) < TEAM_REQ_TTL_MS);
     if (room.requests.some((r) => r.pilotId === pilot.id)) return h.json({ ok: true, requested: true }, 200, headers);
     if (room.requests.length >= TEAM_REQ_MAX) return h.json({ error: 'too many requests' }, 409, headers);
     if ((room.members || []).length >= ROOM_MAX_MEMBERS) return h.json({ error: 'room full', max: ROOM_MAX_MEMBERS }, 409, headers);

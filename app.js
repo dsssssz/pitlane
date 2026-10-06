@@ -4701,7 +4701,7 @@ function renderLaps() {
   ul.innerHTML = shown.length
     ? shown.map((l, i) => {
         const tag = l.valid === false ? '∅' : (i === 0 ? 'PB' : '#' + (i + 1));
-        const note = l.valid === false ? ` · ${l.why || 'не в топ'}` : '';
+        const note = l.valid === false ? ` · ${esc(l.why || 'не в топ')}` : '';
         const badge = l.gpsQ ? topsGpsBadge({ gps: true, valid: l.valid !== false, gpsQ: l.gpsQ, avgAcc: l.avgAcc, hz: l.hz, flags: l.flags, weather: l.weather }) : (l.gps ? '<em class="tops-gps tops-gps-unk">GPS</em>' : '');
         const sp = sectorSplits(l);
         let secHtml = '';
@@ -4739,7 +4739,7 @@ function renderTrackDays() {
         const tr = TRACKS.find((t) => t.id === s.trackId);
         const best = s.bestMs != null ? formatMs(s.bestMs) : '—';
         const when = new Date(s.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-        return `<li><span>${tr?.name || s.trackId} · ${s.n} кр.</span><strong>${best}</strong><em class="tiny">${when} · чистых ${s.validN || 0}</em></li>`;
+        return `<li><span>${esc(tr?.name || s.trackId)} · ${Number(s.n) || 0} кр.</span><strong>${best}</strong><em class="tiny">${when} · чистых ${s.validN || 0}</em></li>`;
       }).join('')
     : '<li><span>сессий пока нет</span><strong>—</strong></li>';
 }
@@ -10682,7 +10682,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v101';
+const APP_VERSION = 'v102';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

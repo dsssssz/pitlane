@@ -655,11 +655,35 @@ function sanitizeSectors(body) {
 const LAP_MIN_MS = 15_000; // shortest plausible karting/track lap
 const LAP_MAX_MS = 60 * 60_000; // 1 h (Nordschleife tourist laps are ~8–12 min)
 
-function sanitizeLap(body, pilot) {
+/* v102 anti-cheat: per-track physical floor. Lap length (km, same as the client TRACKS table) at an average of
+ * LAP_MAX_AVG_KMH — faster than the F1 lap record on any of these tracks — is impossible for a road/track car. */
+const TRACK_KM = {
+  sochi: 5.85, moscow: 3.93, igora: 5.18, kazan: 3.48, smolensk: 3.36, nring: 3.12, adm: 3.25, grozny: 3.08,
+  redring: 2.80, spb: 2.90, tlt: 2.96, lipetsk: 2.87, 'auto-msk': 2.94, neva: 2.88, ufa: 2.97, don: 2.92,
+};
+const LAP_MAX_AVG_KMH = 260;
+const SECTOR_MIN_MS = 3000;
+function trackMinLapMs(trackId) {
+  const km = TRACK_KM[String(trackId || '')];
+  if (!km) return LAP_MIN_MS;
+  return Math.max(LAP_MIN_MS, Math.round((km * 3600_000) / LAP_MAX_AVG_KMH));
+}
+/** Each sector split must be ≥ max(3 s, 10% of the track floor) and the marks must fit inside the lap. */
+function sectorsPlausible(cum, lapMs, trackId) {
+  if (!Array.isArray(cum) || cum.length < 2) return false;
+  if (cum[cum.length - 1] > lapMs + 1000) return false;
+  const minSplit = Math.max(SECTOR_MIN_MS, Math.round(trackMinLapMs(trackId) * 0.1));
+  let prev = 0;
+  for (const c of cum) { if (c - prev < minSplit) return false; prev = c; }
+  if (cum.length < 3 && lapMs - prev < minSplit) return false;
+  return true;
+}
+
+function sanitizeLap(body, pilot, trackId) {
   const t = String(body?.t || '').trim();
   if (!/^\d{1,2}:[0-5]\d(\.\d{1,3})?$/.test(t)) return null;
   const tMs = parseLapMs(t);
-  if (tMs == null || tMs < LAP_MIN_MS || tMs > LAP_MAX_MS) return null;
+  if (tMs == null || tMs < trackMinLapMs(trackId) || tMs > LAP_MAX_MS) return null;
   if (!body?.gps) return null;
   const name = safeName(body.name || pilot.name);
   const car = cleanLabel(body.car, 80);
@@ -690,7 +714,7 @@ function sanitizeLap(body, pilot) {
     row.ms = Math.round(ms);
   }
   const sectors = sanitizeSectors(body);
-  if (sectors && sectors[sectors.length - 1] <= tMs + 1000) row.sectors = sectors;
+  if (sectors && sectorsPlausible(sectors, tMs, trackId)) row.sectors = sectors; // implausible splits are dropped
   const av = sanitizeAvatar(body?.avatar);
   if (av) row.avatar = av;
   return row;
@@ -1140,7 +1164,7 @@ function refreshDuelStatus(d) {
   return d;
 }
 
-function sanitizeDuelRun(body, pilot, type) {
+function sanitizeDuelRun(body, pilot, type, trackId) {
   if (type === 'drag') {
     const row = sanitizeStraight(body, pilot);
     if (!row || !row.valid || (row.gpsQ !== 'A' && row.gpsQ !== 'B')) return null;
@@ -1160,7 +1184,7 @@ function sanitizeDuelRun(body, pilot, type) {
     };
   }
   if (type === 'lap') {
-    const row = sanitizeLap(body, pilot);
+    const row = sanitizeLap(body, pilot, trackId);
     if (!row || !row.valid || (row.gpsQ !== 'A' && row.gpsQ !== 'B')) return null;
     return {
       name: row.name,
@@ -1501,6 +1525,7 @@ async function verifyTelegramAuth(data, botToken, opts = {}) {
  * data_check_string = all fields except `hash` (and `signature` is kept, per spec only `hash` is excluded), sorted "k=v" joined by "\n";
  * secret_key = HMAC_SHA256(key="WebAppData", msg=bot_token); valid iff hex(HMAC_SHA256(key=secret_key, msg=dcs)) == hash.
  */
+const TMA_LOGIN_MAX_AGE_S = 3600;
 async function verifyTmaInitData(initData, botToken, opts = {}) {
   const maxAgeSec = opts.maxAgeSec || 86400;
   const nowSec = opts.nowSec || Math.floor(Date.now() / 1000);
@@ -1875,7 +1900,7 @@ function ghostRef(kind, ref) {
 }
 
 function ghostTimeBounds(kind, ref) {
-  if (kind === 'lap') return { lo: LAP_MIN_MS, hi: LAP_MAX_MS };
+  if (kind === 'lap') return { lo: trackMinLapMs(ref), hi: LAP_MAX_MS };
   const b = DRAG_DISCIPLINES[ref];
   return b ? { lo: b.lo * 1000, hi: b.hi * 1000 } : null;
 }
@@ -2755,7 +2780,8 @@ export default {
         }
         const body = await readJson(req, BODY_LIMITS.auth);
         const initData = typeof body === 'string' ? body : body?.initData;
-        const v = await verifyTmaInitData(initData, env.TELEGRAM_BOT_TOKEN);
+        // v102: login needs fresh initData (≤ 1 h — Telegram re-signs it on every Mini App launch); sharing keeps 24 h
+        const v = await verifyTmaInitData(initData, env.TELEGRAM_BOT_TOKEN, { maxAgeSec: path === '/auth/tma' ? TMA_LOGIN_MAX_AGE_S : 86400 });
         if (!v.ok) return json({ ok: false, error: v.error }, v.status || 401, headers);
         if (path === '/auth/tma') {
           const out = await loginTelegramUser(env, v, 'tma');
@@ -2996,7 +3022,7 @@ export default {
         const lim = await limitOr429(env, headers, [['rl:top:p:' + pilot.id, 60, 3600]]);
         if (lim) return lim;
         const body = await readJson(req);
-        const row = sanitizeLap(body, pilot);
+        const row = sanitizeLap(body, pilot, trackId);
         if (!row) return json({ error: 'invalid gps lap row' }, 400, headers);
         if (body?.pilotId && String(body.pilotId) !== pilot.id) {
           return json({ error: 'pilot mismatch' }, 403, headers);
@@ -3474,7 +3500,7 @@ export default {
         if (!who.id) return json({ error: 'pilot required' }, 400, headers);
         const lim = await limitOr429(env, headers, [['rl:drun:ip:' + ip, 30, 3600]]);
         if (lim) return lim;
-        const run = sanitizeDuelRun(body, { id: who.id, name: who.name }, d.type);
+        const run = sanitizeDuelRun(body, { id: who.id, name: who.name }, d.type, d.trackId);
         if (!run) {
           return json({ error: 'only A/B GPS runs accepted for duel' }, 400, headers);
         }
@@ -3720,7 +3746,7 @@ export default {
         if (trackId !== crew.trackId) {
           return json({ error: 'track mismatch', trackId: crew.trackId }, 400, headers);
         }
-        const row = sanitizeLap(body, { id: pilotId, name: member.nick || who.name });
+        const row = sanitizeLap(body, { id: pilotId, name: member.nick || who.name }, crew.trackId);
         if (!row || !row.valid || (row.gpsQ !== 'A' && row.gpsQ !== 'B')) {
           return json({ error: 'A/B lap required' }, 400, headers);
         }

@@ -318,6 +318,8 @@ export async function roomsRoute(ctx) {
   }
 
   if (sub === 'leave' && req.method === 'POST') {
+    const limL = await h.limitOr429(env, headers, [['rl:rleave:p:' + pilot.id, 30, 3600]]); // v102
+    if (limL) return limL;
     room.members = (room.members || []).filter((x) => x.pilotId !== pilot.id);
     if (room.members.length && !room.members.some((x) => x.role === 'captain')) room.members[0].role = 'captain';
     await indexRoom(kv, pilot.id, room.id, h, true);
@@ -365,7 +367,7 @@ export async function roomsRoute(ctx) {
     const body = await h.readJson(req, 8192);
     const trackId = String(body?.trackId || '');
     if (!h.slugOk(trackId)) return h.json({ error: 'trackId required' }, 400, headers);
-    const row = h.sanitizeLap(body, { id: pilot.id, name: me.nick });
+    const row = h.sanitizeLap(body, { id: pilot.id, name: me.nick }, trackId);
     if (!row) return h.json({ error: 'invalid gps lap row' }, 400, headers);
     const ms = row.ms || h.parseLapMs(row.t);
     if (!ms) return h.json({ error: 'bad time' }, 400, headers);
@@ -508,6 +510,11 @@ export async function roomsSuccessfulPayment(env, msg, h) {
   if (!mm || sp.currency !== 'XTR') {
     await env.PITLANE.put(ckey, JSON.stringify({ ...rec, error: 'bad payload' }));
     return { ok: false, msg: 'bad payload' };
+  }
+  // v102: defence in depth — pre_checkout already checks the price, but never extend a season for a wrong amount
+  if (Number(sp.total_amount) !== ROOM_SEASON_STARS) {
+    await env.PITLANE.put(ckey, JSON.stringify({ ...rec, roomId: mm[1], error: 'bad amount' }));
+    return { ok: false, msg: 'bad amount' };
   }
   const room = await loadRoom(env.PITLANE, mm[1], h);
   if (!room) {
