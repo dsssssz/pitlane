@@ -18,6 +18,7 @@ import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilo
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 import { initTips, tipsOnView, resetTips } from './tips.js';
+import { createChaseTracker } from './chase-match.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -3021,11 +3022,14 @@ function onGpsPoint(pos) {
   GpsFusion.tick(now);
   const v = kmhFromCoords(pos.coords, now);
   const fus = GpsFusion.getState();
-  // v96: live lap HUD on Sochi → GPS fix (phone / BLE chip / sim) drives the 3D chase car
-  if (lapDrive.open && lapRun.trackId === 'sochi') {
+  // v100: Sochi chase (lap HUD or «Трек» card) follows the real GPS fix — phone, BLE chip or simulator
+  if ((lapDrive.open && lapRun.trackId === 'sochi') || (sochiChase.curView === 'lap' && lapCardTrackId() === 'sochi')) {
     try {
-      const useFus = fus.healthy && fus.lat != null && fus.lon != null;
-      sochiChaseFeedGps(useFus ? fus.lat : pos.coords.latitude, useFus ? fus.lon : pos.coords.longitude, v);
+      // raw fix: chase-match has its own along-track filter (the fusion KF on top would only add lag)
+      sochiChaseFeedGps(pos.coords.latitude, pos.coords.longitude, v, {
+        speed: pos.coords.speed, heading: pos.coords.heading,
+        acc: fus.accEst != null ? fus.accEst : pos.coords.accuracy, ts: now,
+      });
     } catch (_) {}
   }
   const acc = fus.accEst != null ? fus.accEst : pos.coords.accuracy;
@@ -4130,7 +4134,7 @@ function closeLapDrive() {
   lapDrive.open = false;
   if (lapDrive.timerId) { clearInterval(lapDrive.timerId); lapDrive.timerId = null; }
   if (lapDrive.weatherTimer) { clearInterval(lapDrive.weatherTimer); lapDrive.weatherTimer = null; }
-  sochiChase.live = null; // HUD closed → lap card goes back to the demo lap
+  sochiChase.state = ''; // v100: HUD closed → refresh chase overlay (car keeps following GPS / parks on S/F)
   sochiChase.disp = null;
   try { sochiChaseSync(); } catch (_) {}
 }
@@ -10672,7 +10676,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v99';
+const APP_VERSION = 'v100';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -11446,8 +11450,9 @@ function homeTrackRacePathD(trackId, vbW = 640, vbH = 360) {
  *  - other tracks / prefers-reduced-motion → top map only
  *  - render paused off-screen (other tab, HUD closed, document hidden)
  * One renderer + scene, canvas re-parented between hosts. */
-const SOCHI_CHASE_FAR_M = 300; // GPS farther than this from the centreline → not on track, demo
-const SOCHI_CHASE_LIVE_MS = 5000; // fix older than this → back to demo
+/* v100: the car is driven ONLY by the real GPS fix (chase-match.js: map-matching with continuity,
+ * stop < 2 km/h, ≤ 0.5 s prediction, «Вы не на треке» > 150 m). No fix → parked on S/F + «Включить GPS»;
+ * the demo lap runs only after an explicit «Демо» tap. */
 const sochiChase = {
   view: 'chase', // lap-card mode: 'chase' | 'top'
   curView: 'home',
@@ -11466,9 +11471,17 @@ const sochiChase = {
   canvas: null,
   ro: null,
   frozen: false,
-  live: null, // { x, z, heading, at, v }
-  disp: null, // smoothed { x, z, h }
-  state: 'demo', // 'demo' | 'live' | 'far'
+  live: null, // legacy (v96) — unused since v100
+  disp: null, // last rendered { x, z, h }
+  state: '', // 'idle' | 'stopped' | 'moving' | 'lost' | 'far' | 'demo'
+  tracker: null, // chase-match tracker (GPS → centreline)
+  sfS: 0, // arc length of the S/F line
+  demo: false, // explicit «Демо» only
+  gpsOwn: false, // GPS watch started by «Включить GPS» (stopped again when leaving «Трек»)
+  lastFrameAt: 0,
+  lastFixTs: 0,
+  hudAt: 0,
+  frame: null,
 };
 
 function sochiReduceMotion() {
@@ -11516,6 +11529,15 @@ function sochiEnsureCurve() {
     s[i * 4] = p.x; s[i * 4 + 1] = p.z; s[i * 4 + 2] = tan.x; s[i * 4 + 3] = tan.z;
   }
   sochiChase.samples = s;
+  try {
+    const L = curve.getLength();
+    const tr = createChaseTracker(s, L);
+    const sf = TRACK_OUTLINES?.sochi?.sf;
+    const sp = Array.isArray(sf) ? sochiProject(sf[1], sf[0]) : null;
+    sochiChase.sfS = sp ? tr.nearestS(sp.x, sp.z) : 0;
+    tr.setSF(sochiChase.sfS);
+    sochiChase.tracker = tr;
+  } catch (_) { sochiChase.tracker = null; }
   return curve;
 }
 
@@ -11538,27 +11560,25 @@ function angWrap(a) {
   return a;
 }
 
-/** Feed one live GPS fix (from onLapGps — phone, BLE chip or simulator). */
-function sochiChaseFeedGps(lat, lon, vKmh) {
+/** Feed one live GPS fix (phone, BLE chip or simulator) into the map-matcher. */
+function sochiChaseFeedGps(lat, lon, vKmh, extra = {}) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-  if (!sochiEnsureCurve()) return;
+  if (!sochiEnsureCurve() || !sochiChase.tracker) return;
+  // watchPosition + the 400 ms getCurrentPosition poll can hand over the same fix twice → feed it once
+  if (extra.ts != null) {
+    if (sochiChase.lastFixTs && extra.ts <= sochiChase.lastFixTs) return;
+    sochiChase.lastFixTs = extra.ts;
+  }
   const p = sochiProject(lat, lon);
   if (!p) return;
-  const near = sochiNearest(p.x, p.z);
-  const prev = sochiChase.live;
-  const tanH = near ? Math.atan2(near.tx, near.tz) : 0;
-  let heading = prev ? prev.heading : tanH;
-  if (prev) {
-    const dx = p.x - prev.x; const dz = p.z - prev.z;
-    if (Math.hypot(dx, dz) > 1.2) {
-      const mv = Math.atan2(dx, dz);
-      // driving along the track → follow the centreline direction that matches movement (no GPS jitter yaw)
-      let tdir = tanH;
-      if (Math.abs(angWrap(mv - tdir)) > Math.PI / 2) tdir = angWrap(tdir + Math.PI);
-      heading = Math.abs(angWrap(mv - tdir)) < 0.7 ? angWrap(tdir + angWrap(mv - tdir) * 0.35) : mv;
-    }
-  }
-  sochiChase.live = { x: p.x, z: p.z, heading, at: performance.now(), v: vKmh, far: !near || near.d > SOCHI_CHASE_FAR_M };
+  // speed: Doppler (coords.speed, phone or u-blox chip) → filtered speed → (null) regression inside the matcher
+  let speedMs = null;
+  const dop = extra.speed;
+  if (dop != null && Number.isFinite(Number(dop)) && Number(dop) >= 0) speedMs = Number(dop);
+  else if (vKmh != null && Number.isFinite(Number(vKmh))) speedMs = Math.max(0, Number(vKmh) / 3.6);
+  const hd = extra.heading;
+  const acc = extra.acc != null && Number.isFinite(Number(extra.acc)) ? Number(extra.acc) : null;
+  sochiChase.tracker.feed({ x: p.x, z: p.z, t: performance.now() / 1000, speedMs, headingDeg: hd != null && Number.isFinite(Number(hd)) ? Number(hd) : null, acc });
 }
 
 function sochiRibbonGeo(curve, halfW, y = 0.02, segs = 280) {
@@ -11743,14 +11763,15 @@ function sochiChaseResize() {
 function sochiChaseSample(u) {
   const curve = sochiChase.curve;
   if (!curve) return null;
-  const t = ((u % 1) + 1) % 1;
+  const L = sochiChase.tracker?.length || curve.getLength();
+  const t = ((((u + (sochiChase.sfS || 0) / L) % 1) + 1) % 1);
   const p = curve.getPointAt(t);
   const tan = curve.getTangentAt(t).normalize();
   return { p, tan, t };
 }
 
 /** Place car at (x,z) facing heading h (rad, atan2(dx,dz)), camera behind + above. */
-function sochiChasePose(x, z, h, snap) {
+function sochiChasePose(x, z, h, snap, dt = 1 / 60) {
   if (!sochiChase.camera || !sochiChase.car) return;
   sochiChase.car.position.set(x, 0.02, z);
   sochiChase.car.rotation.y = h;
@@ -11759,50 +11780,83 @@ function sochiChasePose(x, z, h, snap) {
   const camPos = new THREE.Vector3(x - fx * back, up, z - fz * back);
   const look = new THREE.Vector3(x + fx * lookAhead, 0.4, z + fz * lookAhead);
   if (snap) sochiChase.camera.position.copy(camPos);
-  else sochiChase.camera.position.lerp(camPos, 0.18);
+  else sochiChase.camera.position.lerp(camPos, 1 - Math.exp(-dt / 0.09)); // frame-rate independent follow
   sochiChase.camera.lookAt(look);
 }
 
-function sochiChaseApplyCam(u, snap) {
+function sochiChaseApplyCam(u, snap, dt) {
   const s = sochiChaseSample(u);
   if (!s) return;
-  sochiChasePose(s.p.x, s.p.z, Math.atan2(s.tan.x, s.tan.z), snap || sochiChase.frozen);
+  sochiChasePose(s.p.x, s.p.z, Math.atan2(s.tan.x, s.tan.z), snap || sochiChase.frozen, dt);
   sochiChase.disp = { x: s.p.x, z: s.p.z, h: Math.atan2(s.tan.x, s.tan.z) };
 }
 
+const SOCHI_CHASE_TAG = {
+  idle: 'нет GPS', stopped: 'GPS · стоим', moving: 'GPS · live', lost: 'GPS · нет сигнала', far: 'GPS · вне трассы', demo: 'демо-круг',
+};
 function sochiChaseSetState(st) {
   if (sochiChase.state === st) return;
   sochiChase.state = st;
-  const txt = st === 'live' ? 'GPS · live' : st === 'far' ? 'вне трассы · демо' : 'демо-круг';
   document.querySelectorAll('.chase-tag').forEach((el) => {
-    el.textContent = txt;
-    el.classList.toggle('live', st === 'live');
+    el.textContent = SOCHI_CHASE_TAG[st] || '';
+    el.classList.toggle('live', st === 'moving' || st === 'stopped');
+  });
+  const note = st === 'far' ? 'Вы не на треке' : st === 'lost' ? 'Сигнал GPS пропал — держим последнюю точку' : st === 'idle' ? 'Машина стоит на старте. Включите GPS — она поедет вместе с вами.' : '';
+  const gpsWatching = run.watchId != null || !!extGps?.active?.();
+  document.querySelectorAll('[data-chase-note]').forEach((el) => { el.textContent = note; el.classList.toggle('hidden', !note); });
+  document.querySelectorAll('[data-chase-act="gps"]').forEach((b) => {
+    const show = (st === 'idle' || st === 'lost') && !lapDrive.open;
+    b.classList.toggle('hidden', !show);
+    b.textContent = gpsWatching ? 'Ищем спутники…' : 'Включить GPS';
+    b.disabled = gpsWatching;
+  });
+  document.querySelectorAll('[data-chase-act="demo"]').forEach((b) => {
+    const show = st === 'idle' || st === 'far' || st === 'demo';
+    b.classList.toggle('hidden', !show);
+    b.textContent = st === 'demo' ? 'Стоп демо' : 'Демо';
+    b.setAttribute('aria-pressed', st === 'demo' ? 'true' : 'false');
+  });
+  document.querySelectorAll('.lt-chase, .lap-drive-chase').forEach((h) => { h.dataset.chaseState = st; });
+}
+
+function sochiChaseHud(f, now) {
+  if (now - sochiChase.hudAt < 200) return;
+  sochiChase.hudAt = now;
+  const live = f && f.state !== 'idle' && f.state !== 'demo';
+  const kmh = live ? Math.round(f.kmh || 0) : 0;
+  const acc = live && f.acc != null ? Math.round(f.acc) : null;
+  document.querySelectorAll('[data-chase-v]').forEach((el) => { el.textContent = String(kmh); });
+  document.querySelectorAll('[data-chase-acc]').forEach((el) => {
+    el.textContent = acc != null ? `GPS ±${acc} м` : 'GPS —';
+    el.classList.toggle('good', acc != null && acc <= 6);
+    el.classList.toggle('poor', acc != null && acc > 15);
   });
 }
 
 function sochiChaseTick(now) {
   if (!sochiChase.running || !sochiChase.renderer) return;
   sochiChase.raf = requestAnimationFrame(sochiChaseTick);
+  const dt = sochiChase.lastFrameAt ? Math.min(0.1, Math.max(0.001, (now - sochiChase.lastFrameAt) / 1000)) : 1 / 60;
+  sochiChase.lastFrameAt = now;
   if (sochiChase.frozen) {
     sochiChase.renderer.render(sochiChase.scene, sochiChase.camera);
     return;
   }
-  const live = sochiChase.live;
-  const fresh = live && (performance.now() - live.at) < SOCHI_CHASE_LIVE_MS;
-  if (fresh && !live.far) {
-    sochiChaseSetState('live');
-    let d = sochiChase.disp;
-    if (!d) d = sochiChase.disp = { x: live.x, z: live.z, h: live.heading };
-    const jump = Math.hypot(live.x - d.x, live.z - d.z) > 80;
-    d.x = jump ? live.x : d.x + (live.x - d.x) * 0.22;
-    d.z = jump ? live.z : d.z + (live.z - d.z) * 0.22;
-    d.h = jump ? live.heading : angWrap(d.h + angWrap(live.heading - d.h) * 0.18);
-    sochiChasePose(d.x, d.z, d.h, jump);
-    sochiChase.t0 = 0;
-  } else {
-    sochiChaseSetState(fresh && live.far ? 'far' : 'demo');
+  const f = sochiChase.tracker ? sochiChase.tracker.frame(performance.now() / 1000, dt) : null;
+  sochiChase.frame = f;
+  // a real fix always wins over the demo
+  if (sochiChase.demo && f && (f.state === 'moving' || f.state === 'stopped')) sochiChase.demo = false;
+  if (sochiChase.demo) {
+    sochiChaseSetState('demo');
     if (!sochiChase.t0) sochiChase.t0 = now;
-    sochiChaseApplyCam(((now - sochiChase.t0) / 1000) / sochiChase.dur);
+    sochiChaseApplyCam(((now - sochiChase.t0) / 1000) / sochiChase.dur, false, dt);
+    sochiChaseHud(null, now);
+  } else if (f) {
+    sochiChaseSetState(f.state);
+    const snap = !sochiChase.disp || Math.hypot(f.x - sochiChase.disp.x, f.z - sochiChase.disp.z) > 80;
+    sochiChasePose(f.x, f.z, f.h, snap, dt);
+    sochiChase.disp = { x: f.x, z: f.z, h: f.h };
+    sochiChaseHud(f, now);
   }
   sochiChase.renderer.render(sochiChase.scene, sochiChase.camera);
 }
@@ -11877,8 +11931,9 @@ function sochiChaseBuild() {
   try { sochiArmcoBarriers(curve, halfW, scene); } catch (_) {}
   try { sochiCurbMarks(curve, halfW, scene); } catch (_) {}
   {
-    const p0 = curve.getPointAt(0);
-    const tan = curve.getTangentAt(0).normalize();
+    const u0 = (sochiChase.sfS || 0) / (sochiChase.tracker?.length || curve.getLength());
+    const p0 = curve.getPointAt(u0);
+    const tan = curve.getTangentAt(u0).normalize();
     const side = new THREE.Vector3(-tan.z, 0, tan.x).normalize();
     const gateMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5 });
     const post = new THREE.BoxGeometry(0.35, 3.2, 0.35);
@@ -11902,6 +11957,7 @@ function sochiChaseBuild() {
   scene.add(car);
   sochiChase.car = car;
   sochiChaseApplyCam(0, true);
+  sochiChaseSetState('idle');
   return true;
 }
 
@@ -11986,7 +12042,11 @@ function sochiChaseSync() {
   let host = null;
   if (driveChase) host = driveHost;
   else if (cardChase && !lapDrive.open && sochiChase.curView === 'lap') host = cardHost;
-  if (!host || document.hidden) { sochiChaseHalt(); return; }
+  if (!host || document.hidden) {
+    sochiChaseHalt();
+    sochiChaseReleaseGps(!host);
+    return;
+  }
   if (!sochiChaseBuild()) { sochiChaseHalt(); return; }
   sochiChaseAttach(host);
   if (!sochiChase.raf) {
@@ -11994,6 +12054,36 @@ function sochiChaseSync() {
     sochiChase.raf = requestAnimationFrame(sochiChaseTick);
   }
 }
+
+/** «Включить GPS» on the chase: phone geolocation (the BLE chip / simulator already streams on its own). */
+function sochiChaseStartGps() {
+  if (extGps?.active?.()) return;
+  if (run.watchId == null) {
+    sochiChase.gpsOwn = true;
+    try { startWatch(); } catch (_) {}
+  }
+  sochiChase.state = '';
+}
+/** Leaving «Трек»: stop the GPS watch we started ourselves unless a run / lap still needs it. */
+function sochiChaseReleaseGps(leaving) {
+  if (!leaving || !sochiChase.gpsOwn) return;
+  if (run.armed || lapRun.active || lapDrive.open) return;
+  sochiChase.gpsOwn = false;
+  try { stopGeoWatch(); } catch (_) {}
+  try { void keepAwake(false); } catch (_) {}
+}
+document.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('[data-chase-act]');
+  if (!b) return;
+  const act = b.getAttribute('data-chase-act');
+  if (act === 'gps') sochiChaseStartGps();
+  else if (act === 'demo') {
+    sochiChase.demo = !sochiChase.demo;
+    sochiChase.t0 = 0;
+    sochiChase.state = '';
+  }
+  try { sochiChaseSync(); } catch (_) {}
+});
 
 document.getElementById('lapTrackMode')?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('[data-lt-mode]');
@@ -12025,9 +12115,17 @@ try {
     setView: (v) => { sochiChase.view = v === 'top' ? 'top' : 'chase'; sochiChaseSync(); },
     setU: (u) => { sochiChase.frozen = true; sochiChaseApplyCam(Number(u) || 0, true); if (sochiChase.renderer) sochiChase.renderer.render(sochiChase.scene, sochiChase.camera); },
     thaw: () => { sochiChase.frozen = false; sochiChase.t0 = 0; sochiChaseSync(); },
-    feed: (lat, lon, v) => sochiChaseFeedGps(Number(lat), Number(lon), Number(v) || 0),
-    clearLive: () => { sochiChase.live = null; sochiChase.disp = null; },
-    get: () => ({ running: sochiChase.running, view: sochiChase.view, has: !!sochiChase.renderer, host: sochiChase.host?.id || null, state: sochiChase.state, live: sochiChase.live ? { x: Math.round(sochiChase.live.x), z: Math.round(sochiChase.live.z), far: sochiChase.live.far } : null, car: sochiChase.car ? { x: Math.round(sochiChase.car.position.x), z: Math.round(sochiChase.car.position.z) } : null }),
+    feed: (lat, lon, v, extra) => sochiChaseFeedGps(Number(lat), Number(lon), v == null ? null : Number(v), extra || {}),
+    demo: (on) => { sochiChase.demo = !!on; sochiChase.t0 = 0; sochiChase.state = ''; },
+    clearLive: () => { sochiChase.tracker?.reset(); sochiChase.disp = null; sochiChase.demo = false; sochiChase.state = ''; },
+    get: () => {
+      const f = sochiChase.frame;
+      return {
+        running: sochiChase.running, view: sochiChase.view, has: !!sochiChase.renderer, host: sochiChase.host?.id || null, state: sochiChase.state, demo: sochiChase.demo,
+        s: f ? Math.round(f.s * 10) / 10 : null, sfS: Math.round(sochiChase.sfS), kmh: f ? Math.round(f.kmh) : 0, acc: f?.acc ?? null,
+        car: sochiChase.car ? { x: Math.round(sochiChase.car.position.x * 100) / 100, z: Math.round(sochiChase.car.position.z * 100) / 100 } : null,
+      };
+    },
   };
 } catch (_) {}
 

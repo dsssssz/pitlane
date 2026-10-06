@@ -5155,6 +5155,42 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
   #app .track-map.lt-under-chase { display: block; }
 }
 
+/* v100: chase follows real GPS — HUD (speed, accuracy), note, «Включить GPS» / «Демо» */
+.lt-chase { height: 240px; }
+.chase-hud {
+  position: absolute; right: 10px; top: 10px; z-index: 1; pointer-events: none;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px;
+}
+.chase-v { display: inline-flex; align-items: baseline; gap: 4px; padding: 5px 10px; border-radius: 12px; background: rgba(12,12,12,.78); border: 1px solid rgba(255,255,255,.12); }
+.chase-v b { font: 700 22px/1 "JetBrains Mono", ui-monospace, monospace; color: #f5f5f5; font-variant-numeric: tabular-nums; min-width: 2.2ch; text-align: right; }
+.chase-v i { font: 600 9.5px/1 Manrope, sans-serif; font-style: normal; color: #8a8a8a; letter-spacing: .08em; text-transform: uppercase; }
+.chase-acc { padding: 3px 8px; border-radius: 999px; background: rgba(12,12,12,.72); border: 1px solid rgba(255,255,255,.1); color: #b5b5b5; font: 600 10px/1 "JetBrains Mono", ui-monospace, monospace; }
+.chase-acc.good { color: #39FF14; border-color: rgba(57,255,20,.35); }
+.chase-acc.poor { color: #ffb020; border-color: rgba(255,176,32,.4); }
+.chase-note {
+  position: absolute; left: 10px; right: 10px; bottom: 54px; z-index: 1; margin: 0; pointer-events: none;
+  text-align: center; color: #e8e8e8; font: 600 12px/1.35 Manrope, sans-serif; text-shadow: 0 1px 6px rgba(0,0,0,.9);
+}
+[data-chase-state="far"] .chase-note { color: #ffb020; font-size: 13.5px; }
+.lt-chase::after, .lap-drive-chase::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 96px; z-index: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(12,12,12,0), rgba(12,12,12,.72));
+  opacity: 0; transition: opacity .25s ease;
+}
+[data-chase-state="idle"]::after, [data-chase-state="far"]::after, [data-chase-state="lost"]::after { opacity: 1; }
+.chase-acts { position: absolute; left: 0; right: 0; bottom: 12px; z-index: 2; display: flex; justify-content: center; gap: 8px; pointer-events: none; }
+.chase-btn {
+  pointer-events: auto; appearance: none; min-height: 34px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.16); background: rgba(26,26,26,.88); color: #f2f2f2;
+  font: 700 12px/1 Manrope, sans-serif; letter-spacing: .02em; cursor: pointer;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.chase-btn-gps { background: #39FF14; border-color: #39FF14; color: #0c0c0c; }
+.chase-btn-gps:disabled { background: rgba(26,26,26,.88); border-color: rgba(57,255,20,.4); color: #39FF14; }
+.chase-btn[aria-pressed="true"] { border-color: rgba(255,255,255,.4); }
+.lap-drive-chase .chase-hud { top: 46px; }
+@media (max-width: 360px) { .lt-chase { height: 200px; } .chase-v b { font-size: 18px; } }
+
 /* ═══════════ v97: «Это моя машина» + комнаты экипажа (стиль v86–v89) ═══════════ */
 .room-inner, .mycar-inner { overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .mycar-chip { appearance: none; display: flex; align-items: baseline; gap: 8px; width: 100%; margin: 8px 0 0; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--h-line-2, rgba(255,255,255,.12)); background: rgba(255,255,255,.035); color: var(--h-text, #f2f2f2); text-align: left; cursor: pointer; }

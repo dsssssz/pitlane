@@ -473,12 +473,12 @@
               <h3 data-i18n="lap.track">Трасса</h3>
               <select id="trackSelect" class="sr-select"></select>
               <div class="wheel" id="trackWheel"></div>
-              <!-- v96: 3D chase-навигатор (Сочи) — основной вид; «сверху» = классическая карта -->
+              <!-- v96/v100: 3D chase-навигатор (Сочи) — машина едет строго по GPS; «сверху» = классическая карта -->
               <div class="lt-mode seg-control hidden" id="lapTrackMode" role="group" aria-label="Вид трассы">
                 <button type="button" class="seg-btn on" data-lt-mode="chase" aria-pressed="true">сзади</button>
                 <button type="button" class="seg-btn" data-lt-mode="top" aria-pressed="false">сверху</button>
               </div>
-              <div class="lt-chase hidden" id="lapTrackChase" aria-hidden="true"><span class="chase-tag">демо-круг</span></div>
+              <div class="lt-chase hidden" id="lapTrackChase" aria-hidden="true"><span class="chase-tag">нет GPS</span><div class="chase-hud" aria-live="off"><span class="chase-v"><b data-chase-v>0</b><i>км/ч</i></span><span class="chase-acc" data-chase-acc>GPS —</span></div><p class="chase-note hidden" data-chase-note></p><div class="chase-acts"><button type="button" class="chase-btn chase-btn-gps hidden" data-chase-act="gps">Включить GPS</button><button type="button" class="chase-btn hidden" data-chase-act="demo" aria-pressed="false">Демо</button></div></div>
               <div class="track-map" id="trackMap"></div>
               <button type="button" class="ad-linkish" id="btnAutodromesLap">Автодромы · справочник</button>
               <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
@@ -814,7 +814,7 @@
         </div>
       </div>
       <div class="lap-drive-map" id="lapDriveMap"></div>
-      <div class="lap-drive-chase hidden" id="lapDriveChase" aria-hidden="true"><span class="chase-tag">демо-круг</span></div>
+      <div class="lap-drive-chase hidden" id="lapDriveChase" aria-hidden="true"><span class="chase-tag">нет GPS</span><div class="chase-hud" aria-live="off"><span class="chase-v"><b data-chase-v>0</b><i>км/ч</i></span><span class="chase-acc" data-chase-acc>GPS —</span></div><p class="chase-note hidden" data-chase-note></p><div class="chase-acts"><button type="button" class="chase-btn chase-btn-gps hidden" data-chase-act="gps">Включить GPS</button><button type="button" class="chase-btn hidden" data-chase-act="demo" aria-pressed="false">Демо</button></div></div>
     </div>
 
 
