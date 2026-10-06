@@ -1,3 +1,4 @@
+import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
  * Pitlane shared tops API — Cloudflare Worker + KV
@@ -1626,6 +1627,7 @@ const BOT_TEXT = {
   duel: '⚔️ <b>Дуэль</b>\nСоздай вызов и отправь ссылку другу. Побеждает лучший GPS-заезд за 7 дней.',
   car: '🚘 <b>Это моя машина</b>\nВыбери активную машину и резину. Каждый сохранённый круг навсегда привязывается к ним — без машины круг в зачёт не идёт.',
   room: '👥 <b>Комната экипажа</b>\nСоздай комнату, позови своих по ссылке. Внутри — дуэли кругов одного трека и топ по модели + резине. Бесплатно 3 сессии и 1 трек, дальше экипаж оплачивает сезон (одна оплата на всех).',
+  team: '🏁 <b>Команды</b>\nПубличные страницы команд: аватар, описание, участники и лента новостей. Найди команду и попросись в неё — или собери свою.',
   feedback: '💬 <b>Обратная связь</b>\nНашёл ошибку или есть идея? Напиши нам прямо в приложении — можно приложить скриншот.',
   help:
     '<b>Как пользоваться PITLANE</b>\n\n' +
@@ -1686,6 +1688,7 @@ function tgRoute(text) {
     duel: [BOT_TEXT.duel, [webAppBtn('⚔️ Создать дуэль', { screen: 'duel' })]],
     car: [BOT_TEXT.car, [webAppBtn('🚘 Это моя машина', { screen: 'mycar' })]],
     room: [BOT_TEXT.room, [webAppBtn('👥 Комнаты экипажа', { screen: 'rooms' })]],
+    team: [BOT_TEXT.team, [webAppBtn('🏁 Команды', { screen: 'teams' })]],
     feedback: [BOT_TEXT.feedback, [webAppBtn('💬 Написать', { screen: 'feedback' })]],
     help: [BOT_TEXT.help, openRow],
   };
@@ -1741,6 +1744,7 @@ const BOT_COMMANDS = [
   { command: 'duel', description: 'Вызвать на дуэль' },
   { command: 'car', description: 'Это моя машина' },
   { command: 'room', description: 'Комната экипажа' },
+  { command: 'team', description: 'Команды' },
   { command: 'feedback', description: 'Обратная связь' },
   { command: 'help', description: 'Как пользоваться' },
 ];
@@ -2240,6 +2244,7 @@ async function deleteAccount(kv, pid, currentToken) {
   Object.assign(rep, await deleteAccountRooms(kv, pid, ROOM_H));
   // per-account rate-limit counters (short-lived anyway; removed so nothing references the uuid)
   for (const b of ROOM_RL_BUCKETS) await del('rl:' + b + ':p:' + pid);
+  for (const b of TEAM_RL_BUCKETS) await del('rl:' + b + ':p:' + pid);
   for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx', 'drag', 'ghost', 'ghostd', 'ban']) await del('rl:' + b + ':p:' + pid);
   // finally the account record itself
   if (rec) rep.account = 1;
@@ -2499,7 +2504,11 @@ const ROOM_H = {
   json, readJson, limitOr429, cleanLabel, cleanText, safeName, containsPhone, slugOk, kvJson, randB36, pubId,
   moscowDateKey, requireAuth, sanitizeLap, parseLapMs, safeDecode, telegramConfig, tgCall, tgWebhookPath,
   providerKey, loadPilot, tgEsc, sanitizeBannerImage,
-  readListRaw: readList, kvListAll,
+  readListRaw: readList, kvListAll, burstLimited,
+  // v98: teams
+  onRoomChanged: (kv, room) => syncTeamIndex(kv, room, ROOM_H),
+  onRoomDeleted: (kv, room) => teamsOnRoomDeleted(kv, room, ROOM_H),
+  onRoomMemberDeleted: (kv, room, pid) => teamsOnMemberDeleted(kv, room, pid, ROOM_H),
 };
 
 export default {
@@ -3520,7 +3529,9 @@ export default {
 
       // —— v97: «Это моя машина» + комнаты экипажей (+ Stars season) ——
       {
-        const rr = await roomsRoute({ req, env, path, url, pilot, headers, ip, h: ROOM_H });
+        const tr = await teamsRoute({ req, env, path, url, pilot, headers, ip, h: ROOM_H });
+        if (tr) return tr;
+        const rr = await roomsRoute({ req, env, path, url, pilot, headers, ip, h: ROOM_H, onRoomLap: (room, lap, laps) => teamsOnLap(env, room, lap, laps, ROOM_H) });
         if (rr) return rr;
       }
 

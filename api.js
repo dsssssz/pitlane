@@ -676,6 +676,21 @@ export const api = {
     return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/top?' + q.toString());
   },
   async roomInvoice(id, via) { return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/invoice', { method: 'POST', body: JSON.stringify({ via: via || 'link' }) }); },
+  // v98: teams (public profile + feed; private part = rooms above)
+  async listTeams(q) { return await remoteKeep('/teams' + (q ? '?q=' + encodeURIComponent(q) : '')); },
+  async getTeam(id) { return await remoteKeep('/teams/' + encodeURIComponent(id)); },
+  async teamFeed(id, before) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/feed' + (before ? '?before=' + Number(before) : '')); },
+  async updateTeam(id, patch) { return await remoteKeep('/teams/' + encodeURIComponent(id), { method: 'PUT', body: JSON.stringify(patch || {}) }); },
+  async setTeamAvatar(id, image) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/avatar', { method: 'PUT', body: JSON.stringify({ image }), timeoutMs: 20000 }); },
+  async postTeam(id, post) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/posts', { method: 'POST', body: JSON.stringify(post || {}), timeoutMs: 20000 }); },
+  async deleteTeamPost(id, pid) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/posts/' + encodeURIComponent(pid), { method: 'DELETE' }); },
+  async requestTeam(id, note) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/request', { method: 'POST', body: JSON.stringify({ note: note || '' }) }); },
+  async cancelTeamRequest(id) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/request', { method: 'DELETE' }); },
+  async teamRequestAct(id, rid, act) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/requests/' + encodeURIComponent(rid) + '/' + (act === 'approve' ? 'approve' : 'decline'), { method: 'POST' }); },
+  async teamMemberAct(id, mid, act) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/members/' + encodeURIComponent(mid) + '/' + (act === 'captain' ? 'captain' : 'remove'), { method: 'POST' }); },
+  async teamDuelPost(id, a, b) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/duelpost', { method: 'POST', body: JSON.stringify({ a, b }) }); },
+  teamAvatarUrl(id, v) { const b = apiBase(); return b && v ? b + '/teams/' + encodeURIComponent(id) + '/avatar?v=' + encodeURIComponent(v) : ''; },
+  teamImgUrl(id, pid) { const b = apiBase(); return b ? b + '/teams/' + encodeURIComponent(id) + '/img/' + encodeURIComponent(pid) : ''; },
 
   /** POST /session/today/checkin { nick, pilotId? } */
   async sessionCheckin(payload) {

@@ -536,7 +536,7 @@
             <a class="method-link" href="./method.html" id="topsMethodLink">Методика</a>
             <div class="tops-head-actions race-toolbar">
               <button type="button" class="crew-btn" id="btnCrewOpen">Экипаж</button>
-              <button type="button" class="crew-btn room-open-btn" id="btnRoomsOpen">Комнаты</button>
+              <button type="button" class="crew-btn room-open-btn" id="btnRoomsOpen">Команды</button>
               <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen">Секторы</button>
               <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
             </div>
@@ -727,7 +727,7 @@
           <p class="tiny" id="accPlan"></p>
           <div class="acc-crew-row">
             <button type="button" class="btn-secondary" id="btnMyCarAcc">Это моя машина</button>
-            <button type="button" class="btn-secondary" id="btnRoomsAcc">Комнаты экипажа</button>
+            <button type="button" class="btn-secondary" id="btnRoomsAcc">Команды</button>
           </div>
           <p class="tiny" id="accTrialLeft"></p>
           <article class="card" id="imuCard">
@@ -959,6 +959,13 @@
           <p class="race-sheet-sub">Активная машина и резина для кругов</p>
         </header>
         <div class="race-sheet-body" id="myCarBody"></div>
+      </div>
+    </div>
+    <!-- v98: команды — публичная страница, лента, список, редактор (teams-ui.js) -->
+    <div id="teamSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Команды">
+      <div class="crew-sheet-inner race-sheet-inner team-inner">
+        <button type="button" class="share-card-close" id="teamSheetClose" aria-label="Закрыть">×</button>
+        <div class="race-sheet-body" id="teamBody"></div>
       </div>
     </div>
     <!-- v97: комнаты экипажа (контент рисует crew-rooms.js) -->

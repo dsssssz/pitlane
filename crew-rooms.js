@@ -3,6 +3,7 @@
  * All user text → textContent. The server decides membership and the paywall; this file only renders.
  */
 import { api } from './api.js';
+import { teamLapsPublic, setTeamLapsPublic } from './teams-ui.js';
 
 const ACTIVE_KEY = 'pitlane-room-active-v1';
 const CAR_KEY = 'pitlane-mycar-v1';
@@ -136,7 +137,7 @@ export async function requireCar(fn, reason) {
 export async function pushLapToActiveRoom(lap) {
   const rid = activeRoomId();
   if (!rid || !loggedIn()) return null;
-  const r = await api.postRoomLap(rid, lap);
+  const r = await api.postRoomLap(rid, { ...lap, public: teamLapsPublic(rid) });
   if (r && r.status === 402) D.flash?.('Комната молчит — экипаж оплачивает сезон');
   else if (r && r.status === 403) setActiveRoom('');
   return r;
@@ -177,13 +178,13 @@ function quotaBadge(q) {
 async function showList() {
   st.room = null;
   if (!loggedIn()) {
-    render([head('Комнаты экипажа', 'Закрытые комнаты: дуэли и топ только для своих'),
+    render([head('Мои команды', 'Внутри: круги, дуэли и топ — только для своих'),
       el('p', 'room-empty', 'Войди через Telegram в «Профиле» — комнаты привязаны к аккаунту.'),
       btn('go-btn race-cta', 'Войти', () => { closeSheet('roomSheet'); D.goToView('account'); })]);
     return;
   }
   await loadMyCar();
-  render([head('Комнаты экипажа', 'Закрытые комнаты: дуэли и топ только для своих'), carLine(), el('p', 'room-empty', 'Загрузка…')]);
+  render([head('Мои команды', 'Внутри: круги, дуэли и топ — только для своих'), carLine(), el('p', 'room-empty', 'Загрузка…')]);
   const r = await api.listRooms();
   st.rooms = Array.isArray(r) ? r : [];
   const list = el('ul', 'room-list race-list');
@@ -197,10 +198,10 @@ async function showList() {
     li.addEventListener('click', () => void showRoom(room.id));
     list.appendChild(li);
   });
-  const name = el('input', 'room-input'); name.maxLength = 48; name.placeholder = 'название комнаты';
+  const name = el('input', 'room-input'); name.maxLength = 48; name.placeholder = 'название команды';
   const msg = el('p', 'tiny room-msg');
-  const create = btn('go-btn race-cta', 'Создать комнату', async () => {
-    if (!name.value.trim()) { msg.textContent = 'Назови комнату'; return; }
+  const create = btn('go-btn race-cta', 'Собрать команду', async () => {
+    if (!name.value.trim()) { msg.textContent = 'Назови команду'; return; }
     create.disabled = true;
     const c = await api.createRoom(name.value.trim());
     create.disabled = false;
@@ -212,7 +213,7 @@ async function showList() {
   const join = btn('btn-secondary', 'Вступить', () => { if (code.value.trim()) void showInvite(code.value.trim().toUpperCase()); });
   const joinRow = el('div', 'room-join'); joinRow.append(code, join);
   render([
-    head('Комнаты экипажа', 'Закрытые комнаты: дуэли и топ только для своих'),
+    head('Мои команды', 'Внутри: круги, дуэли и топ — только для своих'),
     carLine(),
     st.rooms.length ? el('h3', 'race-list-title', 'Мои комнаты') : el('p', 'room-empty', 'Пока ни одной комнаты. Создай свою или вступи по ссылке.'),
     st.rooms.length ? list : null,
@@ -312,6 +313,19 @@ async function showRoom(id, tab) {
   cb.addEventListener('change', () => { setActiveRoom(cb.checked ? room.id : ''); });
   act.append(cb, el('span', '', 'Записывать мои круги в эту комнату'));
   nodes.push(act);
+  // v98: public laps → auto-posts in the team feed
+  const pub = el('label', 'room-active');
+  const cb2 = el('input'); cb2.type = 'checkbox'; cb2.checked = teamLapsPublic(room.id);
+  cb2.addEventListener('change', () => setTeamLapsPublic(room.id, cb2.checked));
+  pub.append(cb2, el('span', '', 'Публиковать мои лучшие круги в ленте команды'));
+  nodes.push(pub);
+  const teamRow = el('div', 'room-team-row');
+  teamRow.appendChild(btn('btn-secondary', 'Страница команды', () => { closeSheet('roomSheet'); D.openTeam?.(room.id); }));
+  if (room.role === 'captain') {
+    const n = (room.requests || []).length;
+    teamRow.appendChild(btn('btn-secondary' + (n ? ' has-badge' : ''), n ? 'Заявки · ' + n : 'Редактор', () => { closeSheet('roomSheet'); D.openTeamEditor?.(room.id); }));
+  }
+  nodes.push(teamRow);
   // invite
   if (room.invite) {
     const inv = el('div', 'room-invite');
@@ -423,6 +437,16 @@ async function renderDuel(pane, room) {
       });
       out.appendChild(sl);
     }
+    // v98: «выиграл дуэль» → team feed, only when both laps are public
+    if (d.a.public && d.b.public && d.a.pilotId !== d.b.pilotId) {
+      const m2 = el('p', 'tiny room-msg');
+      const share = btn('btn-secondary room-duel-post', 'Победу — в ленту команды', async () => {
+        share.disabled = true;
+        const r = await api.teamDuelPost(room.id, d.a.id, d.b.id);
+        m2.textContent = r && r.ok !== false ? (r.dup ? 'Уже в ленте' : 'Опубликовано в ленте') : 'Не вышло: ' + (r?.error || 'сеть');
+      });
+      out.append(share, m2);
+    } else out.appendChild(el('p', 'tiny muted', 'В ленту команды попадают только публичные круги.'));
   };
   tSel.addEventListener('change', fill); aSel.addEventListener('change', run); bSel.addEventListener('change', run);
   const row = el('div', 'room-filter');

@@ -104,6 +104,13 @@ function publicRoom(room, viewer, h) {
     })),
     memberCount: (room.members || []).length,
     quota: roomQuota(room, h),
+    // v98: team profile (public part lives in teams.js) + join requests for the captain
+    about: room.about || '',
+    avatarV: room.avatarV || null,
+    listed: room.listed !== false,
+    requests: me && me.role === 'captain'
+      ? (room.requests || []).map((r) => ({ id: h.pubId(r.pilotId), nick: h.safeName(r.nick), at: r.at, note: r.note || '' }))
+      : undefined,
   };
 }
 
@@ -257,6 +264,7 @@ export async function roomsRoute(ctx) {
     await saveRoom(kv, room);
     await kv.put('roominv:' + code, room.id);
     await indexRoom(kv, pilot.id, room.id, h);
+    if (h.onRoomChanged) await h.onRoomChanged(kv, room);
     return h.json(publicRoom(room, pilot.id, h), 200, headers);
   }
   if (path === '/rooms' && req.method === 'GET') {
@@ -310,8 +318,17 @@ export async function roomsRoute(ctx) {
   if (sub === 'leave' && req.method === 'POST') {
     room.members = (room.members || []).filter((x) => x.pilotId !== pilot.id);
     if (room.members.length && !room.members.some((x) => x.role === 'captain')) room.members[0].role = 'captain';
-    await saveRoom(kv, room);
     await indexRoom(kv, pilot.id, room.id, h, true);
+    if (!room.members.length) {
+      // last one out: the room/team is gone (laps, invite, feed, avatar)
+      await kv.delete('room:' + room.id);
+      await kv.delete('roomlaps:' + room.id);
+      if (room.invite) await kv.delete('roominv:' + room.invite);
+      if (h.onRoomDeleted) await h.onRoomDeleted(kv, room);
+      return h.json({ ok: true, deleted: true }, 200, headers);
+    }
+    await saveRoom(kv, room);
+    if (h.onRoomChanged) await h.onRoomChanged(kv, room);
     return h.json({ ok: true }, 200, headers);
   }
 
@@ -451,6 +468,7 @@ async function joinRoom(ctx, room, body) {
   if (Array.isArray(room.requests)) room.requests = room.requests.filter((r) => r.pilotId !== pilot.id);
   await saveRoom(kv, room);
   await indexRoom(kv, pilot.id, room.id, h);
+  if (h.onRoomChanged) await h.onRoomChanged(kv, room);
   return h.json(publicRoom(room, pilot.id, h), 200, headers);
 }
 export { joinRoom, loadRoom, saveRoom, indexRoom, isMember, memberOf, publicRoom, publicLap };

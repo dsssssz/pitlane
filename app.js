@@ -16,6 +16,7 @@ import { TRACK_OUTLINES } from './geo/outlines.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar } from './crew-rooms.js';
+import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -10521,15 +10522,33 @@ initCrewRooms({
   tg: () => (isTMA ? TG : null),
   inviteLink: (param) => publicLinkFor(param, roomWebUrl(param)),
   share: roomShare,
+  openTeam: (id) => void openTeamPage(id),
+  openTeamEditor: (id) => void openTeamEditor(id),
 });
-document.getElementById('btnRoomsOpen')?.addEventListener('click', () => openRoomSheet());
-document.getElementById('btnRoomsAcc')?.addEventListener('click', () => openRoomSheet());
+initTeams({
+  tracks: () => TRACKS,
+  isAuthed: () => { const t = getSessionToken(); return !!t && !t.startsWith('local-'); },
+  hap: (ms) => hap(ms),
+  openRooms: (opts) => openRoomSheet(opts || {}),
+  share: roomShare,
+  teamLink: (id) => publicLinkFor('team_' + id, roomWebUrl('team_' + id)),
+  report: (text) => {
+    document.getElementById('teamSheet')?.classList.add('hidden');
+    openFeedbackSheet();
+    const ta = document.getElementById('fbText');
+    if (ta) { ta.value = String(text || '').slice(0, 1900); ta.dispatchEvent(new Event('input')); ta.focus(); }
+  },
+});
+document.getElementById('btnRoomsOpen')?.addEventListener('click', () => void openTeamsList());
+document.getElementById('btnRoomsAcc')?.addEventListener('click', () => void openTeamsList());
 document.getElementById('btnMyCarAcc')?.addEventListener('click', () => openMyCarSheet());
 document.getElementById('btnMyCarLap')?.addEventListener('click', () => openMyCarSheet());
 try {
   const q = new URLSearchParams(location.search);
   const code = String(q.get('room') || '').toUpperCase();
   if (/^[A-Z2-9]{8}$/.test(code)) setTimeout(() => openRoomSheet({ invite: code }), 1100);
+  const team = String(q.get('team') || '');
+  if (/^r[a-z0-9]{10,24}$/.test(team)) setTimeout(() => void openTeamPage(team), 1100);
 } catch (_) {}
 
 
@@ -10640,7 +10659,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v97';
+const APP_VERSION = 'v98';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -10866,6 +10885,7 @@ if (SCREEN_PARAM) {
       else if (SCREEN_PARAM === 'crew') openCrewSheet();
       else if (SCREEN_PARAM === 'mycar') openMyCarSheet();
       else if (SCREEN_PARAM === 'rooms') openRoomSheet();
+      else if (SCREEN_PARAM === 'teams') openTeamsList();
       else if (SCREEN_PARAM === 'autodromes') openAutodromeSheet();
       else if (SCREEN_PARAM === 'feedback') openFeedbackSheet();
     } catch (err) { console.warn('screen deep link', err); }
