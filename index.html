@@ -229,14 +229,9 @@
                 <div class="ht-info">
                   <b id="homeTrackName">—</b>
                   <div id="homeTrackMeta" class="ht-meta"></div>
-                  <div class="ht-mode seg-control hidden" id="homeTrackMode" role="group" aria-label="Вид трассы">
-                    <button type="button" class="seg-btn on" data-ht-mode="chase" id="htModeChase">сзади</button>
-                    <button type="button" class="seg-btn" data-ht-mode="top" id="htModeTop">сверху</button>
-                  </div>
                 </div>
                 <div class="ht-art" id="homeTrackArt" aria-hidden="true"></div>
               </div>
-              <div class="ht-chase hidden" id="homeTrackChase" aria-hidden="true"></div>
               <ol id="homeTrackTop" class="ht-top"></ol>
             </article>
           </section>
@@ -478,6 +473,12 @@
               <h3 data-i18n="lap.track">Трасса</h3>
               <select id="trackSelect" class="sr-select"></select>
               <div class="wheel" id="trackWheel"></div>
+              <!-- v96: 3D chase-навигатор (Сочи) — основной вид; «сверху» = классическая карта -->
+              <div class="lt-mode seg-control hidden" id="lapTrackMode" role="group" aria-label="Вид трассы">
+                <button type="button" class="seg-btn on" data-lt-mode="chase" aria-pressed="true">сзади</button>
+                <button type="button" class="seg-btn" data-lt-mode="top" aria-pressed="false">сверху</button>
+              </div>
+              <div class="lt-chase hidden" id="lapTrackChase" aria-hidden="true"><span class="chase-tag">демо-круг</span></div>
               <div class="track-map" id="trackMap"></div>
               <button type="button" class="ad-linkish" id="btnAutodromesLap">Автодромы · справочник</button>
               <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
@@ -794,6 +795,7 @@
         <p class="tiny lap-drive-warn" id="lapDriveWarn"></p>
         <p class="tiny" id="lapDriveMsg">GPS</p>
         <div class="lap-map-modes" role="group" aria-label="режим карты">
+          <button type="button" id="btnMapChase" class="hidden">Сзади 3D</button>
           <button type="button" id="btnMapOverview" class="on">Вся карта</button>
           <button type="button" id="btnMapNav">Навигатор</button>
         </div>
@@ -805,6 +807,7 @@
         </div>
       </div>
       <div class="lap-drive-map" id="lapDriveMap"></div>
+      <div class="lap-drive-chase hidden" id="lapDriveChase" aria-hidden="true"><span class="chase-tag">демо-круг</span></div>
     </div>
 
 
