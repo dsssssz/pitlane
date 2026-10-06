@@ -15,9 +15,9 @@ import { createExtGps } from './ext-gps.js';
 import { TRACK_OUTLINES } from './geo/outlines.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
-import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar } from './crew-rooms.js';
+import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
-import { initTips, tipsOnView, resetTips } from './tips.js';
+import { initTips, tipsOnView, resetTips, showMyCarHowTo } from './tips.js';
 import { createChaseTracker } from './chase-match.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
@@ -987,6 +987,7 @@ function applyCarUI() {
   const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
   setTxt('carName', c.name);
   setTxt('carClass', c.cls);
+  try { refreshMyCarBar(); } catch (_) {}
   setTxt('lapDriveCar', c.name);
   setTxt('runCarName', c.name);
   {
@@ -4743,7 +4744,8 @@ function renderTrackDays() {
     : '<li><span>сессий пока нет</span><strong>—</strong></li>';
 }
 
-document.getElementById('btnLapStart')?.addEventListener('click', () => { openLapDrivePreview(); });
+// v101: no active car → «Это моя машина» first (lap starts right after saving) or «Ехать без зачёта»
+document.getElementById('btnLapStart')?.addEventListener('click', () => { void ensureCarBeforeRun(() => openLapDrivePreview()); });
 document.getElementById('btnLapArmedStart')?.addEventListener('click', () => { withSafety(armLapRun)(); });
 document.getElementById('btnLapStop')?.addEventListener('click', () => {
   if (lapRun.active && lapRun.phase === 'running') {
@@ -10534,6 +10536,8 @@ initCrewRooms({
   openTeam: (id) => void openTeamPage(id),
   openTeamEditor: (id) => void openTeamEditor(id),
   onSheet: () => { try { tipsOnView('teams'); } catch (_) {} },
+  onCarSheet: () => { try { tipsOnView('mycar'); } catch (_) {} },
+  howCar: () => { try { showMyCarHowTo(); } catch (_) {} },
 });
 initTeams({
   tracks: () => TRACKS,
@@ -10550,7 +10554,7 @@ initTeams({
     if (ta) { ta.value = String(text || '').slice(0, 1900); ta.dispatchEvent(new Event('input')); ta.focus(); }
   },
 });
-initTips();
+initTips({ goToView: (v) => goToView(v), openMyCar: () => openMyCarSheet({ preselect: currentCar()?.name }) });
 document.getElementById('btnTipsReset')?.addEventListener('click', () => {
   resetTips();
   plFlash('Подсказки снова включены');
@@ -10559,7 +10563,9 @@ document.getElementById('btnTipsReset')?.addEventListener('click', () => {
 document.getElementById('btnRoomsOpen')?.addEventListener('click', () => void openTeamsList());
 document.getElementById('btnRoomsAcc')?.addEventListener('click', () => void openTeamsList());
 document.getElementById('btnMyCarAcc')?.addEventListener('click', () => openMyCarSheet());
-document.getElementById('btnMyCarLap')?.addEventListener('click', () => openMyCarSheet());
+document.getElementById('btnMyCarLap')?.addEventListener('click', () => openMyCarSheet({ preselect: currentCar()?.name }));
+document.getElementById('btnMyCarGarage')?.addEventListener('click', () => openMyCarSheet({ preselect: currentCar()?.name }));
+document.getElementById('btnHowCar')?.addEventListener('click', () => { try { showMyCarHowTo(); } catch (_) {} });
 try {
   const q = new URLSearchParams(location.search);
   const code = String(q.get('room') || '').toUpperCase();
@@ -10676,7 +10682,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v100';
+const APP_VERSION = 'v101';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

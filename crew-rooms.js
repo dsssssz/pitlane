@@ -61,16 +61,31 @@ function cacheCar(car) {
   st.carLoaded = true;
   try { if (st.car) localStorage.setItem(CAR_KEY, JSON.stringify(st.car)); else localStorage.removeItem(CAR_KEY); } catch (_) {}
   document.querySelectorAll('[data-mycar-line]').forEach((n) => { n.textContent = st.car ? st.car.model + ' · ' + st.car.tyre : 'не выбрана'; });
+  try { refreshMyCarBar(); } catch (_) {}
 }
 export async function loadMyCar(force) {
   if (st.carLoaded && !force) return st.car;
-  if (!loggedIn()) { try { st.car = JSON.parse(localStorage.getItem(CAR_KEY) || 'null'); } catch (_) { st.car = null; } return st.car; }
+  if (!loggedIn()) { try { st.car = JSON.parse(localStorage.getItem(CAR_KEY) || 'null'); } catch (_) { st.car = null; } try { refreshMyCarBar(); } catch (_) {} return st.car; }
   const r = await api.getMyCar();
   if (r && r.ok !== false) cacheCar(r.car || null);
   else { try { st.car = JSON.parse(localStorage.getItem(CAR_KEY) || 'null'); } catch (_) {} }
   return st.car;
 }
 
+/** Short tyre label for chips («Michelin Pilot Sport Cup 2» → «PS Cup 2 · Michelin»). */
+function tyreShort(t) {
+  const m = String(t).match(/^(\S+)\s+(.*)$/);
+  if (!m) return t;
+  const rest = m[2].replace(/^Pilot Sport\s*/i, 'PS ').replace(/^P Zero\s*/i, 'P Zero ').trim();
+  return rest + ' · ' + m[1];
+}
+
+/**
+ * v101: «Это моя машина» — три понятных шага в одном листе:
+ *   1) машина — карточки из гаража (текущая сверху) + «Другая»;  2) резина — чипы + «Своя»;
+ *   3) итог «Круги запишутся на: …» и большая кнопка «Это моя машина».
+ * opts.preselect = имя машины (из Бокса), opts.reason = почему спрашиваем, opts.skip = { label, fn } (заезд без зачёта).
+ */
 export function openMyCarSheet(opts = {}) {
   const body = document.getElementById('myCarBody');
   if (!body) return;
@@ -78,51 +93,153 @@ export function openMyCarSheet(opts = {}) {
   if (opts.reason) body.appendChild(el('p', 'mycar-warn', opts.reason));
   const cars = [];
   const seen = new Set();
-  for (const c of [D.currentCar(), ...D.garageCars(), ...D.stockCars()]) {
+  const cur = D.currentCar?.();
+  for (const c of [cur, ...D.garageCars()]) {
     if (!c || !c.name || seen.has(c.name)) continue;
     seen.add(c.name); cars.push(c);
   }
-  const lab1 = el('label', 'crew-field', 'Машина (модель)');
-  const sel = el('select', 'mycar-select'); sel.id = 'myCarModel';
-  cars.forEach((c) => { const o = el('option', '', c.name); o.value = c.name; o.dataset.carId = c.id || ''; sel.appendChild(o); });
-  const other = el('option', '', 'Другая — ввести вручную'); other.value = '__other'; sel.appendChild(other);
-  const custom = el('input', 'mycar-custom hidden'); custom.maxLength = 80; custom.placeholder = 'например Toyota GR Supra A90';
-  if (st.car) {
-    const has = cars.some((c) => c.name === st.car.model);
-    sel.value = has ? st.car.model : '__other';
-    if (!has) { custom.value = st.car.model; custom.classList.remove('hidden'); }
+  const stock = (D.stockCars() || []).filter((c) => c && c.name && !seen.has(c.name));
+  const pick = { model: '', carId: '', tyre: '' };
+  if (opts.preselect) { const c = cars.find((x) => x.name === opts.preselect); if (c) { pick.model = c.name; pick.carId = c.id || ''; } }
+  if (!pick.model && st.car) { pick.model = st.car.model; pick.carId = st.car.carId || ''; }
+  if (!pick.model && cars[0]) { pick.model = cars[0].name; pick.carId = cars[0].id || ''; }
+  if (st.car && st.car.model === pick.model) pick.tyre = st.car.tyre;
+
+  // —— step 1: машина ——
+  const s1 = el('section', 'mycar-step');
+  s1.appendChild(el('span', 'mycar-step-k', '1 · Машина'));
+  const list = el('div', 'mycar-cars'); list.id = 'myCarModels'; list.setAttribute('role', 'radiogroup'); list.setAttribute('aria-label', 'Машина');
+  const sel = el('select', 'mycar-select hidden'); sel.id = 'myCarModel'; sel.setAttribute('aria-label', 'Другая машина');
+  const ph = el('option', '', 'Выбрать из каталога…'); ph.value = ''; sel.appendChild(ph);
+  [...cars, ...stock].forEach((c) => { const o = el('option', '', c.name); o.value = c.name; o.dataset.carId = c.id || ''; sel.appendChild(o); });
+  const otherO = el('option', '', 'Нет в списке — ввести вручную'); otherO.value = '__other'; sel.appendChild(otherO);
+  const custom = el('input', 'mycar-custom hidden'); custom.maxLength = 80; custom.placeholder = 'например Toyota GR Supra A90'; custom.setAttribute('aria-label', 'Модель вручную');
+  const carBtns = [];
+  const mkCar = (name, sub, onPick) => {
+    const b = btn('mycar-car', null, onPick);
+    b.setAttribute('role', 'radio');
+    b.append(el('b', '', name));
+    if (sub) b.append(el('span', '', sub));
+    carBtns.push(b); list.appendChild(b);
+    return b;
+  };
+  cars.slice(0, 6).forEach((c, k) => {
+    const b = mkCar(c.name, k === 0 && cur && c.name === cur.name ? 'сейчас в Боксе' : (c.year ? String(c.year) : ''), () => {
+      pick.model = c.name; pick.carId = c.id || ''; sel.classList.add('hidden'); custom.classList.add('hidden'); refresh();
+    });
+    b.dataset.model = c.name;
+  });
+  const otherB = mkCar('Другая', 'из каталога или вручную', () => { sel.classList.remove('hidden'); sel.focus?.(); pick.model = ''; refresh(); });
+  otherB.dataset.model = '__other';
+  sel.addEventListener('change', () => {
+    if (sel.value === '__other') { custom.classList.remove('hidden'); pick.model = custom.value.trim(); pick.carId = ''; }
+    else { custom.classList.add('hidden'); pick.model = sel.value; pick.carId = sel.selectedOptions[0]?.dataset.carId || ''; }
+    refresh();
+  });
+  custom.addEventListener('input', () => { pick.model = custom.value.trim(); pick.carId = ''; refresh(); });
+  if (pick.model && !cars.slice(0, 6).some((c) => c.name === pick.model)) {
+    sel.classList.remove('hidden');
+    if ([...sel.options].some((o) => o.value === pick.model)) sel.value = pick.model;
+    else { sel.value = '__other'; custom.value = pick.model; custom.classList.remove('hidden'); }
   }
-  sel.addEventListener('change', () => custom.classList.toggle('hidden', sel.value !== '__other'));
-  lab1.append(sel, custom);
-  const lab2 = el('label', 'crew-field', 'Резина');
-  const tyre = el('input', 'mycar-tyre'); tyre.id = 'myCarTyre'; tyre.maxLength = 40; tyre.placeholder = 'например Michelin Pilot Sport Cup 2';
+  s1.append(list, sel, custom);
+
+  // —— step 2: резина ——
+  const s2 = el('section', 'mycar-step');
+  s2.appendChild(el('span', 'mycar-step-k', '2 · Резина'));
+  const chips = el('div', 'mycar-tyres'); chips.id = 'myCarTyres'; chips.setAttribute('role', 'radiogroup'); chips.setAttribute('aria-label', 'Резина');
+  const tyre = el('input', 'mycar-tyre hidden'); tyre.id = 'myCarTyre'; tyre.maxLength = 40; tyre.placeholder = 'например Hankook Ventus RS4'; tyre.setAttribute('aria-label', 'Своя резина');
   tyre.setAttribute('list', 'myCarTyreList');
-  if (st.car) tyre.value = st.car.tyre;
   const dl = el('datalist'); dl.id = 'myCarTyreList';
   TYRES.forEach((t) => { const o = el('option'); o.value = t; dl.appendChild(o); });
-  lab2.append(tyre, dl);
-  const note = el('p', 'tiny muted', 'Каждый сохранённый круг навсегда привязывается к этой записи: машина, резина, трек, дата, время, сектора. Без активной машины круг в зачёт не идёт.');
+  const tyreBtns = [];
+  TYRES.forEach((t) => {
+    const b = btn('mycar-tyre-chip', tyreShort(t), () => { pick.tyre = t; tyre.value = t; tyre.classList.add('hidden'); refresh(); });
+    b.dataset.tyre = t; b.title = t; b.setAttribute('role', 'radio');
+    tyreBtns.push(b); chips.appendChild(b);
+  });
+  const ownB = btn('mycar-tyre-chip', 'Своя…', () => { tyre.classList.remove('hidden'); tyre.focus?.(); pick.tyre = tyre.value.trim(); refresh(); });
+  ownB.dataset.tyre = '__own'; tyreBtns.push(ownB); chips.appendChild(ownB);
+  tyre.addEventListener('input', () => { pick.tyre = tyre.value.trim(); refresh(); });
+  if (pick.tyre) { tyre.value = pick.tyre; if (!TYRES.includes(pick.tyre)) tyre.classList.remove('hidden'); }
+  s2.append(chips, tyre, dl);
+
+  // —— step 3: итог + кнопка ——
+  const sum = el('div', 'mycar-sum');
+  const sumK = el('span', 'mycar-sum-k', 'Круги запишутся на');
+  const sumV = el('b', 'mycar-sum-v', '—');
+  sum.append(sumK, sumV);
+  const note = el('p', 'tiny muted mycar-note', 'К кругу навсегда привязываются машина, резина, трасса, дата, время и сектора. Сменить можно в любой момент — старые круги останутся как были.');
   const msg = el('p', 'tiny mycar-msg');
-  const save = btn('go-btn race-cta', 'Это моя машина', async () => {
-    const model = sel.value === '__other' ? custom.value.trim() : sel.value;
-    const t = tyre.value.trim();
-    if (!model) { msg.textContent = 'Выбери или впиши модель'; return; }
-    if (!t) { msg.textContent = 'Впиши резину — топ комнаты фильтруется по модели + резине'; return; }
+  const save = btn('go-btn race-cta mycar-save', 'Это моя машина', async () => {
+    const model = pick.model.trim();
+    const t = pick.tyre.trim();
+    if (!model) { msg.textContent = 'Выбери машину'; return; }
+    if (!t) { msg.textContent = 'Выбери резину — топ сравнивает только равных'; return; }
     if (!loggedIn()) { msg.textContent = 'Войди через Telegram в «Профиле» — машина хранится в аккаунте'; return; }
     save.disabled = true;
-    const carId = sel.value === '__other' ? undefined : (sel.selectedOptions[0]?.dataset.carId || undefined);
-    const r = await api.putMyCar({ model, tyre: t, carId });
+    const r = await api.putMyCar({ model, tyre: t, carId: pick.carId || undefined });
     save.disabled = false;
     if (!r || r.ok === false) { msg.textContent = 'Не сохранилось: ' + (r?.error || 'нет сети'); return; }
     cacheCar(r.car);
     msg.textContent = 'Готово: ' + r.car.model + ' · ' + r.car.tyre;
     D.hap?.(12);
+    try { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success'); } catch (_) {}
     const p = st.pending; st.pending = null;
-    setTimeout(() => closeSheet('myCarSheet'), 350);
-    if (p) { try { await p(r.car); } catch (_) {} }
+    if (p) { closeSheet('myCarSheet'); try { await p(r.car); } catch (_) {} } // continue the run / lap right away
+    else setTimeout(() => closeSheet('myCarSheet'), 450);
   });
-  body.append(lab1, lab2, note, save, msg);
+  save.id = 'myCarSave';
+  const tail = [sum, save];
+  if (opts.skip && typeof opts.skip.fn === 'function') {
+    tail.push(btn('mycar-skip', opts.skip.label || 'Без зачёта', () => { st.pending = null; closeSheet('myCarSheet'); opts.skip.fn(); }));
+  }
+  const how = btn('mycar-how', 'Как это работает?', () => { closeSheet('myCarSheet'); D.howCar?.(); });
+  body.append(s1, s2, ...tail, msg, note, how);
+
+  function refresh() {
+    carBtns.forEach((b) => {
+      const on = b.dataset.model === '__other' ? (!sel.classList.contains('hidden')) : b.dataset.model === pick.model && sel.classList.contains('hidden');
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    tyreBtns.forEach((b) => {
+      const on = b.dataset.tyre === '__own' ? !tyre.classList.contains('hidden') : b.dataset.tyre === pick.tyre && tyre.classList.contains('hidden');
+      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    const ready = !!(pick.model.trim() && pick.tyre.trim());
+    sumV.textContent = ready ? pick.model.trim() + ' · ' + pick.tyre.trim() : (pick.model.trim() ? pick.model.trim() + ' · выбери резину' : 'выбери машину и резину');
+    sum.classList.toggle('ready', ready);
+    save.classList.toggle('is-dim', !ready);
+    save.setAttribute('aria-disabled', ready ? 'false' : 'true');
+    if (ready) msg.textContent = '';
+  }
+  refresh();
   openSheet('myCarSheet');
+  try { D.onCarSheet?.(); } catch (_) {}
+}
+
+/** Garage bar + lap chip: show which car laps are recorded on; highlight when it is the car on the podium. */
+export function refreshMyCarBar() {
+  const cur = D?.currentCar?.();
+  const active = !!(st.car && cur && st.car.model === cur.name);
+  document.querySelectorAll('.mycar-bar, .mycar-chip').forEach((n) => {
+    n.classList.toggle('is-empty', !st.car);
+    n.classList.toggle('is-active', active);
+  });
+  document.querySelectorAll('.mycar-chip-go').forEach((n) => { n.textContent = st.car ? 'сменить' : 'выбрать'; });
+  const b = document.getElementById('btnMyCarGarage');
+  if (b) b.textContent = active ? 'Сменить резину' : 'Это моя машина';
+  const k = document.getElementById('myCarBarK');
+  if (k) k.textContent = active ? 'Моя машина · круги пишутся на неё' : (st.car ? 'Круги пишутся на' : 'Машина для зачёта');
+}
+
+/** Before a run: no active car → ask first (the run starts right after saving), or ride without counting. */
+export async function ensureCarBeforeRun(fn) {
+  const car = await loadMyCar();
+  if (car) return fn(car);
+  st.pending = () => fn();
+  openMyCarSheet({ reason: 'Выбери машину и резину — тогда круг пойдёт в зачёт.', preselect: D.currentCar?.()?.name, skip: { label: 'Ехать без зачёта', fn } });
+  return null;
 }
 
 /** Lap flow: run fn(car) now if an active car exists, else ask «Это моя машина» first (fn runs after save). */
@@ -130,7 +247,7 @@ export async function requireCar(fn, reason) {
   const car = await loadMyCar();
   if (car) return await fn(car);
   st.pending = fn;
-  openMyCarSheet({ reason: reason || 'Без активной машины круг не идёт в зачёт. Выбери машину и резину — круг сохранится сразу после этого.' });
+  openMyCarSheet({ reason: reason || 'Без активной машины круг не идёт в зачёт. Выбери машину и резину — круг сохранится сразу после этого.', preselect: D.currentCar?.()?.name });
   return null;
 }
 

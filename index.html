@@ -326,6 +326,14 @@
                 <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="m8.6 4.6-1.4 1.4 6 6-6 6 1.4 1.4L16 12z"/></svg>
               </button>
             </div>
+            <!-- v101: «Это моя машина» прямо в Боксе — на эту машину пишутся круги -->
+            <div class="mycar-bar" id="myCarBar">
+              <div class="mycar-bar-txt">
+                <span class="mycar-bar-k" id="myCarBarK">Машина для зачёта</span>
+                <b class="mycar-bar-v" data-mycar-line>не выбрана</b>
+              </div>
+              <button type="button" class="mycar-bar-btn" id="btnMyCarGarage">Это моя машина</button>
+            </div>
             <div class="body-paint" id="bodyPaint">
               <p class="paint-label">Цвет кузова</p>
               <div class="paint-finish" id="paintFinish" role="group" aria-label="Финиш кузова">
@@ -482,7 +490,7 @@
               <div class="track-map" id="trackMap"></div>
               <button type="button" class="ad-linkish" id="btnAutodromesLap">Автодромы · справочник</button>
               <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
-              <button type="button" class="mycar-chip" id="btnMyCarLap"><span>моя машина</span><b data-mycar-line>не выбрана</b></button>
+              <button type="button" class="mycar-chip" id="btnMyCarLap"><span>машина для зачёта</span><b data-mycar-line>не выбрана</b><i class="mycar-chip-go" aria-hidden="true">выбрать</i></button>
               <div class="lap-track-actions">
                 <button type="button" id="btnLapStart" class="lap-start-hero" data-i18n="lap.start">Старт круга</button>
                 <button type="button" id="btnLapStop" class="lap-finish-btn" data-i18n="lap.finish">Финиш круга</button>
@@ -741,6 +749,7 @@
           <button type="button" id="btnLogout">Выйти</button>
           <button type="button" id="btnFeedback" class="btn-secondary acc-feedback-btn" aria-haspopup="dialog" aria-controls="feedbackSheet">Обратная связь</button>
           <button type="button" id="btnTipsReset" class="btn-secondary acc-tips-btn">Показать подсказки снова</button>
+          <button type="button" id="btnHowCar" class="btn-secondary acc-tips-btn">Как привязать машину</button>
           <nav class="acc-legal" aria-label="Документы">
             <a href="./privacy.html">Политика конфиденциальности</a>
             <a href="./terms.html">Пользовательское соглашение</a>
@@ -957,7 +966,7 @@
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title">Это моя машина</h2>
-          <p class="race-sheet-sub">Активная машина и резина для кругов</p>
+          <p class="race-sheet-sub">На эту машину и резину запишется каждый круг</p>
         </header>
         <div class="race-sheet-body" id="myCarBody"></div>
       </div>
