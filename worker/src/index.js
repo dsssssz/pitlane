@@ -1,3 +1,4 @@
+import { roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
  * Pitlane shared tops API — Cloudflare Worker + KV
  * Bindings: PITLANE (KV namespace)
@@ -477,7 +478,7 @@ function sanitizeWeather(v) {
 
 const PUBLIC_ROW_FIELDS = [
   'car', 't', 'gps', 'valid', 'gpsQ', 'flags', 'avgAcc', 'hz', 'weather',
-  'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost',
+  'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost', 'tyre',
 ];
 
 /** Whitelisted public tops row (straight / lap / sector / duel run). No phone, ever. */
@@ -1554,7 +1555,7 @@ async function loginTelegramUser(env, v, provider) {
   return { ok: true, token, pilotId: rec.id, nick: rec.nick, provider, created, user: ownerUser(rec) };
 }
 
-const TMA_PARAM_RE = /^(duel|crew|lap|run|s|track|tops)_[A-Za-z0-9_-]{1,56}$/;
+const TMA_PARAM_RE = /^(duel|crew|room|team|lap|run|s|track|tops)_[A-Za-z0-9_-]{1,56}$/;
 
 /** Bot API savePreparedInlineMessage → id for WebApp.shareMessage(). */
 async function prepareTmaShare(env, v, body) {
@@ -1623,6 +1624,8 @@ const BOT_TEXT = {
   garage: '🚘 <b>3D-гараж</b>\nВыбери машину, покрась её, смотри паспорт и свои замеры.',
   tops: '🏆 <b>Топы автодромов</b>\nЛучшие круги и секторы по трассам России. В зачёт идут только заезды с точным GPS (A/B).',
   duel: '⚔️ <b>Дуэль</b>\nСоздай вызов и отправь ссылку другу. Побеждает лучший GPS-заезд за 7 дней.',
+  car: '🚘 <b>Это моя машина</b>\nВыбери активную машину и резину. Каждый сохранённый круг навсегда привязывается к ним — без машины круг в зачёт не идёт.',
+  room: '👥 <b>Комната экипажа</b>\nСоздай комнату, позови своих по ссылке. Внутри — дуэли кругов одного трека и топ по модели + резине. Бесплатно 3 сессии и 1 трек, дальше экипаж оплачивает сезон (одна оплата на всех).',
   feedback: '💬 <b>Обратная связь</b>\nНашёл ошибку или есть идея? Напиши нам прямо в приложении — можно приложить скриншот.',
   help:
     '<b>Как пользоваться PITLANE</b>\n\n' +
@@ -1641,6 +1644,8 @@ function startPayloadLine(param) {
   const kind = String(param).split('_')[0];
   if (kind === 'duel') return '⚔️ Тебе бросили вызов — открой дуэль кнопкой ниже.';
   if (kind === 'crew') return '👥 Тебя зовут в экипаж — открой приглашение кнопкой ниже.';
+  if (kind === 'room') return '🏁 Тебя зовут в комнату экипажа — открой приглашение кнопкой ниже.';
+  if (kind === 'team') return '🏁 Открой страницу команды кнопкой ниже.';
   if (kind === 's' || kind === 'lap' || kind === 'run') return '📊 С тобой поделились результатом — открой его кнопкой ниже.';
   if (kind === 'track') return '📍 Открой трассу кнопкой ниже.';
   if (kind === 'tops') return '🏆 Открой топы кнопкой ниже.';
@@ -1679,6 +1684,8 @@ function tgRoute(text) {
     garage: [BOT_TEXT.garage, [webAppBtn('🚘 Открыть гараж', { view: 'garage', skipIntro: '1' })]],
     tops: [BOT_TEXT.tops, [webAppBtn('🏆 Открыть топы', { view: 'tops', skipIntro: '1' })]],
     duel: [BOT_TEXT.duel, [webAppBtn('⚔️ Создать дуэль', { screen: 'duel' })]],
+    car: [BOT_TEXT.car, [webAppBtn('🚘 Это моя машина', { screen: 'mycar' })]],
+    room: [BOT_TEXT.room, [webAppBtn('👥 Комнаты экипажа', { screen: 'rooms' })]],
     feedback: [BOT_TEXT.feedback, [webAppBtn('💬 Написать', { screen: 'feedback' })]],
     help: [BOT_TEXT.help, openRow],
   };
@@ -1732,6 +1739,8 @@ const BOT_COMMANDS = [
   { command: 'garage', description: '3D-гараж' },
   { command: 'tops', description: 'Топы автодромов' },
   { command: 'duel', description: 'Вызвать на дуэль' },
+  { command: 'car', description: 'Это моя машина' },
+  { command: 'room', description: 'Комната экипажа' },
   { command: 'feedback', description: 'Обратная связь' },
   { command: 'help', description: 'Как пользоваться' },
 ];
@@ -1755,7 +1764,7 @@ async function tgSetup(env, origin) {
     out.setWebhook = await tgCall(env, 'setWebhook', {
       url: origin + '/tg/webhook/' + tgWebhookPath(secret),
       secret_token: secret,
-      allowed_updates: ['message'],
+      allowed_updates: ['message', 'pre_checkout_query'],
       max_connections: 20,
     });
   } else {
@@ -2227,7 +2236,10 @@ async function deleteAccount(kv, pid, currentToken) {
   // v89: custom profile banner
   rep.banner = (await kv.get('pbanner:' + pid)) || rec?.banner ? 1 : 0;
   await del('pbanner:' + pid);
+  // v97: rooms + active car
+  Object.assign(rep, await deleteAccountRooms(kv, pid, ROOM_H));
   // per-account rate-limit counters (short-lived anyway; removed so nothing references the uuid)
+  for (const b of ROOM_RL_BUCKETS) await del('rl:' + b + ':p:' + pid);
   for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx', 'drag', 'ghost', 'ghostd', 'ban']) await del('rl:' + b + ':p:' + pid);
   // finally the account record itself
   if (rec) rep.account = 1;
@@ -2482,6 +2494,14 @@ async function migratePilots(kv, { dry = false } = {}) {
   return rep;
 }
 
+/** Helpers handed to ./rooms.js (avoids a circular import). */
+const ROOM_H = {
+  json, readJson, limitOr429, cleanLabel, cleanText, safeName, containsPhone, slugOk, kvJson, randB36, pubId,
+  moscowDateKey, requireAuth, sanitizeLap, parseLapMs, safeDecode, telegramConfig, tgCall, tgWebhookPath,
+  providerKey, loadPilot, tgEsc, sanitizeBannerImage,
+  readListRaw: readList, kvListAll,
+};
+
 export default {
   async fetch(req, env) {
     const headers = corsHeaders(req, env);
@@ -2505,7 +2525,16 @@ export default {
       }
       try {
         const upd = await readJson(req, 64 * 1024);
+        // v97: Telegram Stars — season per crew room
+        if (upd && upd.pre_checkout_query) {
+          const r = await roomsPreCheckout(env, upd.pre_checkout_query, ROOM_H);
+          return json({ ok: true, precheckout: !!r?.ok }, 200, headers);
+        }
         const msg = upd && (upd.message || null);
+        if (msg && msg.successful_payment) {
+          const r = await roomsSuccessfulPayment(env, msg, ROOM_H);
+          return json({ ok: true, paid: !!r?.ok, duplicate: !!r?.duplicate }, 200, headers);
+        }
         if (msg) {
           const r = await tgHandleMessage(env, msg);
           return json({ ok: true, cmd: r?.cmd || null }, 200, headers);
@@ -2948,6 +2977,12 @@ export default {
         if (body?.pilotId && String(body.pilotId) !== pilot.id) {
           return json({ error: 'pilot mismatch' }, 403, headers);
         }
+        // v97: every saved lap is bound to the active car (model + tyre); no car → not counted
+        const myCar = await loadMyCar(env.PITLANE, pilot.id, ROOM_H);
+        if (!myCar) return json({ error: 'car required', code: 'NO_CAR', hint: 'Это моя машина: выбери машину и резину' }, 409, headers);
+        row.car = myCar.model;
+        row.tyre = myCar.tyre;
+        if (myCar.carId) row.carId = myCar.carId;
         row.pilotId = pilot.id;
         const av = row.avatar || null;
         // keep KV lap lists lean — avatar lives in pilotmeta, not on every row
@@ -3483,6 +3518,12 @@ export default {
       }
 
 
+      // —— v97: «Это моя машина» + комнаты экипажей (+ Stars season) ——
+      {
+        const rr = await roomsRoute({ req, env, path, url, pilot, headers, ip, h: ROOM_H });
+        if (rr) return rr;
+      }
+
       // —— Crews / Экипажи ——
       if (req.method === 'POST' && path === '/crew') {
         const body = await readJson(req);
@@ -3788,4 +3829,4 @@ export default {
   },
 };
 
-export { tgRoute, tgWebhookPath, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION };
+export { tgRoute, tgWebhookPath, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, ROOM_SEASON_DAYS, ROOM_SEASON_STARS };

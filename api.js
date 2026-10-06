@@ -658,6 +658,25 @@ export const api = {
     return null;
   },
 
+  /* —— v97: «Это моя машина» + комнаты экипажей (server decides paywall; errors come back as { ok:false, status, code }) —— */
+  async getMyCar() { return await remoteKeep('/me/car'); },
+  async putMyCar(car) { return await remoteKeep('/me/car', { method: 'PUT', body: JSON.stringify(car || {}) }); },
+  async listRooms() { return await remoteKeep('/rooms'); },
+  async createRoom(name) { return await remoteKeep('/rooms', { method: 'POST', body: JSON.stringify({ name }) }); },
+  async getRoom(id) { return await remoteKeep('/rooms/' + encodeURIComponent(id)); },
+  async roomInvitePreview(code) { return await remoteKeep('/rooms/invite/' + encodeURIComponent(code)); },
+  async joinRoom(code) { return await remoteKeep('/rooms/join', { method: 'POST', body: JSON.stringify({ code }) }); },
+  async leaveRoom(id) { return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/leave', { method: 'POST', body: '{}' }); },
+  async rotateRoomInvite(id) { return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/invite', { method: 'POST', body: '{}' }); },
+  async roomLaps(id, track) { return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/laps' + (track ? '?track=' + encodeURIComponent(track) : '')); },
+  async postRoomLap(id, lap) { return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/laps', { method: 'POST', body: JSON.stringify(lap || {}) }); },
+  async roomDuel(id, a, b) { return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/duel?a=' + encodeURIComponent(a) + '&b=' + encodeURIComponent(b)); },
+  async roomTop(id, track, model, tyre) {
+    const q = new URLSearchParams({ track: track || '', model: model || '', tyre: tyre || '' });
+    return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/top?' + q.toString());
+  },
+  async roomInvoice(id, via) { return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/invoice', { method: 'POST', body: JSON.stringify({ via: via || 'link' }) }); },
+
   /** POST /session/today/checkin { nick, pilotId? } */
   async sessionCheckin(payload) {
     const body = {

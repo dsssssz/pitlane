@@ -79,6 +79,7 @@ r = await call('POST', '/tops/straight/g87-m2', { token: A.token, body: { name: 
 r = await call('GET', '/tops/drag/0-100');
 ok(r.data.length === 1 && r.data[0].t === 3.95 && r.data[0].carId === 'g87-m2', '0–100 from /tops/straight mirrored into drag:0-100');
 // avatar enrichment from pilotmeta (set by an A/B lap)
+await call('PUT', '/me/car', { token: B.token, body: { model: 'GT3 RS', tyre: 'Cup 2' } });
 await call('POST', '/tops/lap/sochi', { token: B.token, body: { name: 'Артём', car: 'GT3 RS', t: '2:00.100', ms: 120100, gps: true, valid: true, gpsQ: 'A', avatar: 'data:image/png;base64,QUJD' } });
 r = await call('GET', '/tops/drag/402m');
 ok(r.data.find((x) => x.name === 'Артём').avatar === 'data:image/png;base64,QUJD', 'board rows get avatar from pilotmeta');

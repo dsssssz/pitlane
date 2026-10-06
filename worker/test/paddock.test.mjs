@@ -101,6 +101,8 @@ console.log('\n[public profile]');
 await call('POST', '/tops/straight/bmw-m2', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: 4.31, gps: true, valid: true, gpsQ: 'A' } });
 await call('POST', '/tops/straight/bmw-m2', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: 4.12, gps: true, valid: true, gpsQ: 'B' } });
 await call('POST', '/tops/straight/bmw-m2', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: 3.2, gps: true, valid: false, gpsQ: 'C' } });
+await call('PUT', '/me/car', { token: A.token, body: { model: 'BMW M2', tyre: 'PS4S' } });
+await call('PUT', '/me/car', { token: B.token, body: { model: 'Supra', tyre: 'PS4S' } });
 await call('POST', '/tops/lap/sochi', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: '2:01.500', ms: 121500, sectors: [40000, 81000, 121500], gps: true, valid: true, gpsQ: 'A' } });
 await call('POST', '/tops/lap/sochi', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: '2:02.000', ms: 122000, sectors: [39000, 80000, 122000], gps: true, valid: true, gpsQ: 'A' } });
 await call('POST', '/tops/lap/sochi', { token: B.token, body: { name: 'Боб', car: 'Supra', t: '1:59.000', ms: 119000, gps: true, valid: true, gpsQ: 'A' } });

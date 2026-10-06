@@ -57,6 +57,10 @@ r = await call(env, 'POST', '/duel', { raw: '{bad json', headers: { 'X-Pilot-Id'
 ok(r.status === 400, 'bad JSON → 400');
 const lap = (o = {}) => ({ name: 'Алиса', car: 'M2', t: '2:00.100', ms: 120100, gps: true, valid: true, gpsQ: 'A', ...o });
 r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: lap() });
+ok(r.status === 409 && r.data.code === 'NO_CAR', 'v97: lap without active car → 409 NO_CAR');
+r = await call(env, 'PUT', '/me/car', { token: A.token, body: { model: 'M2<svg/onload=1>', tyre: 'PS4S' } });
+ok(r.status === 200 && !/[<>]/.test(r.data.car.model), 'v97: active car set, angle brackets stripped');
+r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: lap() });
 ok(r.status === 200, 'valid lap accepted');
 for (const [label, body] of [
   ['lap 5 s', lap({ t: '0:05.000', ms: 5000 })],

@@ -95,12 +95,12 @@ r = await post('/tg/setup', {}, { 'X-Admin-Secret': ADMIN });
 const methods = sent.map((x) => x.method);
 ok(r.status === 200 && ['setWebhook', 'setMyCommands', 'setMyDescription', 'setMyShortDescription', 'setChatMenuButton', 'setMyName'].every((m) => methods.includes(m)), 'setup calls all Bot API methods');
 const wh = sent.find((x) => x.method === 'setWebhook').body;
-ok(wh.secret_token === SECRET && wh.url === 'https://api.test' + P && JSON.stringify(wh.allowed_updates) === '["message"]', 'setWebhook url/secret/allowed_updates');
+ok(wh.secret_token === SECRET && wh.url === 'https://api.test' + P && JSON.stringify(wh.allowed_updates) === '["message","pre_checkout_query"]', 'setWebhook url/secret/allowed_updates');
 ok(sent.filter((x) => x.method === 'setMyCommands').some((x) => x.body.language_code === 'ru'), 'ru commands set');
 ok(sent.find((x) => x.method === 'setChatMenuButton').body.menu_button.text === 'PITLANE', 'menu button PITLANE');
 ok(!methods.includes('sendMessage') && !methods.includes('sendPhoto'), 'setup does not message anyone');
 ok(r.data.result.getWebhookInfo.urlMatches === true, 'verification reported');
-ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.length === 6, 'description lengths within limits');
+ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.length === 8, 'description lengths within limits');
 ok(!/\bpro\b|₽|руб\.|рубл|цена|стоимост|подписк/i.test(BOT_DESCRIPTION + BOT_SHORT_DESCRIPTION), 'no Pro/prices in descriptions');
 ok(tgRoute('/START').cmd === 'start', 'commands case-insensitive');
 

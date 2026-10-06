@@ -101,6 +101,7 @@ const straightBody = { name: 'Тест', car: 'M2', t: 3.99, gps: true, valid: t
 r = await call(env, 'POST', '/tops/straight/bmw-m2', { token: tok2, body: straightBody });
 ok(r.status === 200 && r.data.some((x) => x.pilotId === uuid2), 'POST straight ok, row pilotId=uuid');
 noPhone('POST straight response', r.text, PHONE, PHONE2);
+await call(env, 'PUT', '/me/car', { token: tok2, body: { model: 'M2', tyre: 'Pilot Sport 4S' } }); // v97: active car required
 r = await call(env, 'POST', '/tops/lap/sochi', { token: tok2, body: { name: 'Тест', car: 'M2', t: '2:00.100', ms: 120100, sectors: [39000, 79000, 120100], gps: true, valid: true, gpsQ: 'A', avatar: 'data:image/png;base64,BBBB' } });
 ok(r.status === 200, 'POST lap ok');
 r = await call(env, 'POST', '/pulse', { token: tok2, body: { text: 'first post', who: '' } });

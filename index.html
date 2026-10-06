@@ -482,6 +482,7 @@
               <div class="track-map" id="trackMap"></div>
               <button type="button" class="ad-linkish" id="btnAutodromesLap">Автодромы · справочник</button>
               <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
+              <button type="button" class="mycar-chip" id="btnMyCarLap"><span>моя машина</span><b data-mycar-line>не выбрана</b></button>
               <div class="lap-track-actions">
                 <button type="button" id="btnLapStart" class="lap-start-hero" data-i18n="lap.start">Старт круга</button>
                 <button type="button" id="btnLapStop" class="lap-finish-btn" data-i18n="lap.finish">Финиш круга</button>
@@ -535,6 +536,7 @@
             <a class="method-link" href="./method.html" id="topsMethodLink">Методика</a>
             <div class="tops-head-actions race-toolbar">
               <button type="button" class="crew-btn" id="btnCrewOpen">Экипаж</button>
+              <button type="button" class="crew-btn room-open-btn" id="btnRoomsOpen">Комнаты</button>
               <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen">Секторы</button>
               <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
             </div>
@@ -723,6 +725,10 @@
           <p class="muted" id="accPhoneStatus">не вошли</p>
           <p class="tiny demo-banner hidden" id="accDemoBanner">режим демо · SMS не подключён</p>
           <p class="tiny" id="accPlan"></p>
+          <div class="acc-crew-row">
+            <button type="button" class="btn-secondary" id="btnMyCarAcc">Это моя машина</button>
+            <button type="button" class="btn-secondary" id="btnRoomsAcc">Комнаты экипажа</button>
+          </div>
           <p class="tiny" id="accTrialLeft"></p>
           <article class="card" id="imuCard">
             <h3>Датчики движения</h3>
@@ -943,6 +949,25 @@
       }
     </script>
     
+    <!-- v97: «Это моя машина» -->
+    <div id="myCarSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Это моя машина">
+      <div class="crew-sheet-inner race-sheet-inner mycar-inner">
+        <button type="button" class="share-card-close" id="myCarSheetClose" aria-label="Закрыть">×</button>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <h2 class="race-sheet-title">Это моя машина</h2>
+          <p class="race-sheet-sub">Активная машина и резина для кругов</p>
+        </header>
+        <div class="race-sheet-body" id="myCarBody"></div>
+      </div>
+    </div>
+    <!-- v97: комнаты экипажа (контент рисует crew-rooms.js) -->
+    <div id="roomSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Комнаты экипажа">
+      <div class="crew-sheet-inner race-sheet-inner room-inner">
+        <button type="button" class="share-card-close" id="roomSheetClose" aria-label="Закрыть">×</button>
+        <div class="race-sheet-body" id="roomBody"></div>
+      </div>
+    </div>
     <div id="crewSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Экипаж">
       <div class="crew-sheet-inner race-sheet-inner">
         <button type="button" class="pit-info-btn sheet-info" data-help="crew" title="Справка" aria-label="Справка: экипаж">i</button>

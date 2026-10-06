@@ -70,7 +70,7 @@ function readStartParam() {
 }
 
 export function parseStartParam(p) {
-  const m = String(p || '').match(/^(duel|crew|lap|run|s|track|tops)_([A-Za-z0-9_-]{1,56})$/);
+  const m = String(p || '').match(/^(duel|crew|room|team|lap|run|s|track|tops)_([A-Za-z0-9_-]{1,56})$/);
   if (!m) return null;
   const kind = m[1] === 'lap' || m[1] === 'run' ? 's' : m[1];
   return { kind, id: m[2], raw: p };
@@ -103,6 +103,8 @@ export const START_ROUTE = parseStartParam(START_PARAM);
       changed = true;
       if (r.kind === 'duel') q.set('duel', r.id);
       else if (r.kind === 'crew') q.set('crew', r.id);
+      else if (r.kind === 'room') q.set('room', r.id);
+      else if (r.kind === 'team') q.set('team', r.id);
       else if (r.kind === 's') q.set('s', r.id);
       else if (r.kind === 'track') { q.set('view', 'lap'); q.set('skipIntro', '1'); }
       else if (r.kind === 'tops') { q.set('view', 'tops'); q.set('skipIntro', '1'); }

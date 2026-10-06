@@ -5154,3 +5154,86 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
   .lt-chase, .lap-drive-chase, #app .lt-mode, #btnMapChase { display: none; }
   #app .track-map.lt-under-chase { display: block; }
 }
+
+/* ═══════════ v97: «Это моя машина» + комнаты экипажа (стиль v86–v89) ═══════════ */
+.room-inner, .mycar-inner { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.mycar-chip { appearance: none; display: flex; align-items: baseline; gap: 8px; width: 100%; margin: 8px 0 0; padding: 9px 12px; border-radius: 12px; border: 1px solid var(--h-line-2, rgba(255,255,255,.12)); background: rgba(255,255,255,.035); color: var(--h-text, #f2f2f2); text-align: left; cursor: pointer; }
+.mycar-chip span { font: 600 9.5px/1 Manrope, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: var(--h-mute, #696969); flex: none; }
+.mycar-chip b { font: 600 13px/1.25 Manrope, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-crew-row { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.acc-crew-row .btn-secondary { flex: 1 1 140px; }
+.mycar-warn { margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,190,60,.4); background: rgba(255,190,60,.08); color: #ffd27a; font: 600 13px/1.4 Manrope, sans-serif; }
+.mycar-select, .mycar-custom, .mycar-tyre, .room-input, .room-select { width: 100%; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: #121212; color: #f2f2f2; font: 500 14px/1.2 Manrope, sans-serif; box-sizing: border-box; }
+.mycar-custom { margin-top: 8px; }
+.mycar-msg, .room-msg { min-height: 1.2em; margin: 8px 0 0; color: #ffd27a; }
+.room-empty { margin: 12px 0; color: #a3a3a3; font: 500 13px/1.45 Manrope, sans-serif; text-align: center; }
+.room-car { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: var(--h-card, #141414); }
+.room-car-k { font: 600 9.5px/1 Manrope, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #696969; flex: none; }
+.room-car-v { flex: 1; min-width: 0; font: 600 13px/1.3 Manrope, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-link { appearance: none; border: 0; background: none; color: #39FF14; font: 700 12px/1 Manrope, sans-serif; padding: 6px 2px; cursor: pointer; flex: none; }
+.room-list, .room-laps, .room-toplist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.room-item { display: flex; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,.08); cursor: pointer; }
+.room-item-main { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.room-item-main b { font: 700 15px/1.2 Manrope, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-item-main small { color: #8a8a8a; font: 500 11.5px/1.3 Manrope, sans-serif; }
+.room-badge { flex: none; padding: 5px 9px; border-radius: 999px; font: 800 11px/1 "Barlow Condensed", sans-serif; letter-spacing: .1em; text-transform: uppercase; border: 1px solid rgba(255,255,255,.14); color: #a3a3a3; }
+.room-badge.free { color: #cfcfcf; }
+.room-badge.paid { color: #39FF14; border-color: rgba(57,255,20,.45); background: rgba(57,255,20,.08); }
+.room-badge.locked { color: #ffb443; border-color: rgba(255,180,67,.5); background: rgba(255,180,67,.08); }
+.room-join { display: flex; gap: 8px; margin-top: 10px; }
+.room-join .room-input { flex: 1; text-transform: uppercase; letter-spacing: .14em; }
+.room-sheet .race-cta, #roomBody .race-cta { margin-top: 8px; }
+.room-rules { margin-top: 14px; text-align: center; }
+.room-top { display: flex; align-items: center; justify-content: center; gap: 10px; margin: -2px 0 10px; }
+.room-q { font: 600 11px/1 Manrope, sans-serif; letter-spacing: .06em; color: #8a8a8a; }
+.room-members { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 0 0 12px; }
+.room-member { padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.08); font: 600 12px/1 Manrope, sans-serif; color: #dcdcdc; }
+.room-member.cap { border-color: rgba(57,255,20,.4); color: #39FF14; }
+.room-member.cap::before { content: "★ "; }
+.room-active { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; font: 600 13px/1.3 Manrope, sans-serif; color: #dcdcdc; cursor: pointer; }
+.room-active input { width: 20px; height: 20px; accent-color: #39FF14; }
+.room-invite { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0 0 14px; padding: 10px 12px; border-radius: 14px; border: 1px dashed rgba(57,255,20,.3); }
+.room-invite-code { font: 700 22px/1 var(--h-num, "Barlow Condensed"), sans-serif; letter-spacing: .18em; color: #f2f2f2; flex: 1; }
+.room-invite-name { margin: 6px 0; text-align: center; font: 800 28px/1.1 "Barlow Condensed", sans-serif; letter-spacing: .04em; color: #f2f2f2; }
+.room-tabs { margin-top: 4px; }
+.room-pane { min-height: 120px; }
+.room-lap { display: grid; gap: 4px; }
+.room-lap-main { display: flex; align-items: baseline; gap: 10px; }
+.room-lap-t { font: 600 24px/1 var(--h-num, "Barlow Condensed"), sans-serif; color: #f2f2f2; font-variant-numeric: tabular-nums; }
+.room-lap-who { font: 600 13px/1.2 Manrope, sans-serif; color: #cfcfcf; }
+.room-lap-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; font: 500 11.5px/1.35 Manrope, sans-serif; color: #8a8a8a; }
+.room-lap-sec { color: #a3a3a3; font-variant-numeric: tabular-nums; }
+.room-filter { display: grid; grid-template-columns: 1fr; gap: 6px; margin: 8px 0 12px; }
+@media (min-width: 560px) { .room-filter { grid-template-columns: repeat(3, 1fr); } }
+.room-duel-track, .room-top-cap { margin: 4px 0 8px; text-align: center; font: 800 12px/1 "Barlow Condensed", sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #888; }
+.room-duel { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.room-duel-card { display: grid; gap: 4px; padding: 14px 12px; border-radius: 16px; border: 1px solid rgba(255,255,255,.08); background: var(--h-card, #141414); text-align: center; }
+.room-duel-card small { color: #8a8a8a; font: 500 11px/1.3 Manrope, sans-serif; overflow: hidden; text-overflow: ellipsis; }
+.room-duel-who { font: 700 13px/1.2 Manrope, sans-serif; color: #dcdcdc; }
+.room-duel-t { font: 600 32px/1 var(--h-num, "Barlow Condensed"), sans-serif; color: #f2f2f2; font-variant-numeric: tabular-nums; }
+.room-duel-delta { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin: 10px 0; }
+.room-duel-delta span { font: 600 9.5px/1 Manrope, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #696969; }
+.room-duel-delta b { font: 600 30px/1 var(--h-num, "Barlow Condensed"), sans-serif; color: #39FF14; }
+.room-duel-delta.a-wins b { color: #ff5a4f; }
+.room-duel-sectors { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.room-duel-sectors li { display: grid; grid-template-columns: 34px 1fr 84px 1fr; align-items: center; gap: 6px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.035); font: 600 13px/1 Manrope, sans-serif; color: #cfcfcf; text-align: center; font-variant-numeric: tabular-nums; }
+.room-duel-sectors li b { color: #39FF14; }
+.room-duel-sectors li.a-wins b { color: #ff5a4f; }
+.room-toplist li { display: grid; grid-template-columns: 28px 1fr auto auto; align-items: center; gap: 10px; }
+.room-toplist li.p1 { border-color: rgba(57,255,20,.4) !important; }
+.room-pos { font: 700 18px/1 var(--h-num, "Barlow Condensed"), sans-serif; color: #696969; text-align: center; }
+.room-toplist li.p1 .room-pos { color: #39FF14; }
+.room-top-who { font: 600 14px/1.2 Manrope, sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.room-top-t { font: 600 22px/1 var(--h-num, "Barlow Condensed"), sans-serif; font-variant-numeric: tabular-nums; }
+.room-top-gap { font: 600 12px/1 Manrope, sans-serif; color: #8a8a8a; min-width: 56px; text-align: right; }
+.room-paywall { margin: 6px 0 12px; padding: 18px 16px; border-radius: 18px; border: 1px solid rgba(255,180,67,.4); background: linear-gradient(180deg, rgba(255,180,67,.09), rgba(255,180,67,.02)), #141414; text-align: center; }
+.room-paywall-ico { font-size: 30px; line-height: 1; }
+.room-paywall h3 { margin: 8px 0 6px; font: 800 22px/1.1 "Barlow Condensed", sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #ffd27a; }
+.room-paywall > p { margin: 0 0 8px; color: #cfcfcf; font: 500 13px/1.45 Manrope, sans-serif; }
+.room-paywall-list { list-style: none; margin: 8px 0 12px; padding: 0; display: grid; gap: 6px; text-align: left; }
+.room-paywall-list li { position: relative; padding-left: 20px; font: 500 12.5px/1.4 Manrope, sans-serif; color: #dcdcdc; }
+.room-paywall-list li::before { content: "✓"; position: absolute; left: 2px; color: #39FF14; font-weight: 800; }
+.room-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.06); }
+.room-foot .btn-ghost { appearance: none; border: 0; background: none; color: #8a8a8a; font: 600 12.5px/1 Manrope, sans-serif; padding: 8px 4px; cursor: pointer; }
+.pl-toast { position: fixed; left: 50%; bottom: calc(96px + var(--sab, 0px)); z-index: 9000; transform: translate(-50%, 16px); max-width: min(90vw, 420px); padding: 11px 16px; border-radius: 14px; background: rgba(20,20,20,.94); border: 1px solid rgba(255,180,67,.45); color: #f2f2f2; font: 600 13px/1.35 Manrope, sans-serif; opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; }
+.pl-toast.on { opacity: 1; transform: translate(-50%, 0); }

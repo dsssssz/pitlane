@@ -15,6 +15,7 @@ import { createExtGps } from './ext-gps.js';
 import { TRACK_OUTLINES } from './geo/outlines.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
+import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar } from './crew-rooms.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -2350,7 +2351,7 @@ try {
 
 const DEEP_VIEWS = new Set(['home', 'garage', 'run', 'lap', 'tops', 'duels', 'pulse', 'account', 'cars']);
 /** v81: ?screen=duel|crew|feedback|autodromes — opens a sheet (used by the Telegram bot's web_app buttons). */
-const DEEP_SCREENS = { duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account' };
+const DEEP_SCREENS = { duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account', mycar: 'lap', rooms: 'tops', teams: 'tops' };
 const SCREEN_PARAM = (() => {
   try {
     const s = String(new URLSearchParams(location.search).get('screen') || '').toLowerCase();
@@ -4410,6 +4411,9 @@ async function completeLapRun(how, atTs, gsnap) {
       const wx = lapDrive.weather || weatherCategoryFromCode(lapDrive.weatherCode);
       if (wx) rec.weather = wx;
       const avThumb = await avatarThumbForTops();
+      // v97: every saved lap is bound to the active car + tyre («Это моя машина»); none → ask first, submit after
+      const roomLap = { trackId, t: tStr, ms: rec.ms, gps: true, valid: true, gpsQ: gq.gpsQ, flags: rec.flags, sectors: Array.isArray(rec.sectors) ? rec.sectors.slice(0, 3) : undefined };
+      void requireCar(async () => {
       await api.addLap(trackId, {
         name: String(who).slice(0, 24),
         car: currentCar().name,
@@ -4439,6 +4443,8 @@ async function completeLapRun(how, atTs, gsnap) {
         dist: rec?.dist,
         slipAvg: rec?.slipAvg,
       }); } catch (_) {}
+      try { await pushLapToActiveRoom(roomLap); } catch (_) {}
+      });
     }
     const tr = TRACKS.find((t) => t.id === trackId);
     const wxShare = rec.weather || lapDrive.weather || weatherCategoryFromCode(lapDrive.weatherCode);
@@ -5675,7 +5681,7 @@ function captureTelegramReturn() {
     } else if (q.get('hash') && q.get('id') && q.get('auth_date')) {
       seen = true;
       payload = {};
-      const appParams = new Set(['view', 'skipIntro', 'duel', 'crew', 's', 'r', 'quality']);
+      const appParams = new Set(['view', 'skipIntro', 'duel', 'crew', 'room', 'team', 's', 'r', 'quality']);
       q.forEach((v, k) => { if (!appParams.has(k)) payload[k] = v; });
     }
     if (!seen) return null;
@@ -10484,6 +10490,48 @@ document.getElementById('crewPasteOpen')?.addEventListener('click', async () => 
 
 void bootCrewFromUrl();
 
+/* -------- v97: «Это моя машина» + комнаты экипажа (crew-rooms.js) -------- */
+function plFlash(text) {
+  let t = document.getElementById('plToast');
+  if (!t) { t = document.createElement('div'); t.id = 'plToast'; t.className = 'pl-toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+  t.textContent = String(text || '');
+  t.classList.add('on');
+  clearTimeout(plFlash._t);
+  plFlash._t = setTimeout(() => t.classList.remove('on'), 2600);
+}
+function roomShare(param, url, text) {
+  if (isTMA) { void shareViaTelegram(param, url, text); return; }
+  const full = text + '\n' + url;
+  if (navigator.share) { navigator.share({ title: 'PITLANE', text, url }).catch(() => {}); return; }
+  try { void navigator.clipboard?.writeText(full); plFlash('Ссылка скопирована'); } catch (_) { prompt('Ссылка', url); }
+}
+function roomWebUrl(param) {
+  const [kind, id] = String(param).split(/_(.+)/);
+  return location.origin + location.pathname + '?' + kind + '=' + encodeURIComponent(id || '');
+}
+initCrewRooms({
+  tracks: () => TRACKS,
+  currentCar: () => currentCar(),
+  garageCars: () => garageList(),
+  stockCars: () => CARS,
+  isAuthed: () => { const t = getSessionToken(); return !!t && !t.startsWith('local-'); },
+  goToView: (v) => goToView(v),
+  hap: (ms) => hap(ms),
+  flash: plFlash,
+  tg: () => (isTMA ? TG : null),
+  inviteLink: (param) => publicLinkFor(param, roomWebUrl(param)),
+  share: roomShare,
+});
+document.getElementById('btnRoomsOpen')?.addEventListener('click', () => openRoomSheet());
+document.getElementById('btnRoomsAcc')?.addEventListener('click', () => openRoomSheet());
+document.getElementById('btnMyCarAcc')?.addEventListener('click', () => openMyCarSheet());
+document.getElementById('btnMyCarLap')?.addEventListener('click', () => openMyCarSheet());
+try {
+  const q = new URLSearchParams(location.search);
+  const code = String(q.get('room') || '').toUpperCase();
+  if (/^[A-Z2-9]{8}$/.test(code)) setTimeout(() => openRoomSheet({ invite: code }), 1100);
+} catch (_) {}
+
 
 /* -------- Feature help (i) — reuse session-day «i» look -------- */
 const FEATURE_HELP = {
@@ -10592,7 +10640,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v96';
+const APP_VERSION = 'v97';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -10816,6 +10864,8 @@ if (SCREEN_PARAM) {
     try {
       if (SCREEN_PARAM === 'duel') openDuelSheet();
       else if (SCREEN_PARAM === 'crew') openCrewSheet();
+      else if (SCREEN_PARAM === 'mycar') openMyCarSheet();
+      else if (SCREEN_PARAM === 'rooms') openRoomSheet();
       else if (SCREEN_PARAM === 'autodromes') openAutodromeSheet();
       else if (SCREEN_PARAM === 'feedback') openFeedbackSheet();
     } catch (err) { console.warn('screen deep link', err); }
