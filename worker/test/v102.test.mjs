@@ -92,7 +92,7 @@ r = await call('POST', '/tops/lap/sochi', { token: B.token, body: lap(120_000, {
 let tops = await call('GET', '/tops/lap/sochi');
 let rowB = (Array.isArray(tops.data) ? tops.data : []).find((x) => x.name === 'Пилот');
 ok(r.status === 200 && rowB && rowB.sectors && rowB.sectors[0] > 30000, 'v104: client sectors ignored — server S1/S2 gates', rowB);
-r = await call('POST', '/tops/lap/sochi', { token: C.token, body: lap(120_000, { sectors: [40000, 80000, 125000] }) });
+r = await call('POST', '/tops/lap/sochi', { token: C.token, body: lap(121_000, { sectors: [40000, 80000, 125000] }) });
 tops = await call('GET', '/tops/lap/sochi');
 const rowC = tops.data.find((x) => x.name === 'Чужой');
 ok(rowC && rowC.sectors && rowC.sectors[2] === rowC.ms, 'v104: sector marks come from the server (last = lap)');

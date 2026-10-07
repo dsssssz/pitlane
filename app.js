@@ -1007,9 +1007,10 @@ function applyCarUI() {
       }
     } else {
       const manual = getPassportManual(c.id);
-      const show = manual.v0100 ?? m.v0100 ?? stockV;
-      setTxt('hdr0100', fmt(show, 'с'));
-      if (hdrEl) hdrEl.title = show != null ? 'сток / правка (факта GPS ещё нет)' : '';
+      // v107: в шапке — только свой замер; паспортное «сток» не выдаём за время (оно в карточке машины)
+      const show = manual.v0100 ?? m.v0100 ?? null;
+      setTxt('hdr0100', show != null ? fmt(show, 'с') : '—');
+      if (hdrEl) hdrEl.title = show != null ? 'ваш замер (не GPS A/B)' : (stockV != null ? `замера ещё нет · сток по паспорту ${fmtPassShort(stockV)}` : 'замера ещё нет');
     }
   }
   const track = TRACKS.find((t) => t.id === (state.trackId || c.lap?.track)) || TRACKS[0];
@@ -3078,7 +3079,7 @@ const REJECT_TEXT = {
   low_hz: 'Частота приёмника ниже 10 Гц — в топ разгонов не идёт.',
   stale: 'Замер слишком старый — отправьте свежий.',
   no_trace: 'Нет сырых точек GPS — обновите приложение и повторите замер.',
-  duplicate: 'Этот трек уже был отправлен — повтор не создаёт новую строку топа.',
+  duplicate: 'Этот трек уже зачтён другому аккаунту (или обе стороны дуэли с одного устройства) — не принят.',
   not_verified: 'Призрак принимается только к зачтённому сервером результату.',
   session_expired: 'Сессия закончилась — войдите через Telegram ещё раз.',
   offline: 'Нет связи с сервером — замер сохранён на устройстве.',
@@ -8590,7 +8591,35 @@ async function openPilotProfile(pid) {
     return;
   }
   renderPilotProfile(res);
+  try { appendDisputeButton(body, pid); } catch (_) {}
   if (body) body.scrollTop = 0;
+}
+/* v107: «Оспорить» — жалоба на результат топа / дуэли: уходит в KV и владельцу; сама ничего не удаляет */
+let _disputeCtx = null;
+document.getElementById('duelDisputeBtn')?.addEventListener('click', () => {
+  const id = document.getElementById('duelDisputeRow')?.dataset.duel || '';
+  if (id) void sendDispute({ kind: 'duel', target: id }, document.getElementById('duelDisputeMsg'));
+});
+function appendDisputeButton(body, pid) {
+  const ctx = _disputeCtx;
+  if (!body || !ctx || ctx.target !== pid || isMyPilotId(pid)) return;
+  const wrap = padEl('div', 'dispute-row');
+  const btn = padEl('button', 'auth-alt-btn dispute-btn', 'Оспорить результат');
+  btn.type = 'button';
+  const msg = padEl('p', 'tiny muted', '');
+  btn.addEventListener('click', () => { void sendDispute(ctx, msg); });
+  wrap.append(btn, msg);
+  body.appendChild(wrap);
+}
+async function sendDispute(ctx, msgEl) {
+  const say = (t) => { if (msgEl) msgEl.textContent = t; };
+  if (!currentUser()) { say(REJECT_TEXT.no_account); return; }
+  let reason = '';
+  try { reason = window.prompt('Что не так с результатом? (видео, свидетели, подозрение на подделку трека)') || ''; } catch (_) {}
+  reason = reason.trim();
+  if (reason.length < 3) { say('Опишите, что не так — хотя бы пару слов.'); return; }
+  const res = await api.dispute({ ...ctx, reason: reason.slice(0, 500) });
+  say(res && res.ok ? 'Отправлено на проверку. Результат не удаляется автоматически — решение после разбора.' : (res && res.status === 429 ? 'Слишком много жалоб за сутки — попробуйте завтра.' : 'Не удалось отправить — попробуйте позже.'));
 }
 document.getElementById('pilotClose')?.addEventListener('click', () => { _pilotOpen = null; padShow('pilotSheet', false); });
 document.getElementById('pilotSheet')?.addEventListener('click', (e) => {
@@ -8928,6 +8957,14 @@ async function showDuelView(id) {
     } else {
       res.hidden = true;
       res.textContent = '';
+    }
+  }
+  {
+    const dr = document.getElementById('duelDisputeRow');
+    if (dr) {
+      dr.hidden = !(d.status === 'ready' && currentUser());
+      dr.dataset.duel = d.id || '';
+      const dm = document.getElementById('duelDisputeMsg'); if (dm) dm.textContent = '';
     }
   }
   const note = document.getElementById('duelNoteView');
@@ -10770,7 +10807,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v106';
+const APP_VERSION = 'v107';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12814,6 +12851,7 @@ function buildTopsRow(r, i, sel) {
   const pid = r.pilotId && isPublicPilot(r.pilotId) ? r.pilotId : '';
   if (pid) {
     li.dataset.pilot = pid;
+    if (r.at) li.dataset.at = String(r.at);
     li.tabIndex = 0;
     li.setAttribute('role', 'button');
   }
@@ -12916,7 +12954,10 @@ document.getElementById('topsChips')?.addEventListener('click', (e) => {
 });
 document.getElementById('topsBoard')?.addEventListener('click', (e) => {
   const li = e.target?.closest?.('.tb-row[data-pilot]');
-  if (li) void openPilotProfile(li.dataset.pilot);
+  if (li) {
+    _disputeCtx = { kind: 'top', board: (_topsSel.kind === 'lap' ? 'lap:' : 'drag:') + _topsSel.id, target: li.dataset.pilot, at: Number(li.dataset.at) || undefined };
+    void openPilotProfile(li.dataset.pilot);
+  }
 });
 document.getElementById('topsBoard')?.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter' && e.key !== ' ') return;

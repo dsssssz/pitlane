@@ -58,7 +58,7 @@ function corsHeaders(req, env) {
   return {
     'Access-Control-Allow-Origin': ok,
     'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Pilot-Id, X-Pilot-Name',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Pilot-Id, X-Pilot-Name, X-Device',
     'Access-Control-Max-Age': '86400',
     Vary: 'Origin',
   };
@@ -454,6 +454,30 @@ async function resolvePilot(req, env) {
 function requireAuth(pilot, headers) {
   if (pilot.badToken) return json({ error: 'invalid session', code: 'session_expired' }, 401, headers);
   if (!pilot.authed || !pilot.id) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
+  return null;
+}
+
+/** v107: хэш устройства (из X-Device, случайный id клиента) — хранится только в приватных полях строки. */
+function deviceHash(req) {
+  const raw = String(req?.headers?.get?.('X-Device') || '').trim().slice(0, 80);
+  if (!/^[A-Za-z0-9_-]{8,80}$/.test(raw)) return '';
+  return sha256Hex('pitlane-dev:' + raw).slice(0, 20);
+}
+const TRACE_CLAIM_TTL = 180 * 86400;
+/**
+ * v107: привязка зачтённого забега к аккаунту + устройству и дедуп сырого трека между аккаунтами.
+ * Тот же трек от того же аккаунта можно подать в несколько дисциплин; от другого аккаунта — отказ duplicate.
+ * → Response (отказ) | null; дописывает row.dev.
+ */
+async function guardRun(env, req, row, pilotId, headers) {
+  if (!row) return null;
+  const dev = deviceHash(req);
+  if (dev) row.dev = dev;
+  if (!row.th || !pilotId) return null;
+  const key = 'th:' + String(row.th).slice(0, 40);
+  const prev = await kvJson(env.PITLANE, key);
+  if (prev && prev.pid && prev.pid !== pilotId) return rejectRun('duplicate', headers);
+  if (!prev) await env.PITLANE.put(key, JSON.stringify({ pid: pilotId, dev: dev || '', at: Date.now() }), { expirationTtl: TRACE_CLAIM_TTL, metadata: { pid: pilotId } });
   return null;
 }
 
@@ -1129,6 +1153,8 @@ function runScoreMs(type, run) {
     const t = Number(run.t);
     return Number.isFinite(t) && t > 0 ? t * 1000 : null;
   }
+  const ms = Number(run.ms);
+  if (Number.isFinite(ms) && ms > 0) return Math.round(ms);
   return parseLapMs(run.t);
 }
 
@@ -1835,7 +1861,7 @@ function feedbackMessage(rec, key) {
 }
 
 /** Forward to the owner's chat. Returns true when Telegram accepted the message. Never throws. */
-async function forwardFeedbackToTelegram(env, rec, key, shot) {
+async function forwardFeedbackToTelegram(env, rec, key, shot, plain) {
   const token = String(env.TELEGRAM_BOT_TOKEN || '').trim();
   const chat = String(env.FEEDBACK_CHAT_ID || '').trim();
   if (!token || !/^-?\d{1,20}$/.test(chat)) return false;
@@ -1850,7 +1876,7 @@ async function forwardFeedbackToTelegram(env, rec, key, shot) {
     const res = await withTimeout(api + '/sendMessage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chat, ...feedbackMessage(rec, key), link_preview_options: { is_disabled: true } }),
+      body: JSON.stringify({ chat_id: chat, ...(plain ? { text: String(plain).slice(0, 4000) } : feedbackMessage(rec, key)), link_preview_options: { is_disabled: true } }),
     });
     const data = await res.json().catch(() => null);
     if (!data?.ok) return false;
@@ -2089,6 +2115,8 @@ async function deleteAccount(kv, pid, currentToken) {
   for (const t of tokens) { await del(String(t).startsWith('rt:') ? t : 'sess:' + t); rep.sessions++; }
   await del('sessidx:' + pid);
   for (const k of await kvListAll(kv, 'rt:')) if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.sessions++; }
+  // v107: заявки на треки (дедуп) и жалобы — привязаны к аккаунту через metadata.pid
+  for (const pre of ['th:', 'dispute:']) for (const k of await kvListAll(kv, pre)) if (k.metadata && k.metadata.pid === pid) await del(k.name);
   // profile meta / avatar, garage
   if (await kv.get('pilotmeta:' + pid)) rep.meta++;
   await del('pilotmeta:' + pid);
@@ -2543,7 +2571,7 @@ async function notifyDuel(env, d, submitterId) {
 /** Helpers handed to ./rooms.js (avoids a circular import). */
 const ROOM_H = {
   json, readJson, limitOr429, cleanLabel, cleanText, safeName, containsPhone, slugOk, kvJson, randB36, pubId,
-  moscowDateKey, requireAuth, sanitizeLap, sanitizeRoomLap, rejectRun, parseLapMs, safeDecode, telegramConfig, tgCall, tgWebhookPath,
+  moscowDateKey, requireAuth, sanitizeLap, sanitizeRoomLap, rejectRun, guardRun, parseLapMs, safeDecode, telegramConfig, tgCall, tgWebhookPath,
   providerKey, loadPilot, tgEsc, sanitizeBannerImage,
   readListRaw: readList, kvListAll, burstLimited,
   // v98: teams
@@ -2867,6 +2895,33 @@ export default {
         return json({ ok: true, id, forwarded }, 200, headers);
       }
 
+      // —— v107: «Оспорить» результат топа / дуэли — запись в KV + уведомление владельцу; ничего не удаляется ——
+      if (req.method === 'POST' && path === '/dispute') {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const body = await readJson(req, BODY_LIMITS.feedback);
+        const kind = body?.kind === 'duel' ? 'duel' : body?.kind === 'top' ? 'top' : null;
+        if (!kind) return json({ error: 'kind must be top|duel' }, 400, headers);
+        const board = String(body?.board || '').trim().slice(0, 64);
+        if (kind === 'top' && !/^(drag|lap|straight|sector):[A-Za-z0-9_-]{1,48}$/.test(board)) return json({ error: 'bad board' }, 400, headers);
+        const target = String(body?.target || '').trim().slice(0, 64);
+        if (!/^[A-Za-z0-9_-]{1,64}$/.test(target)) return json({ error: 'bad target' }, 400, headers);
+        const rowAt = boundedNum(body?.at, 0, Date.now() + 86400_000);
+        const reason = cleanLabel(body?.reason, 500);
+        if (!reason || reason.length < 3) return json({ error: 'reason required' }, 400, headers);
+        if (containsPhone(reason)) return json({ error: 'no phone numbers in reason' }, 400, headers);
+        const lim = await limitOr429(env, headers, [['rl:disp:p:' + pilot.id, 10, 86400], ['rl:disp:ip:' + ip, 20, 86400], ['rl:disp:day:' + moscowDateKey(), 300, 86400]]);
+        if (lim) return lim;
+        const at = Date.now();
+        const id = randB36(10);
+        const key = 'dispute:' + at + ':' + id;
+        const rec = { id, at, kind, board: kind === 'top' ? board : null, target, rowAt, reason, by: pilot.id, nick: safeName(pilot.name, ''), status: 'open' };
+        await env.PITLANE.put(key, JSON.stringify(rec), { expirationTtl: 365 * 86400, metadata: { pid: pilot.id, kind } });
+        const what = kind === 'duel' ? 'дуэль ' + target : board + ' · строка ' + target + (rowAt ? ' · ' + new Date(rowAt).toISOString() : '');
+        const forwarded = await forwardFeedbackToTelegram(env, rec, key, null, ['⚖️ Pitlane · оспорить результат', '', what, '', reason, '', '— — —', 'Пилот: ' + (rec.nick || '—') + ' (аккаунт ' + pilot.id + ')', 'Ничего не удалено автоматически. KV: ' + key].join('\n'));
+        return json({ ok: true, id, forwarded }, 200, headers);
+      }
+
       // —— Own account ——
       if (path === '/me' && (req.method === 'GET' || req.method === 'PUT')) {
         const denied = requireAuth(pilot, headers);
@@ -3011,6 +3066,7 @@ export default {
         const res = sanitizeStraight(body, pilot);
         if (res.code) return rejectRun(res.code, headers);
         const row = res.row;
+        { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
         // reject forged pilot ids in body
         if (body?.pilotId && String(body.pilotId) !== pilot.id) {
           return json({ error: 'pilot mismatch' }, 403, headers);
@@ -3058,6 +3114,7 @@ export default {
         // v97: every saved lap is bound to the active car (model + tyre); no car → not counted
         const myCar = await loadMyCar(env.PITLANE, pilot.id, ROOM_H);
         if (!myCar) return json({ error: 'car required', code: 'NO_CAR', hint: 'Это моя машина: выбери машину и резину' }, 409, headers);
+        { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
         row.car = myCar.model;
         row.tyre = myCar.tyre;
         if (myCar.carId) row.carId = myCar.carId;
@@ -3105,6 +3162,7 @@ export default {
           if (res.code) return rejectRun(res.code, headers);
           const row = res.row;
           row.pilotId = pilot.id;
+          { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
           const stored = await upsertDrag(env.PITLANE, disc, row);
           const rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
           return json({ ok: true, stored, valid: row.valid, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
@@ -3548,6 +3606,12 @@ export default {
         if (lim) return lim;
         const run = sanitizeDuelRun(body, { id: who.id, name: who.name }, d.type, d.trackId, d.disc);
         if (!run || run.code) return rejectRun(run?.code || 'gps_c', headers);
+        { const g = await guardRun(env, req, run, who.id, headers); if (g) return g; }
+        // v107: обе стороны дуэли с одного устройства (два аккаунта) или одним треком — не зачитываем
+        {
+          const other = [d.creatorRun, d.challengerRun].find((r) => r && r.pilotId && r.pilotId !== who.id);
+          if (other && ((run.dev && other.dev && run.dev === other.dev) || (run.th && other.th && run.th === other.th))) return rejectRun('duplicate', headers);
+        }
         if (d.type === 'lap' && d.trackId && body?.trackId && String(body.trackId) !== String(d.trackId)) {
           return json({ error: 'track mismatch' }, 400, headers);
         }
@@ -3793,6 +3857,7 @@ export default {
         const res = sanitizeLap(body, { id: pilotId, name: member.nick || who.name }, crew.trackId);
         if (res.code) return rejectRun(res.code, headers);
         const row = res.row;
+        { const g = await guardRun(env, req, row, pilotId, headers); if (g) return g; }
         const ms = parseLapMs(row.t);
         if (ms == null) return json({ error: 'bad time' }, 400, headers);
         const mk = monthKey();

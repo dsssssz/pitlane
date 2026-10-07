@@ -375,6 +375,7 @@ export async function roomsRoute(ctx) {
     if (!ms) return h.json({ error: 'bad time' }, 400, headers);
     const adm = roomAdmitLap(room, trackId, h);
     if (!adm.ok) return paywall(h, headers, room, adm.reason);
+    { const g = await h.guardRun(env, req, row, pilot.id, headers); if (g) return g; }
     const lap = {
       id: 'l' + Date.now().toString(36) + h.randB36(8),
       pilotId: pilot.id,

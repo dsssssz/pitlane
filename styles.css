@@ -5460,3 +5460,6 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 .safety-check input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #5cff3a; }
 #safetyOk:disabled { opacity: .45; }
 .tops-weather-cap { margin: 6px 0 0; }
+/* v107: «Оспорить» в профиле пилота из топа */
+.dispute-row { display: grid; gap: 6px; margin: 14px 0 4px; }
+.dispute-btn { justify-self: start; }

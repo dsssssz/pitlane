@@ -130,12 +130,23 @@ export function actingPilotId() {
   return accountPilotId() || devicePilotId();
 }
 
+const DEVICE_KEY = 'pitlane-device-v1';
 function pilotHeaders() {
   const h = { 'Content-Type': 'application/json' };
   try {
     // v104: автор — только сессия (Bearer). Гостевой X-Pilot-Id больше не отправляется.
     const token = getSessionToken();
     if (token && !token.startsWith('local-')) h['Authorization'] = 'Bearer ' + token;
+  } catch (_) {}
+  // v107: случайный id устройства (не отпечаток железа) — сервер хранит только его хэш для антифрода
+  try {
+    let dev = localStorage.getItem(DEVICE_KEY);
+    if (!dev || !/^[A-Za-z0-9_-]{8,80}$/.test(dev)) {
+      const b = new Uint8Array(16); crypto.getRandomValues(b);
+      dev = 'd' + Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+      localStorage.setItem(DEVICE_KEY, dev);
+    }
+    h['X-Device'] = dev;
   } catch (_) {}
   return h;
 }
@@ -640,6 +651,12 @@ export const api = {
     // network error (no HTTP status) → queue; HTTP 4xx/5xx → report to the user
     if (res && !res.status) return queueFeedback(payload) ? { ok: true, queued: true } : { ok: false, error: 'offline' };
     return res || { ok: false, error: 'no api' };
+  },
+
+  /** v107: POST /dispute {kind, board, target, at, reason} → { ok, id } (аккаунт обязателен). */
+  async dispute(payload) {
+    if (!apiBase()) return { ok: false, error: 'no api' };
+    return (await remoteKeep('/dispute', { method: 'POST', body: JSON.stringify(payload), timeoutMs: 20000 })) || { ok: false };
   },
 
   async flushFeedbackQueue() {
