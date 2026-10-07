@@ -5051,7 +5051,60 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
   if (trackId) payload.trackId = trackId;
   if (Array.isArray(sectors)) payload.sectors = sectors.slice(0, 3);
   if (ms != null && Number.isFinite(ms)) payload.ms = ms;
+  if (payload.src !== 'sim') {
+    try { Object.assign(payload, sharePbDelta(payload)); } catch (_) {}
+  }
   return payload;
+}
+
+/**
+ * v111: delta to the pilot's OWN best on this track (lap) / discipline (0–100), excluding this very result.
+ * Returns { pbD: seconds (signed, − = faster) } or { pbFirst: true }; {} when we have no honest history (¼ mile).
+ */
+function sharePbDelta(p) {
+  const isLap = p.type === 'lap' || p.type === 'круг';
+  if (isLap) {
+    if (!p.trackId || !Number.isFinite(p.ms)) return {};
+    let skipped = false;
+    const prev = (state.laps?.[p.trackId] || []).filter((x) => {
+      if (!skipped && (x.at === p.at || (x.ms === p.ms && !p.at))) { skipped = true; return false; }
+      return Number.isFinite(x?.ms) && x.ms > 0;
+    });
+    if (!prev.length) return { pbFirst: true };
+    const best = Math.min(...prev.map((x) => x.ms));
+    return { pbD: Math.round(p.ms - best) / 1000 };
+  }
+  if (p.type !== '0-100') return {};
+  const t = Number(String(p.time || '').replace(',', '.').replace(/[^\d.]/g, ''));
+  if (!Number.isFinite(t) || t <= 0) return {};
+  let skipped = false;
+  const prev = (state.slips || []).filter((x) => {
+    const v = Number(x?.v0100);
+    if (!Number.isFinite(v) || v <= 0) return false;
+    if (!skipped && Math.abs(v - t) < 0.006) { skipped = true; return false; }
+    return true;
+  });
+  if (!prev.length) return { pbFirst: true };
+  const best = Math.min(...prev.map((x) => Number(x.v0100)));
+  return { pbD: Math.round((t - best) * 1000) / 1000 };
+}
+
+/** «−0.4» / «+0.05» / «±0» — U+2212 minus, no trailing zeros. */
+function fmtPbDelta(d) {
+  const a = Math.abs(Number(d) || 0);
+  if (a < 0.005) return '±0';
+  const s = a.toFixed(2).replace(/0$/, '');
+  return (d < 0 ? '\u2212' : '+') + s;
+}
+
+function pbDeltaText(p, own) {
+  const isLap = p.type === 'lap' || p.type === 'круг';
+  const whose = own ? 'твоему' : 'своему';
+  if (Number.isFinite(p.pbD) && Math.abs(p.pbD) <= 600) {
+    return { text: Math.abs(p.pbD) < 0.005 ? ('±0 · повтор ' + (own ? 'твоего' : 'своего') + ' лучшего') : (fmtPbDelta(p.pbD) + ' к ' + whose + ' лучшему'), cls: p.pbD <= -0.005 ? 'faster' : (p.pbD >= 0.005 ? 'slower' : 'even') };
+  }
+  if (p.pbFirst === true) return { text: isLap ? 'первый круг здесь' : 'первый замер 0–100', cls: 'first' };
+  return null;
 }
 
 function sharePublicUrl(payload, shareId) {
@@ -5059,9 +5112,16 @@ function sharePublicUrl(payload, shareId) {
   return SHARE_ORIGIN + '#r=' + b64urlEncode(payload);
 }
 
+let _shareNextForeign = false;
+let _shareOwn = false;
+let _shareCand = null;
 function openShareCard(payload) {
   _sharePayload = payload;
-  try { rememberDuelCandidateFromShare(payload); } catch (_) {}
+  _shareOwn = !_shareNextForeign;
+  _shareNextForeign = false;
+  if (_shareOwn) { try { rememberDuelCandidateFromShare(payload); } catch (_) {} }
+  // v111: duel candidate for «В дуэль» only from this own fresh result (its trace stays local, never in the card/link)
+  _shareCand = (_shareOwn && _lastDuelCandidate && _lastDuelCandidate.at === payload.at) ? _lastDuelCandidate : null;
   // v89: a ghost race shows its own result sheet first; the card opens from «Поделиться» there
   if (typeof ghostRace !== 'undefined' && ghostRace?.holdShare && payload && !payload.ghost) { ghostRace.pendingShare = payload; return; }
   const card = document.getElementById('shareCard');
@@ -5076,6 +5136,13 @@ function openShareCard(payload) {
   const typeLabel = isLap ? 'круг' : (payload.type === '402m' ? '¼ мили' : '0–100');
   set('shareType', typeLabel);
   renderShareGhost(payload);
+  const dEl = document.getElementById('shareDelta');
+  if (dEl) {
+    const dt = pbDeltaText(payload, _shareOwn);
+    dEl.classList.remove('faster', 'slower', 'even', 'first');
+    if (dt) { dEl.textContent = dt.text; dEl.classList.add(dt.cls); dEl.hidden = false; }
+    else { dEl.textContent = ''; dEl.hidden = true; }
+  }
 
   const trackRow = document.getElementById('shareTrackRow');
   const trackLab = document.getElementById('shareTrackLabel');
@@ -5136,11 +5203,11 @@ function openShareCard(payload) {
       if (q === 'C') badge.classList.add('gps-c');
       honesty = 'Слабый GPS — результат не публикуется в топах';
     } else if (q === 'A') {
-      mark = 'VALID · Честный';
+      mark = 'VALID · A · Честный';
       badge.classList.add('gps-a');
       honesty = 'Честный GPS';
     } else if (q === 'B') {
-      mark = 'VALID · Ок';
+      mark = 'VALID · B · Ок';
       badge.classList.add('gps-b');
       honesty = 'Ок GPS';
     }
@@ -5199,6 +5266,9 @@ function shareTextRu(p) {
   if (grade && grade !== 'GPS') lines.push(`GPS: ${grade}`);
   if (wx) lines.push(`Погода: ${wx}`);
   if (p.ghost) lines.push(`Призрак: ${p.ghost}${p.ghostVs ? ' · vs ' + p.ghostVs : ''}`);
+  if (Number.isFinite(p.pbD)) lines.push(fmtPbDelta(p.pbD) + ' к моему лучшему');
+  else if (p.pbFirst) lines.push(isLap ? 'первый круг здесь' : 'первый замер 0–100');
+  if (p.duelId) lines.push('Принять вызов: ' + publicLinkFor('duel_' + p.duelId, duelPublicUrl(p.duelId)));
   if (p.src === 'sim') lines.push('симулятор · не в топ');
   else if (p.src === 'phone' && !isLap) lines.push('телефон · не в топ');
   else if (p.valid === false || p.gpsQ === 'C') lines.push('не в публичный топ');
@@ -5209,6 +5279,7 @@ function shareTextRu(p) {
 async function shareResult(payload) {
   const p = payload || _sharePayload;
   if (!p) return;
+  if (p === _sharePayload && _shareOwn) { try { await ensureShareDuel(p); } catch (_) {} }
   let url = sharePublicUrl(p);
   try {
     const res = await api.createShare(p);
@@ -5257,13 +5328,14 @@ async function bootShareFromUrl() {
     if (shareId) {
       const payload = await api.getShare(shareId);
       if (payload) {
+        _shareNextForeign = true;
         openShareCard(payload);
         return;
       }
     }
     if (raw) {
       const payload = b64urlDecode(raw);
-      if (payload) openShareCard(payload);
+      if (payload) { _shareNextForeign = true; openShareCard(payload); }
     }
   } catch (err) {
     console.warn('bootShare', err);
@@ -9199,16 +9271,63 @@ document.getElementById('duelPasteOpen')?.addEventListener('click', async () => 
   if (!id) return;
   openDuelSheet({ duelId: id });
 });
-document.getElementById('shareCardDuel')?.addEventListener('click', () => {
+/**
+ * v111: the share card's own duel. Created lazily (button «В дуэль» or «Поделиться») only for this own fresh
+ * A/B lap / 0–100 with a local trace; the creator run goes through the usual server re-check. Card/link carry only the id.
+ */
+let _shareDuelBusy = null;
+async function ensureShareDuel(p) {
+  if (!p) return null;
+  if (p.duelId) return p.duelId;
+  const cand = _shareCand;
+  if (!_shareOwn || !cand || !cand.trace || !currentUser() || !isRemoteApi()) return null;
+  if (cand.type === 'drag' && p.type !== '0-100') return null;
+  if (_shareDuelBusy) return _shareDuelBusy;
+  _shareDuelBusy = (async () => {
+    const nick = duelPilotNick();
+    const duel = await api.createDuel({ type: cand.type, trackId: cand.type === 'lap' ? cand.trackId : undefined, createdBy: nick, name: nick, days: 7 });
+    if (!duel?.id) return null;
+    try {
+      const ids = JSON.parse(localStorage.getItem('pitlane-duels-mine-v1') || '[]');
+      localStorage.setItem('pitlane-duels-mine-v1', JSON.stringify([duel.id, ...(Array.isArray(ids) ? ids : [])].filter((x, i, a) => a.indexOf(x) === i).slice(0, 40)));
+    } catch (_) {}
+    const res = await api.submitDuelRun(duel.id, { ...cand, name: nick, gps: true, valid: true, trackId: cand.trackId || undefined }).catch(() => null);
+    if (!res || res.error) console.warn('share duel: creator run not accepted', res?.code || res?.error);
+    p.duelId = duel.id;
+    return duel.id;
+  })().finally(() => { _shareDuelBusy = null; });
+  return _shareDuelBusy;
+}
+
+document.getElementById('shareCardDuel')?.addEventListener('click', async () => {
   const p = _sharePayload;
   const isLap = p && (p.type === 'lap' || p.type === 'круг');
-  try { rememberDuelCandidateFromShare(p); } catch (_) {}
+  const btn = document.getElementById('shareCardDuel');
+  let id = p?.duelId && /^d[a-z0-9]{6,40}$/.test(p.duelId) ? p.duelId : null;
+  if (!id && _shareOwn) {
+    if (btn) btn.disabled = true;
+    try { id = await ensureShareDuel(p); } catch (_) { id = null; }
+    if (btn) btn.disabled = false;
+  }
+  if (id) {
+    // outside Telegram: the deep link opens the Mini App straight on this challenge (startapp=duel_<id>)
+    if (!isTMA && !_shareOwn) {
+      const cfg = await ensureAuthCfg().catch(() => null);
+      const link = tmaStartLink(cfg?.telegramBot, 'duel_' + id);
+      if (link) { location.href = link; return; }
+    }
+    closeShareCard();
+    openDuelSheet({ duelId: id });
+    return;
+  }
+  // fallback (¼ mile, not A/B, not logged in, no API): the old create sheet with the hint
   closeShareCard();
   openDuelSheet({
     type: isLap ? 'lap' : 'drag',
-    trackId: isLap ? (TRACKS.find((x) => x.name === p?.track)?.id || state.trackId) : undefined,
+    trackId: isLap ? (p?.trackId || TRACKS.find((x) => x.name === p?.track)?.id || state.trackId) : undefined,
     createOnly: true,
   });
+  if (!currentUser()) { const h = document.getElementById('duelHint'); if (h) h.textContent = REJECT_TEXT.no_account; }
 });
 
 void bootDuelFromUrl();
@@ -10830,7 +10949,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v110';
+const APP_VERSION = 'v111';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

@@ -5463,3 +5463,8 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 /* v107: «Оспорить» в профиле пилота из топа */
 .dispute-row { display: grid; gap: 6px; margin: 14px 0 4px; }
 .dispute-btn { justify-self: start; }
+/* v111: share card — delta to own best (green − / red +), honest «first here» */
+.share-delta { margin: -8px 0 14px; font: 600 13px/1.2 Manrope, sans-serif; letter-spacing: .02em; color: var(--h-mute); font-variant-numeric: tabular-nums; }
+.share-delta.faster { color: #39FF14; }
+.share-delta.slower { color: #ff5a4f; }
+.share-delta[hidden] { display: none; }

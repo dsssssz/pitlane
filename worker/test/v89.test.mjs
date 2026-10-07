@@ -220,6 +220,20 @@ r = await call('POST', '/share', { ip: '10.9.7.1', body: { payload: { car: 'BMW'
   ok(p.type === '402m', 'share type ¼ mile kept');
 }
 
+console.log('\n[v111 share delta + duel id]');
+r = await call('POST', '/share', { ip: '10.9.7.2', body: { payload: { car: 'BMW', type: 'lap', time: '1:58.50', pbD: -0.4004, duelId: 'dabc123xyz', trace: [[1, 2]], points: [1] } } });
+{
+  const sh = await call('GET', '/share/' + r.data.id);
+  const p = sh.data.payload || sh.data;
+  ok(p.pbD === -0.4 && p.pbFirst === undefined && p.duelId === 'dabc123xyz' && p.trace === undefined && p.points === undefined, 'pbD + duelId kept, raw track dropped');
+}
+r = await call('POST', '/share', { ip: '10.9.7.2', body: { payload: { car: 'BMW', type: '0-100', time: '4.10 с', pbD: 9999, pbFirst: true, duelId: '../x<script>' } } });
+{
+  const sh = await call('GET', '/share/' + r.data.id);
+  const p = sh.data.payload || sh.data;
+  ok(p.pbD === undefined && p.pbFirst === true && p.duelId === undefined, 'out-of-range delta / bad duel id dropped');
+}
+
 console.log('\n[account deletion]');
 r = await call('DELETE', '/account', { token: A.token });
 ok(r.status === 200 && r.data.deleted.ghosts >= 3 && r.data.deleted.banner === 1, 'deletion report: ghosts + banner · ' + JSON.stringify({ g: r.data.deleted.ghosts, b: r.data.deleted.banner }));

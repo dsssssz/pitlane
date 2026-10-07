@@ -1031,6 +1031,12 @@ function sanitizeSharePayload(p) {
   // v89: ghost race line («Побил на 0.42 с») + who the ghost was
   const gl = cleanLabel(p.ghost, 60); if (gl) out.ghost = gl;
   const gv = cleanLabel(p.ghostVs, 40); if (gv) out.ghostVs = gv;
+  // v111: delta to the pilot's own best (seconds, signed) or «first here»; duel id for the «В дуэль» deep link.
+  // No raw track / GPS points are ever stored on a share card.
+  const pbD = boundedNum(p.pbD, -600, 600);
+  if (pbD != null) out.pbD = Math.round(pbD * 1000) / 1000;
+  else if (p.pbFirst === true) out.pbFirst = true;
+  if (typeof p.duelId === 'string' && /^d[a-z0-9]{6,40}$/.test(p.duelId)) out.duelId = p.duelId;
   return out;
 }
 
