@@ -701,14 +701,14 @@
           <!-- Audio: JaimeLopes «Lambo Start Up Sound» Freesound #564373 — CC0 -->
           <form id="authForm" class="card auth-card" onsubmit="event.preventDefault();">
             <h3 data-i18n="acc.login">Вход</h3>
-            <p class="muted" data-i18n="acc.hint">Аккаунт хранит ник, гараж и результаты в топах.</p>
+            <p class="muted" data-i18n="acc.hint">Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.</p>
             <div id="authProviders" class="auth-providers">
               <button type="button" id="btnTgLogin" class="go-btn auth-tg-btn hidden">
                 <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.2 13.1l-4.8-1.5c-1-.3-1-1 .2-1.5l18.9-7.3c.9-.3 1.6.2 1.4 1.5z"/></svg>
                 <span>Войти через Telegram</span>
               </button>
               <button type="button" id="btnSmsToggle" class="auth-alt-btn hidden">Войти по SMS</button>
-              <p class="tiny auth-none hidden" id="authNone">Вход временно недоступен: сервер входа ещё не настроен. Замеры, гараж и история работают без аккаунта.</p>
+              <p class="tiny auth-none hidden" id="authNone">Вход через Telegram сейчас недоступен. Замеры, гараж и история работают без аккаунта.</p>
               <p class="tiny" id="authMsgTop"></p>
             </div>
             <div id="authSmsBox" class="auth-sms-box hidden">
@@ -731,7 +731,6 @@
             <p class="tiny auth-legal">Входя, вы принимаете <a href="./terms.html">Соглашение</a> и <a href="./privacy.html">Политику конфиденциальности</a>.</p>
           </form>
           <p class="muted" id="accPhoneStatus">не вошли</p>
-          <p class="tiny demo-banner hidden" id="accDemoBanner">режим демо · SMS не подключён</p>
           <p class="tiny" id="accPlan"></p>
           <div class="acc-crew-row">
             <button type="button" class="btn-secondary" id="btnMyCarAcc">Это моя машина</button>

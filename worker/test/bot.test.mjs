@@ -1,7 +1,10 @@
 // Bot copy (после v98): premium texts, escaping, notifications — node test/bot.test.mjs (MemKV only, fake Telegram)
-import worker, { tgWebhookPath } from '../src/index.js';
+import rawWorker, { tgWebhookPath } from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+const worker = withAutoRefresh(rawWorker);
 import * as C from '../src/botcopy.js';
 import { MemKV } from './kvmock.mjs';
+import { lapTrace } from './traces.mjs';
 
 let fails = 0;
 const ok = (c, msg) => { if (c) console.log('  ✓', msg); else { fails++; console.log('  ✗', msg); } };
@@ -29,7 +32,7 @@ async function login(phone, nick, tg) {
   await kv.put('auth:tg:' + tg, rec.id);
   return { token: v.data.token, id: v.data.pilotId, tg };
 }
-const lap = (ms, o = {}) => { const s = Math.floor(ms / 1000); return { t: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`, ms, gps: true, valid: true, gpsQ: 'A', sectors: [Math.round(ms * 0.3), Math.round(ms * 0.65), ms], trackId: 'sochi', ...o }; };
+const lap = (ms, o = {}) => { const s = Math.floor(ms / 1000); return { t: `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`, ms, gps: true, valid: true, gpsQ: 'A', sectors: [Math.round(ms * 0.3), Math.round(ms * 0.65), ms], trackId: 'sochi', trace: lapTrace(ms), ...o }; };
 
 console.log('\n[copy style]');
 const all = [C.START_CAPTION, ...Object.values(C.BOT_TEXT), C.BOT_DESCRIPTION, C.BOT_SHORT_DESCRIPTION,

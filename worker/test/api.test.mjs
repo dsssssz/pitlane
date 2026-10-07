@@ -1,7 +1,10 @@
 // Offline tests for the Pitlane Worker: node test/api.test.mjs
 import crypto from 'node:crypto';
-import worker from '../src/index.js';
+import rawWorker from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+const worker = withAutoRefresh(rawWorker);
 import { MemKV } from './kvmock.mjs';
+import { lapBody, dragBody } from './traces.mjs';
 
 const PHONE = '79001234567';
 const PHONE2 = '79005550011';
@@ -91,18 +94,18 @@ noPhone('GET /me (owner, masked phone only)', r.text, PHONE);
 console.log('\n[4] SMS demo account (local only) + publish');
 env = mkEnv({ SMS_DEMO: '1' });
 r = await call(env, 'GET', '/auth/config');
-ok(r.data.sms === true && r.data.telegram === false, '/auth/config demo: ' + r.text);
+ok(r.data.sms === false && r.data.smsDemo === true && r.data.telegram === false, 'v104: demo code is not an SMS provider → sms:false ' + r.text);
 r = await call(env, 'POST', '/auth/otp', { body: { phone: '+7 900 555-00-11' } });
 ok(r.status === 200 && r.data.demoCode, 'otp demo code');
 r = await call(env, 'POST', '/auth/verify', { body: { phone: PHONE2, code: r.data.demoCode, nick: 'Тест' } });
 const tok2 = r.data.token; const uuid2 = r.data.pilotId;
 ok(r.status === 200 && /^p_/.test(uuid2) && r.data.user.pilotId === uuid2, 'verify → session with uuid ' + uuid2);
-const straightBody = { name: 'Тест', car: 'M2', t: 3.99, gps: true, valid: true, gpsQ: 'A' };
+const straightBody = dragBody('0-100', 3.99, { name: 'Тест', car: 'M2' });
 r = await call(env, 'POST', '/tops/straight/bmw-m2', { token: tok2, body: straightBody });
 ok(r.status === 200 && r.data.some((x) => x.pilotId === uuid2), 'POST straight ok, row pilotId=uuid');
 noPhone('POST straight response', r.text, PHONE, PHONE2);
 await call(env, 'PUT', '/me/car', { token: tok2, body: { model: 'M2', tyre: 'Pilot Sport 4S' } }); // v97: active car required
-r = await call(env, 'POST', '/tops/lap/sochi', { token: tok2, body: { name: 'Тест', car: 'M2', t: '2:00.100', ms: 120100, sectors: [39000, 79000, 120100], gps: true, valid: true, gpsQ: 'A', avatar: 'data:image/png;base64,BBBB' } });
+r = await call(env, 'POST', '/tops/lap/sochi', { token: tok2, body: lapBody('2:00.100', { name: 'Тест', car: 'M2', avatar: 'data:image/png;base64,BBBB' }) });
 ok(r.status === 200, 'POST lap ok');
 r = await call(env, 'POST', '/pulse', { token: tok2, body: { text: 'first post', who: '' } });
 ok(r.status === 200 && r.data[0].who === 'Тест', 'pulse name from session nick');
@@ -123,7 +126,7 @@ for (const p of ['/tops/straight/bmw-m2', '/tops/lap/sochi', '/tops/sector/sochi
 r = await call(env, 'POST', '/crew/c1/join', { token: tok2, body: { nick: 'Тест', pilotId: uuid } });
 ok(r.data.members.some((m) => m.pilotId === uuid2), 'crew join uses session uuid (body pilotId ignored)');
 r = await call(env, 'POST', '/duel', { headers: { 'X-Pilot-Id': uuid }, body: { type: 'drag', createdBy: 'Гость' } });
-ok(r.status === 400 && r.data.error === 'pilot required', 'guest cannot impersonate account uuid via X-Pilot-Id (400)');
+ok(r.status === 401 && r.data.code === 'no_account', 'v104: guest with X-Pilot-Id → 401 no_account');
 r = await call(env, 'POST', '/duel', { headers: { 'X-Pilot-Id': PHONE2 }, body: { type: 'drag', createdBy: 'Гость' } });
 noPhone('duel created with phone as X-Pilot-Id', r.text, PHONE2);
 

@@ -1,6 +1,9 @@
 // v98: teams (public profile + feed over v97 rooms) — node test/v98.test.mjs (MemKV only, no prod)
-import worker from '../src/index.js';
+import rawWorker from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+const worker = withAutoRefresh(rawWorker);
 import { MemKV } from './kvmock.mjs';
+import { lapTrace } from './traces.mjs';
 
 const ORIGIN = 'https://dsssssz.github.io';
 let fails = 0;
@@ -28,7 +31,7 @@ const webp = (n = 600) => {
 };
 const lap = (ms, o = {}) => {
   const s = Math.floor(ms / 1000); const t = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`;
-  return { t, ms, gps: true, valid: true, gpsQ: 'A', sectors: [Math.round(ms * 0.32), Math.round(ms * 0.66), ms], trackId: 'sochi', ...o };
+  return { t, ms, gps: true, valid: true, gpsQ: 'A', sectors: [Math.round(ms * 0.32), Math.round(ms * 0.66), ms], trackId: 'sochi', trace: lapTrace(ms), ...o };
 };
 const A = await login('79009800001', 'Мага');
 const B = await login('79009800002', 'Артём');

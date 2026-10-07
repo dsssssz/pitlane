@@ -1,6 +1,9 @@
 // v97: active car, crew rooms, Stars season per room — node test/v97.test.mjs (MemKV only, no prod)
-import worker, { tgWebhookPath, ROOM_SEASON_STARS, ROOM_SEASON_DAYS } from '../src/index.js';
+import rawWorker, { tgWebhookPath, ROOM_SEASON_STARS, ROOM_SEASON_DAYS } from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+const worker = withAutoRefresh(rawWorker);
 import { MemKV } from './kvmock.mjs';
+import { lapTrace } from './traces.mjs';
 
 const ORIGIN = 'https://dsssssz.github.io';
 let fails = 0;
@@ -50,7 +53,7 @@ await kv.put('auth:tg:5003', C.id);
 { const r = JSON.parse(await kv.get('pilot:' + A.id)); r.providers.push({ type: 'tg', id: '5001' }); await kv.put('pilot:' + A.id, JSON.stringify(r)); }
 const lap = (ms, o = {}) => {
   const s = Math.floor(ms / 1000); const t = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`;
-  return { t, ms, gps: true, valid: true, gpsQ: 'A', sectors: [Math.round(ms * 0.32), Math.round(ms * 0.66), ms], trackId: 'sochi', ...o };
+  return { t, ms, gps: true, valid: true, gpsQ: 'A', trackId: 'sochi', trace: lapTrace(t), ...o };
 };
 
 console.log('\n[Это моя машина]');
@@ -106,13 +109,13 @@ shift = day; await call('POST', '/rooms/' + room.id + '/laps', { token: A.token,
 shift = 2 * day; r = await call('POST', '/rooms/' + room.id + '/laps', { token: A.token, body: lap(119300) });
 ok(r.status === 200 && r.data.quota.sessionsUsed === 3 && !r.data.quota.locked, '3rd session ok, still open today');
 r = await call('GET', '/rooms/' + room.id + '/top?track=sochi&model=' + encodeURIComponent('BMW M2 G87') + '&tyre=' + encodeURIComponent('Michelin PS4S'), { token: B.token });
-ok(r.status === 200 && r.data.rows.length === 2 && r.data.rows[0].nick === 'Мага' && r.data.rows[0].ms === 119300 && r.data.rows[1].gap > 0, 'room top with model+tyre filter, best per pilot');
+ok(r.status === 200 && r.data.rows.length === 2 && r.data.rows[0].nick === 'Мага' && Math.abs(r.data.rows[0].ms - 119300) < 40 && r.data.rows[1].gap > 0, 'room top with model+tyre filter, best per pilot');
 r = await call('GET', '/rooms/' + room.id + '/top?track=sochi', { token: B.token });
 ok(r.status === 400 && r.data.code === 'FILTER_REQUIRED', 'top without model+tyre → 400');
 r = await call('GET', '/rooms/' + room.id + '/top?track=sochi&model=Supra&tyre=' + encodeURIComponent('Michelin PS4S'), { token: B.token });
 ok(r.status === 200 && r.data.rows.length === 0, 'other model → not mixed');
 r = await call('GET', `/rooms/${room.id}/duel?a=${lapA.id}&b=${lapB.id}`, { token: A.token });
-ok(r.status === 200 && r.data.delta === 1200 && r.data.sectors.length === 3, 'duel: two laps of one track, delta + sector deltas');
+ok(r.status === 200 && Math.abs(r.data.delta - 1200) < 60 && r.data.sectors.length === 3, 'duel: two laps of one track, delta + sector deltas');
 
 console.log('\n[after the limit the room goes silent]');
 shift = 3 * day;

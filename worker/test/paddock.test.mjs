@@ -1,6 +1,9 @@
 // v83 Paddock: likes, comments, public pilot profile — node test/paddock.test.mjs
-import worker from '../src/index.js';
+import rawWorker from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+const worker = withAutoRefresh(rawWorker);
 import { MemKV } from './kvmock.mjs';
+import { lapBody, dragBody } from './traces.mjs';
 
 const ORIGIN = 'https://dsssssz.github.io';
 let fails = 0;
@@ -98,20 +101,20 @@ r = await call('GET', '/pulse');
 ok(r.data[0].commentCount === 4, 'feed commentCount follows deletions');
 
 console.log('\n[public profile]');
-await call('POST', '/tops/straight/bmw-m2', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: 4.31, gps: true, valid: true, gpsQ: 'A' } });
-await call('POST', '/tops/straight/bmw-m2', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: 4.12, gps: true, valid: true, gpsQ: 'B' } });
-await call('POST', '/tops/straight/bmw-m2', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: 3.2, gps: true, valid: false, gpsQ: 'C' } });
+await call('POST', '/tops/straight/bmw-m2', { token: A.token, body: dragBody('0-100', 4.31, { name: 'Алиса', car: 'BMW M2' }) });
+await call('POST', '/tops/straight/bmw-m2', { token: A.token, body: dragBody('0-100', 4.12, { name: 'Алиса', car: 'BMW M2' }) });
+await call('POST', '/tops/straight/bmw-m2', { token: A.token, body: dragBody('0-100', 3.2, { name: 'Алиса', car: 'BMW M2', gpsQ: 'A', valid: true }, { acc: 30 }) });
 await call('PUT', '/me/car', { token: A.token, body: { model: 'BMW M2', tyre: 'PS4S' } });
 await call('PUT', '/me/car', { token: B.token, body: { model: 'Supra', tyre: 'PS4S' } });
-await call('POST', '/tops/lap/sochi', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: '2:01.500', ms: 121500, sectors: [40000, 81000, 121500], gps: true, valid: true, gpsQ: 'A' } });
-await call('POST', '/tops/lap/sochi', { token: A.token, body: { name: 'Алиса', car: 'BMW M2', t: '2:02.000', ms: 122000, sectors: [39000, 80000, 122000], gps: true, valid: true, gpsQ: 'A' } });
-await call('POST', '/tops/lap/sochi', { token: B.token, body: { name: 'Боб', car: 'Supra', t: '1:59.000', ms: 119000, gps: true, valid: true, gpsQ: 'A' } });
+await call('POST', '/tops/lap/sochi', { token: A.token, body: lapBody('2:01.500', { name: 'Алиса', car: 'BMW M2' }) });
+await call('POST', '/tops/lap/sochi', { token: A.token, body: lapBody('2:02.000', { name: 'Алиса', car: 'BMW M2' }, { seed: 9 }) });
+await call('POST', '/tops/lap/sochi', { token: B.token, body: lapBody('1:59.000', { name: 'Боб', car: 'Supra' }) });
 r = await call('GET', '/pilot/' + A.id, { token: B.token });
 const pr = r.data;
 ok(r.status === 200 && pr.nick === 'Алиса' && pr.car === 'BMW M2', 'profile: nick + car');
-ok(pr.best.zeroHundred.length === 1 && pr.best.zeroHundred[0].t === 4.12, 'best 0–100 = 4.12 (invalid C run ignored)');
-ok(pr.best.laps.length === 1 && pr.best.laps[0].t === '2:01.500' && pr.best.laps[0].trackId === 'sochi', 'best lap on sochi = 2:01.500 (B\'s faster lap not mixed in)');
-ok(JSON.stringify(pr.best.laps[0].sectors) === JSON.stringify([39000, 41000, 40500]), 'best sectors per split ' + JSON.stringify(pr.best.laps[0].sectors));
+ok(pr.best.zeroHundred.length === 1 && Math.abs(pr.best.zeroHundred[0].t - 4.12) < 0.05, 'best 0–100 ≈ 4.12 (GPS C run ignored) ' + JSON.stringify(pr.best.zeroHundred));
+ok(pr.best.laps.length === 1 && /^2:01\.[3-6]/.test(pr.best.laps[0].t) && pr.best.laps[0].trackId === 'sochi', 'best lap on sochi ≈ 2:01.5 (B\'s faster lap not mixed in) ' + pr.best.laps[0].t);
+ok(Array.isArray(pr.best.laps[0].sectors) && pr.best.laps[0].sectors.length === 3 && pr.best.laps[0].sectors.every((x) => x > 30000 && x < 45000), 'best sectors per split (server gates S1/S2) ' + JSON.stringify(pr.best.laps[0].sectors));
 ok(pr.postCount === 1 && pr.posts[0].id === post.id && pr.likesReceived === 1 && pr.posts[0].liked === false, 'profile posts + likes received');
 ok(Object.keys(pr).sort().join() === 'avatar,banner,best,car,likesReceived,nick,pilotId,postCount,posts', 'profile top-level fields whitelisted');
 noLeak('GET /pilot/:id', r.text);

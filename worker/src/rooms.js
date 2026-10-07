@@ -364,11 +364,13 @@ export async function roomsRoute(ctx) {
     if (lim) return lim;
     const car = await loadMyCar(kv, pilot.id, h);
     if (!car) return h.json({ error: 'car required', code: 'NO_CAR', hint: 'Это моя машина: выбери машину и резину' }, 409, headers);
-    const body = await h.readJson(req, 8192);
+    const body = await h.readJson(req, 400 * 1024);
     const trackId = String(body?.trackId || '');
     if (!h.slugOk(trackId)) return h.json({ error: 'trackId required' }, 400, headers);
-    const row = h.sanitizeLap(body, { id: pilot.id, name: me.nick }, trackId);
-    if (!row) return h.json({ error: 'invalid gps lap row' }, 400, headers);
+    // v104: оценка круга — с сервера по сырым точкам (без трека / ручной финиш → не зачтён)
+    const res = h.sanitizeRoomLap(body, { id: pilot.id, name: me.nick }, trackId);
+    if (res.code) return h.rejectRun(res.code, headers);
+    const row = res.row;
     const ms = row.ms || h.parseLapMs(row.t);
     if (!ms) return h.json({ error: 'bad time' }, 400, headers);
     const adm = roomAdmitLap(room, trackId, h);

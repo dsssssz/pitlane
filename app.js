@@ -19,6 +19,8 @@ import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActi
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 import { initTips, tipsOnView, resetTips, showMyCarHowTo } from './tips.js';
 import { createChaseTracker } from './chase-match.js';
+import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ } from './gps-core.js';
+import { isCalibrated, trackCal } from './track-cal.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -3018,8 +3020,68 @@ function fmtRunSec(sec) {
 }
 
 
+/* ——— v104: сырой трек для серверного зачёта ———
+ * Каждая точка (телефон / внешний приёмник / симулятор) пишется как есть: время, lat/lon, доплер, accuracy,
+ * источник. При отправке результата уходит кусок трека — сервер сам считает время, A/B и флаги. */
+const rawTrace = [];
+let rawSeq = 0;
+function pushRawFix(pos, now) {
+  const c = pos && pos.coords;
+  if (!c || !Number.isFinite(c.latitude) || !Number.isFinite(c.longitude)) return;
+  const sp = Number(c.speed);
+  const src = c.ext ? (pos.ext?.source === 'sim' || extGps?.state?.() === 'sim' ? 'sim' : 'ext') : 'phone';
+  rawTrace.push({ seq: ++rawSeq, t: now, lat: c.latitude, lon: c.longitude, v: c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : null, acc: Number.isFinite(Number(c.accuracy)) ? Number(c.accuracy) : null, src });
+  if (rawTrace.length > 9000) rawTrace.splice(0, rawTrace.length - 8000);
+}
+function rawSince(seq0, tFrom = -Infinity, tTo = Infinity) {
+  return rawTrace.filter((p) => p.seq > seq0 && p.t >= tFrom && p.t <= tTo);
+}
+function traceSource(pts) {
+  if (pts.some((p) => p.src === 'sim')) return 'sim';
+  return pts.length && pts.every((p) => p.src === 'ext') ? 'ext' : 'phone';
+}
+/** Паспорт замера (то же, что считает сервер): Гц, точность, точки, A/B/C, источник. */
+function tracePassport(pts) {
+  const st = traceStats(pts);
+  return { hz: st.hz, avgAcc: st.avgAcc, n: st.n, gpsQ: gradeTrace(st), src: traceSource(pts) };
+}
+function packTrace(pts) {
+  return pts && pts.length >= 2 ? encodeTrace(pts, traceSource(pts)) : null;
+}
+
+/** v104: коды отказа сервера → понятный русский текст (пороги не раскрываем). */
+const REJECT_TEXT = {
+  no_account: 'В топ, дуэли и команды — только с аккаунтом. Войдите через Telegram; замер сохранён на устройстве.',
+  gps_c: 'GPS слабый (класс C) — замер сохранён у вас, в топ не идёт.',
+  manual_finish: 'Ручной финиш — круг только в личной истории. В топ идёт авто-пересечение линии С/Ф.',
+  teleport: 'В треке скачок координат — замер не принят в топ.',
+  speed_flag: 'Скорость или ускорение в треке физически невозможны — замер не принят в топ.',
+  pause: 'В треке разрыв (GPS пропадал) — замер не принят в топ.',
+  too_short: 'Дистанция не набрана или трек обрезан — замер не принят в топ.',
+  simulator: 'Симулятор — только для проверки, в топ и дуэли не идёт.',
+  track_uncalibrated: 'Трасса ещё не откалибрована — круг только в личной истории.',
+  phone_source: 'Замер телефоном · не в топ. Топ разгонов — только внешний GPS-приёмник от 10 Гц.',
+  low_hz: 'Частота приёмника ниже 10 Гц — в топ разгонов не идёт.',
+  stale: 'Замер слишком старый — отправьте свежий.',
+  no_trace: 'Нет сырых точек GPS — обновите приложение и повторите замер.',
+  duplicate: 'Этот трек уже был отправлен — повтор не создаёт новую строку топа.',
+  not_verified: 'Призрак принимается только к зачтённому сервером результату.',
+  session_expired: 'Сессия закончилась — войдите через Telegram ещё раз.',
+  offline: 'Нет связи с сервером — замер сохранён на устройстве.',
+};
+function rejectText(res) {
+  const code = res && (res.code || (res.status === 401 ? 'no_account' : ''));
+  return REJECT_TEXT[code] || (res && res.status ? 'Сервер не принял замер в топ.' : REJECT_TEXT.offline);
+}
+/** Итог отправки в топ → строка для статуса. */
+function topVerdict(res) {
+  if (Array.isArray(res) || (res && res.ok)) return 'в топе ✓ (проверено сервером)';
+  return rejectText(res);
+}
+
 function onGpsPoint(pos) {
   const now = pos.timestamp || Date.now();
+  pushRawFix(pos, now);
   GpsFusion.tick(now);
   const v = kmhFromCoords(pos.coords, now);
   const fus = GpsFusion.getState();
@@ -3428,6 +3490,7 @@ function armRun() {
   run.armed = true;
   run.launched = false;
   run.samples = [];
+  run.rawSeq0 = rawSeq; // v104: сырой трек замера — с этой точки
   run.t0 = null;
   run.t0Ext = null;
   run.extStill = null;
@@ -3472,6 +3535,7 @@ function needLogin(msg) {
 }
 
 async function publishGps(v0100, v100200, v200300) {
+  try { _lastRunTrace = { type: 'drag', trace: packTrace(rawSince(run.rawSeq0 || 0)) }; } catch (_) {}
   if (needLogin('GPS-замер сохранён на устройстве. В топ — после входа.')) {
     const rec0 = state.meas[state.carId] || {};
     if (v0100 != null) rec0.v0100 = Number(v0100.toFixed(2));
@@ -3524,20 +3588,20 @@ async function publishGps(v0100, v100200, v200300) {
     const gq = gpsQualityFromStraightRun();
     const flags = (run.flags || []).slice(0, 8);
     const valid = runRowValid(gq, flags);
-    if (valid && canPublishTop(gq, flags)) {
-      await api.addStraight(currentCar().id, {
+    {
+      // v104: решает сервер по сырому треку; клиентские gpsQ / valid не отправляются
+      const pts = rawSince(run.rawSeq0 || 0);
+      const pSub = api.addStraight(currentCar().id, {
         name: String(who).slice(0, 24),
         car: currentCar().name,
-        t: rec.v0100,
-        gps: true,
-        valid,
-        gpsQ: gq.gpsQ,
-        avgAcc: gq.avgAcc,
-        hz: gq.hz,
-        flags,
+        weather: lapDrive.weather || undefined,
+        trace: packTrace(pts),
       });
-    } else if (!valid) {
-      console.info('0-100 not published to tops', gq.gpsQ, flags);
+      _topSubmitP = pSub.catch(() => null);
+      const res = await pSub;
+      const msg = topVerdict(res);
+      setRunText('runDriveMsg', msg);
+      setRunText('runStatus', msg);
     }
     pushSlip();
     const payload = buildSharePayload({
@@ -4416,34 +4480,40 @@ async function completeLapRun(how, atTs, gsnap) {
     rec.gpsQ = gq.gpsQ;
     rec.avgAcc = gq.avgAcc;
     rec.hz = gq.hz;
-    const topOk = runRowValid(gq, rec.flags) && canPublishTop(gq, rec.flags);
+    // v104: публичный топ — только калиброванная трасса и автопересечение С/Ф; итог решает сервер
+    const lapPts = rawSince(0, lapRun.t0 - 15000, finishAt + 3000);
+    const lapTrace = packTrace(lapPts);
+    _lastRunTrace = { type: 'lap', trace: lapTrace, how };
+    const calibrated = isCalibrated(trackId);
+    const topOk = calibrated && runRowValid(gq, rec.flags) && canPublishTop(gq, rec.flags);
     rec.valid = topOk;
+    if (!calibrated) { rec.why = REJECT_TEXT.track_uncalibrated; try { setLapMsg(REJECT_TEXT.track_uncalibrated); } catch (_) {} }
+    if (!topOk && calibrated && !currentUser()) { try { setLapMsg(REJECT_TEXT.no_account); } catch (_) {} }
+    if (!calibrated && currentUser()) {
+      // комнаты экипажа принимают автокруги и на некалиброванных трассах (оценка A/B — по сырым точкам на сервере)
+      const roomLap0 = { trackId, t: tStr, ms: rec.ms, gps: true, how, trace: lapTrace };
+      void requireCar(async () => { try { await pushLapToActiveRoom(roomLap0); } catch (_) {} });
+    }
     if (topOk) {
       const wx = lapDrive.weather || weatherCategoryFromCode(lapDrive.weatherCode);
       if (wx) rec.weather = wx;
       const avThumb = await avatarThumbForTops();
       // v97: every saved lap is bound to the active car + tyre («Это моя машина»); none → ask first, submit after
-      const roomLap = { trackId, t: tStr, ms: rec.ms, gps: true, valid: true, gpsQ: gq.gpsQ, flags: rec.flags, sectors: Array.isArray(rec.sectors) ? rec.sectors.slice(0, 3) : undefined };
+      const roomLap = { trackId, t: tStr, ms: rec.ms, gps: true, how, trace: lapTrace };
       void requireCar(async () => {
-      await api.addLap(trackId, {
+      const pLap = api.addLap(trackId, {
         name: String(who).slice(0, 24),
         car: currentCar().name,
-        t: tStr,
-        gps: true,
-        valid: true,
-        dist: rec.dist,
-        slipAvg: rec.slipAvg,
-        trackDay: true,
-        gpsQ: gq.gpsQ,
-        avgAcc: gq.avgAcc,
-        hz: gq.hz,
-        flags: rec.flags,
+        how,
         weather: wx || undefined,
-        sectors: Array.isArray(rec.sectors) ? rec.sectors.slice(0, 3) : undefined,
-        ms: rec.ms,
         avatar: avThumb || undefined,
+        trace: lapTrace,
       });
+      _topSubmitP = pLap.catch(() => null);
+      const lapRes = await pLap;
+      try { setLapMsg(topVerdict(lapRes)); } catch (_) {}
       try { void pushCrewBestAfterLap(trackId, {
+        trace: lapTrace, how,
         t: typeof tStr !== 'undefined' ? tStr : undefined,
         gpsQ: gq?.gpsQ,
         car: currentCar()?.name,
@@ -5288,8 +5358,30 @@ async function restoreAuthIfNeeded() {
 }
 
 function currentUser() {
-  return authDb.session ? authDb.users[authDb.session] : null;
+  // v104: аккаунт = серверная сессия. Старые демо-«аккаунты» на устройстве (local-токен / ключ-телефон)
+  // больше не считаются входом — гараж и история при этом остаются.
+  const tok = getSessionToken();
+  if (!authDb.session || !tok || String(tok).startsWith('local-') || !/^p_/.test(String(authDb.session))) return null;
+  return authDb.users[authDb.session] || null;
 }
+
+/** v104: миграция — демо-сессии без сервера сбрасываем (данные гаража/истории не трогаем). */
+(function dropLocalDemoSession() {
+  try {
+    const tok = getSessionToken();
+    if (tok && String(tok).startsWith('local-')) {
+      setSessionToken('', null);
+      authDb.session = null; authDb.token = null; authDb.demoSms = false; authDb.otps = {};
+      saveAuth();
+    }
+  } catch (_) {}
+})();
+window.addEventListener('pitlane:session-lost', () => {
+  authDb.session = null; authDb.token = null;
+  saveAuth();
+  try { refreshAccount(); } catch (_) {}
+  try { setAuthTopMsg('Сессия закончилась — войдите через Telegram ещё раз. Замеры и гараж на месте.'); } catch (_) {}
+});
 
 function isPro(u) {
   if (!u) return false;
@@ -5303,7 +5395,7 @@ function refreshAccount() {
   document.getElementById('authForm')?.classList.toggle('hidden', !!u);
   const phones = document.querySelectorAll('#accPhone, #accPhoneStatus');
   const demoBan = document.getElementById('accDemoBanner');
-  if (demoBan) demoBan.classList.toggle('hidden', !(authDb.demoSms && u));
+  if (demoBan) demoBan.classList.add('hidden'); // v104: демо-входа больше нет
   if (!u) {
     document.getElementById('btnDeleteAccount')?.classList.add('hidden');
     phones.forEach((el) => { el.textContent = 'гость'; });
@@ -5343,52 +5435,22 @@ function refreshAccount() {
   try { renderCompare(); } catch (_) {}
 }
 
-function genOtp() {
-  return String(Math.floor(1000 + Math.random() * 9000));
-}
-
+/* v104: SMS — только реальный провайдер на сервере (cfg.sms). Локального «демо-кода» и
+ * аккаунтов на устройстве больше нет: без сервера вход не выдаётся. */
 async function requestSmsCode(phone) {
   const p = normPhone(phone);
   if (p.length !== 11 || !p.startsWith('7')) throw new Error('Введите номер в формате +7…');
-  const code = genOtp();
-  const exp = Date.now() + 10 * 60 * 1000;
-  authDb.otps[p] = { code, exp, tries: 0 };
-  saveAuth();
-
-  // Try remote Worker if configured
+  if (!isRemoteApi() || !(_authCfg && _authCfg.sms)) throw new Error('Вход по SMS пока недоступен — войдите через Telegram');
+  let res; let data = {};
   try {
-    if (isRemoteApi()) {
-      const res = await fetch(apiBase() + '/auth/otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: p }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 429) throw new Error('Слишком много запросов кода — подождите ~15 мин');
-      if (res.status === 503 || data?.error === 'SMS not configured') {
-        throw new Error(data?.error === 'SMS send failed' ? 'Не удалось отправить SMS — попробуй позже' : 'SMS не настроен на сервере (нужен Twilio)');
-      }
-      if (res.ok) {
-        authDb.demoSms = !!(data?.demo || data?.demoCode);
-        if (data?.demoCode) {
-          authDb.otps[p] = { code: String(data.demoCode), exp, tries: 0 };
-        } else {
-          // Real SMS: keep placeholder for try-counter UX but wipe local code
-          authDb.otps[p] = { code: null, exp, tries: 0, remote: true };
-        }
-        saveAuth();
-        if (data?.demoCode) return { phone: p, demoCode: String(data.demoCode), demo: true };
-        return { phone: p, demoCode: null, demo: false };
-      }
-    }
-  } catch (err) {
-    if (err && err.message && !String(err.message).includes('fetch')) throw err;
-  }
-
-  // Offline / no Worker — local demo OTP
-  authDb.demoSms = true;
+    res = await fetch(apiBase() + '/auth/otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: p }) });
+    data = await res.json().catch(() => ({}));
+  } catch (_) { throw new Error('Нет связи с сервером'); }
+  if (res.status === 429) throw new Error('Слишком много запросов кода — подождите ~15 мин');
+  if (!res.ok) throw new Error('Вход по SMS пока недоступен — войдите через Telegram');
+  authDb.otps[p] = { exp: Date.now() + 10 * 60 * 1000, tries: 0, remote: true };
   saveAuth();
-  return { phone: p, demoCode: code, demo: true };
+  return { phone: p, demoCode: null, demo: false };
 }
 
 async function verifySmsCode(phone, code, nick) {
@@ -5397,67 +5459,19 @@ async function verifySmsCode(phone, code, nick) {
   const c = String(code || '').trim();
   if (!otp) throw new Error('Сначала запроси код');
   if (Date.now() > otp.exp) throw new Error('Код истёк — запроси новый');
-  otp.tries = (otp.tries || 0) + 1;
-  if (otp.tries > 8) throw new Error('Слишком много попыток');
-
-  let ok = false;
-  let remoteTried = false;
-  let remoteData = null;
-  // Prefer remote verify when Worker configured (issues real session token)
+  let res; let data = {};
   try {
-    if (isRemoteApi()) {
-      remoteTried = true;
-      const res = await fetch(apiBase() + '/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone: p, code: c, nick: (nick || '').trim() || undefined }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.status === 429 || data?.error === 'too many attempts') {
-        delete authDb.otps[p];
-        saveAuth();
-        throw new Error('Слишком много попыток — запроси новый код');
-      }
-      if (data?.error === 'expired') {
-        delete authDb.otps[p];
-        saveAuth();
-        throw new Error('Код истёк — запроси новый');
-      }
-      if (res.ok && data?.ok) {
-        ok = true;
-        remoteData = data;
-      }
-    }
-  } catch (err) {
-    if (err && err.message && !String(err.message).includes('fetch')) throw err;
-  }
-  // Local OTP fallback only for offline/demo path (never override a failed remote verify)
-  if (!ok && !remoteTried) ok = c === String(otp.code);
-  else if (!ok && authDb.demoSms && otp?.code) ok = c === String(otp.code);
-
-  if (!ok) {
-    saveAuth();
-    throw new Error('Неверный код');
-  }
+    res = await fetch(apiBase() + '/auth/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: p, code: c, nick: (nick || '').trim() || undefined }) });
+    data = await res.json().catch(() => ({}));
+  } catch (_) { throw new Error('Нет связи с сервером'); }
+  if (res.status === 429 || data?.error === 'too many attempts') { delete authDb.otps[p]; saveAuth(); throw new Error('Слишком много попыток — запроси новый код'); }
+  if (data?.error === 'expired') { delete authDb.otps[p]; saveAuth(); throw new Error('Код истёк — запроси новый'); }
+  if (!res.ok || !data?.ok || !data.token || !data.pilotId) throw new Error('Неверный код');
   delete authDb.otps[p];
-
-  if (remoteData?.token && remoteData?.pilotId) {
-    return completeLogin({
-      pilotId: remoteData.pilotId,
-      token: remoteData.token,
-      user: remoteData.user,
-      nick: (nick || '').trim() || remoteData.nick,
-      provider: 'phone',
-      phone: p,
-    });
-  }
-  // Offline / local demo: device-only account keyed by phone (never sent to the server as an id)
-  if (!getSessionToken()) {
-    const localTok = 'local-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    setSessionToken(localTok);
-    authDb.token = localTok;
-  }
-  return completeLogin({ pilotId: null, localKey: p, nick: (nick || '').trim(), provider: 'phone', phone: p });
+  return completeLogin({
+    pilotId: data.pilotId, token: data.token, refreshToken: data.refreshToken, user: data.user,
+    nick: (nick || '').trim() || data.nick, provider: 'phone', phone: p,
+  });
 }
 
 /** Human label for the account line: own phone (local only) / Telegram @username. */
@@ -5474,12 +5488,11 @@ function accountLabel(u) {
  * Store a successful login. Accounts are keyed by the opaque server id (p_<uuid>);
  * a legacy phone-keyed local record for the same phone is folded in.
  */
-function completeLogin({ pilotId, localKey, token, user, nick, provider, phone, tgUsername, photoUrl }) {
-  const key = pilotId || localKey;
-  if (token) {
-    setSessionToken(token);
-    authDb.token = token;
-  }
+function completeLogin({ pilotId, token, refreshToken, user, nick, provider, phone, tgUsername, photoUrl }) {
+  if (!pilotId || !token) return null; // v104: аккаунт есть только у серверной сессии
+  const key = pilotId;
+  setSessionToken(token, refreshToken || null);
+  authDb.token = token;
   if (pilotId && phone && authDb.users[phone] && !authDb.users[pilotId]) authDb.users[pilotId] = authDb.users[phone];
   if (pilotId && phone) delete authDb.users[phone];
   const existing = authDb.users[key];
@@ -5717,11 +5730,12 @@ async function refreshAuthProviders(force) {
   const none = document.getElementById('authNone');
   if (!tgBtn || !smsBtn || !smsBox || !none) return;
   if (!isRemoteApi()) {
-    // No Worker configured → legacy device-only demo login
+    // v104: без сервера входа нет (демо-аккаунтов на устройстве больше не создаём)
     tgBtn.classList.add('hidden');
     smsBtn.classList.add('hidden');
-    none.classList.add('hidden');
-    smsBox.classList.remove('hidden');
+    smsBox.classList.add('hidden');
+    none.textContent = 'Вход недоступен без сервера. Замеры, гараж и история работают на устройстве.';
+    none.classList.remove('hidden');
     return;
   }
   if (force || _authCfg === undefined || Date.now() - _authCfgAt > 60000) {
@@ -5741,7 +5755,7 @@ async function refreshAuthProviders(force) {
   const tmaAvail = !!(isTMA && cfg.tma && tmaInitData);
   // In TMA the button only appears as a manual retry after a failed silent login.
   const tg = isTMA ? (tmaAvail && _tmaLogin === 'failed') : !!(cfg.telegram && cfg.telegramBotId);
-  const sms = !!cfg.sms;
+  const sms = !!cfg.sms && !cfg.smsDemo;
   tgBtn.classList.toggle('hidden', !tg);
   if (tg && sms) {
     smsBtn.classList.remove('hidden');
@@ -5752,8 +5766,12 @@ async function refreshAuthProviders(force) {
     smsBtn.classList.add('hidden');
     smsBox.classList.add('hidden');
   }
-  if (!tg && !sms && !tmaAvail) {
-    none.textContent = 'Вход временно недоступен: сервер входа ещё не настроен. Замеры, гараж и история работают без аккаунта.';
+  if (isTMA && !tmaInitData) {
+    // Mini App открыт не из бота (нет подписи initData) — честно говорим, как войти
+    none.textContent = 'Telegram не передал данные входа. Откройте PITLANE кнопкой в боте @' + (cfg.telegramBot || 'pitlane_official_bot') + '. Замеры, гараж и история работают без аккаунта.';
+    none.classList.remove('hidden');
+  } else if (!tg && !sms && !tmaAvail) {
+    none.textContent = 'Вход через Telegram сейчас недоступен. Замеры, гараж и история работают без аккаунта.';
     none.classList.remove('hidden');
   } else {
     none.classList.add('hidden');
@@ -5798,6 +5816,7 @@ async function finishTelegramReturn() {
     completeLogin({
       pilotId: res.pilotId,
       token: res.token,
+      refreshToken: res.refreshToken,
       user: res.user,
       nick: res.nick,
       provider: 'telegram',
@@ -5838,6 +5857,7 @@ async function tmaAutoLogin(manual) {
     const nu = completeLogin({
       pilotId: res.pilotId,
       token: res.token,
+      refreshToken: res.refreshToken,
       user: res.user,
       nick: res.nick,
       provider: 'telegram',
@@ -7904,32 +7924,7 @@ document.getElementById('btnRemoveCar')?.addEventListener('click', () => {
   applyCarUI();
 });
 
-document.getElementById('topStraightForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  await api.addStraight(currentCar().id, {
-    name: String(fd.get('name')),
-    car: currentCar().name,
-    t: Number(fd.get('t')),
-  });
-  void renderTops();
-  e.target.reset();
-});
-
-document.getElementById('topLapForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const fd = new FormData(e.target);
-  const min = Number(fd.get('min') || 0);
-  const sec = Number(fd.get('sec') || 0);
-  const trackId = document.getElementById('topTrackSelect').value;
-  await api.addLap(trackId, {
-    name: String(fd.get('name')),
-    car: currentCar().name,
-    t: `${min}:${sec.toFixed(2).padStart(5, '0')}`,
-  });
-  void renderTops();
-  e.target.reset();
-});
+// v104: ручной ввод времени в топ удалён — топ пишет только сервер по сырому треку
 
 const I18N = {
   ru: {
@@ -7939,7 +7934,7 @@ const I18N = {
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Что сделал с машиной…','pad.empty':'Пока тихо. Напиши первый пост после входа.',
-    'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Аккаунт хранит ник, гараж и результаты в топах.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
+    'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
     'nav.home':'Home','nav.duels':'Duels','nav.ride':'Drive','nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock','nav.park':'Park',
@@ -7948,7 +7943,7 @@ const I18N = {
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
     'lap.title':'Lap','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start lap','lap.finish':'Finish lap',
     'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'What did you do to the car…','pad.empty':'Quiet for now. Sign in and write the first post.',
-    'acc.title':'Account','acc.login':'Sign in','acc.hint':'Keeps your nickname, garage and results in tops.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
+    'acc.title':'Account','acc.login':'Sign in','acc.hint':'Telegram sign-in is needed for leaderboards, duels, teams and posts. Runs, garage and history work without it, on this device.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
   },
   zh: {
     'nav.home':'首页','nav.duels':'对决','nav.ride':'驾驶','nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单','nav.paddock':'Paddock',
@@ -8661,6 +8656,10 @@ let _duelType = 'drag';
 let _activeDuel = null;
 let _pendingDuelId = null;
 let _lastDuelCandidate = null;
+/** v104: сырой трек последнего замера — уходит с забегом в дуэль (сервер пересчитывает сам). */
+let _lastRunTrace = null;
+/** v104: отправка в топ, которую ждёт загрузка призрака (сервер принимает призрак только к зачтённому результату). */
+let _topSubmitP = Promise.resolve();
 
 function rememberDuelCandidateFromShare(payload) {
   if (!payload) return;
@@ -8706,8 +8705,14 @@ function rememberDuelCandidateFromShare(payload) {
     }
     cand.t = Math.round(n * 1000) / 1000;
   }
+  if (_lastRunTrace && _lastRunTrace.type === cand.type && _lastRunTrace.trace) {
+    cand.trace = _lastRunTrace.trace;
+    if (_lastRunTrace.how) cand.how = _lastRunTrace.how;
+  }
   _lastDuelCandidate = cand;
-  try { localStorage.setItem('pitlane-duel-last-v1', JSON.stringify(cand)); } catch (_) {}
+  try { localStorage.setItem('pitlane-duel-last-v1', JSON.stringify(cand)); } catch (_) {
+    try { const { trace, ...lite } = cand; localStorage.setItem('pitlane-duel-last-v1', JSON.stringify(lite)); } catch (_) {}
+  }
 }
 
 function loadLastDuelCandidate() {
@@ -8893,6 +8898,7 @@ async function refreshDuelList() {
 }
 
 async function createDuelFromUi() {
+  if (!currentUser()) { const h = document.getElementById('duelHint'); if (h) h.textContent = REJECT_TEXT.no_account; return; }
   if (!isRemoteApi()) {
     const hint = document.getElementById('duelHint');
     if (hint) hint.textContent = 'API не настроен — дуэль только онлайн.';
@@ -8948,6 +8954,7 @@ async function createDuelFromUi() {
 }
 
 async function submitMyRunToActiveDuel() {
+  if (!currentUser()) { const h = document.getElementById('duelHint'); if (h) h.textContent = REJECT_TEXT.no_account; return; }
   const d = _activeDuel;
   if (!d?.id) return;
   let cand = loadLastDuelCandidate();
@@ -8973,7 +8980,7 @@ async function submitMyRunToActiveDuel() {
   const res = await api.submitDuelRun(d.id, body);
   if (!res || res.error) {
     const hint = document.getElementById('duelHint');
-    const err = res?.error || 'ошибка';
+    const err = res?.code ? rejectText(res) : res?.status === 410 ? 'дуэль истекла' : (res?.error || 'ошибка');
     if (hint) hint.textContent = 'Не принят: ' + err;
     if (res?.duel) await showDuelView(res.duel.id || d.id);
     return;
@@ -9409,6 +9416,7 @@ async function ghostAfterFinishInner(o) {
     }).catch(() => null);
     const isPb = topOk && (!prevBest || tMs < prevBest.tMs);
     if (topOk && ghostCanUpload() && (isPb || !prevBest?.serverId)) {
+      await Promise.race([_topSubmitP, new Promise((r) => setTimeout(r, 20000))]);
       const res = await api.postGhost({
         kind, ref, tMs, gpsQ: gq.gpsQ, avgAcc: gq.avgAcc, hz: gq.hz, flags, valid: true,
         car: car?.name || '', carId: state.carId || undefined, ghost: data,
@@ -9442,11 +9450,13 @@ async function ghostAfterFinishInner(o) {
         car: car?.name || '', carId: state.carId || undefined, gps: true, valid: true,
         gpsQ: gq.gpsQ, avgAcc: gq.avgAcc, hz: gq.hz, flags, name: duelPilotNick(),
         weather: kind === 'lap' ? (lapDrive.weather || undefined) : undefined,
+        trace: _lastRunTrace && _lastRunTrace.type === (kind === 'lap' ? 'lap' : 'drag') ? _lastRunTrace.trace : undefined,
+        how: kind === 'lap' ? 'gate' : undefined,
       };
       const res = await api.submitDuelRun(gh.duel.id, body).catch(() => null);
       if (!res || res.error || res.ok === false) {
         gh.duel.submitted = false;
-        duelLine = 'Дуэль: не принято — ' + String(res?.error || 'нет связи').slice(0, 80);
+        duelLine = 'Дуэль: не принято — ' + (res?.code ? rejectText(res) : String(res?.error || 'нет связи').slice(0, 80));
       } else {
         const d = res.duel || res;
         const meCh = d.challenger?.id && isMyPilotId(d.challenger.id);
@@ -10104,6 +10114,7 @@ async function refreshCrewList() {
 }
 
 async function createCrewFromUi() {
+  if (!currentUser()) { const h = document.getElementById('crewHint'); if (h) h.textContent = REJECT_TEXT.no_account; return; }
   if (!isRemoteApi()) {
     const hint = document.getElementById('crewHint');
     if (hint) hint.textContent = 'API не настроен — экипаж только онлайн.';
@@ -10165,6 +10176,7 @@ async function joinCrewByCodeUi() {
 }
 
 async function joinActiveCrew() {
+  if (!currentUser()) { const h = document.getElementById('crewHint'); if (h) h.textContent = REJECT_TEXT.no_account; return; }
   const c = _activeCrew;
   if (!c?.id) return;
   const nick = (document.getElementById('crewNick')?.value || '').trim() || crewPilotNick();
@@ -10328,6 +10340,7 @@ function sessionPilotNick() {
 }
 
 async function sessionCheckinClick() {
+  if (!currentUser()) { alert(REJECT_TEXT.no_account); return; }
   let nick = sessionPilotNick();
   if (!nick) {
     nick = String(prompt('Твой ник для «я на месте»', 'пилот') || '').trim().slice(0, 48);
@@ -10684,7 +10697,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v103';
+const APP_VERSION = 'v104';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -11018,18 +11031,14 @@ function publishDragMark(disc, sec) {
     if (disc === '0-100') return; // server copy goes via /tops/straight (mirrored)
     if (!isRemoteApi() || !currentUser()) return;
     const car = currentCar();
-    void api.addDrag(disc, {
-      t: Number(t.toFixed(3)),
+    const pts = rawSince(run.rawSeq0 || 0);
+    void Promise.resolve(api.addDrag(disc, {
       carId: car?.id,
       car: car?.name,
       name: String(pulseWho() || 'пилот').slice(0, 24),
-      gps: true,
-      valid: true,
-      gpsQ: gq.gpsQ,
-      avgAcc: gq.avgAcc,
-      hz: gq.hz,
-      flags,
-    }).catch?.(() => {});
+      weather: lapDrive.weather || undefined,
+      trace: packTrace(pts),
+    })).then((res) => { if (res && !res.ok && res.code && res.code !== 'phone_source') setRunText('runStatus', disc + ': ' + rejectText(res)); }).catch(() => {});
   } catch (err) { console.warn('publishDragMark', err); }
 }
 

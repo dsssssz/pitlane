@@ -1,7 +1,10 @@
 // v102: security audit regressions — node test/v102.test.mjs (MemKV only, no prod, no real Telegram)
 import crypto from 'node:crypto';
-import worker, { tgWebhookPath, ROOM_SEASON_STARS } from '../src/index.js';
+import rawWorker, { tgWebhookPath, ROOM_SEASON_STARS } from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+const worker = withAutoRefresh(rawWorker);
 import { MemKV } from './kvmock.mjs';
+import { lapTrace } from './traces.mjs';
 
 const ORIGIN = 'https://dsssssz.github.io';
 let fails = 0;
@@ -50,7 +53,7 @@ function tmaInit(fields, token = BOT_TOKEN) {
   return new URLSearchParams({ ...fields, hash }).toString();
 }
 const fmt = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}.${String(ms % 1000).padStart(3, '0')}`; };
-const lap = (ms, o = {}) => ({ t: fmt(ms), ms, gps: true, valid: true, gpsQ: 'A', avgAcc: 3, hz: 10, sectors: [Math.round(ms * 0.32), Math.round(ms * 0.66), ms], trackId: 'sochi', ...o });
+const lap = (ms, o = {}) => ({ t: fmt(ms), ms, gps: true, valid: true, gpsQ: 'A', avgAcc: 3, hz: 10, sectors: [Math.round(ms * 0.32), Math.round(ms * 0.66), ms], trackId: 'sochi', trace: lapTrace(ms), ...o });
 
 const A = await login('79010200001', 'Капитан');
 const B = await login('79010200002', 'Пилот');
@@ -78,21 +81,21 @@ ok(r.status === 401, 'auth_date in the future → 401');
 
 console.log('\n[anti-cheat: per-track lap floor + sector plausibility]');
 r = await call('POST', '/tops/lap/sochi', { token: A.token, body: lap(75_000) });
-ok(r.status === 400, 'Sochi 1:15 (avg 281 km/h, faster than F1) → rejected', r.status);
+ok(r.status === 422, 'Sochi 1:15 (avg 281 km/h, faster than F1) → rejected 422', r.status);
 r = await call('POST', '/tops/lap/sochi', { token: A.token, body: lap(86_000) });
 ok(r.status === 200, 'Sochi 1:26 → accepted', r);
 r = await call('POST', '/tops/lap/moscow', { token: A.token, body: lap(50_000, { trackId: 'moscow' }) });
-ok(r.status === 400, 'Moscow Raceway 0:50 → rejected');
+ok(r.status === 422 && r.data.code === 'track_uncalibrated', 'v104: Moscow Raceway (not calibrated) → no public top');
 r = await call('POST', '/tops/lap/karting-x', { token: A.token, body: lap(40_000, { trackId: 'karting-x' }) });
-ok(r.status === 200, 'unknown track keeps the generic 15 s floor (karting 0:40 ok)', r);
+ok(r.status === 422 && r.data.code === 'track_uncalibrated', 'v104: unknown track → personal only (422 track_uncalibrated)', r);
 r = await call('POST', '/tops/lap/sochi', { token: B.token, body: lap(120_000, { sectors: [1000, 2000, 120000] }) });
 let tops = await call('GET', '/tops/lap/sochi');
 let rowB = (Array.isArray(tops.data) ? tops.data : []).find((x) => x.name === 'Пилот');
-ok(r.status === 200 && rowB && !rowB.sectors, 'lap with a 1-second sector: lap kept, impossible sectors dropped', rowB);
+ok(r.status === 200 && rowB && rowB.sectors && rowB.sectors[0] > 30000, 'v104: client sectors ignored — server S1/S2 gates', rowB);
 r = await call('POST', '/tops/lap/sochi', { token: C.token, body: lap(120_000, { sectors: [40000, 80000, 125000] }) });
 tops = await call('GET', '/tops/lap/sochi');
 const rowC = tops.data.find((x) => x.name === 'Чужой');
-ok(rowC && !rowC.sectors, 'sector marks beyond the lap time dropped');
+ok(rowC && rowC.sectors && rowC.sectors[2] === rowC.ms, 'v104: sector marks come from the server (last = lap)');
 
 console.log('\n[rooms: IDOR, captain rights, paywall on the server]');
 r = await call('POST', '/rooms', { token: A.token, body: { name: 'Audit Team' } });
@@ -105,7 +108,7 @@ ok(r.status === 403, 'non-member cannot post a lap into the room');
 r = await call('POST', '/rooms/' + room.id + '/invite', { token: B.token, body: {} });
 ok(r.status === 403, 'member cannot rotate invite (captain only)');
 r = await call('POST', '/rooms/' + room.id + '/laps', { token: B.token, body: lap(70_000) });
-ok(r.status === 400, 'room lap faster than the Sochi floor → rejected');
+ok(r.status === 422, 'room lap faster than the Sochi floor → rejected');
 r = await call('POST', '/rooms/' + room.id + '/laps', { token: B.token, body: lap(120_000) });
 ok(r.status === 200, 'room lap ok');
 r = await call('POST', '/rooms/' + room.id + '/laps', { token: B.token, body: lap(110_000, { trackId: 'moscow', t: fmt(110_000) }) });
@@ -177,8 +180,8 @@ r = await call('POST', '/teams/' + room.id + '/posts', { token: B.token, body: {
 ok(r.status === 400, 'HTML disguised as webp rejected');
 
 console.log('\n[DoS: body size, field length, GPS points]');
-r = await call('POST', '/rooms/' + room.id + '/laps', { token: B.token, rawBody: JSON.stringify({ ...lap(121_000), pad: 'x'.repeat(20000) }) });
-ok(r.status === 413 || r.status === 400, 'room lap body > 8 KB rejected', r.status);
+r = await call('POST', '/rooms/' + room.id + '/laps', { token: B.token, rawBody: JSON.stringify({ ...lap(121_000), pad: 'x'.repeat(420 * 1024) }) });
+ok(r.status === 413, 'v104: room lap body > 400 KB (trace cap) rejected', r.status);
 r = await call('POST', '/teams/' + room.id + '/posts', { token: B.token, rawBody: JSON.stringify({ text: 'x', image: 'data:image/webp;base64,' + 'A'.repeat(400000) }) });
 ok(r.status === 413 || r.status === 400, 'oversized post image body rejected', r.status);
 r = await call('POST', '/ghost', { token: B.token, rawBody: JSON.stringify({ kind: 'lap', ref: 'sochi', ms: 120000, pts: Array.from({ length: 200000 }, (_, i) => [i, i, i]) }) });

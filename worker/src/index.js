@@ -24,12 +24,18 @@ import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPaym
  */
 // v80: production origin only (Telegram Mini App loads the same GitHub Pages origin).
 // Local dev: add origins via the EXTRA_ORIGINS var (never commit localhost into prod config).
-import { decodeGhost, checkGhost, GHOST_MAX_CHARS } from '../../ghost-codec.js';
+import { decodeGhost, checkGhost, encodeGhost, GHOST_MAX_CHARS } from '../../ghost-codec.js';
+import { verifyLap, verifyDrag, verifyLapLoose } from './verify.js';
 
 const DEFAULT_ORIGINS = ['https://dsssssz.github.io'];
 
 const SHARE_TTL = 30 * 24 * 60 * 60; // 30 days
-const SESS_TTL = 90 * 24 * 60 * 60; // 90 days
+const SESS_TTL = 90 * 24 * 60 * 60; // 90 days — индекс сессий и старые (до v104) токены
+/* v104: cookie httpOnly невозможна (Pages ↔ workers.dev — кросс-сайт, Safari/Telegram режут сторонние
+ * cookie), поэтому — короткий access-токен + ротируемый refresh-токен (оба случайные 192 бит, в KV). */
+const ACCESS_TTL = 24 * 60 * 60;        // 24 ч
+const REFRESH_TTL = 60 * 24 * 60 * 60;  // 60 дней, одноразовый (ротация)
+const TERMS_VER = '07.10.2026';
 const OTP_PHONE_LIMIT = 5; // per 15 min
 const OTP_IP_LIMIT = 20; // soft per 15 min
 const OTP_MAX_TRIES = 5; // bad verify attempts per code
@@ -89,6 +95,7 @@ const BODY_LIMITS = {
   feedback: 720 * 1024,
   garage: 1_600_000,
   ghost: 34 * 1024,
+  run: 400 * 1024, // v104: результат + сырой трек (до 8000 точек)
   banner: 210 * 1024,
 };
 
@@ -377,6 +384,8 @@ function ownerUser(rec) {
     phoneMasked: phoneProv ? '+' + String(phoneProv.id).slice(0, 1) + ' ••• ••• ' + String(phoneProv.id).slice(-4, -2) + '-' + String(phoneProv.id).slice(-2) : null,
     telegram: tgProv ? { username: tgProv.username || null } : null,
     photoUrl: rec.photoRef || null,
+    termsAt: rec.termsAt || null,
+    termsVer: rec.termsVer || null,
   };
 }
 
@@ -391,13 +400,16 @@ async function addSessIdx(kv, pid, token) {
 
 async function issueSession(kv, rec, provider) {
   const token = randomToken();
+  const refreshToken = randomToken();
   await kv.put(
     'sess:' + token,
-    JSON.stringify({ pilotId: rec.id, nick: rec.nick, provider, at: Date.now() }),
-    { expirationTtl: SESS_TTL }
+    JSON.stringify({ pilotId: rec.id, nick: rec.nick, provider, at: Date.now(), rt: refreshToken }),
+    { expirationTtl: ACCESS_TTL }
   );
   await addSessIdx(kv, rec.id, token);
-  return token;
+  await kv.put('rt:' + refreshToken, JSON.stringify({ pilotId: rec.id, provider, at: Date.now() }), { expirationTtl: REFRESH_TTL, metadata: { pid: rec.id } });
+  await addSessIdx(kv, rec.id, 'rt:' + refreshToken);
+  return { token, refreshToken, expiresIn: ACCESS_TTL };
 }
 
 /** Resolve session from Bearer token (preferred) or soft X-Pilot-Id guest fallback. */
@@ -435,41 +447,28 @@ async function resolvePilot(req, env) {
     }
     return { id: '', name: '', token: null, authed: false, badToken: true };
   }
-  const id = guestId(req.headers.get('X-Pilot-Id'));
-  let rawName = req.headers.get('X-Pilot-Name') || '';
-  try { rawName = decodeURIComponent(rawName); } catch (_) {}
-  const name = safeName(rawName === 'гость' ? '' : rawName, '');
-  return { id, name, token: null, authed: false };
+  // v104: автор — только из сессии. X-Pilot-Id / pilotId в теле больше ничего не значат.
+  return { id: '', name: '', token: null, authed: false };
 }
 
 function requireAuth(pilot, headers) {
-  if (pilot.badToken) return json({ error: 'invalid session' }, 401, headers);
-  if (!pilot.authed || !pilot.id) return json({ error: 'auth required' }, 401, headers);
+  if (pilot.badToken) return json({ error: 'invalid session', code: 'session_expired' }, 401, headers);
+  if (!pilot.authed || !pilot.id) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
   return null;
+}
+
+/** v104: отказ зачёта — только код причины (пороги наружу не отдаются). */
+function rejectRun(code, headers) {
+  return json({ error: code, code }, 422, headers);
 }
 
 /** Public tops: GPS + valid !== false; A/B preferred (C kept only if valid true and no teleport). */
 function isValidGpsRow(r) {
-  if (!r || !r.gps || r.valid === false) return false;
-  if (Array.isArray(r.flags) && r.flags.includes('teleport')) return false;
+  // v104: в выдачу — только строки, зачтённые сервером по сырым точкам (srv:1, A/B). Старые строки
+  // без серверной оценки не удаляются, а скрываются (их число посчитано read-only для отчёта).
+  if (!r || !r.gps || r.valid !== true || r.srv !== 1) return false;
+  if (r.gpsQ !== 'A' && r.gpsQ !== 'B') return false;
   return true;
-}
-
-function computeValid(body) {
-  const flags = Array.isArray(body?.flags)
-    ? body.flags.map((f) => String(f).slice(0, 24)).slice(0, 8)
-    : [];
-  const gpsQ = body?.gpsQ === 'A' || body?.gpsQ === 'B' || body?.gpsQ === 'C' ? body.gpsQ : null;
-  let valid = true;
-  if (flags.includes('teleport') || flags.includes('speed')) valid = false;
-  if (gpsQ === 'C') valid = false;
-  if (gpsQ !== 'A' && gpsQ !== 'B' && gpsQ !== 'C') {
-    // unknown grade: trust client only if explicitly true and no bad flags
-    if (body?.valid === false) valid = false;
-  }
-  // Public tops: A/B only
-  if (gpsQ !== 'A' && gpsQ !== 'B') valid = false;
-  return { valid, gpsQ, flags };
 }
 
 function sanitizeWeather(v) {
@@ -479,7 +478,7 @@ function sanitizeWeather(v) {
 }
 
 const PUBLIC_ROW_FIELDS = [
-  'car', 't', 'gps', 'valid', 'gpsQ', 'flags', 'avgAcc', 'hz', 'weather',
+  'car', 't', 'gps', 'valid', 'gpsQ', 'src', 'n', 'avgAcc', 'hz', 'weather', 'track',
   'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost', 'tyre',
 ];
 
@@ -499,32 +498,9 @@ function publicRows(rows) {
   return (rows || []).map(publicTopRow).filter(Boolean);
 }
 
+/** v104: 0–100 (тот же зачёт, что /tops/drag/0-100). → { row } | { code } */
 function sanitizeStraight(body, pilot) {
-  const t = Number(body?.t);
-  // anti-cheat bounds: 0–100 faster than 1.5 s is physically implausible for road cars; > 60 s is not a run
-  if (!Number.isFinite(t) || t < 1.5 || t > 60) return null;
-  if (!body?.gps) return null;
-  const name = safeName(body.name || pilot.name);
-  const car = cleanLabel(body.car, 80);
-  const { valid, gpsQ, flags } = computeValid(body);
-  const row = {
-    name,
-    car,
-    t: Math.round(t * 1000) / 1000,
-    gps: true,
-    valid,
-    pilotId: pilot.id || null,
-    at: Date.now(),
-  };
-  if (gpsQ) row.gpsQ = gpsQ;
-  if (flags.length) row.flags = flags;
-  const acc = boundedNum(body.avgAcc, 0, 1000);
-  if (acc != null) row.avgAcc = Math.round(acc * 10) / 10;
-  const hz = boundedNum(body.hz, 0, 100);
-  if (hz != null) row.hz = Math.round(hz * 10) / 10;
-  const wxS = sanitizeWeather(body.weather);
-  if (wxS) row.weather = wxS;
-  return row;
+  return sanitizeDrag(body, pilot, '0-100');
 }
 
 /**
@@ -548,35 +524,35 @@ function dragDisc(v) {
   return Object.prototype.hasOwnProperty.call(DRAG_DISCIPLINES, d) ? d : '';
 }
 
-function sanitizeDrag(body, pilot, disc) {
+/**
+ * v104: строка разгона ТОЛЬКО из серверного пересчёта сырого трека (время, A/B, Гц, источник).
+ * opts.topRule=false — для служебных проверок; в топ и дуэли идёт только topRule (внешний ≥10 Гц).
+ * → { row } | { code }
+ */
+function sanitizeDrag(body, pilot, disc, opts = {}) {
   const b = DRAG_DISCIPLINES[disc];
-  if (!b) return null;
-  const t = Number(body?.t);
-  if (!Number.isFinite(t) || t < b.lo || t > b.hi) return null;
-  if (!body?.gps) return null;
+  if (!b) return { code: 'bad_discipline' };
+  const v = verifyDrag(body, disc, b, Date.now(), opts);
+  if (!v.ok) return { code: v.code };
   const carId = slugOk(body?.carId) ? String(body.carId) : null;
   const car = cleanLabel(body?.car, 80);
-  const { valid, gpsQ, flags } = computeValid(body);
   const row = {
     name: safeName(pilot.name || body?.name),
     car: car && !containsPhone(car) ? car : '',
     carId,
     disc,
-    t: Math.round(t * 1000) / 1000,
+    t: v.t,
     gps: true,
-    valid,
+    valid: true,
+    srv: 1,
+    ...v.pass,
+    th: v.hash,
     pilotId: pilot.id || null,
     at: Date.now(),
   };
-  if (gpsQ) row.gpsQ = gpsQ;
-  if (flags.length) row.flags = flags;
-  const acc = boundedNum(body?.avgAcc, 0, 1000);
-  if (acc != null) row.avgAcc = Math.round(acc * 10) / 10;
-  const hz = boundedNum(body?.hz, 0, 100);
-  if (hz != null) row.hz = Math.round(hz * 10) / 10;
   const wx = sanitizeWeather(body?.weather);
   if (wx) row.weather = wx;
-  return row;
+  return { row };
 }
 
 /**
@@ -679,42 +655,57 @@ function sectorsPlausible(cum, lapMs, trackId) {
   return true;
 }
 
+/**
+ * v104: круг для публичного топа — время, секторы, дистанция и A/B только с сервера (автопересечение С/Ф
+ * на калиброванной трассе). → { row } | { code }
+ */
 function sanitizeLap(body, pilot, trackId) {
+  const v = verifyLap(body, trackId, Date.now());
+  if (!v.ok) return { code: v.code };
+  if (v.tMs < trackMinLapMs(trackId) || v.tMs > LAP_MAX_MS) return { code: 'speed_flag' };
+  return { row: lapRowFrom(body, pilot, trackId, v) };
+}
+
+/** v104: круг для комнаты (внутри экипажа): калиброванная трасса — строгий зачёт; иначе — автокруг с
+ * A/B по сырым точкам (время клиента в пределах физики), valid только при A/B. → { row } | { code } */
+function sanitizeRoomLap(body, pilot, trackId) {
+  const strict = verifyLap(body, trackId, Date.now());
+  if (strict.ok) {
+    if (strict.tMs < trackMinLapMs(trackId) || strict.tMs > LAP_MAX_MS) return { code: 'speed_flag' };
+    return { row: lapRowFrom(body, pilot, trackId, strict) };
+  }
   const t = String(body?.t || '').trim();
-  if (!/^\d{1,2}:[0-5]\d(\.\d{1,3})?$/.test(t)) return null;
+  if (!/^\d{1,2}:[0-5]\d(\.\d{1,3})?$/.test(t)) return { code: strict.code };
   const tMs = parseLapMs(t);
-  if (tMs == null || tMs < trackMinLapMs(trackId) || tMs > LAP_MAX_MS) return null;
-  if (!body?.gps) return null;
-  const name = safeName(body.name || pilot.name);
-  const car = cleanLabel(body.car, 80);
-  const { valid, gpsQ, flags } = computeValid(body);
+  if (tMs == null || tMs < trackMinLapMs(trackId) || tMs > LAP_MAX_MS) return { code: 'speed_flag' };
+  const loose = verifyLapLoose(body, Date.now(), tMs);
   const row = {
-    name,
-    car,
-    t,
+    name: safeName(body?.name || pilot.name), car: '', t, ms: tMs, gps: true,
+    valid: !!loose.ok, srv: 1, at: Date.now(), pilotId: pilot.id || null,
+  };
+  if (loose.ok) Object.assign(row, loose.pass); else row.gpsQ = null;
+  return { row };
+}
+
+function lapRowFrom(body, pilot, trackId, v) {
+  const row = {
+    name: safeName(body?.name || pilot.name),
+    car: cleanLabel(body?.car, 80),
+    t: fmtLapMsStr(v.tMs),
+    ms: v.tMs,
     gps: true,
-    valid,
+    valid: true,
+    srv: 1,
+    ...v.pass,
+    th: v.hash,
+    track: trackId,
+    dist: v.dist,
     pilotId: pilot.id || null,
     at: Date.now(),
-    dist: boundedNum(body.dist, 0, 100_000) ?? undefined,
-    slipAvg: boundedNum(body.slipAvg, -100, 100) ?? undefined,
   };
-  if (gpsQ) row.gpsQ = gpsQ;
-  if (flags.length) row.flags = flags;
-  const acc = boundedNum(body.avgAcc, 0, 1000);
-  if (acc != null) row.avgAcc = Math.round(acc * 10) / 10;
-  const hz = boundedNum(body.hz, 0, 100);
-  if (hz != null) row.hz = Math.round(hz * 10) / 10;
-  const wxL = sanitizeWeather(body.weather);
-  if (wxL) row.weather = wxL;
-  const ms = Number(body?.ms);
-  if (body?.ms != null) {
-    // ms must agree with the displayed time (±1 s) — otherwise the row is inconsistent / forged
-    if (!Number.isFinite(ms) || Math.abs(ms - tMs) > 1000) return null;
-    row.ms = Math.round(ms);
-  }
-  const sectors = sanitizeSectors(body);
-  if (sectors && sectorsPlausible(sectors, tMs, trackId)) row.sectors = sectors; // implausible splits are dropped
+  if (v.sectors && sectorsPlausible(v.sectors, v.tMs, trackId)) row.sectors = v.sectors;
+  const wx = sanitizeWeather(body?.weather);
+  if (wx) row.weather = wx;
   const av = sanitizeAvatar(body?.avatar);
   if (av) row.avatar = av;
   return row;
@@ -1164,10 +1155,12 @@ function refreshDuelStatus(d) {
   return d;
 }
 
-function sanitizeDuelRun(body, pilot, type, trackId) {
+/** v104: забег дуэли — тот же серверный зачёт (A/B, без симулятора; спринт — только внешний ≥10 Гц). */
+function sanitizeDuelRun(body, pilot, type, trackId, disc) {
   if (type === 'drag') {
-    const row = sanitizeStraight(body, pilot);
-    if (!row || !row.valid || (row.gpsQ !== 'A' && row.gpsQ !== 'B')) return null;
+    const res = sanitizeDrag(body, pilot, disc && DRAG_DISCIPLINES[disc] ? disc : '0-100');
+    if (res.code) return { code: res.code };
+    const row = res.row;
     return {
       name: row.name,
       car: row.car,
@@ -1175,7 +1168,7 @@ function sanitizeDuelRun(body, pilot, type, trackId) {
       gps: true,
       valid: true,
       gpsQ: row.gpsQ,
-      flags: row.flags || [],
+      src: row.src, n: row.n, th: row.th,
       avgAcc: row.avgAcc,
       hz: row.hz,
       weather: row.weather || null,
@@ -1184,8 +1177,9 @@ function sanitizeDuelRun(body, pilot, type, trackId) {
     };
   }
   if (type === 'lap') {
-    const row = sanitizeLap(body, pilot, trackId);
-    if (!row || !row.valid || (row.gpsQ !== 'A' && row.gpsQ !== 'B')) return null;
+    const res = sanitizeLap(body, pilot, trackId);
+    if (res.code) return { code: res.code };
+    const row = res.row;
     return {
       name: row.name,
       car: row.car,
@@ -1193,12 +1187,11 @@ function sanitizeDuelRun(body, pilot, type, trackId) {
       gps: true,
       valid: true,
       gpsQ: row.gpsQ,
-      flags: row.flags || [],
+      src: row.src, n: row.n, th: row.th, ms: row.ms,
       avgAcc: row.avgAcc,
       hz: row.hz,
       weather: row.weather || null,
       dist: row.dist,
-      slipAvg: row.slipAvg,
       pilotId: pilot.id || null,
       at: Date.now(),
     };
@@ -1213,15 +1206,14 @@ function sanitizeDuelRun(body, pilot, type, trackId) {
 function pilotLabel(pilot, body) {
   const name = safeName(pilot.name || body?.nick || body?.name || body?.createdBy);
   if (pilot.authed && pilot.id) return { id: pilot.id, name };
-  // v80: guests must present a device id (dev_…); the old 'guest:<nick>' fallback let anyone act as anyone.
-  const id = guestId(pilot.id) || guestId(body?.pilotId);
-  return { id, name };
+  // v104: гостей больше нет — дуэли / экипажи / отметки только с аккаунтом
+  return { id: '', name };
 }
 
 /** Requester identity for "is this mine" checks (account uuid or guest device id), '' if none. */
 function viewerId(pilot) {
   if (pilot.authed && pilot.id) return pilot.id;
-  return guestId(pilot.id);
+  return '';
 }
 
 function publicWho(w) {
@@ -1444,9 +1436,7 @@ function pickSessionOfDay(manual) {
 }
 
 function isAbLapRow(r) {
-  if (!r || !r.gps || r.valid === false) return false;
-  if (Array.isArray(r.flags) && r.flags.includes('teleport')) return false;
-  return r.gpsQ === 'A' || r.gpsQ === 'B';
+  return isValidGpsRow(r);
 }
 
 
@@ -1577,9 +1567,11 @@ async function loginTelegramUser(env, v, provider) {
   if (prov) prov.username = v.username || null;
   if (v.photoUrl && (!rec.photoRef || created)) rec.photoRef = v.photoUrl;
   rec.lastLogin = Date.now();
+  // v104: вход = согласие с условиями и политикой (текст под кнопкой входа) — фиксируем дату и редакцию
+  if (!rec.termsAt || rec.termsVer !== TERMS_VER) { rec.termsAt = Date.now(); rec.termsVer = TERMS_VER; }
   await savePilot(env.PITLANE, rec);
-  const token = await issueSession(env.PITLANE, rec, provider);
-  return { ok: true, token, pilotId: rec.id, nick: rec.nick, provider, created, user: ownerUser(rec) };
+  const sess = await issueSession(env.PITLANE, rec, provider);
+  return { ok: true, ...sess, pilotId: rec.id, nick: rec.nick, provider, created, user: ownerUser(rec) };
 }
 
 const TMA_PARAM_RE = /^(duel|crew|room|team|lap|run|s|track|tops)_[A-Za-z0-9_-]{1,56}$/;
@@ -1914,16 +1906,19 @@ function sanitizeGhostBody(body) {
   const tMs = Math.round(Number(body?.tMs));
   const b = ghostTimeBounds(kind, ref);
   if (!Number.isFinite(tMs) || !b || tMs < b.lo || tMs > b.hi) return { error: 'implausible time' };
-  const { valid, gpsQ, flags } = computeValid({ ...body, gps: true });
-  if (!valid || (gpsQ !== 'A' && gpsQ !== 'B')) return { error: 'only valid GPS A/B ghosts' };
-  if (body?.valid === false) return { error: 'only valid GPS A/B ghosts' };
+  // v104: оценка и флаги призрака берутся из серверной строки топа (см. POST /ghost), не из тела
+  const gpsQ = null; const flags = [];
   const g = body?.ghost;
   if (!g || typeof g !== 'object' || typeof g.p !== 'string' || g.p.length > GHOST_MAX_CHARS) return { error: 'ghost too large or missing' };
   const dec = decodeGhost(g);
   if (!dec) return { error: 'malformed ghost' };
   const chk = checkGhost(dec, { kind, disc: kind === 'drag' ? ref : undefined, tMs });
   if (!chk.ok) return { error: 'implausible ghost: ' + chk.why };
-  const data = { v: g.v, n: dec.n, hz: Math.round((Number(g.hz) || 10) * 10) / 10, la0: Number(g.la0), lo0: Number(g.lo0), p: g.p };
+  // v104: координаты чужим не отдаём — храним только t / дистанцию / скорость (lat/lon обнулены)
+  const pts = []; for (let i = 0; i < dec.n; i++) pts.push({ t: dec.t[i], d: dec.d[i], v: dec.v[i], lat: 0, lon: 0 });
+  const enc = encodeGhost(pts, { hz: Number(g.hz) || 10 });
+  if (!enc) return { error: 'malformed ghost' };
+  const data = { v: enc.v, n: enc.n, hz: Math.round((Number(g.hz) || 10) * 10) / 10, la0: 0, lo0: 0, p: enc.p };
   const carId = slugOk(body?.carId) ? String(body.carId) : null;
   const car = cleanLabel(body?.car, 80);
   return {
@@ -1941,9 +1936,18 @@ function publicGhostMeta(g) {
   };
 }
 
+/** v104: чужие координаты не отдаём — на выдаче lat/lon обнуляются и у старых записей. */
+function stripGhostCoords(data) {
+  const dec = data && decodeGhost(data);
+  if (!dec) return null;
+  const pts = []; for (let i = 0; i < dec.n; i++) pts.push({ t: dec.t[i], d: dec.d[i], v: dec.v[i], lat: 0, lon: 0 });
+  const enc = encodeGhost(pts, { hz: dec.hz || 10 });
+  return enc ? { v: enc.v, n: enc.n, hz: data.hz || dec.hz, la0: 0, lo0: 0, p: enc.p } : null;
+}
+
 function publicGhost(g) {
   if (!g) return null;
-  return { ...publicGhostMeta(g), duel: g.duel || null, ghost: g.data };
+  return { ...publicGhostMeta(g), duel: g.duel || null, ghost: stripGhostCoords(g.data) };
 }
 
 /** Upsert pilot's best ghost on ghosts:<kind>:<ref>. → { stored, id, rank } */
@@ -1951,7 +1955,7 @@ async function upsertGhost(kv, pilot, name, row, data) {
   const bkey = 'ghosts:' + row.kind + ':' + row.ref;
   const board = await readList(kv, bkey);
   const prev = board.find((r) => r && r.pilotId === pilot.id);
-  if (prev && Number(prev.tMs) <= row.tMs) {
+  if (prev && prev.srv === 1 && Number(prev.tMs) <= row.tMs) {
     return { stored: false, id: prev.id, rank: board.indexOf(prev) + 1 };
   }
   const id = ghostId();
@@ -1959,7 +1963,7 @@ async function upsertGhost(kv, pilot, name, row, data) {
   await kv.put('ghost:' + id, JSON.stringify(rec), { metadata: { pid: pilot.id, kind: row.kind, ref: row.ref } });
   if (prev?.id) await kv.delete('ghost:' + prev.id);
   const next = board.filter((r) => r && r.pilotId !== pilot.id);
-  next.push({ id, pilotId: pilot.id, name, car: row.car, carId: row.carId, tMs: row.tMs, gpsQ: row.gpsQ, at: rec.at, dist: row.dist });
+  next.push({ id, pilotId: pilot.id, name, car: row.car, carId: row.carId, tMs: row.tMs, gpsQ: row.gpsQ, srv: row.srv || 0, at: rec.at, dist: row.dist });
   next.sort((a, b) => a.tMs - b.tMs);
   for (const ev of next.slice(GHOST_BOARD_MAX)) if (ev?.id) await kv.delete('ghost:' + ev.id);
   const kept = next.slice(0, GHOST_BOARD_MAX);
@@ -1968,7 +1972,7 @@ async function upsertGhost(kv, pilot, name, row, data) {
 }
 
 async function ghostTop(kv, kind, ref) {
-  const board = (await readList(kv, 'ghosts:' + kind + ':' + ref)).filter((r) => r && r.id).sort((a, b) => a.tMs - b.tMs);
+  const board = (await readList(kv, 'ghosts:' + kind + ':' + ref)).filter((r) => r && r.id && r.srv === 1).sort((a, b) => a.tMs - b.tMs);
   let leader = null;
   for (const r of board.slice(0, 3)) {
     const g = await kvJson(kv, 'ghost:' + r.id);
@@ -2082,8 +2086,9 @@ async function deleteAccount(kv, pid, currentToken) {
   // sessions
   const tokens = new Set(((await kvJson(kv, 'sessidx:' + pid)) || []).filter(Boolean));
   if (currentToken) tokens.add(currentToken);
-  for (const t of tokens) { await del('sess:' + t); rep.sessions++; }
+  for (const t of tokens) { await del(String(t).startsWith('rt:') ? t : 'sess:' + t); rep.sessions++; }
   await del('sessidx:' + pid);
+  for (const k of await kvListAll(kv, 'rt:')) if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.sessions++; }
   // profile meta / avatar, garage
   if (await kv.get('pilotmeta:' + pid)) rep.meta++;
   await del('pilotmeta:' + pid);
@@ -2538,7 +2543,7 @@ async function notifyDuel(env, d, submitterId) {
 /** Helpers handed to ./rooms.js (avoids a circular import). */
 const ROOM_H = {
   json, readJson, limitOr429, cleanLabel, cleanText, safeName, containsPhone, slugOk, kvJson, randB36, pubId,
-  moscowDateKey, requireAuth, sanitizeLap, parseLapMs, safeDecode, telegramConfig, tgCall, tgWebhookPath,
+  moscowDateKey, requireAuth, sanitizeLap, sanitizeRoomLap, rejectRun, parseLapMs, safeDecode, telegramConfig, tgCall, tgWebhookPath,
   providerKey, loadPilot, tgEsc, sanitizeBannerImage,
   readListRaw: readList, kvListAll, burstLimited,
   // v98: teams
@@ -2730,10 +2735,10 @@ export default {
         if (wantNick) rec.nick = wantNick;
         rec.lastLogin = Date.now();
         await savePilot(env.PITLANE, rec);
-        const token = await issueSession(env.PITLANE, rec, 'phone');
+        const sess = await issueSession(env.PITLANE, rec, 'phone');
         // `phone` is echoed only to its owner (this response), never in public endpoints.
         return json(
-          { ok: true, token, pilotId: rec.id, phone, nick: rec.nick, provider: 'phone', user: ownerUser(rec) },
+          { ok: true, ...sess, pilotId: rec.id, phone, nick: rec.nick, provider: 'phone', user: ownerUser(rec) },
           200,
           headers
         );
@@ -2744,7 +2749,7 @@ export default {
         const tg = telegramConfig(env);
         return json(
           {
-            sms: twilioConfigured(env) || isDemoSms(env),
+            sms: twilioConfigured(env), // v104: демо-код — не провайдер; кнопку SMS показываем только с реальной отправкой
             smsDemo: isDemoSms(env) && !twilioConfigured(env),
             telegram: tg.enabled,
             telegramBot: tg.enabled ? tg.username : null,
@@ -2793,8 +2798,29 @@ export default {
       }
 
       // —— Logout: revoke this session token server-side ——
+      // v104: ротация refresh-токена → новая пара. Старый refresh одноразовый.
+      if (req.method === 'POST' && path === '/auth/refresh') {
+        const lim = await limitOr429(env, headers, [['rl:refresh:ip:' + ip, 60, 3600]]);
+        if (lim) return lim;
+        const body = await readJson(req, BODY_LIMITS.auth);
+        const rt = String(body?.refreshToken || '');
+        if (!/^[A-Za-z0-9_-]{20,80}$/.test(rt)) return json({ error: 'invalid session', code: 'session_expired' }, 401, headers);
+        const r = await kvJson(env.PITLANE, 'rt:' + rt);
+        if (!r || !isPilotUuid(r.pilotId)) return json({ error: 'invalid session', code: 'session_expired' }, 401, headers);
+        await env.PITLANE.delete('rt:' + rt);
+        const rec = await loadPilot(env.PITLANE, r.pilotId);
+        if (!rec) return json({ error: 'invalid session', code: 'session_expired' }, 401, headers);
+        const sess = await issueSession(env.PITLANE, rec, r.provider || null);
+        return json({ ok: true, ...sess, pilotId: rec.id, nick: rec.nick }, 200, headers);
+      }
+
       if (req.method === 'POST' && path === '/auth/logout') {
+        const lb = await readJson(req, BODY_LIMITS.auth).catch(() => null);
+        const lrt = String(lb?.refreshToken || '');
+        if (/^[A-Za-z0-9_-]{20,80}$/.test(lrt)) await env.PITLANE.delete('rt:' + lrt);
         if (pilot.authed && pilot.token) {
+          const sv = await kvJson(env.PITLANE, 'sess:' + pilot.token);
+          if (sv && sv.rt) await env.PITLANE.delete('rt:' + sv.rt);
           await env.PITLANE.delete('sess:' + pilot.token);
           const idx = (await kvJson(env.PITLANE, 'sessidx:' + pilot.id)) || [];
           if (Array.isArray(idx) && idx.includes(pilot.token)) {
@@ -2981,9 +3007,10 @@ export default {
         if (!slugOk(carId)) return json({ error: 'bad car id' }, 400, headers);
         const lim = await limitOr429(env, headers, [['rl:top:p:' + pilot.id, 60, 3600]]);
         if (lim) return lim;
-        const body = await readJson(req);
-        const row = sanitizeStraight(body, pilot);
-        if (!row) return json({ error: 'invalid gps straight row' }, 400, headers);
+        const body = await readJson(req, BODY_LIMITS.run);
+        const res = sanitizeStraight(body, pilot);
+        if (res.code) return rejectRun(res.code, headers);
+        const row = res.row;
         // reject forged pilot ids in body
         if (body?.pilotId && String(body.pilotId) !== pilot.id) {
           return json({ error: 'pilot mismatch' }, 403, headers);
@@ -3021,9 +3048,10 @@ export default {
         if (!slugOk(trackId)) return json({ error: 'bad track id' }, 400, headers);
         const lim = await limitOr429(env, headers, [['rl:top:p:' + pilot.id, 60, 3600]]);
         if (lim) return lim;
-        const body = await readJson(req);
-        const row = sanitizeLap(body, pilot, trackId);
-        if (!row) return json({ error: 'invalid gps lap row' }, 400, headers);
+        const body = await readJson(req, BODY_LIMITS.run);
+        const res = sanitizeLap(body, pilot, trackId);
+        if (res.code) return rejectRun(res.code, headers);
+        const row = res.row;
         if (body?.pilotId && String(body.pilotId) !== pilot.id) {
           return json({ error: 'pilot mismatch' }, 403, headers);
         }
@@ -3070,11 +3098,12 @@ export default {
           if (!disc) return json({ error: 'bad discipline' }, 400, headers);
           const lim = await limitOr429(env, headers, [['rl:top:p:' + pilot.id, 60, 3600], ['rl:drag:p:' + pilot.id, 200, 86400]]);
           if (lim) return lim;
-          const body = await readJson(req);
+          const body = await readJson(req, BODY_LIMITS.run);
           if (body?.pilotId && String(body.pilotId) !== pilot.id) return json({ error: 'pilot mismatch' }, 403, headers);
           const rec = await loadPilot(env.PITLANE, pilot.id);
-          const row = sanitizeDrag(body, { ...pilot, name: safeName(rec?.nick, '') || pilot.name }, disc);
-          if (!row) return json({ error: 'invalid gps run' }, 400, headers);
+          const res = sanitizeDrag(body, { ...pilot, name: safeName(rec?.nick, '') || pilot.name }, disc);
+          if (res.code) return rejectRun(res.code, headers);
+          const row = res.row;
           row.pilotId = pilot.id;
           const stored = await upsertDrag(env.PITLANE, disc, row);
           const rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
@@ -3278,6 +3307,18 @@ export default {
         if (body.pilotId && String(body.pilotId) !== pilot.id) return json({ error: 'pilot mismatch' }, 403, headers);
         const res = sanitizeGhostBody(body);
         if (res.error) return json({ error: res.error }, 400, headers);
+        // v104: призрак принимается только к своему серверно зачтённому результату с тем же временем
+        {
+          const key = res.row.kind === 'lap' ? 'lap:' + res.row.ref : 'drag:' + res.row.ref;
+          const srvMs = (r) => (res.row.kind === 'lap' ? Number(r.ms) : Number(r.t) * 1000);
+          const tol = Math.max(150, res.row.tMs * 0.005); // клиентские ворота/интерполяция ≠ серверные на доли секунды
+          const mine = (await readList(env.PITLANE, key)).filter((r) => r && r.pilotId === pilot.id && isValidGpsRow(r) &&
+            Math.abs(srvMs(r) - res.row.tMs) <= tol).sort((x, y) => Math.abs(srvMs(x) - res.row.tMs) - Math.abs(srvMs(y) - res.row.tMs))[0];
+          if (!mine) return rejectRun('not_verified', headers);
+          res.row.gpsQ = mine.gpsQ;
+          res.row.tMs = Math.round(srvMs(mine)); // время призрака = серверное время зачтённого результата
+          res.row.srv = 1;
+        }
         const rec = await loadPilot(env.PITLANE, pilot.id);
         const name = safeName(rec?.nick || pilot.name);
         const up = await upsertGhost(env.PITLANE, pilot, name, res.row, res.data);
@@ -3355,13 +3396,15 @@ export default {
 
       // —— Duels / Challenge ——
       if (req.method === 'POST' && path === '/duel') {
-        const body = await readJson(req);
+        const deniedD = requireAuth(pilot, headers);
+        if (deniedD) return deniedD;
+        const body = await readJson(req, BODY_LIMITS.run);
         const type = body?.type === 'lap' ? 'lap' : body?.type === 'drag' ? 'drag' : null;
         if (!type) return json({ error: 'type must be drag|lap' }, 400, headers);
         const trackId = type === 'lap' ? String(body?.trackId || '').trim().slice(0, 64) : null;
         if (type === 'lap' && !slugOk(trackId)) return json({ error: 'trackId required for lap' }, 400, headers);
         const who = pilotLabel(pilot, body);
-        if (!who.id) return json({ error: 'pilot required' }, 400, headers);
+        if (!who.id) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         if (!who.name) return json({ error: 'createdBy / nick required' }, 400, headers);
         const lim = await limitOr429(env, headers, [['rl:duel:ip:' + ip, 20, 3600], ['rl:duel:p:' + who.id, 20, 86400]]);
         if (lim) return lim;
@@ -3393,6 +3436,7 @@ export default {
           const src = GHOST_ID_RE.test(gid) ? await kvJson(env.PITLANE, 'ghost:' + gid) : null;
           if (!src) return json({ error: 'ghost not found' }, 404, headers);
           if (src.pilotId !== pilot.id) return json({ error: 'not your ghost' }, 403, headers);
+          if (src.srv !== 1) return rejectRun('not_verified', headers);
           if (type === 'lap' && (src.kind !== 'lap' || src.ref !== trackId)) return json({ error: 'ghost track mismatch' }, 400, headers);
           if (type === 'drag' && src.kind !== 'drag') return json({ error: 'ghost discipline mismatch' }, 400, headers);
           const dgid = ghostId();
@@ -3495,15 +3539,15 @@ export default {
         if (d.status === 'expired') return json({ error: 'duel expired', duel: publicDuel(d) }, 410, headers);
         if (d.status === 'ready') return json({ error: 'duel locked', duel: publicDuel(d) }, 409, headers);
 
-        const body = await readJson(req);
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const body = await readJson(req, BODY_LIMITS.run);
         const who = pilotLabel(pilot, body);
-        if (!who.id) return json({ error: 'pilot required' }, 400, headers);
+        if (!who.id) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         const lim = await limitOr429(env, headers, [['rl:drun:ip:' + ip, 30, 3600]]);
         if (lim) return lim;
-        const run = sanitizeDuelRun(body, { id: who.id, name: who.name }, d.type, d.trackId);
-        if (!run) {
-          return json({ error: 'only A/B GPS runs accepted for duel' }, 400, headers);
-        }
+        const run = sanitizeDuelRun(body, { id: who.id, name: who.name }, d.type, d.trackId, d.disc);
+        if (!run || run.code) return rejectRun(run?.code || 'gps_c', headers);
         if (d.type === 'lap' && d.trackId && body?.trackId && String(body.trackId) !== String(d.trackId)) {
           return json({ error: 'track mismatch' }, 400, headers);
         }
@@ -3589,7 +3633,7 @@ export default {
           name: body?.nick || body?.createdBy,
           createdBy: body?.createdBy,
         });
-        if (!who.id) return json({ error: 'pilot required' }, 400, headers);
+        if (!who.id) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         const lim = await limitOr429(env, headers, [['rl:crew:ip:' + ip, 10, 3600], ['rl:crew:p:' + who.id, 10, 86400]]);
         if (lim) return lim;
         const id = crewId();
@@ -3657,7 +3701,7 @@ export default {
         const who = pilotLabel(pilot, body);
         const nick = safeName(body?.nick || who.name);
         const pilotId = who.id;
-        if (!pilotId) return json({ error: 'pilotId required' }, 400, headers);
+        if (!pilotId) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         crew.members = Array.isArray(crew.members) ? crew.members : [];
         const existing = crew.members.find((m) => m.pilotId === pilotId);
         if (existing) {
@@ -3700,7 +3744,7 @@ export default {
         const who = pilotLabel(pilot, body);
         const nick = safeName(body?.nick || who.name);
         const pilotId = who.id;
-        if (!pilotId) return json({ error: 'pilotId required' }, 400, headers);
+        if (!pilotId) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         crew.members = Array.isArray(crew.members) ? crew.members : [];
         const existing = crew.members.find((x) => x.pilotId === pilotId);
         if (existing) {
@@ -3730,7 +3774,7 @@ export default {
       m = path.match(/^\/crew\/([^/]+)\/best$/);
       if (req.method === 'POST' && m) {
         const id = safeDecode(m[1]).slice(0, 64);
-        const body = await readJson(req);
+        const body = await readJson(req, BODY_LIMITS.run);
         const lim = await limitOr429(env, headers, [['rl:cbest:ip:' + ip, 60, 3600]]);
         if (lim) return lim;
         const raw = await env.PITLANE.get('crew:' + id);
@@ -3739,17 +3783,16 @@ export default {
         try { crew = JSON.parse(raw); } catch { return json({ error: 'corrupt' }, 500, headers); }
         const who = pilotLabel(pilot, body);
         const pilotId = who.id;
-        if (!pilotId) return json({ error: 'pilotId required' }, 400, headers);
+        if (!pilotId) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         const member = (crew.members || []).find((x) => x.pilotId === pilotId);
         if (!member) return json({ error: 'not a member' }, 403, headers);
         const trackId = String(body?.trackId || crew.trackId || '').trim();
         if (trackId !== crew.trackId) {
           return json({ error: 'track mismatch', trackId: crew.trackId }, 400, headers);
         }
-        const row = sanitizeLap(body, { id: pilotId, name: member.nick || who.name }, crew.trackId);
-        if (!row || !row.valid || (row.gpsQ !== 'A' && row.gpsQ !== 'B')) {
-          return json({ error: 'A/B lap required' }, 400, headers);
-        }
+        const res = sanitizeLap(body, { id: pilotId, name: member.nick || who.name }, crew.trackId);
+        if (res.code) return rejectRun(res.code, headers);
+        const row = res.row;
         const ms = parseLapMs(row.t);
         if (ms == null) return json({ error: 'bad time' }, 400, headers);
         const mk = monthKey();
@@ -3830,7 +3873,8 @@ export default {
         const picked = pickSessionOfDay(manual);
         const who = pilotLabel(pilot, body);
         const nick = safeName(body?.nick || who.name);
-        const pilotId = who.id && !who.id.startsWith('guest:') ? who.id : '';
+        const pilotId = who.id;
+        if (!pilotId) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         const akey = `session:att:${picked.date}:${picked.trackId}`;
         let attendees = [];
         const araw = await env.PITLANE.get(akey);

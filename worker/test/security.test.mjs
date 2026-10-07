@@ -1,7 +1,10 @@
 // v80 security regression tests: node test/security.test.mjs
 import crypto from 'node:crypto';
-import worker from '../src/index.js';
+import rawWorker from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+const worker = withAutoRefresh(rawWorker);
 import { MemKV } from './kvmock.mjs';
+import { lapBody, dragBody } from './traces.mjs';
 
 const ORIGIN = 'https://dsssssz.github.io';
 const BOT_TOKEN = '123456789:AAFakeTokenForLocalTestsOnly_xyz123';
@@ -53,38 +56,39 @@ r = await call(env, 'POST', '/share', { raw: JSON.stringify({ payload: { car: 'x
 ok(r.status === 413, 'share body > 8 KB → 413');
 r = await call(env, 'POST', '/pulse', { token: A.token, raw: JSON.stringify({ text: 'x', img: 'data:image/jpeg;base64,' + 'A'.repeat(300000) }) });
 ok(r.status === 413, 'pulse body > 256 KB → 413');
-r = await call(env, 'POST', '/duel', { raw: '{bad json', headers: { 'X-Pilot-Id': 'dev_abcdefgh12' } });
+r = await call(env, 'POST', '/duel', { raw: '{bad json', token: A.token });
 ok(r.status === 400, 'bad JSON → 400');
-const lap = (o = {}) => ({ name: 'Алиса', car: 'M2', t: '2:00.100', ms: 120100, gps: true, valid: true, gpsQ: 'A', ...o });
+r = await call(env, 'POST', '/duel', { raw: '{"type":"drag"}', headers: { 'X-Pilot-Id': 'dev_abcdefgh12' } });
+ok(r.status === 401 && r.data.code === 'no_account', 'v104: duel without account → 401 no_account');
+const lap = (o = {}) => ({ name: 'Алиса', car: 'M2', ...lapBody(o.t && /^\d+:\d\d/.test(o.t) ? o.t : '2:00.100'), ...o });
 r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: lap() });
 ok(r.status === 409 && r.data.code === 'NO_CAR', 'v97: lap without active car → 409 NO_CAR');
 r = await call(env, 'PUT', '/me/car', { token: A.token, body: { model: 'M2<svg/onload=1>', tyre: 'PS4S' } });
 ok(r.status === 200 && !/[<>]/.test(r.data.car.model), 'v97: active car set, angle brackets stripped');
 r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: lap() });
-ok(r.status === 200, 'valid lap accepted');
-for (const [label, body] of [
-  ['lap 5 s', lap({ t: '0:05.000', ms: 5000 })],
-  ['seconds ≥ 60', lap({ t: '1:75.000', ms: 135000 })],
-  ['ms disagrees with t', lap({ ms: 60000 })],
-  ['NaN ms', lap({ ms: 'NaN' })],
-  ['negative t', lap({ t: '-1:00.000' })],
-  ['huge lap', lap({ t: '99:59.000', ms: 5999000 })],
+ok(r.status === 200, 'valid lap accepted (server time from raw points)');
+for (const [label, body, code] of [
+  ['no raw trace', { name: 'A', t: '2:00.100', ms: 120100, gps: true, valid: true, gpsQ: 'A' }, 'no_trace'],
+  ['manual finish', lap({ how: 'manual' }), 'manual_finish'],
+  ['GPS C (client says A)', { ...lapBody('2:00.100', {}, { acc: 30 }), gpsQ: 'A', valid: true }, 'gps_c'],
+  ['simulator', lapBody('2:00.100', {}, { src: 'sim' }), 'simulator'],
+  ['broken trace', { t: '2:00.100', trace: { v: 1, src: 'ext', t0: Date.now(), p: [[0, 1, 2]] } }, 'no_trace'],
 ]) {
   r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body });
-  ok(r.status === 400, 'rejects ' + label);
+  ok(r.status === 422 && r.data.code === code, 'rejects ' + label + ' → ' + code);
 }
-r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: lap({ t: '2:01.000', ms: 121000, dist: 'abc', slipAvg: 1e9, avgAcc: -5, hz: 1e6 }) });
-const row = r.data.find((x) => x.t === '2:01.000');
-ok(row && row.dist === undefined && row.slipAvg === undefined && row.avgAcc === undefined && row.hz === undefined, 'NaN / absurd numeric fields dropped');
+r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: { ...lapBody('2:01.000'), t: '0:30.000', ms: 30000, dist: 'abc', slipAvg: 1e9, avgAcc: -5, hz: 1e6, gpsQ: 'A' } });
+const row = r.data.find((x) => Math.abs(x.ms - 121000) < 300);
+ok(row && row.slipAvg === undefined && row.avgAcc >= 0 && row.hz === 10 && row.dist > 5000, 'client time / numbers ignored — server values from points');
 for (const t of [0.4, -3, 0, 1e9, 'x']) {
   r = await call(env, 'POST', '/tops/straight/m2', { token: A.token, body: { name: 'A', car: 'M2', t, gps: true, valid: true, gpsQ: 'A' } });
-  ok(r.status === 400, 'straight t=' + t + ' rejected');
+  ok(r.status === 422, 'straight without trace t=' + t + ' rejected');
 }
-r = await call(env, 'POST', '/tops/straight/' + encodeURIComponent('a b<script>'), { token: A.token, body: { car: 'M2', t: 4, gps: true, gpsQ: 'A' } });
+r = await call(env, 'POST', '/tops/straight/' + encodeURIComponent('a b<script>'), { token: A.token, body: dragBody('0-100', 4) });
 ok(r.status === 400, 'car id must be a slug (no junk KV keys)');
-r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: lap({ t: '2:02.000', ms: 122000, name: '<img src=x onerror=alert(1)>', car: 'M2<svg/onload=1>' }) });
+r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: lap({ name: '<img src=x onerror=alert(1)>', car: 'M2<svg/onload=1>' }) });
 ok(!/[<>]/.test(JSON.stringify(r.data)), 'angle brackets stripped from names / car');
-r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: lap({ t: '2:03.000', ms: 123000, avatar: 'https://evil.example/p.gif' }) });
+r = await call(env, 'POST', '/tops/lap/sochi', { token: A.token, body: lap({ avatar: 'https://evil.example/p.gif' }) });
 ok(!(await kv.get('pilotmeta:' + A.id) || '').includes('evil.example'), 'non-Telegram https avatar refused (IP-tracking pixel)');
 
 console.log('\n[pulse IDOR / size]');
@@ -108,33 +112,33 @@ ok(r.status === 401, 'anonymous like → 401');
 }
 
 console.log('\n[crews / duels IDOR]');
-const G1 = 'dev_guestone1234', G2 = 'dev_guesttwo5678';
-r = await call(env, 'POST', '/crew', { headers: { 'X-Pilot-Id': G1 }, body: { name: 'Neon', trackId: 'sochi', nick: 'Гость1' } });
+const C = await login(env, '79001110003', 'Вика');
+r = await call(env, 'POST', '/crew', { token: A.token, body: { name: 'Neon', trackId: 'sochi', nick: 'Алиса' } });
 const crew = r.data;
 ok(r.status === 200 && crew.inviteCode, 'creator gets invite code');
-ok(!JSON.stringify(crew).includes(G1) && crew.members[0].pilotId === guestPub(G1), 'guest device id is published only as non-reversible g_… hash');
+ok(!JSON.stringify(crew).includes('79001110001'), 'crew output carries opaque id, never the phone');
 r = await call(env, 'GET', '/crew/' + crew.id);
 ok(r.status === 200 && r.data.inviteCode === undefined, 'non-member does not see invite code');
-r = await call(env, 'GET', '/crew/' + crew.id, { headers: { 'X-Pilot-Id': G1 } });
+r = await call(env, 'GET', '/crew/' + crew.id, { token: A.token });
 ok(r.data.inviteCode === crew.inviteCode, 'member sees invite code');
-r = await call(env, 'GET', '/crews?mine=' + G1, { headers: { 'X-Pilot-Id': G2 } });
+r = await call(env, 'GET', '/crews?mine=' + A.id, { token: C.token });
 ok(Array.isArray(r.data) && r.data.length === 0, 'cannot list another pilot\'s crews');
-r = await call(env, 'GET', '/crews?mine=' + G1, { headers: { 'X-Pilot-Id': G1 } });
+r = await call(env, 'GET', '/crews?mine=' + A.id, { token: A.token });
 ok(r.data.length === 1 && r.data[0].inviteCode === crew.inviteCode, 'own crews listed with code');
 r = await call(env, 'POST', '/crew', { body: { name: 'NoId', trackId: 'sochi', nick: 'x' } });
-ok(r.status === 400, 'guest without device id cannot create crew');
-r = await call(env, 'POST', '/crew', { headers: { 'X-Pilot-Id': 'dev_anon' }, body: { name: 'Anon', trackId: 'sochi', nick: 'x' } });
-ok(r.status === 400, 'shared dev_anon id refused');
-r = await call(env, 'POST', '/duel', { headers: { 'X-Pilot-Id': G1 }, body: { type: 'drag', createdBy: 'Гость1' } });
+ok(r.status === 401 && r.data.code === 'no_account', 'v104: no account → cannot create crew (401 no_account)');
+r = await call(env, 'POST', '/crew', { headers: { 'X-Pilot-Id': 'dev_guestone1234' }, body: { name: 'Anon', trackId: 'sochi', nick: 'x' } });
+ok(r.status === 401, 'v104: guest device id no longer acts');
+r = await call(env, 'POST', '/duel', { token: A.token, body: { type: 'drag', createdBy: 'Алиса' } });
 const duel = r.data;
-ok(duel.createdBy.id === guestPub(G1) && !JSON.stringify(duel).includes(G1), 'duel creator id hashed in public output');
-r = await call(env, 'POST', '/duel/' + duel.id + '/run', { headers: { 'X-Pilot-Id': guestPub(G1) }, body: { t: 4.2, gps: true, valid: true, gpsQ: 'A', car: 'M2' } });
-ok(r.status === 400, 'published g_ id cannot be replayed as X-Pilot-Id');
-r = await call(env, 'GET', '/duels?mine=' + G1, { headers: { 'X-Pilot-Id': G2 } });
+ok(duel.createdBy && !JSON.stringify(duel).includes('79001110001'), 'duel output carries opaque id, never the phone');
+r = await call(env, 'POST', '/duel/' + duel.id + '/run', { headers: { 'X-Pilot-Id': duel.createdBy.id }, body: dragBody('0-100', 4.2, { car: 'M2' }) });
+ok(r.status === 401, 'published id cannot be replayed as X-Pilot-Id');
+r = await call(env, 'GET', '/duels?mine=' + A.id, { token: C.token });
 ok(Array.isArray(r.data) && r.data.length === 0, 'cannot list another pilot\'s duels');
-r = await call(env, 'GET', '/duels?mine=' + G1, { headers: { 'X-Pilot-Id': G1 } });
+r = await call(env, 'GET', '/duels?mine=' + A.id, { token: A.token });
 ok(r.data.length === 1, 'own duels listed');
-r = await call(env, 'POST', '/crew', { headers: { 'X-Pilot-Id': G2 }, body: { name: 'Bad', trackId: '../../x' } });
+r = await call(env, 'POST', '/crew', { token: C.token, body: { name: 'Bad', trackId: '../../x' } });
 ok(r.status === 400, 'crew trackId must be a slug');
 
 console.log('\n[share whitelist]');
@@ -166,13 +170,13 @@ console.log('\n[rate limits]');
   r = await call(renv, 'GET', '/health');
   ok(r.status === 200, 'reads unaffected by write limiter');
   let last;
-  for (let i = 0; i < 12; i++) last = await call(env, 'POST', '/session/today/checkin', { ip: '10.7.7.7', headers: { 'X-Pilot-Id': 'dev_chk' + i + 'aaaaaaa' }, body: { nick: 'n' + i } });
+  for (let i = 0; i < 12; i++) last = await call(env, 'POST', '/session/today/checkin', { ip: '10.7.7.7', token: A.token, body: { nick: 'n' + i } });
   ok(last.status === 429, 'check-in limited per IP');
   const before = kv.puts;
-  await call(env, 'POST', '/session/today/checkin', { ip: '10.7.7.7', body: { nick: 'again' } });
+  await call(env, 'POST', '/session/today/checkin', { ip: '10.7.7.7', token: A.token, body: { nick: 'again' } });
   ok(kv.puts === before, 'over-limit hits do not write to KV');
   let codes = [];
-  for (let i = 0; i < 22; i++) codes.push((await call(env, 'POST', '/crew/join', { ip: '10.8.8.8', headers: { 'X-Pilot-Id': G2 }, body: { code: 'ZZZZ' + String(i).padStart(2, '0') } })).status);
+  for (let i = 0; i < 22; i++) codes.push((await call(env, 'POST', '/crew/join', { ip: '10.8.8.8', token: C.token, body: { code: 'ZZZZ' + String(i).padStart(2, '0') } })).status);
   ok(codes.slice(-1)[0] === 429, 'invite-code guessing limited');
 }
 

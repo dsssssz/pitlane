@@ -1,5 +1,7 @@
 // v81 Telegram bot tests: node test/tg.test.mjs
-import worker, { tgRoute, tgWebhookPath, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION } from '../src/index.js';
+import rawWorker, { tgRoute, tgWebhookPath, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION } from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+const worker = withAutoRefresh(rawWorker);
 import { MemKV } from './kvmock.mjs';
 
 let fails = 0;

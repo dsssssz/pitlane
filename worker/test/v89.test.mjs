@@ -1,7 +1,10 @@
 // v89: ghosts, async ghost duels, profile banners — node test/v89.test.mjs
-import worker from '../src/index.js';
+import rawWorker from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+const worker = withAutoRefresh(rawWorker);
 import { MemKV } from './kvmock.mjs';
 import { encodeGhost } from '../../ghost-codec.js';
+import { lapBody as tLap, dragBody as tDrag } from './traces.mjs';
 
 const ORIGIN = 'https://dsssssz.github.io';
 let fails = 0;
@@ -27,6 +30,11 @@ async function login(phone, nick) {
 const A = await login('79001890001', 'Мага');
 const B = await login('79001890002', 'Артём');
 const C = await login('79001890003', 'Лиза');
+// v104: призрак принимается только к своему серверно зачтённому результату → кладём такие строки в MemKV
+const vrow = (pid, o) => ({ name: 'x', gps: true, valid: true, srv: 1, gpsQ: 'A', pilotId: pid, at: Date.now(), ...o });
+await kv.put('lap:sochi', JSON.stringify([121480, 125000, 119500].map((ms) => vrow(A.id, { ms, t: 'x' }))
+  .concat([vrow(B.id, { ms: 118920 }), vrow(C.id, { ms: 130000 })])));
+await kv.put('drag:0-100', JSON.stringify([vrow(A.id, { t: 4.05, disc: '0-100' })]));
 
 /** Synthetic lap trace around a circle (~3.2 km), 10 Hz, realistic speeds. */
 function lapTrace(totalMs, { vScale = 1 } = {}) {
@@ -53,10 +61,8 @@ const lapBody = (ms, o = {}) => ({ kind: 'lap', ref: 'sochi', tMs: ms, gpsQ: 'A'
 console.log('\n[POST /ghost: auth, validation]');
 let r = await call('POST', '/ghost', { body: lapBody(120000) });
 ok(r.status === 401, 'anonymous → 401');
-r = await call('POST', '/ghost', { token: A.token, body: lapBody(120000, { gpsQ: 'C' }) });
-ok(r.status === 400 && /A\/B/.test(r.data.error), 'GPS C → 400');
-r = await call('POST', '/ghost', { token: A.token, body: lapBody(120000, { valid: false }) });
-ok(r.status === 400, 'valid:false → 400');
+r = await call('POST', '/ghost', { token: A.token, body: lapBody(145000, { gpsQ: 'A', valid: true }) });
+ok(r.status === 422 && r.data.code === 'not_verified', 'v104: ghost without a server-verified result → 422 not_verified');
 r = await call('POST', '/ghost', { token: A.token, body: lapBody(120000, { ref: '../etc' }) });
 ok(r.status === 400, 'bad track slug → 400');
 r = await call('POST', '/ghost', { token: A.token, body: { ...lapBody(120000), kind: 'drag', ref: '100-200' } });
@@ -142,9 +148,9 @@ ok(r.status === 200 && r.data.duel === gd.id && r.data.ghost.p, 'duel ghost read
 await call('POST', '/ghost', { token: A.token, body: lapBody(117000) });
 r = await call('GET', '/ghost/' + gd.ghostId);
 ok(r.status === 200 && r.data.tMs === 119500, 'new best does not change a running duel ghost');
-r = await call('POST', `/duel/${gd.id}/run`, { token: A.token, body: { t: '1:55.000', gps: true, valid: true, gpsQ: 'A', trackId: 'sochi' } });
+r = await call('POST', `/duel/${gd.id}/run`, { token: A.token, body: tLap('1:55.000', { trackId: 'sochi' }) });
 ok(r.status === 409, 'creator cannot re-submit (target locked)');
-r = await call('POST', `/duel/${gd.id}/run`, { token: C.token, body: { t: '1:59.080', ms: 119080, gps: true, valid: true, gpsQ: 'B', trackId: 'sochi', car: 'VW Golf R' } });
+r = await call('POST', `/duel/${gd.id}/run`, { token: C.token, body: tLap('1:59.080', { trackId: 'sochi', car: 'VW Golf R' }) });
 ok(r.status === 200 && r.data.status === 'ready' && r.data.winner === 'challenger', 'challenger beat ghost by 0.42 → ready, winner challenger');
 r = await call('GET', '/duels?mine=' + A.id, { token: A.token });
 ok(r.data.some((d) => d.id === gd.id && d.status === 'ready' && d.winner === 'challenger'), 'result visible to creator');
@@ -153,8 +159,8 @@ ok(r.data.some((d) => d.id === gd.id), 'result visible to challenger');
 r = await call('POST', '/duel', { token: A.token, body: { type: 'drag', ghostId: dragA, days: 1 } });
 ok(r.status === 200 && r.data.disc === '0-100' && r.data.creatorRun.t === 4.05, 'drag ghost duel (0-100, 1 day)');
 const dd = r.data;
-r = await call('POST', `/duel/${dd.id}/run`, { token: B.token, body: { t: 4.4, gps: true, valid: true, gpsQ: 'C' } });
-ok(r.status === 400, 'GPS C run not accepted in ghost duel');
+r = await call('POST', `/duel/${dd.id}/run`, { token: B.token, body: tDrag('0-100', 4.4, { gpsQ: 'A', valid: true }, { acc: 30 }) });
+ok(r.status === 422 && r.data.code === 'gps_c', 'GPS C run not accepted in ghost duel');
 r = await call('POST', '/duel', { token: B.token, body: { type: 'drag', name: 'Артём' } });
 ok(r.status === 200 && r.data.days === 7 && r.data.ghostId === null && r.data.creatorRun === null, 'legacy duel unchanged (7 days, no ghost)');
 

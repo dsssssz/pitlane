@@ -22,11 +22,54 @@ export function getSessionToken() {
   }
 }
 
-export function setSessionToken(token) {
+/* v104: короткий access-токен + одноразовый refresh (httpOnly-cookie между github.io и workers.dev
+ * невозможна: кросс-сайт, Safari/Telegram режут сторонние cookie). */
+const REFRESH_KEY = 'pitlane-refresh-v1';
+export function setSessionToken(token, refreshToken) {
   try {
     if (token) localStorage.setItem(TOKEN_KEY, String(token));
     else localStorage.removeItem(TOKEN_KEY);
+    if (refreshToken) localStorage.setItem(REFRESH_KEY, String(refreshToken));
+    else if (!token || refreshToken === null) localStorage.removeItem(REFRESH_KEY);
   } catch (_) {}
+}
+export function getRefreshToken() {
+  try { return localStorage.getItem(REFRESH_KEY) || ''; } catch (_) { return ''; }
+}
+
+let _refreshing = null;
+/** Обмен refresh → новая пара. true — сессия продлена; false — сессии больше нет (локальные данные целы). */
+async function refreshSession() {
+  const rt = getRefreshToken();
+  const base = apiBase();
+  if (!rt || !base) return false;
+  if (!_refreshing) {
+    _refreshing = (async () => {
+      try {
+        const res = await fetch(base + '/auth/refresh', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken: rt }) });
+        const d = await res.json().catch(() => ({}));
+        if (res.ok && d.token) { setSessionToken(d.token, d.refreshToken); return true; }
+        if (res.status === 401) {
+          setSessionToken('', null);
+          try { window.dispatchEvent(new CustomEvent('pitlane:session-lost')); } catch (_) {}
+        }
+        return false;
+      } catch (_) { return false; } finally { setTimeout(() => { _refreshing = null; }, 0); }
+    })();
+  }
+  return _refreshing;
+}
+
+/** fetch с Bearer; на 401 session_expired — один раз обновляем сессию и повторяем. */
+async function authedFetch(url, opts) {
+  let res = await fetch(url, { ...opts, headers: { ...pilotHeaders(), ...(opts.headers || {}) } });
+  if (res.status === 401 && getRefreshToken()) {
+    const d = await res.clone().json().catch(() => null);
+    if (d && d.code === 'session_expired' && await refreshSession()) {
+      res = await fetch(url, { ...opts, headers: { ...pilotHeaders(), ...(opts.headers || {}) } });
+    }
+  }
+  return res;
 }
 
 function devicePilotId() {
@@ -90,14 +133,9 @@ export function actingPilotId() {
 function pilotHeaders() {
   const h = { 'Content-Type': 'application/json' };
   try {
+    // v104: автор — только сессия (Bearer). Гостевой X-Pilot-Id больше не отправляется.
     const token = getSessionToken();
     if (token && !token.startsWith('local-')) h['Authorization'] = 'Bearer ' + token;
-    const prof = JSON.parse(localStorage.getItem('pitlane-prof-v1') || '{}');
-    // Guest id only; the session (Bearer) identifies logged-in pilots. Never send the phone.
-    if (!h['Authorization']) h['X-Pilot-Id'] = devicePilotId();
-    const nick = String(prof.nick || '').slice(0, 48);
-    // Header values must be ISO-8859-1 → URI-encode (Cyrillic nicks used to make fetch() throw).
-    h['X-Pilot-Name'] = encodeURIComponent(nick && !/(?:\+?\d[\s\-()]?){10,}/.test(nick) ? nick : 'гость');
   } catch (_) {}
   return h;
 }
@@ -108,11 +146,7 @@ async function remote(path, opts = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), 8000);
   try {
-    const res = await fetch(base + path, {
-      ...opts,
-      headers: { ...pilotHeaders(), ...(opts.headers || {}) },
-      signal: ctrl.signal,
-    });
+    const res = await authedFetch(base + path, { ...opts, signal: ctrl.signal });
     if (!res.ok) {
       let errBody = null;
       try { errBody = await res.json(); } catch (_) {}
@@ -138,11 +172,7 @@ async function remoteKeep(path, opts = {}) {
   const { timeoutMs, ...fetchOpts } = opts;
   const t = setTimeout(() => ctrl.abort(), timeoutMs || 8000);
   try {
-    const res = await fetch(base + path, {
-      ...fetchOpts,
-      headers: { ...pilotHeaders(), ...(opts.headers || {}) },
-      signal: ctrl.signal,
-    });
+    const res = await authedFetch(base + path, { ...fetchOpts, headers: opts.headers || {}, signal: ctrl.signal });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       return { ok: false, status: res.status, error: data?.error || ('HTTP ' + res.status), ...data };
@@ -223,7 +253,7 @@ export const api = {
   async listStraight(carId) {
     const remoteRows = await remote('/tops/straight/' + encodeURIComponent(carId));
     if (Array.isArray(remoteRows)) return remoteRows.filter(isValidGpsRow).slice().sort((a, b) => a.t - b.t);
-    return localListStraight(carId);
+    return []; // v104: без сервера топа нет (локальные строки не выдаём за топ)
   },
   async listLap(trackId, weather) {
     let path = '/tops/lap/' + encodeURIComponent(trackId);
@@ -238,48 +268,20 @@ export const api = {
       }
       return rows;
     }
-    let rows = localListLap(trackId);
-    if (weather === 'dry' || weather === 'damp' || weather === 'wet') {
-      rows = rows.filter((r) => r && r.weather === weather);
-    }
-    return rows;
+    return []; // v104: без сервера топа нет
   },
+  /**
+   * v104: в топ пишет только сервер — время, A/B и флаги он пересчитывает по сырому треку (row.trace).
+   * Ответ: массив строк топа (принято) | { ok:false, code } (отказ с кодом причины). Локального «топа» нет.
+   */
   async addStraight(carId, row) {
-    // Do NOT force valid:true — client/server compute honesty
-    const body = {
-      ...row,
-      gps: true,
-      valid: row.valid === true,
-      flags: Array.isArray(row.flags) ? row.flags : undefined,
-    };
-    const remoteRows = await remote('/tops/straight/' + encodeURIComponent(carId), {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    if (Array.isArray(remoteRows)) return remoteRows;
-    const d = db();
-    d.topsStraight[carId] = d.topsStraight[carId] || [];
-    d.topsStraight[carId].push(body);
-    saveDb(d);
-    return localListStraight(carId);
+    if (!apiBase()) return { ok: false, code: 'offline' };
+    const r = await remoteKeep('/tops/straight/' + encodeURIComponent(carId), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
+    return r;
   },
   async addLap(trackId, row) {
-    const body = {
-      ...row,
-      gps: true,
-      valid: row.valid === true,
-      flags: Array.isArray(row.flags) ? row.flags : undefined,
-    };
-    const remoteRows = await remote('/tops/lap/' + encodeURIComponent(trackId), {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
-    if (Array.isArray(remoteRows)) return remoteRows;
-    const d = db();
-    d.topsLap[trackId] = d.topsLap[trackId] || [];
-    d.topsLap[trackId].push(body);
-    saveDb(d);
-    return localListLap(trackId);
+    if (!apiBase()) return { ok: false, code: 'offline' };
+    return remoteKeep('/tops/lap/' + encodeURIComponent(trackId), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
   },
   async listPulse() {
     const remoteRows = await remote('/pulse');
@@ -314,7 +316,7 @@ export const api = {
   },
   async addDrag(disc, row) {
     if (!apiBase()) return { ok: false, error: 'offline' };
-    return remoteKeep('/tops/drag/' + encodeURIComponent(disc), { method: 'POST', body: JSON.stringify({ ...row, gps: true }) });
+    return remoteKeep('/tops/drag/' + encodeURIComponent(disc), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
   },
   /** v84: lap board with avatars (pilotmeta) for the compact tops list. */
   async listLapBoard(trackId, weather) {
@@ -583,10 +585,8 @@ export const api = {
     if (remoteRes && (Array.isArray(remoteRes.rows) || Array.isArray(remoteRes.sectors))) {
       return remoteRes;
     }
-    // Offline / local: derive from local lap tops that carry sectors
-    const laps = localListLap(trackId);
-    const board = localBuildSectorBoard(laps, sector == null || sector === 'all' ? null : Number(sector) | 0);
-    return board;
+    // v104: офлайн — пустые секторы (никаких локальных «топов»)
+    return localBuildSectorBoard([], sector == null || sector === 'all' ? null : Number(sector) | 0);
   },
 
   /** GET /auth/config → { sms, telegram, telegramBotId } or null (offline / no Worker). */
@@ -623,7 +623,7 @@ export const api = {
   async logout() {
     const token = getSessionToken();
     if (!token || token.startsWith('local-')) return null;
-    return await remoteKeep('/auth/logout', { method: 'POST', body: '{}' });
+    return await remoteKeep('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken: getRefreshToken() || undefined }) });
   },
 
   /**
