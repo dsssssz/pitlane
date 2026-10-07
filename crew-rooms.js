@@ -65,11 +65,37 @@ function cacheCar(car) {
 }
 export async function loadMyCar(force) {
   if (st.carLoaded && !force) return st.car;
-  if (!loggedIn()) { try { st.car = JSON.parse(localStorage.getItem(CAR_KEY) || 'null'); } catch (_) { st.car = null; } try { refreshMyCarBar(); } catch (_) {} return st.car; }
+  const fromLs = () => {
+    try {
+      const c = JSON.parse(localStorage.getItem(CAR_KEY) || 'null');
+      return c && c.model && c.tyre ? c : null;
+    } catch (_) { return null; }
+  };
+  if (!loggedIn()) {
+    cacheCar(fromLs());
+    return st.car;
+  }
   const r = await api.getMyCar();
-  if (r && r.ok !== false) cacheCar(r.car || null);
-  else { try { st.car = JSON.parse(localStorage.getItem(CAR_KEY) || 'null'); } catch (_) {} }
+  if (r && r.ok !== false) {
+    if (r.car && r.car.model && r.car.tyre) cacheCar(r.car);
+    else {
+      // server empty → keep a locally chosen car and push it up (covers TMA login after offline pick)
+      const local = fromLs();
+      if (local) {
+        const up = await api.putMyCar({ model: local.model, tyre: local.tyre, carId: local.carId || undefined });
+        cacheCar(up && up.ok !== false && up.car ? up.car : local);
+      } else cacheCar(null);
+    }
+  } else {
+    cacheCar(fromLs());
+  }
   return st.car;
+}
+
+/** Call after Telegram / TMA login so a car picked offline lands on the server and the bar refreshes. */
+export async function syncMyCarAfterAuth() {
+  st.carLoaded = false;
+  return loadMyCar(true);
 }
 
 /** Short tyre label for chips («Michelin Pilot Sport Cup 2» → «PS Cup 2 · Michelin»). */
@@ -174,19 +200,36 @@ export function openMyCarSheet(opts = {}) {
   const save = btn('go-btn race-cta mycar-save', 'Это моя машина', async () => {
     const model = pick.model.trim();
     const t = pick.tyre.trim();
-    if (!model) { msg.textContent = 'Выбери машину'; return; }
-    if (!t) { msg.textContent = 'Выбери резину — топ сравнивает только равных'; return; }
-    if (!loggedIn()) { msg.textContent = 'Войди через Telegram в «Профиле» — машина хранится в аккаунте'; return; }
+    if (!model) { msg.textContent = 'Выбери машину'; msg.classList.add('mycar-msg-err'); return; }
+    if (!t) { msg.textContent = 'Выбери резину — топ сравнивает только равных'; msg.classList.add('mycar-msg-err'); return; }
+    msg.classList.remove('mycar-msg-err');
+    const local = { model, tyre: t, carId: pick.carId || undefined, at: Date.now() };
     save.disabled = true;
-    const r = await api.putMyCar({ model, tyre: t, carId: pick.carId || undefined });
+    let car = local;
+    if (loggedIn()) {
+      const r = await api.putMyCar({ model, tyre: t, carId: pick.carId || undefined });
+      if (!r || r.ok === false) {
+        save.disabled = false;
+        msg.textContent = 'Не сохранилось: ' + (r?.error || 'нет сети');
+        msg.classList.add('mycar-msg-err');
+        try { D.flash?.('Не сохранилось — проверь сеть'); } catch (_) {}
+        return;
+      }
+      car = r.car || local;
+    } else {
+      // v103: keep the choice locally so the bar / lap gate work even before Telegram login;
+      // tops & rooms still require an account (server). Sync to server on the next login.
+      msg.textContent = 'Сохранено на этом устройстве. Для топа и команд войди через Telegram в Профиле.';
+    }
     save.disabled = false;
-    if (!r || r.ok === false) { msg.textContent = 'Не сохранилось: ' + (r?.error || 'нет сети'); return; }
-    cacheCar(r.car);
-    msg.textContent = 'Готово: ' + r.car.model + ' · ' + r.car.tyre;
+    cacheCar(car);
+    if (loggedIn()) msg.textContent = 'Готово: ' + car.model + ' · ' + car.tyre;
+    msg.classList.remove('mycar-msg-err');
     D.hap?.(12);
     try { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success'); } catch (_) {}
+    try { window.__plTips?.dismiss?.(); } catch (_) {}
     const p = st.pending; st.pending = null;
-    if (p) { closeSheet('myCarSheet'); try { await p(r.car); } catch (_) {} } // continue the run / lap right away
+    if (p) { closeSheet('myCarSheet'); try { await p(car); } catch (_) {} }
     else setTimeout(() => closeSheet('myCarSheet'), 450);
   });
   save.id = 'myCarSave';
@@ -618,6 +661,6 @@ export function initCrewRooms(deps) {
   }
   setTimeout(() => { void loadMyCar(); }, 1500);
   try {
-    window.__plRooms = { open: openRoomSheet, openCar: openMyCarSheet, showRoom: (id, tab) => { openSheet('roomSheet'); return showRoom(id, tab); }, state: () => ({ car: st.car, room: st.room?.id || null, active: activeRoomId() }) };
+    window.__plRooms = { open: openRoomSheet, openCar: openMyCarSheet, showRoom: (id, tab) => { openSheet('roomSheet'); return showRoom(id, tab); }, state: () => ({ car: st.car, room: st.room?.id || null, active: activeRoomId() }), syncCar: () => syncMyCarAfterAuth() };
   } catch (_) {}
 }

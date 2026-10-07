@@ -145,7 +145,6 @@ function onDocClick(e) {
   // the real element handles the tap (navigation etc.); the coach-mark follows
   const step = cur.steps[cur.i];
   const how = step.tap || 'end';
-  haptic('select');
   if (how === 'stay') { setTimeout(() => place(), 30); return; }
   setTimeout(() => { if (how === 'next') next(); else finish(true); }, 60);
 }
@@ -169,7 +168,6 @@ function run(id, steps, opts = {}) {
   window.addEventListener('resize', schedulePlace);
   window.visualViewport?.addEventListener('resize', schedulePlace);
   document.addEventListener('scroll', schedulePlace, { capture: true, passive: true });
-  haptic('light');
   // follow the element while it moves (smooth scroll, hero animations, sheet slide-in) — cheap rect compare per frame
   let last = '';
   const follow = () => {
@@ -313,13 +311,20 @@ function place() {
 
 function next() {
   if (!cur) return;
-  haptic('select');
-  if (cur.i >= cur.steps.length - 1) { finish(true); return; }
+  // v103: last step of «Это моя машина» — tip «Готово» must actually save, not only dismiss the coach-mark
+  const last = cur.i >= cur.steps.length - 1;
+  if (last && (cur.id === 'mycar' || cur.id === 'mycarHow')) {
+    const save = document.getElementById('myCarSave') || cur.target;
+    if (save && (save.id === 'myCarSave' || cur.target?.id === 'myCarSave')) {
+      try { save.click(); } catch (_) {}
+      return;
+    }
+  }
+  if (last) { finish(true); return; }
   go(cur.i + 1, 1);
 }
 function back() {
   if (!cur || cur.i <= 0) return;
-  haptic('select');
   go(cur.i - 1, -1);
 }
 function finish(markSeen, silent) {
@@ -336,7 +341,7 @@ function finish(markSeen, silent) {
     if (c.id === 'tour') { state.tour = true; state.seen.home = 1; } else state.seen[c.id] = 1;
     if (c.id === 'mycarHow') state.seen.mycar = 1;
     save();
-    if (!silent && c.i >= c.steps.length - 1) haptic('done');
+    // v103: no haptic on tip navigation / finish (Maga: buzz on «Далее»)
   }
   const r = c.root;
   r.classList.remove('on');
@@ -379,6 +384,8 @@ export function showMyCarHowTo() {
   return run('mycarHow', SCENARIOS.mycarHow);
 }
 export function tipsActive() { return !!cur; }
+/** Close an open coach-mark without re-triggering section tips (used after «Это моя машина» saves). */
+export function dismissTips() { if (cur) finish(true, true); }
 
 /** Profile → «Показать подсказки снова». */
 export function resetTips() {
@@ -396,7 +403,7 @@ export function initTips(deps = {}) {
       tour: startTour,
       show: (id) => { if (cur) finish(false, true); return run(id, SCENARIOS[id]); },
       howCar: showMyCarHowTo,
-      next, back, skip: () => finish(true),
+      next, back, skip: () => finish(true), dismiss: () => { if (cur) finish(true, true); },
       onView: tipsOnView,
       open: () => (cur ? { scenario: cur.id, step: cur.i + 1, total: cur.steps.length, target: cur.target?.id || cur.target?.className || null, side: cur.bubble.dataset.side } : null),
       geom: () => {

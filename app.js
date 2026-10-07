@@ -15,7 +15,7 @@ import { createExtGps } from './ext-gps.js';
 import { TRACK_OUTLINES } from './geo/outlines.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
-import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun } from './crew-rooms.js';
+import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 import { initTips, tipsOnView, resetTips, showMyCarHowTo } from './tips.js';
 import { createChaseTracker } from './chase-match.js';
@@ -5522,6 +5522,7 @@ function completeLogin({ pilotId, localKey, token, user, nick, provider, phone, 
   }
   saveAuth();
   void mergeGarageOnLogin();
+  try { void syncMyCarAfterAuth(); } catch (_) {}
   return u;
 }
 
@@ -5829,7 +5830,7 @@ async function tmaAutoLogin(manual) {
   const tok = getSessionToken();
   const realSession = !!(u && tok && !String(tok).startsWith('local-'));
   // Keep an existing session unless it belongs to a different Telegram user (account switch in Telegram).
-  if (!manual && realSession && (!u.tgUserId || u.tgUserId === tgId)) { _tmaLogin = 'ok'; return; }
+  if (!manual && realSession && (!u.tgUserId || u.tgUserId === tgId)) { _tmaLogin = 'ok'; try { void syncMyCarAfterAuth(); } catch (_) {} return; }
   _tmaLogin = 'pending';
   setAuthTopMsg('Входим через Telegram…');
   const res = await api.tmaLogin(tmaInitData);
@@ -5848,6 +5849,7 @@ async function tmaAutoLogin(manual) {
     setAuthTopMsg('');
     refreshAccount();
     try { applyCarUI(); } catch (_) {}
+    try { void syncMyCarAfterAuth(); } catch (_) {}
     return;
   }
   _tmaLogin = res?.status === 503 ? 'unconfigured' : 'failed';
@@ -10682,7 +10684,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v102';
+const APP_VERSION = 'v103';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

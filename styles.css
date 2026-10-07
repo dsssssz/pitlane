@@ -5202,6 +5202,7 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 .mycar-select, .mycar-custom, .mycar-tyre, .room-input, .room-select { width: 100%; min-height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,.14); background: #121212; color: #f2f2f2; font: 500 14px/1.2 Manrope, sans-serif; box-sizing: border-box; }
 .mycar-custom { margin-top: 8px; }
 .mycar-msg, .room-msg { min-height: 1.2em; margin: 8px 0 0; color: #ffd27a; }
+.mycar-msg.mycar-msg-err { color: #ff8a7a; font-weight: 600; }
 .room-empty { margin: 12px 0; color: #a3a3a3; font: 500 13px/1.45 Manrope, sans-serif; text-align: center; }
 .room-car { display: flex; align-items: center; gap: 8px; margin: 0 0 12px; padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: var(--h-card, #141414); }
 .room-car-k { font: 600 9.5px/1 Manrope, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #696969; flex: none; }
