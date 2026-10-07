@@ -32,19 +32,19 @@ export function fmtGap(ms) {
 /* ——— /start ——— */
 export const START_CAPTION =
   '<b>PITLANE</b>\n' +
-  'Телеметрия трека — прямо в Telegram.\n' +
+  'Замеры, круги, топы и дуэли — в приложении. Бот только помогает:\n' +
   RULE + '\n' +
-  '<b>Круг.</b> Время и сектора по GPS, с честной оценкой точности.\n' +
-  '<b>Команда.</b> Дуэли одного трека и топ для своих.\n' +
-  '<b>Гараж.</b> Твоя машина и резина — в каждом круге.\n' +
+  '<b>Вход.</b> Открой PITLANE отсюда — Telegram подтвердит аккаунт сам, без SMS и паролей.\n' +
+  '<b>Ссылки.</b> Дуэли, команды и результаты друзей открываются прямо отсюда.\n' +
+  '<b>«Тебя вызвали».</b> Сообщу, когда соперник проехал свою попытку.\n' +
+  '<b>Карточки.</b> Поделиться временем — кнопкой в приложении.\n' +
   RULE + '\n' +
   'Только закрытые площадки и треки.';
 
 export function startKeyboard(param) {
   return [
-    [webAppBtn(param ? 'Открыть приглашение' : 'Открыть PITLANE', param ? { startapp: param } : {})],
-    [webAppBtn('Круг', { view: 'lap', skipIntro: '1' }), webAppBtn('Команда', { screen: 'teams' })],
-    [webAppBtn('Гараж', { view: 'garage', skipIntro: '1' }), webAppBtn('Топ', { view: 'tops', skipIntro: '1' })],
+    [webAppBtn(param ? 'Открыть ссылку' : 'Открыть PITLANE', param ? { startapp: param } : {})],
+    [webAppBtn('Войти', { view: 'account', skipIntro: '1' })],
   ];
 }
 
@@ -58,7 +58,7 @@ export function startPayloadLine(param, info) {
       'Закрытая часть: дуэли кругов одного трека и топ по связке модель + резина. Открой приглашение — и ты внутри.';
   }
   if (kind === 'team') return '<b>Команда' + (name ? ' ' + name : '') + '</b>\nПрофиль, состав и лента новостей. Попроситься можно со страницы команды.';
-  if (kind === 'duel') return '<b>Тебе бросили вызов</b>\nОдин на один, лучший GPS-заезд. Открой дуэль и выбери время.';
+  if (kind === 'duel') return '<b>Тебя вызвали</b>\nОдин на один, 7 дней. В зачёт — проверенный сервером заезд GPS A/B; спринты — только с внешним приёмником. Открой дуэль.';
   if (kind === 'crew') return '<b>Приглашение в экипаж</b>\nОткрой его кнопкой ниже.';
   if (kind === 's' || kind === 'lap' || kind === 'run') return '<b>С тобой поделились результатом</b>\nОткрой — там время, сектора и точность GPS.';
   if (kind === 'track') return '<b>Трасса</b>\nСхема, рекорды и старт круга.';
@@ -66,73 +66,50 @@ export function startPayloadLine(param, info) {
   return '';
 }
 
-/* ——— команды меню ——— */
+/* ——— команды (v109: бот = вход, ссылки, «тебя вызвали», карточки; остальное — в приложении) ——— */
 export const BOT_TEXT = {
-  garage:
-    '<b>Гараж</b>\n' +
-    'Активная машина и резина. К ним навсегда привязывается каждый сохранённый круг.\n' +
-    RULE + '\n' +
-    'Без активной машины круг в зачёт не идёт.',
-  team:
-    '<b>Команда</b>\n' +
-    'Публичная страница с лентой — и закрытая часть для своих: дуэли одного трека, топ по модели и резине.\n' +
-    RULE + '\n' +
-    'Бесплатно: 3 сессии и 1 трек. Дальше команда оплачивает сезон — одна оплата на всех.',
-  duel:
-    '<b>Дуэль</b>\n' +
-    'Один на один. Лучший GPS-заезд за 7 дней, в зачёте только точность A/B.\n' +
-    RULE + '\n' +
-    'Создай вызов и отправь ссылку сопернику.',
-  tops:
-    '<b>Топ</b>\n' +
-    'Лучшие круги и сектора автодромов России.\n' +
-    RULE + '\n' +
-    'Только честные заезды: GPS класса A/B, старт и финиш по створу.',
-  feedback:
-    '<b>Обратная связь</b>\n' +
-    'Ошибка или идея — напиши прямо в приложении. Скриншот приложится сам, если захочешь.',
+  login:
+    '<b>Вход</b>\n' +
+    'Открой PITLANE кнопкой ниже — Telegram подтвердит аккаунт сам. После входа результаты идут в топ (после проверки сервером), а дуэли и команды привязываются к тебе.',
   help:
-    '<b>Как это работает</b>\n' +
+    '<b>Что умеет бот</b>\n' +
     RULE + '\n' +
-    '<b>1.</b> Гараж → выбери машину и резину, отметь «Это моя машина».\n' +
-    '<b>2.</b> Круг → выбери автодром. Старт и финиш ловятся по GPS сами.\n' +
-    '<b>3.</b> Команда → позови своих по ссылке: дуэли и топ внутри.\n' +
-    '<b>4.</b> Войди через Telegram в профиле — результаты сохранятся.\n' +
+    '<b>Вход</b> — /login или кнопка «Открыть PITLANE».\n' +
+    '<b>Ссылки</b> — приглашения в дуэль и команду, карточки результатов открываются отсюда.\n' +
+    '<b>«Тебя вызвали»</b> — сообщение, когда соперник проехал свою попытку в дуэли.\n' +
+    '<b>Карточки</b> — «Поделиться» на экране результата.\n' +
     RULE + '\n' +
-    '/garage · /team · /duel · /tops\n' +
-    'Только закрытые площадки и треки.',
-  other: 'Такой команды нет. Всё нужное — в меню слева или в /help.',
+    'Замеры, круги, гараж и топы — в приложении. Только закрытые площадки и треки.',
+  app: 'Это теперь в приложении — открой PITLANE кнопкой ниже.',
+  other: 'Бот отвечает за вход, ссылки, «тебя вызвали» и карточки. Остальное — в приложении: /help.',
 };
 
 export function simpleRoutes() {
-  const garage = [BOT_TEXT.garage, [webAppBtn('Гараж', { view: 'garage', skipIntro: '1' }), webAppBtn('Это моя машина', { screen: 'mycar' })]];
-  const team = [BOT_TEXT.team, [webAppBtn('Команды', { screen: 'teams' }), webAppBtn('Моя команда', { screen: 'rooms' })]];
+  const open = (label, params) => [BOT_TEXT.app, [webAppBtn(label, params)]];
   return {
-    garage,
-    car: garage, // старое /car
-    team,
-    room: team, // старое /room
-    duel: [BOT_TEXT.duel, [webAppBtn('Создать вызов', { screen: 'duel' })]],
-    tops: [BOT_TEXT.tops, [webAppBtn('Открыть топ', { view: 'tops', skipIntro: '1' })]],
-    feedback: [BOT_TEXT.feedback, [webAppBtn('Написать', { screen: 'feedback' })]],
-    help: [BOT_TEXT.help, [webAppBtn('Открыть PITLANE', {}), webAppBtn('Обратная связь', { screen: 'feedback' })]],
+    login: [BOT_TEXT.login, [webAppBtn('Открыть PITLANE и войти', { view: 'account', skipIntro: '1' })]],
+    help: [BOT_TEXT.help, [webAppBtn('Открыть PITLANE', {})]],
+    // старые команды из меню (до v109) — не ломаем, просто ведём в приложение
+    garage: open('Гараж', { view: 'garage', skipIntro: '1' }),
+    car: open('Гараж', { view: 'garage', skipIntro: '1' }),
+    team: open('Команды', { screen: 'teams' }),
+    room: open('Команды', { screen: 'teams' }),
+    duel: open('Дуэли', { screen: 'duel' }),
+    tops: open('Топ', { view: 'tops', skipIntro: '1' }),
+    feedback: open('Обратная связь', { screen: 'feedback' }),
   };
 }
 
 export const BOT_COMMANDS = [
-  { command: 'garage', description: 'Гараж и моя машина' },
-  { command: 'team', description: 'Команда' },
-  { command: 'duel', description: 'Дуэль' },
-  { command: 'tops', description: 'Топ автодромов' },
-  { command: 'help', description: 'Помощь' },
+  { command: 'start', description: 'Открыть PITLANE' },
+  { command: 'login', description: 'Войти через Telegram' },
+  { command: 'help', description: 'Что умеет бот' },
 ];
 export const BOT_DESCRIPTION =
-  'PITLANE — телеметрия трека в Telegram.\n\n' +
-  'Круг и сектора по GPS смартфона или внешнего приёмника — с честной оценкой точности.\n' +
-  'Команда: публичная страница, дуэли одного трека и топ по модели и резине.\n' +
-  'Гараж: твоя машина и резина в каждом круге.\n\n' +
+  'PITLANE — разгоны и круги по GPS с проверкой на сервере, честные топы и дуэли.\n\n' +
+  'Бот: вход в приложение через Telegram, ссылки на дуэли, команды и результаты, уведомление «тебя вызвали», карточки результатов.\n\n' +
   'Только закрытые площадки и треки.';
-export const BOT_SHORT_DESCRIPTION = 'Круги и сектора по GPS, дуэли и топ команды. Телеметрия трека — в Telegram.';
+export const BOT_SHORT_DESCRIPTION = 'Вход в PITLANE, ссылки на дуэли и результаты, «тебя вызвали». Замеры — в приложении.';
 
 /* ——— оплата сезона ——— */
 export const PAY = {
@@ -171,7 +148,7 @@ export function msgRoomBest({ teamName, roomId, nick, t, trackId, model, tyre, p
 export function msgDuelAccepted({ duelId, rivalName, t, trackId }) {
   return {
     text:
-      '<b>Вызов принят</b>\n' +
+      '<b>Тебя вызвали</b>\n' +
       'Соперник: ' + esc(rivalName) + (trackId ? ' · ' + esc(trackTitle(trackId)) : '') + '\n' +
       RULE + '\n' +
       'Время соперника  ' + code(t) + '\n' +

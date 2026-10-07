@@ -53,21 +53,20 @@ console.log('\n[command routing]');
 let s = sent.pop();
 ok(s.method === 'sendPhoto' && s.body.chat_id === 555 && /banner\.jpg(\?v=\d+)?$/.test(s.body.photo), '/start → sendPhoto banner to chat');
 const kb = s.body.reply_markup.inline_keyboard;
-ok(kb.length === 3 && kb[0][0].text === 'Открыть PITLANE' && kb[0][0].web_app.url === 'https://dsssssz.github.io/pitlane/', 'big open button');
-ok(kb[1][0].text === 'Круг' && /view=lap/.test(kb[1][0].web_app.url) && kb[1][1].text === 'Команда' && /screen=teams/.test(kb[1][1].web_app.url), 'Круг / Команда row');
-ok(kb[2][0].text === 'Гараж' && /view=garage/.test(kb[2][0].web_app.url) && kb[2][1].text === 'Топ' && /view=tops/.test(kb[2][1].web_app.url), 'Гараж / Топ row');
+ok(kb.length === 2 && kb[0][0].text === 'Открыть PITLANE' && kb[0][0].web_app.url === 'https://dsssssz.github.io/pitlane/', 'big open button');
+ok(kb[1][0].text === 'Войти' && /view=account/.test(kb[1][0].web_app.url), 'v109: second row = «Войти» (bot: login, links, «тебя вызвали», cards)');
 ok(s.body.parse_mode === 'HTML' && /^<b>PITLANE<\/b>/.test(s.body.caption), 'HTML caption with bold title');
 ok(!/\bpro\b|₽|руб\.|рубл|цена|стоимост|подписк/i.test(s.body.caption), 'no Pro/prices in caption');
 await hook('/start duel_Ab12-x');
 s = sent.pop();
-ok(s.body.reply_markup.inline_keyboard[0][0].web_app.url === 'https://dsssssz.github.io/pitlane/?startapp=duel_Ab12-x' && /вызов/.test(s.body.caption), '/start duel_… → startapp deep link + challenge line');
+ok(s.body.reply_markup.inline_keyboard[0][0].web_app.url === 'https://dsssssz.github.io/pitlane/?startapp=duel_Ab12-x' && /вызвали/.test(s.body.caption), '/start duel_… → startapp deep link + challenge line');
 await hook('/start <script>alert(1)</script>');
 s = sent.pop();
 ok(!/startapp|script/.test(JSON.stringify(s.body)), 'invalid payload ignored, not echoed');
 await hook('/start@pitlane_official_bot crew_x1');
 s = sent.pop();
 ok(/startapp=crew_x1/.test(s.body.reply_markup.inline_keyboard[0][0].web_app.url), '/start@bot suffix handled');
-const expect = { '/garage': /view=garage/, '/tops': /view=tops/, '/duel': /screen=duel/, '/feedback': /screen=feedback/, '/help': /pitlane\/$/ };
+const expect = { '/login': /view=account/, '/garage': /view=garage/, '/tops': /view=tops/, '/duel': /screen=duel/, '/feedback': /screen=feedback/, '/help': /pitlane\/$/ };
 for (const [cmd, re] of Object.entries(expect)) {
   r = await hook(cmd, 777);
   s = sent.pop();
@@ -107,7 +106,7 @@ ok(sent.filter((x) => x.method === 'setMyCommands').some((x) => x.body.language_
 ok(sent.find((x) => x.method === 'setChatMenuButton').body.menu_button.text === 'PITLANE', 'menu button PITLANE');
 ok(!methods.includes('sendMessage') && !methods.includes('sendPhoto'), 'setup does not message anyone');
 ok(r.data.result.getWebhookInfo.urlMatches === true, 'verification reported');
-ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.length === 5 && BOT_COMMANDS.map((c) => c.command).join() === 'garage,team,duel,tops,help', 'description lengths within limits');
+ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.length === 3 && BOT_COMMANDS.map((c) => c.command).join() === 'start,login,help', 'description lengths within limits');
 ok(!/\bpro\b|₽|руб\.|рубл|цена|стоимост|подписк/i.test(BOT_DESCRIPTION + BOT_SHORT_DESCRIPTION), 'no Pro/prices in descriptions');
 ok(tgRoute('/START').cmd === 'start', 'commands case-insensitive');
 

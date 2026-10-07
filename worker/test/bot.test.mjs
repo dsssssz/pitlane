@@ -63,7 +63,7 @@ sent.length = 0;
 await hook({ update_id: 1, message: { message_id: 1, chat: { id: 7003, type: 'private' }, from: { id: 7003 }, text: '/start room_' + room.invite } });
 let s = sent.pop();
 ok(s && s.method === 'sendPhoto' && s.body.parse_mode === 'HTML' && s.body.caption.includes('«bNeon/b &amp; Co» · 2 в составе') && tagsBalanced(s.body.caption), 'invite caption names the team (escaped) + member count');
-ok(s.body.reply_markup.inline_keyboard[0][0].text === 'Открыть приглашение' && s.body.reply_markup.inline_keyboard[0][0].web_app.url.endsWith('startapp=room_' + room.invite), 'invite button → web_app startapp');
+ok(s.body.reply_markup.inline_keyboard[0][0].text === 'Открыть ссылку' && s.body.reply_markup.inline_keyboard[0][0].web_app.url.endsWith('startapp=room_' + room.invite), 'invite button → web_app startapp');
 ok(s.body.photo.includes('banner.jpg'), 'banner kept');
 
 console.log('\n[new best lap → teammates]');
@@ -83,7 +83,7 @@ const d = (await call('POST', '/duel', { token: A.token, body: { type: 'lap', tr
 sent.length = 0;
 await call('POST', `/duel/${d.id}/run`, { token: B.token, body: { ...lap(122400), nick: 'Артём' } });
 let dm = sent.filter((x) => x.method === 'sendMessage');
-ok(dm.length === 1 && dm[0].body.chat_id === 7001 && /<b>Вызов принят<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('<code>2:02.400</code>'), 'creator: «Вызов принят» with rival time');
+ok(dm.length === 1 && dm[0].body.chat_id === 7001 && /<b>Тебя вызвали<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('<code>2:02.400</code>'), 'creator: «Тебя вызвали» with rival time');
 sent.length = 0;
 await call('POST', `/duel/${d.id}/run`, { token: A.token, body: { ...lap(121900), nick: 'Мага' } });
 dm = sent.filter((x) => x.method === 'sendMessage');
