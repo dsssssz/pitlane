@@ -586,6 +586,7 @@
               <button type="button" class="wx-chip" data-wx="damp">Сыро</button>
               <button type="button" class="wx-chip" data-wx="wet">Мокро</button>
             </div>
+            <p class="tiny muted tops-weather-cap" id="topWeatherCaption">Показаны круги: сухо.</p>
           </div>
           <article class="card sector-tops-card" id="sectorTopsCard">
             <div class="sector-tops-head">
@@ -606,7 +607,7 @@
               </div>
             </div>
             <ol id="topSector" class="laps tops-pilot-list"></ol>
-            <p class="tiny muted" id="sectorTopsHint">Пока пусто — проедьте валидный круг с секторами</p>
+            <p class="tiny muted" id="sectorTopsHint">пока нет валидных заездов — проедьте круг A/B с секторами</p>
           </article>
 
           <details class="tops-classic card">
@@ -1121,10 +1122,12 @@
         </header>
         <div class="pit-help-body">
           <p>Разгоны и круги — <strong>только на треках и закрытых площадках</strong>. Не соревнуйтесь на дорогах общего пользования.</p>
-          <p>Закрепите телефон заранее и <strong>не отвлекайтесь на него за рулём</strong> — замер запишется сам.</p>
-          <p class="tiny muted">Вы отвечаете за соблюдение ПДД и правил площадки. <a class="method-link" href="./terms.html">Соглашение</a></p>
+          <label class="safety-check"><input type="checkbox" data-safety-check /> Я на треке или закрытой площадке, не на дороге общего пользования</label>
+          <label class="safety-check"><input type="checkbox" data-safety-check /> Телефон / приёмник закреплён, за рулём я на него не отвлекаюсь</label>
+          <label class="safety-check"><input type="checkbox" data-safety-check /> Я отвечаю за соблюдение ПДД и правил площадки</label>
+          <p class="tiny muted">Отметка запоминается на этом устройстве. <a class="method-link" href="./terms.html">Соглашение</a></p>
         </div>
-        <button type="button" class="go-btn race-cta" id="safetyOk">Понятно</button>
+        <button type="button" class="go-btn race-cta" id="safetyOk" disabled>Подтверждаю — к старту</button>
         <button type="button" class="auth-alt-btn" id="safetyCancel">Не сейчас</button>
       </div>
     </div>

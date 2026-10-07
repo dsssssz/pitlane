@@ -5455,3 +5455,8 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 .mycar-how { border: 0; color: #8a8a8a; text-decoration: underline; text-underline-offset: 3px; min-height: 34px; }
 .mycar-note { margin-top: 10px; }
 @media (max-width: 340px) { .mycar-cars { grid-template-columns: 1fr; } .mycar-bar { flex-wrap: wrap; } .mycar-bar-btn { width: 100%; } }
+/* v106: пред-стартовый гейт — галочки */
+.safety-check { display: flex; gap: 10px; align-items: flex-start; margin-top: 10px; font: 500 13px/1.4 Manrope, sans-serif; color: var(--h-text, #e8e8e8); cursor: pointer; }
+.safety-check input { flex: none; width: 20px; height: 20px; margin: 1px 0 0; accent-color: #5cff3a; }
+#safetyOk:disabled { opacity: .45; }
+.tops-weather-cap { margin: 6px 0 0; }

@@ -55,53 +55,53 @@ if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)
 const CARS = [
   // BMW M2 Competition (G87) stock + widebody showcase — DIN/EU figures
   { id: 'g87-m2', name: 'BMW G87 M2 Widebody', cls: 'GT · RWD · 3.0 twin-turbo', year: 2026, trim: 'Competition · carbon widebody', side: './img/sil/coupe.svg', color: 0x1a1a1a, accent: 0x111, v0100: 3.9, v100200: null, v200300: null, v80120: 2.3, hp: 460, nm: 550, kg: 1725, lap: { track: 'nurb-nord', time: null }, glb: './models/g87-m2.glb' },
-  { id: 'gt3rs', name: 'Porsche 911 GT3 RS', cls: 'GT · RWD · 4.0 NA', year: 2023, trim: '992 GT3 RS', side: './img/sil/gt-wing.svg', color: 0xeeeeee, accent: 0x111, v0100: 3.2, v100200: 10.6, v200300: null, v80120: 2.0, hp: 525, nm: 465, kg: 1450, lap: { track: 'nurb-nord', time: '6:49.33' }, glb: './models/gt3rs.glb' },
+  { id: 'gt3rs', name: 'Porsche 911 GT3 RS', cls: 'GT · RWD · 4.0 NA', year: 2023, trim: '992 GT3 RS', side: './img/sil/gt-wing.svg', color: 0xeeeeee, accent: 0x111, v0100: 3.2, v100200: 10.6, v200300: null, v80120: 2.0, hp: 525, nm: 465, kg: 1450, lap: { track: 'nurb-nord', time: null }, glb: './models/gt3rs.glb' },
   { id: 'g63', name: 'Mercedes-AMG G 63', cls: 'SUV · AWD · 4.0 V8 biturbo', year: 2020, trim: 'W463 AMG', side: './img/sil/suv.svg', color: 0x111111, accent: 0x111, v0100: 4.5, v100200: null, v200300: null, v80120: 2.8, hp: 585, nm: 850, kg: 2485, lap: { track: 'nurb-nord', time: null }, glb: './models/g63.glb' },
   { id: 'mclaren-765lt', name: 'McLaren 765LT', cls: 'Super · RWD · 4.0 twin-turbo V8', year: 2021, trim: 'Longtail', side: './img/sil/super.svg', color: 0xff6600, accent: 0x111, v0100: 2.8, v100200: 6.5, v200300: 16.0, v80120: 1.7, hp: 765, nm: 800, kg: 1339, lap: { track: 'nurb-nord', time: null }, glb: './models/mclaren-765lt.glb' },
-  { id: 'm3', name: 'BMW M3 Competition', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G80 Competition', side: './img/sil/sedan.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.5, v100200: 8.1, v200300: null, v80120: 2.1, hp: 510, nm: 650, kg: 1730, lap: { track: 'nurb-nord', time: '8:12.40' }, glb: './models/m3.glb' },
+  { id: 'm3', name: 'BMW M3 Competition', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G80 Competition', side: './img/sil/sedan.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.5, v100200: 8.1, v200300: null, v80120: 2.1, hp: 510, nm: 650, kg: 1730, lap: { track: 'nurb-nord', time: null }, glb: './models/m3.glb' },
   { id: 'm4', name: 'BMW M4', cls: 'GT · RWD · 3.0 twin-turbo', year: 2021, trim: 'G82 Competition', side: './img/sil/coupe.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.5, v100200: 8.3, v200300: null, v80120: 2.1, hp: 510, nm: 650, kg: 1725, lap: { track: 'nurb-nord', time: null }, glb: './models/m4.glb' },
   { id: 'x6', name: 'BMW X6 xDrive40i', cls: 'SUV · AWD · 3.0 turbo', year: 2020, trim: 'G06 xDrive40i', side: './img/sil/suv.svg', color: 0x1a1a1a, accent: 0x111, v0100: 5.5, v100200: null, v200300: null, v80120: 3.4, hp: 340, nm: 450, kg: 2130, lap: { track: 'nurb-nord', time: null }, glb: './models/x6.glb' },
   { id: 'isf', name: 'Lexus IS-F', cls: 'GT · RWD · 5.0 V8', year: 2013, trim: 'USE20 IS-F', side: './img/sil/sedan.svg', color: 0xc5ccd3, accent: 0x111, v0100: 4.6, v100200: null, v200300: null, v80120: 2.9, hp: 423, nm: 505, kg: 1715, lap: { track: 'nurb-nord', time: null }, glb: './models/isf.glb' },
   { id: 'c63-ed507', name: 'Mercedes-AMG C 63 Edition 507', cls: 'GT · RWD · 6.2 V8', year: 2014, trim: 'W204 Edition 507', side: './img/sil/sedan.svg', color: 0x111111, accent: 0x111, v0100: 4.2, v100200: null, v200300: null, v80120: 2.5, hp: 507, nm: 610, kg: 1730, lap: { track: 'nurb-nord', time: null }, glb: './models/c63-ed507.glb' },
   { id: 'spark', name: 'Chevrolet Spark GT', cls: 'City · FWD · 1.2', year: 2018, trim: 'GT 1.2 LT', side: './img/sil/hatch.svg', color: 0x1f4cff, accent: 0x111, v0100: 12.5, v100200: null, v200300: null, v80120: null, hp: 85, nm: 115, kg: 1085, lap: { track: 'nurb-nord', time: null }, glb: './models/spark.glb' },
-  { id: 'm5', name: 'BMW M5 Competition', cls: 'GT · AWD · 4.4 V8', year: 2022, trim: 'F90 Competition', side: './img/sil/sedan.svg', color: 0xb9bcc0, accent: 0x111, v0100: 3.3, v100200: 8.0, v200300: 21.0, v80120: 2.0, hp: 625, nm: 750, kg: 1890, lap: { track: 'nurb-nord', time: '7:38.00' } },
-  { id: 'm4csl', name: 'BMW M4 CSL', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G82 CSL', side: './img/sil/coupe.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.7, v100200: 8.5, v200300: null, v80120: 2.2, hp: 550, nm: 650, kg: 1625, lap: { track: 'nurb-nord', time: '7:20.00' } },
-  { id: 'gtr', name: 'Nissan GT-R Nismo', cls: 'GT · AWD · 3.8 twin-turbo', year: 2022, trim: 'R35 Nismo', side: './img/sil/coupe.svg', color: 0xc5ccd3, accent: 0x111, v0100: 2.7, v100200: 7.2, v200300: 16.8, v80120: 1.7, hp: 600, nm: 652, kg: 1720, lap: { track: 'nurb-nord', time: '7:08.68' } },
-  { id: 'huracan', name: 'Lamborghini Huracán STO', cls: 'Super · RWD · 5.2 V10', year: 2021, trim: 'STO', side: './img/sil/super.svg', color: 0x1f4cff, accent: 0x111, v0100: 3.0, v100200: 8.0, v200300: 18.4, v80120: 1.8, hp: 640, nm: 565, kg: 1339, lap: { track: 'nurb-nord', time: '6:52.01' } },
-  { id: 'svj', name: 'Lamborghini Aventador SVJ', cls: 'Super · AWD · 6.5 V12', year: 2019, trim: 'SVJ', side: './img/sil/hyper.svg', color: 0x1a6b3c, accent: 0x111, v0100: 2.8, v100200: 7.1, v200300: 16.7, v80120: 1.7, hp: 770, nm: 720, kg: 1525, lap: { track: 'nurb-nord', time: '6:44.97' } },
-  { id: 'sf90', name: 'Ferrari SF90 Stradale', cls: 'Super · AWD · V8 hybrid', year: 2021, trim: 'Stradale', side: './img/sil/super.svg', color: 0xc41e3a, accent: 0x111, v0100: 2.5, v100200: 6.5, v200300: 15.2, v80120: 1.5, hp: 1000, nm: 800, kg: 1570, lap: { track: 'nurb-nord', time: '6:44.00' } },
-  { id: '296', name: 'Ferrari 296 GTB', cls: 'Super · RWD · V6 hybrid', year: 2023, trim: 'GTB', side: './img/sil/super.svg', color: 0xc41e3a, accent: 0x111, v0100: 2.9, v100200: 7.6, v200300: 19.0, v80120: 1.8, hp: 830, nm: 740, kg: 1470, lap: { track: 'nurb-nord', time: '6:49.00' } },
-  { id: 'amggt', name: 'Mercedes-AMG GT Black Series', cls: 'GT · RWD · 4.0 V8', year: 2021, trim: 'Black Series', side: './img/sil/gt-coupe.svg', color: 0x111111, accent: 0x111, v0100: 3.2, v100200: 8.0, v200300: 20.0, v80120: 1.9, hp: 730, nm: 800, kg: 1540, lap: { track: 'nurb-nord', time: '6:43.00' } },
-  { id: 'c63', name: 'Mercedes-AMG C63 S E Performance', cls: 'GT · AWD · 2.0 hybrid', year: 2024, trim: 'W206 S', side: './img/sil/sedan.svg', wheels: './img/c63-wheels.png', color: 0x8a1f1a, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: null, v80120: 2.1, hp: 680, nm: 1020, kg: 2111, lap: { track: 'nurb-nord', time: '7:46.00' } },
-  { id: 'rs6', name: 'Audi RS6 Avant', cls: 'GT · AWD · 4.0 V8', year: 2023, trim: 'C8 Performance', side: './img/sil/wagon.svg', color: 0xc5ccd3, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: 22.0, v80120: 2.1, hp: 630, nm: 850, kg: 2090, lap: { track: 'nurb-nord', time: '7:38.00' } },
-  { id: 'r8', name: 'Audi R8 V10 Performance', cls: 'Super · AWD · 5.2 V10', year: 2022, trim: 'RWS / Perf.', side: './img/sil/super.svg', color: 0x1f4cff, accent: 0x111, v0100: 3.1, v100200: 8.2, v200300: 20.0, v80120: 1.9, hp: 620, nm: 580, kg: 1595, lap: { track: 'nurb-nord', time: '7:07.00' } },
-  { id: 'cayman', name: 'Porsche 718 Cayman GT4 RS', cls: 'GT · RWD · 4.0 NA', year: 2022, trim: 'GT4 RS', side: './img/sil/gt-wing.svg', color: 0x39FF14, accent: 0x111, v0100: 3.4, v100200: 10.6, v200300: null, v80120: 2.1, hp: 500, nm: 450, kg: 1415, lap: { track: 'nurb-nord', time: '7:09.00' } },
-  { id: 'turboS', name: 'Porsche 911 Turbo S', cls: 'GT · AWD · 3.8 twin-turbo', year: 2023, trim: '992 Turbo S', side: './img/sil/gt-coupe.svg', color: 0x111111, accent: 0x111, v0100: 2.6, v100200: 7.4, v200300: 18.8, v80120: 1.6, hp: 650, nm: 800, kg: 1640, lap: { track: 'nurb-nord', time: '7:12.00' } },
-  { id: 'supra', name: 'Toyota GR Supra', cls: 'GT · RWD · 3.0 turbo', year: 2023, trim: 'A90 3.0', side: './img/sil/coupe.svg', color: 0xc41e3a, accent: 0x111, v0100: 4.1, v100200: 11.0, v200300: null, v80120: 2.6, hp: 387, nm: 500, kg: 1520, lap: { track: 'nurb-nord', time: '7:52.00' } },
-  { id: 'golf', name: 'Volkswagen Golf R', cls: 'Hot hatch · AWD · 2.0 turbo', year: 2022, trim: 'Mk8 R', side: './img/sil/hatch.svg', color: 0x1f4cff, accent: 0x111, v0100: 4.6, v100200: 13.5, v200300: null, v80120: 3.1, hp: 320, nm: 420, kg: 1550, lap: { track: 'nurb-nord', time: '8:01.00' } },
-  { id: 'civic', name: 'Honda Civic Type R', cls: 'Hot hatch · FWD · 2.0 turbo', year: 2023, trim: 'FL5', side: './img/sil/hatch.svg', color: 0xc41e3a, accent: 0x111, v0100: 5.4, v100200: 14.8, v200300: null, v80120: 3.4, hp: 330, nm: 420, kg: 1429, lap: { track: 'nurb-nord', time: '7:50.00' } },
-  { id: 'mustang', name: 'Ford Mustang Dark Horse', cls: 'GT · RWD · 5.0 V8', year: 2024, trim: 'S650 Dark Horse', side: './img/sil/muscle.svg', color: 0x111111, accent: 0x111, v0100: 4.1, v100200: 11.2, v200300: null, v80120: 2.6, hp: 500, nm: 567, kg: 1768, lap: { track: 'nurb-nord', time: '7:43.00' } },
-  { id: 'teslap', name: 'Tesla Model S Plaid', cls: 'EV · AWD · tri-motor', year: 2023, trim: 'Plaid', side: './img/sil/ev.svg', color: 0xc5ccd3, accent: 0x111, v0100: 2.1, v100200: 6.0, v200300: 15.0, v80120: 1.3, hp: 1020, nm: 1420, kg: 2162, lap: { track: 'nurb-nord', time: '7:25.00' } },
+  { id: 'm5', name: 'BMW M5 Competition', cls: 'GT · AWD · 4.4 V8', year: 2022, trim: 'F90 Competition', side: './img/sil/sedan.svg', color: 0xb9bcc0, accent: 0x111, v0100: 3.3, v100200: 8.0, v200300: 21.0, v80120: 2.0, hp: 625, nm: 750, kg: 1890, lap: { track: 'nurb-nord', time: null } },
+  { id: 'm4csl', name: 'BMW M4 CSL', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G82 CSL', side: './img/sil/coupe.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.7, v100200: 8.5, v200300: null, v80120: 2.2, hp: 550, nm: 650, kg: 1625, lap: { track: 'nurb-nord', time: null } },
+  { id: 'gtr', name: 'Nissan GT-R Nismo', cls: 'GT · AWD · 3.8 twin-turbo', year: 2022, trim: 'R35 Nismo', side: './img/sil/coupe.svg', color: 0xc5ccd3, accent: 0x111, v0100: 2.7, v100200: 7.2, v200300: 16.8, v80120: 1.7, hp: 600, nm: 652, kg: 1720, lap: { track: 'nurb-nord', time: null } },
+  { id: 'huracan', name: 'Lamborghini Huracán STO', cls: 'Super · RWD · 5.2 V10', year: 2021, trim: 'STO', side: './img/sil/super.svg', color: 0x1f4cff, accent: 0x111, v0100: 3.0, v100200: 8.0, v200300: 18.4, v80120: 1.8, hp: 640, nm: 565, kg: 1339, lap: { track: 'nurb-nord', time: null } },
+  { id: 'svj', name: 'Lamborghini Aventador SVJ', cls: 'Super · AWD · 6.5 V12', year: 2019, trim: 'SVJ', side: './img/sil/hyper.svg', color: 0x1a6b3c, accent: 0x111, v0100: 2.8, v100200: 7.1, v200300: 16.7, v80120: 1.7, hp: 770, nm: 720, kg: 1525, lap: { track: 'nurb-nord', time: null } },
+  { id: 'sf90', name: 'Ferrari SF90 Stradale', cls: 'Super · AWD · V8 hybrid', year: 2021, trim: 'Stradale', side: './img/sil/super.svg', color: 0xc41e3a, accent: 0x111, v0100: 2.5, v100200: 6.5, v200300: 15.2, v80120: 1.5, hp: 1000, nm: 800, kg: 1570, lap: { track: 'nurb-nord', time: null } },
+  { id: '296', name: 'Ferrari 296 GTB', cls: 'Super · RWD · V6 hybrid', year: 2023, trim: 'GTB', side: './img/sil/super.svg', color: 0xc41e3a, accent: 0x111, v0100: 2.9, v100200: 7.6, v200300: 19.0, v80120: 1.8, hp: 830, nm: 740, kg: 1470, lap: { track: 'nurb-nord', time: null } },
+  { id: 'amggt', name: 'Mercedes-AMG GT Black Series', cls: 'GT · RWD · 4.0 V8', year: 2021, trim: 'Black Series', side: './img/sil/gt-coupe.svg', color: 0x111111, accent: 0x111, v0100: 3.2, v100200: 8.0, v200300: 20.0, v80120: 1.9, hp: 730, nm: 800, kg: 1540, lap: { track: 'nurb-nord', time: null } },
+  { id: 'c63', name: 'Mercedes-AMG C63 S E Performance', cls: 'GT · AWD · 2.0 hybrid', year: 2024, trim: 'W206 S', side: './img/sil/sedan.svg', wheels: './img/c63-wheels.png', color: 0x8a1f1a, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: null, v80120: 2.1, hp: 680, nm: 1020, kg: 2111, lap: { track: 'nurb-nord', time: null } },
+  { id: 'rs6', name: 'Audi RS6 Avant', cls: 'GT · AWD · 4.0 V8', year: 2023, trim: 'C8 Performance', side: './img/sil/wagon.svg', color: 0xc5ccd3, accent: 0x111, v0100: 3.4, v100200: 8.4, v200300: 22.0, v80120: 2.1, hp: 630, nm: 850, kg: 2090, lap: { track: 'nurb-nord', time: null } },
+  { id: 'r8', name: 'Audi R8 V10 Performance', cls: 'Super · AWD · 5.2 V10', year: 2022, trim: 'RWS / Perf.', side: './img/sil/super.svg', color: 0x1f4cff, accent: 0x111, v0100: 3.1, v100200: 8.2, v200300: 20.0, v80120: 1.9, hp: 620, nm: 580, kg: 1595, lap: { track: 'nurb-nord', time: null } },
+  { id: 'cayman', name: 'Porsche 718 Cayman GT4 RS', cls: 'GT · RWD · 4.0 NA', year: 2022, trim: 'GT4 RS', side: './img/sil/gt-wing.svg', color: 0x39FF14, accent: 0x111, v0100: 3.4, v100200: 10.6, v200300: null, v80120: 2.1, hp: 500, nm: 450, kg: 1415, lap: { track: 'nurb-nord', time: null } },
+  { id: 'turboS', name: 'Porsche 911 Turbo S', cls: 'GT · AWD · 3.8 twin-turbo', year: 2023, trim: '992 Turbo S', side: './img/sil/gt-coupe.svg', color: 0x111111, accent: 0x111, v0100: 2.6, v100200: 7.4, v200300: 18.8, v80120: 1.6, hp: 650, nm: 800, kg: 1640, lap: { track: 'nurb-nord', time: null } },
+  { id: 'supra', name: 'Toyota GR Supra', cls: 'GT · RWD · 3.0 turbo', year: 2023, trim: 'A90 3.0', side: './img/sil/coupe.svg', color: 0xc41e3a, accent: 0x111, v0100: 4.1, v100200: 11.0, v200300: null, v80120: 2.6, hp: 387, nm: 500, kg: 1520, lap: { track: 'nurb-nord', time: null } },
+  { id: 'golf', name: 'Volkswagen Golf R', cls: 'Hot hatch · AWD · 2.0 turbo', year: 2022, trim: 'Mk8 R', side: './img/sil/hatch.svg', color: 0x1f4cff, accent: 0x111, v0100: 4.6, v100200: 13.5, v200300: null, v80120: 3.1, hp: 320, nm: 420, kg: 1550, lap: { track: 'nurb-nord', time: null } },
+  { id: 'civic', name: 'Honda Civic Type R', cls: 'Hot hatch · FWD · 2.0 turbo', year: 2023, trim: 'FL5', side: './img/sil/hatch.svg', color: 0xc41e3a, accent: 0x111, v0100: 5.4, v100200: 14.8, v200300: null, v80120: 3.4, hp: 330, nm: 420, kg: 1429, lap: { track: 'nurb-nord', time: null } },
+  { id: 'mustang', name: 'Ford Mustang Dark Horse', cls: 'GT · RWD · 5.0 V8', year: 2024, trim: 'S650 Dark Horse', side: './img/sil/muscle.svg', color: 0x111111, accent: 0x111, v0100: 4.1, v100200: 11.2, v200300: null, v80120: 2.6, hp: 500, nm: 567, kg: 1768, lap: { track: 'nurb-nord', time: null } },
+  { id: 'teslap', name: 'Tesla Model S Plaid', cls: 'EV · AWD · tri-motor', year: 2023, trim: 'Plaid', side: './img/sil/ev.svg', color: 0xc5ccd3, accent: 0x111, v0100: 2.1, v100200: 6.0, v200300: 15.0, v80120: 1.3, hp: 1020, nm: 1420, kg: 2162, lap: { track: 'nurb-nord', time: null } },
 ];
 
 const TRACKS = [
   // cult: first-class RU tracks with verified-ish S/F in TRACK_GEO
-  { id: 'sochi', name: 'Сочи Автодром', cult: true, ref: '1:35.00', km: '5.85', turns: '18' , corners: 'T2 — жёсткое торможение после прямой. T3 — длинный постоянный радиус. Финальная связка — медленные 90°.'},
-  { id: 'moscow', name: 'Moscow Raceway', cult: true, ref: '1:28.50', km: '3.93', turns: '13' , corners: 'Длинная прямая в последний сектор. Средний сектор рулёжный. Несколько конфигураций срезают связки.'},
-  { id: 'igora', name: 'Игора Драйв', cult: true, ref: '1:36.20', km: '5.18', turns: '20' , corners: 'Очень длинная С/Ф. Много средних поворотов против часовой. Перепад заметный на спуске.'},
-  { id: 'kazan', name: 'Казань Ринг', cult: true, ref: '1:22.80', km: '3.48', turns: '12' , corners: 'Каньон: слепые вершины, уклоны до ~10%. Движение против часовой. Длинная прямая ~800 м.'},
-  { id: 'smolensk', name: 'Смоленское кольцо', cult: true, ref: '1:24.00', km: '3.36', turns: '14' , corners: 'Техничное кольцо, средние радиусы, мало мест для отдыха.'},
-  { id: 'nring', name: 'NRING Нижний Новгород', cult: true, ref: '1:21.50', km: '3.12', turns: '12' , corners: 'Короткое кольцо, плотная нарезка, мало времени на ошибку.'},
-  { id: 'adm', name: 'ADM Raceway Мячково', cult: true, ref: '1:19.00', km: '3.25', turns: '16' , corners: 'Мячково: старое кольцо, короткие прямые, много направления.'},
-  { id: 'grozny', name: 'Fort Grozny Autodrom', cult: true, ref: '1:18.80', km: '3.08', turns: '11' , corners: 'Крепость: относительно короткое GP, понятные зоны торможения.'},
-  { id: 'redring', name: 'Красное Кольцо Красноярск', cult: true, ref: '1:26.00', km: '2.80', turns: '10' , corners: 'Компактное кольцо, меньше поворотов, акцент на ритм.'},
-  { id: 'spb', name: 'Автодром Санкт-Петербург', ref: '1:27.00', km: '2.90', turns: '9' , corners: 'Городской/короткий профиль, тесные связки.'},
-  { id: 'tlt', name: 'Тольятти Ринг', ref: '1:23.00', km: '2.96', turns: '10' , corners: 'Кольцо с средней длиной прямых.'},
-  { id: 'lipetsk', name: 'Липецкий автодром', ref: '1:20.00', km: '2.87', turns: '8' , corners: 'Короткий автодром, стоп-энд-гоу.'},
-  { id: 'auto-msk', name: 'Автодром Москва', ref: '1:25.00', km: '2.94', turns: '10' , corners: 'Городской автодром, смена направления часто.'},
-  { id: 'neva', name: 'Нева Ринг', ref: '1:29.00', km: '2.88', turns: '9' , corners: 'Нева: средние дуги, мало ультрамедленных шпилек.'},
-  { id: 'ufa', name: 'Уфа Ринг', ref: '1:31.00', km: '2.97', turns: '10' , corners: 'Региональное кольцо, ритм важнее пиковой скорости.'},
-  { id: 'don', name: 'Донринг Ростов', ref: '1:30.00', km: '2.92', turns: '10' , corners: 'Донринг: смесь прямых и средних дуг.'},
+  { id: 'sochi', name: 'Сочи Автодром', cult: true, km: '5.85', turns: '18' , corners: 'T2 — жёсткое торможение после прямой. T3 — длинный постоянный радиус. Финальная связка — медленные 90°.'},
+  { id: 'moscow', name: 'Moscow Raceway', cult: true, km: '3.93', turns: '13' , corners: 'Длинная прямая в последний сектор. Средний сектор рулёжный. Несколько конфигураций срезают связки.'},
+  { id: 'igora', name: 'Игора Драйв', cult: true, km: '5.18', turns: '20' , corners: 'Очень длинная С/Ф. Много средних поворотов против часовой. Перепад заметный на спуске.'},
+  { id: 'kazan', name: 'Казань Ринг', cult: true, km: '3.48', turns: '12' , corners: 'Каньон: слепые вершины, уклоны до ~10%. Движение против часовой. Длинная прямая ~800 м.'},
+  { id: 'smolensk', name: 'Смоленское кольцо', cult: true, km: '3.36', turns: '14' , corners: 'Техничное кольцо, средние радиусы, мало мест для отдыха.'},
+  { id: 'nring', name: 'NRING Нижний Новгород', cult: true, km: '3.12', turns: '12' , corners: 'Короткое кольцо, плотная нарезка, мало времени на ошибку.'},
+  { id: 'adm', name: 'ADM Raceway Мячково', cult: true, km: '3.25', turns: '16' , corners: 'Мячково: старое кольцо, короткие прямые, много направления.'},
+  { id: 'grozny', name: 'Fort Grozny Autodrom', cult: true, km: '3.08', turns: '11' , corners: 'Крепость: относительно короткое GP, понятные зоны торможения.'},
+  { id: 'redring', name: 'Красное Кольцо Красноярск', cult: true, km: '2.80', turns: '10' , corners: 'Компактное кольцо, меньше поворотов, акцент на ритм.'},
+  { id: 'spb', name: 'Автодром Санкт-Петербург', km: '2.90', turns: '9' , corners: 'Городской/короткий профиль, тесные связки.'},
+  { id: 'tlt', name: 'Тольятти Ринг', km: '2.96', turns: '10' , corners: 'Кольцо с средней длиной прямых.'},
+  { id: 'lipetsk', name: 'Липецкий автодром', km: '2.87', turns: '8' , corners: 'Короткий автодром, стоп-энд-гоу.'},
+  { id: 'auto-msk', name: 'Автодром Москва', km: '2.94', turns: '10' , corners: 'Городской автодром, смена направления часто.'},
+  { id: 'neva', name: 'Нева Ринг', km: '2.88', turns: '9' , corners: 'Нева: средние дуги, мало ультрамедленных шпилек.'},
+  { id: 'ufa', name: 'Уфа Ринг', km: '2.97', turns: '10' , corners: 'Региональное кольцо, ритм важнее пиковой скорости.'},
+  { id: 'don', name: 'Донринг Ростов', km: '2.92', turns: '10' , corners: 'Донринг: смесь прямых и средних дуг.'},
 ];
 
 function tracksOrdered() {
@@ -1018,7 +1018,7 @@ function applyCarUI() {
   const hdrLap = document.getElementById('hdrLap');
   if (hdrLap) hdrLap.textContent = mine || '—';
   const trackRef = document.getElementById('trackRef');
-  if (trackRef) trackRef.textContent = track.ref || '—';
+  if (trackRef) trackRef.textContent = isCalibrated(track.id) ? 'калибрована' : 'не откалибрована · только личная история';
   const trackMine = document.getElementById('trackMine');
   if (trackMine) trackMine.textContent = bestLapDisplay(track.id) || '—';
   try { paintCar(c); } catch (err) { console.warn('paintCar', err); }
@@ -1323,23 +1323,26 @@ async function renderTops() {
   // Fetch all lap rows first so default chip (Сухо vs Все) can see weather presence
   const lapAll = await api.listLap(trackId);
   populateTopModelFilter([...straightRaw, ...lapAll]);
-  if (!_topsWxAutoDone) {
-    const pref = pickDefaultWeatherFilter(lapAll);
-    setTopsWeatherFilter(pref);
-  }
+  // v106: кольцо по умолчанию — «Сухо» (не переключаем сами); подпись — какой бакет погоды показан
+  if (!_topsWxAutoDone) setTopsWeatherFilter('dry');
   const wx = getTopsWeatherFilter();
+  const cap = document.getElementById('topWeatherCaption');
+  if (cap) {
+    const WXN = { all: 'все погоды вместе', dry: 'сухо', damp: 'сыро', wet: 'мокро' };
+    cap.textContent = 'Показаны круги: ' + WXN[wx] + '. Погода круга — бакет сухо / сыро / мокро по осадкам в момент финиша; круги в разную погоду не сравниваются.';
+  }
   const lapRaw = (wx === 'all') ? lapAll : filterRowsByWeather(lapAll, wx);
   const sEl = document.getElementById('topStraight');
   if (sEl) {
     // straight: weather optional — show all (still store when present)
     const rows = filterTopRows(straightRaw).slice().sort((a, b) => a.t - b.t);
-    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li${/^p_[0-9a-f-]{36}$/.test(String(r.pilotId || '')) ? ` class="tp-link" data-pilot="${esc(r.pilotId)}" role="button" tabindex="0"` : ''}><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${Number(r.t).toFixed(2)} с${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>нет валидных GPS</span><strong>—</strong></li>';
+    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li${/^p_[0-9a-f-]{36}$/.test(String(r.pilotId || '')) ? ` class="tp-link" data-pilot="${esc(r.pilotId)}" role="button" tabindex="0"` : ''}><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${Number(r.t).toFixed(2)} с${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>пока нет валидных заездов</span><strong>—</strong></li>';
   }
   const lEl = document.getElementById('topLap');
   if (lEl) {
     const rows = filterTopRows(lapRaw);
     if (!rows.length) {
-      lEl.innerHTML = '<li><span>нет кругов для фильтра</span><strong>—</strong></li>';
+      lEl.innerHTML = '<li><span>пока нет валидных заездов</span><strong>—</strong></li>';
     } else {
       lEl.classList.add('tops-pilot-list');
       lEl.innerHTML = rows.map((r, i) => topsPilotRowHtml({
@@ -3940,7 +3943,7 @@ async function renderSectorTops() {
   } catch (_) { rows = []; }
   if (!rows.length) {
     listEl.innerHTML = '';
-    if (hint) hint.textContent = 'Пока пусто — проедьте валидный круг A/B с секторами';
+    if (hint) hint.textContent = 'пока нет валидных заездов — проедьте круг A/B с секторами';
     return;
   }
   if (hint) {
@@ -5297,7 +5300,7 @@ function renderCompare() {
     stats.innerHTML = `
       <div>0–100 сток <b>${fmt(c.v0100)}</b> · GPS <b>${fmt(rec.v0100)}</b></div>
       <div>100–200 сток <b>${fmt(c.v100200)}</b> · GPS <b>${fmt(rec.v100200)}</b></div>
-      <div>круг сток <b>${c.lap?.time || '—'}</b> · ваш <b>${best}</b></div>`;
+      <div>ваш круг <b>${best}</b></div>`;
   }
 }
 
@@ -6109,7 +6112,14 @@ document.getElementById('deleteConfirmBtn')?.addEventListener('click', async () 
 });
 
 /* —— one-time safety notice before the first measurement —— */
-const SAFETY_KEY = 'pitlane-safety-ok-v1';
+// v106: пред-стартовый гейт с галочками; согласие запоминается (ключ v2 — старое «Понятно» без галочек не считается)
+const SAFETY_KEY = 'pitlane-safety-ok-v2';
+function syncSafetyChecks() {
+  const all = [...document.querySelectorAll('[data-safety-check]')];
+  const ok = document.getElementById('safetyOk');
+  if (ok) ok.disabled = !(all.length && all.every((c) => c.checked));
+}
+document.querySelectorAll('[data-safety-check]').forEach((c) => c.addEventListener('change', syncSafetyChecks));
 let _safetyPending = null;
 function withSafety(fn) {
   return () => {
@@ -6119,6 +6129,8 @@ function withSafety(fn) {
     const sheet = document.getElementById('safetySheet');
     if (!sheet) return fn();
     _safetyPending = fn;
+    document.querySelectorAll('[data-safety-check]').forEach((c) => { c.checked = false; });
+    syncSafetyChecks();
     sheet.classList.remove('hidden');
     sheet.setAttribute('aria-hidden', 'false');
   };
@@ -6131,7 +6143,9 @@ function closeSafety() {
   }
 }
 document.getElementById('safetyOk')?.addEventListener('click', () => {
-  try { localStorage.setItem(SAFETY_KEY, String(Date.now())); } catch (_) {}
+  const all = [...document.querySelectorAll('[data-safety-check]')];
+  if (!all.every((c) => c.checked)) { syncSafetyChecks(); return; }
+  try { localStorage.setItem(SAFETY_KEY, JSON.stringify({ at: Date.now(), items: all.length })); } catch (_) {}
   closeSafety();
   const fn = _safetyPending;
   _safetyPending = null;
@@ -8494,7 +8508,7 @@ function renderPilotProfile(pr) {
     secRuns.appendChild(grid);
   }
   if (!zh.length && !laps.length && !dragKeys.length) {
-    secRuns.appendChild(padEmptyLine('Пока нет заездов в топах. Результаты появятся после валидных GPS-замеров.'));
+    secRuns.appendChild(padEmptyLine('пока нет валидных заездов — результаты появятся после замеров A/B, проверенных сервером.'));
   }
   if (zh.length) {
     secRuns.appendChild(padEl('h4', 'pilot-sub', '0–100 км/ч'));
@@ -10129,7 +10143,7 @@ async function showCrewView(id) {
   if (list) {
     const rows = board?.members || crew.members || [];
     if (!rows.length) {
-      list.innerHTML = '<li><span class="rk">·</span><span class="tops-av"><span class="tops-av-ini">?</span></span><span><div class="who">пока пусто</div><div class="sub">ждите первый A/B круг</div></span><span class="tm">—</span></li>';
+      list.innerHTML = '<li><span class="rk">·</span><span class="tops-av"><span class="tops-av-ini">?</span></span><span><div class="who">пока нет валидных заездов</div><div class="sub">ждите первый A/B круг</div></span><span class="tm">—</span></li>';
     } else {
       list.innerHTML = rows.map((m, i) => {
         const best = m.best;
@@ -10371,7 +10385,7 @@ async function renderSessionOfDay() {
     const li = document.createElement('li');
     li.className = 'sd-empty';
     const b = document.createElement('b');
-    b.textContent = 'Сегодня кругов A/B ещё нет';
+    b.textContent = 'пока нет валидных заездов';
     const sp = document.createElement('span');
     sp.textContent = 'Проедь валидный круг на ' + (tr?.name || 'этой трассе') + ' — он первым попадёт в топ дня.';
     li.append(b, sp);
@@ -10460,7 +10474,7 @@ function renderAutodromeList() {
   ul.innerHTML = cult.map((t) => {
     const info = AUTODROME_INFO[t.id] || {};
     const short = (info.blurb || t.corners || '').slice(0, 48);
-    const meta = [t.km ? t.km + ' км' : '', t.ref ? 'реф ' + t.ref : ''].filter(Boolean).join(' · ');
+    const meta = [t.km ? t.km + ' км' : '', isCalibrated(t.id) ? 'топ A/B' : 'только личная история'].filter(Boolean).join(' · ');
     return `<li data-ad-id="${esc(t.id)}"><span class="dl-main">${esc(t.name)}</span><span class="dl-st">${esc(meta || short)}${(!meta && short.length >= 48) ? '…' : ''}</span></li>`;
   }).join('') || '<li><span class="dl-main">нет культовых треков</span></li>';
 }
@@ -10479,7 +10493,7 @@ function showAutodromeDetail(id) {
   try { drawTrack(id, 'autodromeDetailMap', { compact: true }); } catch (_) {}
   const km = t.km ? `${t.km} км` : '';
   const turns = t.turns ? `${t.turns} пов.` : '';
-  const meta = [km, turns, t.ref ? `реф ${t.ref}` : ''].filter(Boolean).join(' · ');
+  const meta = [km, turns, isCalibrated(t.id) ? 'калибрована · топ A/B' : 'не откалибрована · только личная история'].filter(Boolean).join(' · ');
   const site = info.site
     ? `<p class="ad-link"><a href="${esc(info.site)}" target="_blank" rel="noopener noreferrer">Официальный сайт</a></p>`
     : `<p class="tiny muted">Официальный сайт — уточняйте на сайте автодрома</p>`;
@@ -10756,7 +10770,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v105';
+const APP_VERSION = 'v106';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12432,6 +12446,25 @@ function renderHomeStats() {
   box.appendChild(card);
 }
 
+let _homeRealCars = null;
+let _homeRealCarsP = null;
+function loadHomeRealCars() {
+  if (_homeRealCarsP) return _homeRealCarsP;
+  _homeRealCarsP = (async () => {
+    const ids = new Set();
+    const add = (rows) => (Array.isArray(rows) ? rows : []).forEach((r) => {
+      if (!r || r.valid === false || !(r.gpsQ === 'A' || r.gpsQ === 'B')) return;
+      const m = MODEL_CATALOG.find((x) => x.id === r.carId) || MODEL_CATALOG.find((x) => x.name === r.car);
+      if (m) ids.add(m.id);
+    });
+    try { add(await api.listDrag('0-100', {})); } catch (_) {}
+    try { add(await api.listLap('sochi')); } catch (_) {}
+    _homeRealCars = ids;
+    const box = document.getElementById('homeCars'); if (box) box.dataset.cur = '\u0000';
+    try { renderHomeCars(); } catch (_) {}
+  })();
+  return _homeRealCarsP;
+}
 function renderHomeCars() {
   const box = document.getElementById('homeCars');
   if (!box) return;
@@ -12439,7 +12472,19 @@ function renderHomeCars() {
   if (box.childElementCount && box.dataset.cur === cur) return;
   box.dataset.cur = cur;
   box.replaceChildren();
-  MODEL_CATALOG.forEach((m) => {
+  // v106: только машины с реальными зачтёнными результатами (топ 0–100 / круги A/B), без «витрины»
+  const real = _homeRealCars;
+  if (real == null) { void loadHomeRealCars(); }
+  const list = MODEL_CATALOG.filter((m) => real && real.has(m.id));
+  if (!list.length) {
+    box.dataset.cur = '';
+    const e = padEl('div', 'home-empty');
+    e.appendChild(padEl('b', '', 'пока нет валидных заездов'));
+    e.appendChild(padEl('span', '', 'Машины появятся здесь после первых результатов A/B, проверенных сервером.'));
+    box.appendChild(e);
+    return;
+  }
+  list.forEach((m) => {
     const b = padEl('button', 'hcar' + (m.id === cur ? ' on' : ''));
     b.type = 'button';
     b.dataset.car = m.id;
@@ -12847,7 +12892,7 @@ async function renderTopsBoard() {
   ol.removeAttribute('aria-busy');
   if (!rows.length) {
     const li = padEl('li', 'tb-empty');
-    li.appendChild(padEl('b', '', 'Пока нет результатов'));
+    li.appendChild(padEl('b', '', 'пока нет валидных заездов'));
     li.appendChild(padEl('span', '', sel.kind === 'lap' ? 'Проедь валидный круг с GPS A/B — и займи первую строку.' : 'Сделай замер с GPS A/B — лучший результат попадёт сюда.'));
     const go = padEl('button', 'home-link', sel.kind === 'lap' ? 'К кругу' : 'К замеру');
     go.type = 'button';
