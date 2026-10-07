@@ -2353,6 +2353,21 @@ try {
     driveInActive: () => !!driveIn,
     driveInState: () => (driveIn ? { t0: driveIn.t0, t: driveIn.lastT ?? 0, seekT: driveIn.seekT ?? null, controlsEnabled: controls.enabled } : null),
     // synchronous frame for offline recording: pose at t ms, render, return PNG data URL (null when no drive-in)
+    // v110: podium QA hooks (harness only): current model id, load model, orbit camera relative to the car (az 0 = front, 180 = rear)
+    podiumModel: () => (glbRoot && glbRoot.userData && glbRoot.userData.__plateModel) || null,
+    loadModel: (id) => { loadPodiumModel(id, 0); return true; },
+    plateCount: () => { const r = {}; scene.traverse((o) => { if (/^PITLANE_plate_(front|rear)$/.test(o.name || '')) r[o.name] = (r[o.name] || 0) + 1; }); return r; },
+    orbit: (azDeg = 180, elDeg = 10, dist = 6.2, ty = null, focus = null) => {
+      if (!glbRoot) return false;
+      controls.autoRotate = false;
+      const yaw = glbRoot.rotation.y + (azDeg * Math.PI) / 180, el = (elDeg * Math.PI) / 180;
+      if (ty != null) controls.target.y = ty;
+      if (focus) { const f = glbRoot.getObjectByName(focus); if (f) f.getWorldPosition(controls.target); }
+      const t = controls.target;
+      camera.position.set(t.x + Math.sin(yaw) * Math.cos(el) * dist, t.y + Math.sin(el) * dist, t.z + Math.cos(yaw) * Math.cos(el) * dist);
+      camera.lookAt(t); controls.update(); podiumInvalidate(600, true);
+      return true;
+    },
     driveInFrame: (ms, type = 'image/png') => {
       if (driveIn) { driveIn.seekT = ms; stepDriveIn(performance.now()); }
       controls.update(); podiumRender(performance.now());
@@ -6599,7 +6614,8 @@ function cyclePodiumModel(delta) {
   podiumIdleTimer = setTimeout(() => { try { controls.autoRotate = true; } catch (_) {} }, 1800);
 }
 
-const GLB_CACHE_NAME = 'pitlane-glb-v1';
+// v110: bumped (m3 lights + spark emblem GLB edits) — old pitlane-glb-v1 is dropped by the SW on activate
+const GLB_CACHE_NAME = 'pitlane-glb-v2';
 let glbPrefetchStarted = false;
 let glbPrefetchDone = false; // adaptive-quality FPS check waits for background GLB parsing (main-thread jank)
 let glbPrefetchT0 = 0;
@@ -6719,7 +6735,7 @@ async function prefetchGlbUrl(url, { parse = true } = {}) {
       }
     }
     if (!buf) {
-      const res = await fetch(url, { credentials: 'same-origin', mode: 'cors' });
+      const res = await fetch(url, { credentials: 'same-origin', mode: 'cors', cache: 'no-cache' });
       if (!res.ok) return;
       buf = await res.arrayBuffer();
       await putGlbBuffer(url, buf);
@@ -6816,7 +6832,7 @@ function loadPodiumModel(id, animDir = 0) {
       }
       let buf = await matchGlbBuffer(url);
       if (!buf) {
-        const res = await fetch(url, { credentials: 'same-origin', mode: 'cors' });
+        const res = await fetch(url, { credentials: 'same-origin', mode: 'cors', cache: 'no-cache' });
         if (!res.ok) throw new Error('HTTP ' + res.status);
         buf = await res.arrayBuffer();
         putGlbBuffer(url, buf.slice(0));
@@ -10814,7 +10830,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v109';
+const APP_VERSION = 'v110';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

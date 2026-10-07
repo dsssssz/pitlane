@@ -29,27 +29,30 @@ export const PLATE_CONFIG = {
   gt3rs: { front: { y: 0.34, push: 0.035 }, rear: { mesh: /ManufacturerPlate/i } },
   'mclaren-765lt': { front: { y: 0.30 }, rear: { mesh: /ManufacturerPlate/i } },
   g63: { front: { y: 0.55 }, rear: { mesh: /ManufacturerPlate/i } },
-  m4: { front: { y: 0.36 }, rear: { y: 0.62 } },
+  // v110: M4 rear plate lives in the trunk-lid recess (0.64–0.87 m, leans back ~16°), not on the bumper
+  m4: { front: { y: 0.36 }, rear: { y: 0.755 } },
   m3: { front: { mesh: /bumper_front.*licenseplate/i }, rear: { mesh: /trunk.*licenseplate/i } },
   x6: { front: { mesh: /^Plane001_plate/i }, rear: { mesh: /^Plane005_plate/i } },
   isf: { front: { y: 0.36 }, rear: { y: 0.86 } },
   'c63-ed507': { scale: 1, front: { y: 0.36 }, rear: { mesh: /ManufacturerPlate/i } },
-  spark: { front: { mesh: /bumper_F_plateholder/i }, rear: { y: 0.55 } },
+  // v110: Spark rear plate lives in the tailgate recess under the (removed) bowtie (0.94–1.19 m), not on the black lower bumper
+  spark: { front: { mesh: /bumper_F_plateholder/i }, rear: { y: 1.06 } },
 };
 
 /** Baked placements (tools/plates-smoke.html ?bake) — [end, pos, quat, scale, hiddenMesh] in glbRoot-local units.
  *  Runtime uses these (zero raycast cost on switch); PLATE_CONFIG + raycast is the fallback / re-bake source. */
+// v110: m4 + spark rear re-baked into the stock recesses (trunk lid / tailgate)
 const PLATE_BAKED = {
   "g87-m2": [["front", [-4.75687e-11, 0.00367678, 0.0229473], [-0.0349, 0, 0, 0.99939], 0.00694876, null], ["rear", [0, 0.00711794, -0.0218361], [0, 0.9918, 0.1278, 0], 0.00694876, "ZacoeKit3_ManufacturerPlate_Geo_lodA_Kit3_ManufacturerPlate_Geo_lodA_BMW_M2G87TNR3_2023ManufacturerPlateD_Material_ZacoeBMW_M2G87TNR3_2023ManufacturerPlateD_Material1_0"]],
   "gt3rs": [["front", [0, 0.00317016, 0.0223332], [0.17365, 0, 0, 0.98481], 0.00687255, null], ["rear", [0, 0.00529432, -0.0229399], [0, 0.99545, 0.09529, 0], 0.00687255, "ManufacturerPlate_Geo_lodA_Porsche_911GT3RS992Tribute_2023ManufacturerPlateB_Material_0"]],
   "mclaren-765lt": [["front", [0, 0.00286507, 0.0223152], [0.15501, 0, 0, 0.98791], 0.00690362, null], ["rear", [0, 0.00512343, -0.0226331], [0, 0.99141, 0.13078, 0], 0.00690362, "ManufacturerPlate_Geo_lodA_McLaren_765LT_2021ManufacturerPlateA_Material_0"]],
   "g63": [["front", [0, 0.00562654, 0.0240741], [0.15954, 0, 0, 0.98719], 0.00737678, null], ["rear", [0, 0.00552604, -0.0212322], [0, 0.99988, 0.01549, 0], 0.00737678, "MManufacturerPlate_Geo_lodA_ManufacturerPlate_Geo_lodA_MercedesAMG_G63SUVRewardRecycled_2020ManufacturerPlateA_81eee94_MMercedesAMG_G63SUVRewardRecycled_2020ManufacturerPlateA_81eee95_0"]],
-  "m4": [["front", [0, 0.00349589, 0.0238487], [0.11152, 0, 0, 0.99376], 0.0084884, null], ["rear", [0, 0.00609234, -0.0235245], [0, 0.98481, 0.17365, 0], 0.0084884, null]],
+  "m4": [["front", [0, 0.00349589, 0.0238487], [0.11152, 0, 0, 0.99376], 0.0084884, null], ["rear", [0, 0.0074405, -0.0226404], [0, 0.99138, 0.13098, 0], 0.0084884, null]],
   "m3": [["front", [-3.89963e-07, 0.00434613, 0.0217983], [-0.01494, 0, 0, 0.99989], 0.00928735, "m3car_bmw_m3detach_bumper_front_25_pivotdetach_bumper_front_25detach_bumper_front_25_pivot_licenseplate_m3phong9SG1_0"], ["rear", [6.28002e-06, 0.00809006, -0.0230448], [0, 0.99151, 0.13002, 0], 0.00928735, "m3car_bmw_m3detach_trunk_20_pivot_licenseplatedetach_trunk_20_pivotdetach_trunk_20_m3phong9SG1_0"]],
   "x6": [["front", [1.16171e-10, 0.00858976, 0.0376367], [0.1152, 0, 0, 0.99334], 0.0152977, "Plane001_plate_0"], ["rear", [8.33109e-11, 0.0110797, -0.0368762], [0, 0.99255, 0.12187, 0], 0.0152977, "Plane005_plate_0"]],
   "isf": [["front", [-1.73472e-18, 0.00372126, 0.0224266], [0.17365, 0, 0, 0.98481], 0.00826224, null], ["rear", [-1.73472e-18, 0.0085814, -0.022696], [0, 0.98779, 0.15579, 0], 0.00826224, null]],
   "c63-ed507": [["front", [0, 0.00328732, 0.023331], [0.17365, 0, 0, 0.98481], 0.00979578, null], ["rear", [0, 0.00753396, -0.0223145], [0, 0.99269, 0.12069, 0], 0.00979578, "_ManufacturerPlate_Geo_lodA_ManufacturerPlate_Geo_lodA_MercedesBenz_C63AMGEdition507_2014ManufacturerPlateA_Material__MercedesBenz_C63AMGEdition507_2014ManufacturerPlateA_Material1_0"]],
-  "spark": [["front", [5.96046e-09, 0.00524968, 0.0218137], [-0.03276, 0, 0, 0.99946], 0.00758, "fmspark_bumper_F_plateholder_Plastic_Black_0"], ["rear", [-0.000134124, 0.00497284, -0.0145764], [0, 0.9983, -0.05832, 0], 0.00758, null]],
+  "spark": [["front", [5.96046e-09, 0.00524968, 0.0218137], [-0.03276, 0, 0, 0.99946], 0.00758, "fmspark_bumper_F_plateholder_Plastic_Black_0"], ["rear", [-0.000134124, 0.00883864, -0.0137822], [0, 0.99214, 0.12512, 0], 0.00758, null]],
 };
 
 let shared = null;
