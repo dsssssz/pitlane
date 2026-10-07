@@ -12,6 +12,7 @@ const kv = new MemKV();
 const SECRET = 'S'.repeat(40);
 const tgSent = [];
 const env = {
+  __salesForTests: true, // v108: продажи сезона в проде выключены до реквизитов — здесь проверяем саму механику
   PITLANE: kv, SMS_DEMO: '1', TELEGRAM_BOT_TOKEN: '123456:' + 'A'.repeat(30), TELEGRAM_BOT_USERNAME: 'pitlane_official_bot', TG_WEBHOOK_SECRET: SECRET,
   __fetch: async (u, o) => {
     const method = String(u).split('/').pop();

@@ -14,6 +14,7 @@ const SECRET = 'W'.repeat(40);
 const BOT_TOKEN = '123456:' + 'B'.repeat(30);
 const tgSent = [];
 const env = {
+  __salesForTests: true, // v108: продажи сезона в проде выключены до реквизитов — здесь проверяем саму механику
   PITLANE: kv, SMS_DEMO: '1', TELEGRAM_BOT_TOKEN: BOT_TOKEN, TELEGRAM_BOT_USERNAME: 'pitlane_official_bot', TG_WEBHOOK_SECRET: SECRET,
   __fetch: async (u, o) => {
     const method = String(u).split('/').pop();

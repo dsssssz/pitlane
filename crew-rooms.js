@@ -333,6 +333,7 @@ function quotaBadge(q) {
   if (!q) return el('span', 'room-badge', '—');
   if (q.paid) return el('span', 'room-badge paid', 'сезон до ' + new Date(q.paidUntil).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }));
   if (q.locked) return el('span', 'room-badge locked', 'молчит');
+  if (q.sales === false) return el('span', 'room-badge free', 'пока бесплатно · без лимитов');
   return el('span', 'room-badge free', 'бесплатно ' + q.sessionsUsed + '/' + q.freeSessions + ' сесс.');
 }
 
@@ -412,6 +413,13 @@ async function showInvite(code) {
 
 function paywallCard(pw, room) {
   const q = pw?.quota || room?.quota || {};
+  // v108: продажа сезона выключена, пока нет реквизитов продавца — кнопку оплаты не показываем
+  if (q.sales === false) {
+    const c = el('section', 'room-paywall');
+    c.appendChild(el('h3', '', 'Пока без оплаты'));
+    c.appendChild(el('p', '', 'Оплата сезона сейчас не принимается — комната работает без лимитов.'));
+    return c;
+  }
   const price = q.price || { stars: 0, days: 90 };
   const card = el('section', 'room-paywall');
   card.appendChild(el('div', 'room-paywall-ico', '⭐'));

@@ -10,12 +10,13 @@
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="./legal.css" />
     <script>try{if(sessionStorage.getItem("pitlane-tma")==="1"||/tgWebApp/.test(location.hash))document.documentElement.classList.add("tma")}catch(e){}</script>
+    <script type="module" src="./legal.js"></script>
   </head>
   <body>
     <main class="legal">
       <a class="back" href="./index.html?view=account&amp;skipIntro=1">← Pitlane</a>
       <h1>Удаление аккаунта</h1>
-      <p class="meta">Pitlane · разработчик: <mark class="ph">[ФИО самозанятого]</mark></p>
+      <p class="meta">Pitlane · разработчик: <span data-legal="name">разработчик Pitlane</span><span data-legal-unless> (реквизиты ещё не опубликованы)</span> · редакция от <span data-legal-rev>07.10.2026</span></p>
 
       <section class="card" id="delLoggedIn" hidden>
         <p>Вы вошли как <strong id="delWho">—</strong>.</p>
@@ -34,7 +35,7 @@
         <p><strong>Как удалить аккаунт:</strong></p>
         <ol>
           <li>Откройте Pitlane → вкладка «Аккаунт» → кнопка <strong>«Удалить аккаунт»</strong> и подтвердите словом «УДАЛИТЬ». Или войдите в <a href="./index.html?view=account&amp;skipIntro=1">приложение</a> в этом браузере и вернитесь на эту страницу — появится кнопка удаления.</li>
-          <li>Не получается войти? Напишите на <mark class="ph">[email для связи]</mark> с темой «Удаление аккаунта» и укажите способ входа (номер телефона или Telegram @username). Мы удалим данные в течение 10 рабочих дней и подтвердим ответным письмом.</li>
+          <li>Не получается войти? Напишите через <a data-legal="email" href="https://t.me/pitlane_official_bot">@pitlane_official_bot (раздел «Обратная связь»)</a> с темой «Удаление аккаунта» и укажите способ входа (Telegram @username). Мы удалим данные в течение 10 рабочих дней и подтвердим ответом.</li>
         </ol>
       </section>
 

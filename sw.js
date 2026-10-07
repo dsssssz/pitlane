@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v107';
+const CACHE = 'pitlane-v108';
 const GLB_CACHE = 'pitlane-glb-v1';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -25,6 +25,8 @@ const CORE = [
   './ghost-codec.js',
   './gps-core.js',
   './track-cal.js',
+  './legal-config.js',
+  './legal.js',
   './img/profile-banners/neon-sochi-600.webp',
   './img/profile-banners/neon-moscow-600.webp',
   './img/profile-banners/neon-nring-600.webp',

@@ -15,6 +15,18 @@
 
 /* ——— season / limits (Мага меняет здесь) ——— */
 import { PAY, msgSeasonPaid } from './botcopy.js';
+import { legalReady } from '../../legal-config.js';
+
+/**
+ * v108: сезон комнаты за Stars — платная услуга. Пока в legal-config.js нет реквизитов продавца,
+ * продажа выключена: счёт не выставляется, pre_checkout отклоняется, а лимиты бесплатного режима
+ * не применяются (комнаты не «запираются» оплатой, которую нельзя провести). Цена сезона не меняется.
+ * env.__salesForTests — только для unit-тестов (в wrangler.toml не задаётся).
+ */
+export function salesOn(env) {
+  return legalReady() || env?.__salesForTests === true;
+}
+let SALES = false;
 
 export const ROOM_SEASON_DAYS = 90; // длительность оплаченного сезона
 export const ROOM_SEASON_STARS = 500; // цена сезона в Telegram Stars (XTR) — ЗАГЛУШКА
@@ -64,10 +76,11 @@ export function roomQuota(room, h, now = Date.now()) {
   const today = h.moscowDateKey(now);
   const paidUntil = Number(room?.paidUntil) || 0;
   const paid = paidUntil > now;
+  const free = !SALES; // продажи нет → нет и замка
   const sessions = Array.isArray(room?.sessions) ? room.sessions : [];
   const tracks = Array.isArray(room?.tracks) ? room.tracks : [];
   const openToday = sessions.some((s) => s.date === today);
-  const locked = !paid && sessions.length >= ROOM_FREE_SESSIONS && !openToday;
+  const locked = !free && !paid && sessions.length >= ROOM_FREE_SESSIONS && !openToday;
   return {
     paid,
     paidUntil: paid ? paidUntil : null,
@@ -77,6 +90,7 @@ export function roomQuota(room, h, now = Date.now()) {
     freeTracks: ROOM_FREE_TRACKS,
     locked,
     price: { stars: ROOM_SEASON_STARS, currency: 'XTR', days: ROOM_SEASON_DAYS },
+    sales: !free,
   };
 }
 
@@ -170,10 +184,11 @@ function roomAdmitLap(room, trackId, h, now = Date.now()) {
   room.sessions = Array.isArray(room.sessions) ? room.sessions : [];
   room.tracks = Array.isArray(room.tracks) ? room.tracks : [];
   const date = h.moscowDateKey(now);
-  if (!q.paid && !room.tracks.includes(trackId) && room.tracks.length >= ROOM_FREE_TRACKS) return { reason: 'track' };
+  const unl = q.paid || q.sales === false;
+  if (!unl && !room.tracks.includes(trackId) && room.tracks.length >= ROOM_FREE_TRACKS) return { reason: 'track' };
   const k = date + '|' + trackId;
   const has = room.sessions.some((s) => s.k === k);
-  if (!has && !q.paid && room.sessions.length >= ROOM_FREE_SESSIONS) return { reason: 'sessions' };
+  if (!has && !unl && room.sessions.length >= ROOM_FREE_SESSIONS) return { reason: 'sessions' };
   if (!has) room.sessions.push({ k, date, trackId, at: now });
   if (!room.tracks.includes(trackId)) room.tracks.push(trackId);
   return { ok: true, date };
@@ -210,6 +225,7 @@ function invoiceSpec(room, pilotId, h) {
 
 /** Returns a Response for /me/car and /rooms…, or null when the path is not ours. */
 export async function roomsRoute(ctx) {
+  SALES = salesOn(ctx?.env);
   const { req, env, path, url, pilot, headers, ip, h } = ctx;
   const kv = env.PITLANE;
   const isRoomPath = path === '/me/car' || path === '/rooms' || path.startsWith('/rooms/');
@@ -438,6 +454,7 @@ export async function roomsRoute(ctx) {
   if (sub === 'invoice' && req.method === 'POST') {
     const lim = await h.limitOr429(env, headers, [['rl:rpay:p:' + pilot.id, 10, 3600]]);
     if (lim) return lim;
+    if (!salesOn(env)) return h.json({ error: 'payments disabled', code: 'NO_SALES' }, 503, headers);
     const tg = h.telegramConfig(env);
     if (!tg.enabled) return h.json({ error: 'payments unavailable' }, 503, headers);
     const body = await h.readJson(req, 2048);
@@ -489,6 +506,7 @@ export async function roomsPreCheckout(env, q, h) {
     return { ok: false, msg };
   };
   if (!q || typeof q.id !== 'string') return { ok: false, msg: 'bad query' };
+  if (!salesOn(env)) return await fail(PAY.errStale);
   const mm = String(q.invoice_payload || '').match(PAYLOAD_RE);
   if (!mm) return await fail(PAY.errStale);
   if (q.currency !== 'XTR' || Number(q.total_amount) !== ROOM_SEASON_STARS) return await fail(PAY.errPrice);

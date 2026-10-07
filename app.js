@@ -21,6 +21,7 @@ import { initTips, tipsOnView, resetTips, showMyCarHowTo } from './tips.js';
 import { createChaseTracker } from './chase-match.js';
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
+import { legalReady } from './legal-config.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -4933,7 +4934,9 @@ document.getElementById('runDriveShare')?.addEventListener('click', () => {
   const ps = rec.pass0100 || {};
   openShareCard(buildSharePayload({ type: '0-100', time: Number(rec.v0100).toFixed(2) + ' с', valid: !!ps.top, src: ps.src || 'phone', n: ps.n, gpsQ: ps.gpsQ, avgAcc: ps.avgAcc, hz: ps.hz, paint: getStoredPaintHex() || undefined }));
 });
+// v108: пока в legal-config нет реквизитов — покупки Pro нет вовсе (кнопка «пока бесплатно» без действия-покупки)
 document.querySelectorAll('.btn-pro-soon, #btnProSoon').forEach((btn) => {
+  if (!legalReady()) { btn.title = 'Pro не продаётся: реквизиты продавца ещё не опубликованы. Всё доступно бесплатно.'; }
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     toastSoon();
@@ -5447,6 +5450,8 @@ window.addEventListener('pitlane:session-lost', () => {
 });
 
 function isPro(u) {
+  // v108: Pro не продаётся, пока нет реквизитов (legal-config) — значит, и «запертых» функций нет
+  if (!legalReady()) return true;
   if (!u) return false;
   if (u.paidUntil && u.paidUntil > Date.now()) return true;
   if (u.trialEnds && u.trialEnds > Date.now()) return true;
@@ -5475,11 +5480,13 @@ function refreshAccount() {
   document.getElementById('btnDeleteAccount')?.classList.toggle('hidden', !getSessionToken() || String(getSessionToken()).startsWith('local-'));
   const plan = document.getElementById('accPlan');
   if (plan) {
-    plan.textContent = isTMA ? 'аккаунт сохранён' : ((isPro(u) ? ('Pro · ') : ('trial · ')) + 'аккаунт сохранён');
+    plan.textContent = (isTMA || !legalReady()) ? 'аккаунт сохранён' : ((isPro(u) ? ('Pro · ') : ('trial · ')) + 'аккаунт сохранён');
   }
   const trialEl = document.getElementById('accTrialLeft');
   if (trialEl) {
-    if (u.paidUntil && u.paidUntil > Date.now()) {
+    if (!legalReady()) {
+      trialEl.textContent = '';
+    } else if (u.paidUntil && u.paidUntil > Date.now()) {
       trialEl.textContent = 'Pro активен';
     } else if (u.trialEnds) {
       const days = Math.max(0, Math.ceil((u.trialEnds - Date.now()) / (24 * 60 * 60 * 1000)));
@@ -10807,7 +10814,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v107';
+const APP_VERSION = 'v108';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
