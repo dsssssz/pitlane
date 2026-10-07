@@ -3045,6 +3045,17 @@ function tracePassport(pts) {
   const st = traceStats(pts);
   return { hz: st.hz, avgAcc: st.avgAcc, n: st.n, gpsQ: gradeTrace(st), src: traceSource(pts) };
 }
+/** v105: строка паспорта замера: «12.0 Гц · ±1.4 м · 312 точек · A». */
+function passportLine(tp) {
+  if (!tp) return '';
+  const parts = [];
+  parts.push(tp.hz != null && Number.isFinite(tp.hz) ? `${Number(tp.hz).toFixed(1)} Гц` : '— Гц');
+  parts.push(tp.avgAcc != null && Number.isFinite(tp.avgAcc) ? `±${Number(tp.avgAcc).toFixed(1)} м` : '±— м');
+  parts.push(`${tp.n || 0} точек`);
+  parts.push(tp.gpsQ || 'C');
+  return parts.join(' · ');
+}
+const SRC_LABEL = { ext: 'внешний GPS', phone: 'телефон', sim: 'симулятор' };
 function packTrace(pts) {
   return pts && pts.length >= 2 ? encodeTrace(pts, traceSource(pts)) : null;
 }
@@ -3208,31 +3219,37 @@ function onGpsPoint(pos) {
   run.prevDist = run.dist || 0;
   run.lastT = now;
 
+  // v105: время дисциплины = та же функция, что на сервере (gps-core.dragTime по сырому треку);
+  // запасной вариант — живая интерполяция по отфильтрованной скорости (если сырых точек мало)
+  const coreSec = (disc, fallback) => {
+    try { const t = coreDragTime(rawSince(run.rawSeq0 || 0), disc); if (t != null && t > 0) return t; } catch (_) {}
+    return fallback;
+  };
   const t60 = run.marks['60'];
   const t100 = run.marks['100'];
   const t200 = run.marks['200'];
   const t300 = run.marks['300'];
   if (run.marks['50'] && !run.saved050) {
-    const sec = (run.marks['50'] - run.t0) / 1000;
+    const sec = coreSec('0-50', (run.marks['50'] - run.t0) / 1000);
     setRunText('run050', fmtRunSec(sec));
     revealRunMark('050', '0–50', fmtRunSec(sec));
     run.saved050 = true;
     publishDragMark('0-50', sec);
   }
   if (t60 && !run.saved060) {
-    const sec = (t60 - run.t0) / 1000;
+    const sec = coreSec('0-60', (t60 - run.t0) / 1000);
     revealRunMark('060', '0–60', fmtRunSec(sec));
     run.saved060 = true;
     publishDragMark('0-60', sec);
   }
   if (run.marks['d60ft'] && !run.saved60ft) {
-    const sec = (run.marks['d60ft'] - run.t0) / 1000;
+    const sec = coreSec('60ft', (run.marks['d60ft'] - run.t0) / 1000);
     revealRunMark('60ft', '60 ft', fmtRunSec(sec));
     run.saved60ft = true;
     publishDragMark('60ft', sec);
   }
   if (run.marks['80'] && run.marks['120'] && !run.saved80120) {
-    const s = (run.marks['120'] - run.marks['80']) / 1000;
+    const s = coreSec('80-120', (run.marks['120'] - run.marks['80']) / 1000);
     setRunText('run80120', fmtRunSec(s));
     setRunText('slip80120', `${s.toFixed(2)}s`);
     revealRunMark('80120', '80–120', fmtRunSec(s));
@@ -3247,7 +3264,7 @@ function onGpsPoint(pos) {
     } catch (_) {}
   }
   if (t100 && !run.saved0100) {
-    const sec = (t100 - run.t0) / 1000;
+    const sec = coreSec('0-100', (t100 - run.t0) / 1000);
     setRunText('run0100', fmtRunSec(sec));
     setRunText('slip0100', `${sec.toFixed(2)}s`);
     setRunText('slipHero', `${sec.toFixed(2)}s`);
@@ -3256,35 +3273,36 @@ function onGpsPoint(pos) {
     ghostRunMark('0-100', t100 - run.t0);
     publishDragMark('0-100', sec);
     tmaHaptic('success');
-    void publishGps(sec, t100 && t200 ? (t200 - t100) / 1000 : null, t200 && t300 ? (t300 - t200) / 1000 : null);
+    void publishGps(sec, t100 && t200 ? coreSec('100-200', (t200 - t100) / 1000) : null, t200 && t300 ? coreSec('200-300', (t300 - t200) / 1000) : null);
   }
   if (run.marks['d18'] && !run.saved18) {
-    const sec = (run.marks['d18'] - run.t0) / 1000;
+    const sec = coreSec('201m', (run.marks['d18'] - run.t0) / 1000);
     revealRunMark('18', '⅛ мили', fmtRunSec(sec));
     run.saved18 = true;
     publishDragMark('201m', sec);
   }
   if (t100 && t200 && !run.saved100200) {
-    const s = (t200 - t100) / 1000;
+    const s = coreSec('100-200', (t200 - t100) / 1000);
+    const s0200 = coreSec('0-200', (t200 - run.t0) / 1000);
     setRunText('run100200', fmtRunSec(s));
     setRunText('slip100200', `${s.toFixed(2)}s`);
-    if (t100) setRunText('slip0200', `${((t200 - run.t0) / 1000).toFixed(2)}s`);
+    if (t100) setRunText('slip0200', `${s0200.toFixed(2)}s`);
     revealRunMark('100200', '100–200', fmtRunSec(s));
-    revealRunMark('0200', '0–200', fmtRunSec((t200 - run.t0) / 1000));
+    revealRunMark('0200', '0–200', fmtRunSec(s0200));
     run.saved100200 = true;
     publishDragMark('100-200', s);
-    publishDragMark('0-200', (t200 - run.t0) / 1000);
-    void publishGps(null, s, t200 && t300 ? (t300 - t200) / 1000 : null);
+    publishDragMark('0-200', s0200);
+    void publishGps(null, s, t200 && t300 ? coreSec('200-300', (t300 - t200) / 1000) : null);
   }
   if (run.marks['d14'] && !run.saved14) {
-    const sec = (run.marks['d14'] - run.t0) / 1000;
+    const sec = coreSec('402m', (run.marks['d14'] - run.t0) / 1000);
     revealRunMark('14', '¼ мили', fmtRunSec(sec));
     run.saved14 = true;
     ghostRunMark('402m', run.marks['d14'] - run.t0);
     publishDragMark('402m', sec);
   }
   if (t200 && t300 && !run.saved200300) {
-    const s = (t300 - t200) / 1000;
+    const s = coreSec('200-300', (t300 - t200) / 1000);
     setRunText('run200300', fmtRunSec(s));
     setRunText('slip200300', `${s.toFixed(2)}s`);
     revealRunMark('200300', '200–300', fmtRunSec(s));
@@ -3398,7 +3416,7 @@ function initExtGps() {
     onState: (state) => {
       if (state === 'ble' || state === 'sim') {
         stopGeoWatch();
-        extGpsMsg(state === 'sim' ? 'Симулятор: 4 с стоим, затем разгон до 230 км/ч и торможение — по кругу. Жмите «Старт».' : '');
+        extGpsMsg(state === 'sim' ? 'Симулятор: 4 с стоим, затем разгон до 230 км/ч и торможение — по кругу. Жмите «Старт». Симулятор не идёт в топ и дуэли.' : '');
         if (run.armed || lapRun.active) void keepAwake(true);
         setRunText('runStatus', state === 'sim' ? 'Симулятор PITLANE GPS: жмите «Старт»' : 'PITLANE GPS подключён — жмите «Старт»');
       } else if (state === 'off') {
@@ -3413,6 +3431,20 @@ function initExtGps() {
     },
   });
   extGpsRender(extGps.info());
+  // v105: на iPhone/iPad Web Bluetooth нет — вместо кнопки объяснение, почему топ разгонов недоступен
+  try {
+    const ua = navigator.userAgent || '';
+    const ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
+    const bleBtn = document.querySelector('[data-gps-src="ble"]');
+    if (ios && bleBtn) {
+      bleBtn.hidden = true;
+      const note = document.getElementById('extGpsIosNote');
+      if (note) {
+        note.hidden = false;
+        note.textContent = 'На iPhone внешний GPS-приёмник не подключается: браузеры и Telegram на iOS не дают доступ к Bluetooth. Замеры телефоном сохраняются у вас и в шейрах с пометкой «телефон · не в топ». Топ 0–100, 100–200, 80–120 и ¼ мили — только с внешним приёмником от 10 Гц (Android + Chrome).';
+      }
+    }
+  } catch (_) {}
   document.querySelectorAll('[data-gps-src]').forEach((b) => b.addEventListener('click', async () => {
     const src = b.getAttribute('data-gps-src');
     hap(10);
@@ -3554,16 +3586,20 @@ async function publishGps(v0100, v100200, v200300) {
     applyCarUI();
     if (v0100 != null) {
       pushSlip();
-      const gq = gpsQualityFromStraightRun();
-      const flags0 = (run.flags || []).slice(0, 8);
+      const tp = tracePassport(rawSince(run.rawSeq0 || 0));
+      rec0.pass0100 = { ...tp, top: false };
+      save();
+      setRunText('runDriveMsg', 'Паспорт: ' + passportLine(tp) + ' · в топ — после входа');
       openShareCard(buildSharePayload({
         type: '0-100',
         time: Number(rec0.v0100).toFixed(2) + ' с',
-        valid: runRowValid(gq, flags0),
+        valid: false,
+        src: tp.src,
+        n: tp.n,
         car: currentCar().name,
-        gpsQ: gq.gpsQ,
-        avgAcc: gq.avgAcc,
-        hz: gq.hz,
+        gpsQ: tp.gpsQ,
+        avgAcc: tp.avgAcc,
+        hz: tp.hz,
         paint: getStoredPaintHex() || undefined,
       }));
     }
@@ -3585,9 +3621,8 @@ async function publishGps(v0100, v100200, v200300) {
   save();
   const who = (profile()?.nick) || currentUser()?.nick || 'пилот';
   if (v0100 != null) {
-    const gq = gpsQualityFromStraightRun();
-    const flags = (run.flags || []).slice(0, 8);
-    const valid = runRowValid(gq, flags);
+    const tp = tracePassport(rawSince(run.rawSeq0 || 0));
+    let valid = false;
     {
       // v104: решает сервер по сырому треку; клиентские gpsQ / valid не отправляются
       const pts = rawSince(run.rawSeq0 || 0);
@@ -3599,20 +3634,25 @@ async function publishGps(v0100, v100200, v200300) {
       });
       _topSubmitP = pSub.catch(() => null);
       const res = await pSub;
+      valid = Array.isArray(res) || !!(res && res.ok);
       const msg = topVerdict(res);
-      setRunText('runDriveMsg', msg);
+      setRunText('runDriveMsg', msg + ' · ' + passportLine(tp));
       setRunText('runStatus', msg);
     }
+    rec.pass0100 = { ...tp, top: valid };
+    save();
     pushSlip();
     const payload = buildSharePayload({
       type: '0-100',
       time: Number(rec.v0100).toFixed(2) + ' с',
       valid,
+      src: tp.src,
+      n: tp.n,
       car: currentCar().name,
       nick: String(who),
-      gpsQ: gq.gpsQ,
-      avgAcc: gq.avgAcc,
-      hz: gq.hz,
+      gpsQ: tp.gpsQ,
+      avgAcc: tp.avgAcc,
+      hz: tp.hz,
       paint: getStoredPaintHex() || undefined,
     });
     openShareCard(payload);
@@ -4879,13 +4919,15 @@ function renderSlips() {
 document.getElementById('btnShareRun')?.addEventListener('click', async () => {
   const rec = state.meas[state.carId] || {};
   const t0100 = rec.v0100 != null ? Number(rec.v0100).toFixed(2) + ' с' : (document.getElementById('run0100')?.textContent || '—');
-  const payload = buildSharePayload({ type: '0-100', time: t0100, valid: true });
+  const ps = rec.pass0100 || {};
+  const payload = buildSharePayload({ type: '0-100', time: t0100, valid: !!ps.top, src: ps.src || 'phone', n: ps.n, gpsQ: ps.gpsQ, avgAcc: ps.avgAcc, hz: ps.hz });
   openShareCard(payload);
 });
 document.getElementById('runDriveShare')?.addEventListener('click', () => {
   const rec = state.meas[state.carId] || {};
   if (rec.v0100 == null) return;
-  openShareCard(buildSharePayload({ type: '0-100', time: Number(rec.v0100).toFixed(2) + ' с', valid: true, paint: getStoredPaintHex() || undefined }));
+  const ps = rec.pass0100 || {};
+  openShareCard(buildSharePayload({ type: '0-100', time: Number(rec.v0100).toFixed(2) + ' с', valid: !!ps.top, src: ps.src || 'phone', n: ps.n, gpsQ: ps.gpsQ, avgAcc: ps.avgAcc, hz: ps.hz, paint: getStoredPaintHex() || undefined }));
 });
 document.querySelectorAll('.btn-pro-soon, #btnProSoon').forEach((btn) => {
   btn.addEventListener('click', (e) => {
@@ -4959,7 +5001,7 @@ function b64urlDecode(s) {
   }
 }
 
-function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, avgAcc, hz, weather, paint, trackId, sectors, ms }) {
+function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, avgAcc, hz, weather, paint, trackId, sectors, ms, src, n }) {
   const u = currentUser();
   const c = currentCar();
   const payload = {
@@ -4978,6 +5020,9 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
   if (gpsQ === 'A' || gpsQ === 'B' || gpsQ === 'C') payload.gpsQ = gpsQ;
   if (avgAcc != null) payload.avgAcc = avgAcc;
   if (hz != null) payload.hz = hz;
+  if (src === 'ext' || src === 'phone' || src === 'sim') payload.src = src;
+  if (n != null && Number.isFinite(Number(n))) payload.n = Math.round(Number(n));
+  if (payload.src === 'sim') payload.valid = false;
   if (weather === 'dry' || weather === 'damp' || weather === 'wet') payload.weather = weather;
   const paintHex = paint || getStoredPaintHex();
   if (paintHex) payload.paint = paintHex;
@@ -4996,7 +5041,7 @@ function openShareCard(payload) {
   _sharePayload = payload;
   try { rememberDuelCandidateFromShare(payload); } catch (_) {}
   // v89: a ghost race shows its own result sheet first; the card opens from «Поделиться» there
-  if (ghostRace.holdShare && payload && !payload.ghost) { ghostRace.pendingShare = payload; return; }
+  if (typeof ghostRace !== 'undefined' && ghostRace?.holdShare && payload && !payload.ghost) { ghostRace.pendingShare = payload; return; }
   const card = document.getElementById('shareCard');
   if (!card) return;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -5054,7 +5099,16 @@ function openShareCard(payload) {
     const q = payload.gpsQ;
     let mark = 'VALID';
     let honesty = '';
-    if (payload.valid === false || q === 'C') {
+    const isDragCard = !(payload.type === 'lap' || payload.type === 'круг');
+    if (payload.src === 'sim') {
+      mark = 'СИМУЛЯТОР';
+      badge.classList.add('invalid');
+      honesty = 'симулятор · не реальный заезд, не в топ';
+    } else if (payload.src === 'phone' && isDragCard) {
+      mark = 'ТЕЛЕФОН · НЕ В ТОП';
+      badge.classList.add('invalid');
+      honesty = 'телефон · не в топ (топ разгонов — внешний GPS от 10 Гц)';
+    } else if (payload.valid === false || q === 'C') {
       mark = q === 'C' ? 'НЕ В ТОП · Слабый GPS' : 'НЕ В ТОП';
       badge.classList.add('invalid');
       if (q === 'C') badge.classList.add('gps-c');
@@ -5071,8 +5125,11 @@ function openShareCard(payload) {
     const tipParts = [];
     if (payload.avgAcc != null) tipParts.push(`±${Math.round(Number(payload.avgAcc))} м`);
     if (payload.hz != null) tipParts.push(`${Number(payload.hz).toFixed(1)} Гц`);
+    if (payload.n != null) tipParts.push(`${payload.n} точек`);
+    if (q) tipParts.push(q);
     if (tipParts.length) honesty = (honesty ? honesty + ' · ' : '') + tipParts.join(' · ');
-    badge.innerHTML = `<span>${mark}</span>`;
+    badge.textContent = '';
+    const bs = document.createElement('span'); bs.textContent = mark; badge.appendChild(bs);
     badge.title = honesty || mark;
     const hon = document.getElementById('shareHonesty');
     if (hon) {
@@ -5120,7 +5177,9 @@ function shareTextRu(p) {
   if (grade && grade !== 'GPS') lines.push(`GPS: ${grade}`);
   if (wx) lines.push(`Погода: ${wx}`);
   if (p.ghost) lines.push(`Призрак: ${p.ghost}${p.ghostVs ? ' · vs ' + p.ghostVs : ''}`);
-  if (p.valid === false || p.gpsQ === 'C') lines.push('не в публичный топ');
+  if (p.src === 'sim') lines.push('симулятор · не в топ');
+  else if (p.src === 'phone' && !isLap) lines.push('телефон · не в топ');
+  else if (p.valid === false || p.gpsQ === 'C') lines.push('не в публичный топ');
   else lines.push('VALID');
   return lines.join('\n');
 }
@@ -10697,7 +10756,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v104';
+const APP_VERSION = 'v105';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -11338,7 +11397,7 @@ async function renderHomeHero() {
     if (rank) tiles.push(homeStatTile('Топ 0–100', '#' + rank.n, 'из ' + rank.of, 'hh-rank'));
     if (!tiles.length) {
       // v86: аккуратное пустое состояние — «призрачные» рекорды + подсказка
-      const main = homeStatTile('0–100 км/ч', '0.00', 'GPS A/B', 'hh-main ghost', 'с');
+      const main = homeStatTile('0–100 км/ч', '—', 'GPS A/B', 'hh-main ghost', 'с');
       box.appendChild(main);
       const row = padEl('div', 'hh-row');
       row.appendChild(homeStatTile('¼ мили', '—', '402 м', 'ghost'));
@@ -12326,7 +12385,7 @@ function renderHomeStats() {
   const top = padEl('div', 'hs-top');
   const lead = padEl('div', 'hs-lead');
   lead.appendChild(padEl('span', 'h-cap', 'Лучший 0–100'));
-  const big = padEl('b', 'hs-big' + (s.best0100 != null ? '' : ' ghost'), s.best0100 != null ? s.best0100.toFixed(2) : '0.00');
+  const big = padEl('b', 'hs-big' + (s.best0100 != null ? '' : ' ghost'), s.best0100 != null ? s.best0100.toFixed(2) : '—');
   big.appendChild(padEl('small', '', 'с'));
   lead.appendChild(big);
   if (hist.length >= 2) {
