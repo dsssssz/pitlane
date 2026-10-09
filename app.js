@@ -3,14 +3,54 @@ import {
   setBackHandler, showBack, setClosingGuard, tmaHaptic, canOpenLocationSettings, openLocationSettings,
   tmaStartLink, tmaShare, keepAwake,
 } from './tma.js';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { Reflector } from 'three/addons/objects/Reflector.js';
-import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { attachPitlanePlates, isPitlanePlate } from './plates.js';
+/* v119: three.js + аддоны + номера (plates.js) — dynamic import при первой надобности (Бокс, chase Сочи).
+ * На первом экране их нет. Тот же origin (importmap → ./vendor/three) — CSP script-src 'self' не трогаем. */
+let THREE; let OrbitControls; let GLTFLoader; let RoomEnvironment; let Reflector; let RectAreaLightUniformsLib; let cloneSkinned;
+let attachPitlanePlates; let isPitlanePlate = () => false;
+/* v119: Leaflet (спутниковая карта HUD круга) — вставка <script>/<link> того же origin при первом заходе на «Круг» */
+let _leafP = null;
+function ensureLeaflet() {
+  if (typeof window !== 'undefined' && window.L) return Promise.resolve(window.L);
+  if (!_leafP) {
+    _leafP = new Promise((resolve, reject) => {
+      const t0 = performance.now();
+      const css = document.createElement('link');
+      css.rel = 'stylesheet'; css.href = './vendor/leaflet/leaflet.css';
+      document.head.appendChild(css);
+      const sc = document.createElement('script');
+      sc.src = './vendor/leaflet/leaflet.js'; sc.async = true;
+      sc.onload = () => { try { (window.__plLazy = window.__plLazy || {}).leaflet = Math.round(performance.now() - t0); } catch (_) {} resolve(window.L); };
+      sc.onerror = (e) => { _leafP = null; sc.remove(); reject(e); };
+      document.head.appendChild(sc);
+    });
+  }
+  return _leafP;
+}
+let _threeP = null;
+function ensureThree() {
+  if (THREE) return Promise.resolve(THREE);
+  if (!_threeP) {
+    const t0 = performance.now();
+    _threeP = Promise.all([
+      import('three'),
+      import('three/addons/controls/OrbitControls.js'),
+      import('three/addons/loaders/GLTFLoader.js'),
+      import('three/addons/environments/RoomEnvironment.js'),
+      import('three/addons/objects/Reflector.js'),
+      import('three/addons/lights/RectAreaLightUniformsLib.js'),
+      import('three/addons/utils/SkeletonUtils.js'),
+      import('./plates.js'),
+    ]).then(([T, oc, gl, re, rf, ra, su, pl]) => {
+      OrbitControls = oc.OrbitControls; GLTFLoader = gl.GLTFLoader; RoomEnvironment = re.RoomEnvironment; Reflector = rf.Reflector;
+      RectAreaLightUniformsLib = ra.RectAreaLightUniformsLib; cloneSkinned = su.clone;
+      attachPitlanePlates = pl.attachPitlanePlates; isPitlanePlate = pl.isPitlanePlate;
+      THREE = T;
+      try { (window.__plLazy = window.__plLazy || {}).three = Math.round(performance.now() - t0); } catch (_) {}
+      return T;
+    }).catch((err) => { _threeP = null; throw err; });
+  }
+  return _threeP;
+}
 import { createExtGps } from './ext-gps.js';
 import { TRACK_OUTLINES } from './geo/outlines.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
@@ -1706,95 +1746,146 @@ console.info(`[pitlane] 3D quality: ${Q.tier} (${Q.source}${Q.gpu ? ', ' + Q.gpu
 try { if (Q.tier === 'low') document.documentElement.classList.add('q-low'); } catch (_) {}
 
 const canvas = document.getElementById('view3d');
-const renderer = new THREE.WebGLRenderer({
-  canvas,
-  antialias: qPreset().aa,
-  alpha: false,
-  powerPreference: 'high-performance',
-});
-renderer.setClearColor(0x1a1a1a, 1);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qPreset().dprCap));
-if (!Q.gpu) {
+/* v119: 3D-подиум строится лениво — при первом заходе в Бокс (three.js грузится dynamic import'ом, не на первом экране) */
+let renderer = null, scene = null, camera = null, controls = null, key = null, fill = null, rim = null, rim2 = null, bounce = null, contactShadow = null, ringGlow = null, ring = null, car = null;
+function build3dScene() {
+  if (renderer || !THREE) return;
+  gltfLoader = new GLTFLoader();
+  diInit();
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    antialias: qPreset().aa,
+    alpha: false,
+    powerPreference: 'high-performance',
+  });
+  renderer.setClearColor(0x1a1a1a, 1);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qPreset().dprCap));
+  if (!Q.gpu) {
+    try {
+      const gl = renderer.getContext();
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      Q.gpu = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '');
+    } catch (_) {}
+  }
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.2;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  if ('useLegacyLights' in renderer) renderer.useLegacyLights = false;
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x1a1a1a);
+  camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+  camera.position.set(5.4, 2.2, 5.8);
+  controls = new OrbitControls(camera, canvas);
+  controls.enableDamping = true;
+  controls.enablePan = false;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.55;
+  controls.maxPolarAngle = Math.PI * 0.495;
+  controls.minPolarAngle = 0.15;
+  controls.minDistance = 2.4;
+  controls.maxDistance = 14;
+  controls.target.set(0, 0.55, 0);
+  controls.addEventListener('start', () => { controls.autoRotate = false; });
+  controls.addEventListener('end', () => {
+    clearTimeout(podiumIdleTimer);
+    podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 2200);
+  });
+  scene.add(new THREE.AmbientLight(0xa8b0c0, 0.26));
+  scene.add(new THREE.HemisphereLight(0x7a8aa4, 0x101012, 0.44));
+  key = new THREE.DirectionalLight(0xeef2fa, 1.18);
+  key.position.set(3.2, 7.4, 5.2);
+  key.castShadow = true;
+  key.shadow.mapSize.set(shadowRes, shadowRes);
+  key.shadow.camera.near = 0.5;
+  key.shadow.camera.far = 28;
+  key.shadow.camera.left = -6;
+  key.shadow.camera.right = 6;
+  key.shadow.camera.top = 6;
+  key.shadow.camera.bottom = -6;
+  key.shadow.bias = -0.00018;
+  key.shadow.normalBias = 0.02;
+  key.shadow.radius = 3.2;
+  scene.add(key);
+  fill = new THREE.DirectionalLight(0xc8d4e8, 0.58);
+  fill.position.set(-5.2, 4.6, 2.2);
+  scene.add(fill);
+  rim = new THREE.DirectionalLight(0xb4ccf0, 2.15);
+  rim.position.set(-1.0, 4.0, -7.0);
+  scene.add(rim);
+  rim2 = new THREE.DirectionalLight(0xd4dcec, 1.0);
+  rim2.position.set(6.0, 2.8, -3.4);
+  scene.add(rim2);
+  bounce = new THREE.DirectionalLight(0x8890a0, 0.28);
+  bounce.position.set(0.2, -0.7, 2.4);
+  scene.add(bounce);
   try {
-    const gl = renderer.getContext();
-    const ext = gl.getExtension('WEBGL_debug_renderer_info');
-    Q.gpu = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '');
-  } catch (_) {}
+    RectAreaLightUniformsLib.init();
+    const softA = new THREE.RectAreaLight(0xeef2fa, 3.4, 5.8, 1.5);
+    softA.position.set(-0.6, 5.9, 1.0);
+    softA.lookAt(0, 0.55, 0);
+    scene.add(softA);
+    const softB = new THREE.RectAreaLight(0xd8e0f0, 2.1, 3.6, 1.15);
+    softB.position.set(2.6, 5.0, -1.8);
+    softB.lookAt(0, 0.5, 0);
+    scene.add(softB);
+    areaLights.push(softA, softB);
+  } catch (_) { /* RectAreaLight optional on constrained GPUs */ }
+  contactShadow = new THREE.Mesh(
+    new THREE.CircleGeometry(2.4, 64),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000,
+      transparent: true,
+      opacity: 0.48,
+      depthWrite: false,
+    })
+  );
+  contactShadow.rotation.x = -Math.PI / 2;
+  contactShadow.position.y = 0.006;
+  scene.add(contactShadow);
+  ringGlow = new THREE.Mesh(
+    new THREE.RingGeometry(2.92, 3.48, 96),
+    new THREE.MeshBasicMaterial({
+      color: 0x39FF14,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.11,
+      depthWrite: false,
+    })
+  );
+  ringGlow.rotation.x = -Math.PI / 2;
+  ringGlow.position.y = 0.009;
+  scene.add(ringGlow);
+  ring = new THREE.Mesh(
+    new THREE.RingGeometry(3.1, 3.28, 96),
+    new THREE.MeshBasicMaterial({
+      color: 0x39FF14,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0.5,
+      depthWrite: false,
+    })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.y = 0.012;
+  scene.add(ring);
+  applyQualityTier(true);
+  car = new THREE.Group();
+  car.visible = false;
+  scene.add(car);
+  controls.addEventListener('start', () => { userInteracting = true; podiumInvalidate(300); });
+  controls.addEventListener('end', () => { userInteracting = false; interactUntil = performance.now() + 1500; podiumInvalidate(300); });
 }
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-if ('useLegacyLights' in renderer) renderer.useLegacyLights = false;
 
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a1a);
-const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
-camera.position.set(5.4, 2.2, 5.8);
 
-const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-controls.enablePan = false;
-controls.autoRotate = true;
-controls.autoRotateSpeed = 0.55;
-controls.maxPolarAngle = Math.PI * 0.495;
-controls.minPolarAngle = 0.15;
-controls.minDistance = 2.4;
-controls.maxDistance = 14;
-controls.target.set(0, 0.55, 0);
-controls.addEventListener('start', () => { controls.autoRotate = false; });
 let podiumIdleTimer = null;
-controls.addEventListener('end', () => {
-  clearTimeout(podiumIdleTimer);
-  podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 2200);
-});
 
 /* Dark cinematic studio: soft key/fill + strong cool rims for body-line definition */
-scene.add(new THREE.AmbientLight(0xa8b0c0, 0.26));
-scene.add(new THREE.HemisphereLight(0x7a8aa4, 0x101012, 0.44));
-const key = new THREE.DirectionalLight(0xeef2fa, 1.18);
-key.position.set(3.2, 7.4, 5.2);
-key.castShadow = true;
 const shadowRes = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ? 1024 : 1536;
-key.shadow.mapSize.set(shadowRes, shadowRes);
-key.shadow.camera.near = 0.5;
-key.shadow.camera.far = 28;
-key.shadow.camera.left = -6;
-key.shadow.camera.right = 6;
-key.shadow.camera.top = 6;
-key.shadow.camera.bottom = -6;
-key.shadow.bias = -0.00018;
-key.shadow.normalBias = 0.02;
-key.shadow.radius = 3.2;
-scene.add(key);
-const fill = new THREE.DirectionalLight(0xc8d4e8, 0.58);
-fill.position.set(-5.2, 4.6, 2.2);
-scene.add(fill);
-const rim = new THREE.DirectionalLight(0xb4ccf0, 2.15);
-rim.position.set(-1.0, 4.0, -7.0);
-scene.add(rim);
-const rim2 = new THREE.DirectionalLight(0xd4dcec, 1.0);
-rim2.position.set(6.0, 2.8, -3.4);
-scene.add(rim2);
-const bounce = new THREE.DirectionalLight(0x8890a0, 0.28);
-bounce.position.set(0.2, -0.7, 2.4);
-scene.add(bounce);
 
 /* Soft ceiling softboxes — lights only, no visible lamp meshes */
 const areaLights = [];
-try {
-  RectAreaLightUniformsLib.init();
-  const softA = new THREE.RectAreaLight(0xeef2fa, 3.4, 5.8, 1.5);
-  softA.position.set(-0.6, 5.9, 1.0);
-  softA.lookAt(0, 0.55, 0);
-  scene.add(softA);
-  const softB = new THREE.RectAreaLight(0xd8e0f0, 2.1, 3.6, 1.15);
-  softB.position.set(2.6, 5.0, -1.8);
-  softB.lookAt(0, 0.5, 0);
-  scene.add(softB);
-  areaLights.push(softA, softB);
-} catch (_) { /* RectAreaLight optional on constrained GPUs */ }
 
 /* PMREM + Reflector deferred until intro ends — avoids main-thread jank on entry */
 let floor = null;
@@ -1905,51 +1996,10 @@ function applyQualityTier(fromEnv = false) {
 
 
 /* Soft contact-shadow disk under the car (cinema stand) */
-const contactShadow = new THREE.Mesh(
-  new THREE.CircleGeometry(2.4, 64),
-  new THREE.MeshBasicMaterial({
-    color: 0x000000,
-    transparent: true,
-    opacity: 0.48,
-    depthWrite: false,
-  })
-);
-contactShadow.rotation.x = -Math.PI / 2;
-contactShadow.position.y = 0.006;
-scene.add(contactShadow);
 
 /* Subtle neon-green accent — soft core + faint halo (not loud) */
-const ringGlow = new THREE.Mesh(
-  new THREE.RingGeometry(2.92, 3.48, 96),
-  new THREE.MeshBasicMaterial({
-    color: 0x39FF14,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.11,
-    depthWrite: false,
-  })
-);
-ringGlow.rotation.x = -Math.PI / 2;
-ringGlow.position.y = 0.009;
-scene.add(ringGlow);
-const ring = new THREE.Mesh(
-  new THREE.RingGeometry(3.1, 3.28, 96),
-  new THREE.MeshBasicMaterial({
-    color: 0x39FF14,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.5,
-    depthWrite: false,
-  })
-);
-ring.rotation.x = -Math.PI / 2;
-ring.position.y = 0.012;
-scene.add(ring);
-applyQualityTier(true); // module-time: shadows / area lights / ring for the initial tier (podium env not built yet)
+ // module-time: shadows / area lights / ring for the initial tier (podium env not built yet)
 
-const car = new THREE.Group();
-car.visible = false;
-scene.add(car);
 const moving = {};
 
 function canvasTex(draw, size = 512) {
@@ -2218,10 +2268,9 @@ function podiumShouldRun() {
   return !document.hidden && podiumInView;
 }
 function kickLoop() {
+  if (!renderer) return; // v119: подиум ещё не построен (three не загружен)
   if (!loopRaf && podiumShouldRun()) loopRaf = requestAnimationFrame(tick);
 }
-controls.addEventListener('start', () => { userInteracting = true; podiumInvalidate(300); });
-controls.addEventListener('end', () => { userInteracting = false; interactUntil = performance.now() + 1500; podiumInvalidate(300); });
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { last = performance.now(); podiumInvalidate(300, true); qMeasureReset(); } else { qMeasureReset(); try { finishDriveIn(); } catch (_) {} }
 });
@@ -2435,9 +2484,9 @@ function clearDeepLinkUrl() {
     try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
     introBlocking3d = false;
     try { podiumInvalidate(1000, true); } catch (_) {}
+    // v119: подиум и модели — только когда открыли Бокс (раньше: boot + фоновая загрузка/разбор всех GLB)
     setTimeout(() => {
-      try { bootPodium(); } catch (_) {}
-      try { startGlbPrefetch(podiumModelId || state.carId || 'g87-m2'); } catch (_) {}
+      try { if (document.getElementById('view-garage')?.classList.contains('active')) void ensurePodium3d(); } catch (_) {}
     }, 30);
     try { prefetchEngineStart(); } catch (_) {}
     // v99: tour / first tip for the screen we land on
@@ -4685,6 +4734,26 @@ function openLapDrive() {
       svgFallback: (id) => drawTrack(id, 'lapDriveMap', { compact: true, live: true }),
     });
     if (!okSat) drawTrack(trackId, 'lapDriveMap', { compact: true, live: true });
+    // v119: Leaflet ещё не загружен (HUD открыт не с «Круга») — схема сейчас, спутник после загрузки
+    if (!okSat && !window.L) {
+      void ensureLeaflet().then(() => {
+        if (!lapDrive.open || lapRun.trackId !== trackId) return;
+        const ok2 = mountLapSatMap(trackId, document.getElementById('lapDriveMap'), {
+          trackName: track.name, meta: metaBits.concat([qLab]).join(' · '),
+          mode: lapDrive.mapMode === 'nav' ? 'nav' : 'overview',
+          svgFallback: (id) => drawTrack(id, 'lapDriveMap', { compact: true, live: true }),
+        });
+        if (ok2) { try { setLapMapMode(lapDrive.mapMode || 'overview'); updateLapCarOnMap(); } catch (_) {} }
+      }).catch(() => {});
+    }
+  }
+  // v119: chase Сочи ждёт three.js — догружаем и включаем, если пилот сам не переключил вид
+  if (trackId === 'sochi' && !sochiReduceMotion() && typeof THREE === 'undefined') {
+    void ensureThree().then(() => {
+      if (!lapDrive.open || lapDrive.mapModeUser || lapRun.trackId !== 'sochi') return;
+      lapDrive.mapMode = 'chase';
+      try { setLapMapMode('chase'); sochiChaseSync(); } catch (_) {}
+    }).catch(() => {});
   }
   setLapMapMode(lapDrive.mapMode || 'overview');
   updateLapCarOnMap();
@@ -6903,7 +6972,7 @@ document.getElementById('safetyCancel')?.addEventListener('click', () => {
   closeSafety();
 });
 
-const gltfLoader = new GLTFLoader();
+let gltfLoader = null; // v119: создаётся в build3dScene() (three грузится лениво)
 let glbRoot = null;
 
 /** Catalog of GLB models in /models — cycled via title ◀ ▶ (no door anims). */
@@ -7071,7 +7140,8 @@ const DRIVE_IN_RIGS = {
     tailMats: /^red_glass$/,
   },
 };
-const _di = { m1: new THREE.Matrix4(), m2: new THREE.Matrix4(), m3: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3() };
+let _di = null; // v119: матрицы — после загрузки three (build3dScene)
+function diInit() { if (!_di) _di = { m1: new THREE.Matrix4(), m2: new THREE.Matrix4(), m3: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3() }; return _di; }
 
 function buildDriveRig(root, modelId) {
   const cfg = DRIVE_IN_RIGS[modelId] || {};
@@ -7340,9 +7410,9 @@ function cyclePodiumModel(delta) {
 
 // v110: bumped (m3 lights + spark emblem GLB edits) — old pitlane-glb-v1 is dropped by the SW on activate
 const GLB_CACHE_NAME = 'pitlane-glb-v2';
-let glbPrefetchStarted = false;
-let glbPrefetchDone = false; // adaptive-quality FPS check waits for background GLB parsing (main-thread jank)
-let glbPrefetchT0 = 0;
+// v119: фонового парсинга каталога нет → замер FPS адаптивного качества ждать нечего
+const glbPrefetchDone = true;
+const glbPrefetchT0 = 0;
 let podiumLoadGen = 0;
 /** In-memory raw bytes (url -> ArrayBuffer). */
 const glbMemCache = new Map();
@@ -7472,48 +7542,7 @@ async function prefetchGlbUrl(url, { parse = true } = {}) {
   } catch (_) {}
 }
 
-/** Prefetch + decode catalog. Neighbors first. Parse concurrency 2. */
-function startGlbPrefetch(priorityId) {
-  if (glbPrefetchStarted || !MODEL_CATALOG?.length) return;
-  glbPrefetchStarted = true;
-  glbPrefetchT0 = performance.now();
-  const run = async () => {
-    const cats = MODEL_CATALOG.slice();
-    const idx = cats.findIndex((x) => x.id === priorityId);
-    const ordered = [];
-    const seen = new Set();
-    const push = (m) => {
-      if (!m || seen.has(m.id)) return;
-      seen.add(m.id);
-      ordered.push(m);
-    };
-    // current first, then GT3 (heavy), neighbors, then the rest
-    if (idx >= 0) push(cats[idx]);
-    push(cats.find((x) => x.id === 'gt3rs'));
-    if (idx >= 0) {
-      push(cats[(idx - 1 + cats.length) % cats.length]);
-      push(cats[(idx + 1) % cats.length]);
-    }
-    cats.forEach(push);
-    const urls = ordered.map(catalogModelUrl);
-    let cursor = 0;
-    const worker = async () => {
-      while (cursor < urls.length) {
-        const u = urls[cursor++];
-        await prefetchGlbUrl(u, { parse: true });
-        await new Promise((r) => setTimeout(r, 60));
-      }
-    };
-    await Promise.all([worker(), worker()]);
-    glbPrefetchDone = true;
-  };
-  const kick = () => { try { run(); } catch (_) {} };
-  if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(kick, { timeout: 600 });
-  } else {
-    setTimeout(kick, 0);
-  }
-}
+/* v119: фоновой докачки каталога GLB больше нет — модель качается, только когда её открыли (см. loadPodiumModel). */
 
 function loadPodiumModel(id, animDir = 0) {
   const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
@@ -7526,11 +7555,11 @@ function loadPodiumModel(id, animDir = 0) {
   const doTitle = () => applyPodiumTitle(m);
   if (animDir && !same) runHeroTitleTransition(animDir, doTitle);
   else doTitle();
+  // v119: сцены ещё нет (Бокс не открывали) — модель выбрана (state.carId), загрузится при входе в Бокс
+  if (!renderer || !gltfLoader) return;
   const url = catalogModelUrl(m);
   const gen = ++podiumLoadGen;
-
-  // Kick catalog prefetch immediately (not only after first model paints)
-  try { startGlbPrefetch(m.id); } catch (_) {}
+  // v119: без фоновой загрузки всего каталога — только эта модель
 
   const applyScene = (scene) => {
     if (gen !== podiumLoadGen) return;
@@ -7585,14 +7614,30 @@ function loadDefaultGlb() {
 }
 
 
+/** v119: три.js → сцена → загрузка выбранной модели. Вызывается при входе в Бокс (и из мест, где подиум нужен). */
+let _podiumP = null;
+function ensurePodium3d() {
+  if (renderer) { try { bootPodium(); } catch (_) {} return Promise.resolve(true); } // bootPodium идемпотентен
+  if (!_podiumP) {
+    _podiumP = ensureThree().then(() => {
+      build3dScene();
+      onResize();
+      bootPodium();
+      podiumInvalidate(600, true);
+      return true;
+    }).catch((err) => { _podiumP = null; console.warn('3d', err); return false; });
+  }
+  return _podiumP;
+}
 function bootPodium() {
+  if (!renderer) return; // v119: сцена ещё не построена
   if (introBlocking3d) return; // intro still visible — no GLB decode / PMREM yet
   onResize();
   try { applyPassportUI(); } catch (_) {}
   if (podiumBooted) return;
   podiumBooted = true;
   ensurePodiumEnv();
-  try { startGlbPrefetch(podiumModelId || defaultPodiumId()); } catch (_) {}
+  // v119: без фоновой загрузки каталога — модель качается, когда её открыли (SW кэширует после)
   loadDefaultGlb();
   // second resize after fonts/layout
   requestAnimationFrame(() => { onResize(); requestAnimationFrame(onResize); });
@@ -7721,7 +7766,7 @@ document.getElementById('glbInput')?.addEventListener('change', (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   const url = URL.createObjectURL(file);
-  gltfLoader.load(url, (gltf) => fitGlb(gltf.scene));
+  void ensurePodium3d().then(() => gltfLoader.load(url, (gltf) => fitGlb(gltf.scene)));
 });
 
 document.getElementById('btnResetModel')?.addEventListener('click', () => {
@@ -11625,7 +11670,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v118';
+const APP_VERSION = 'v119';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -11982,13 +12027,22 @@ function onViewEnter(id) {
       else if (id === 'duels') void renderDuelsView();
       else if (id === 'tops') void renderTopsBoard();
       else if (id === 'garage') {
-        try { onResize(); } catch (_) {}
-        try { podiumInvalidate(400, true); } catch (_) {}
-        if (!_garageSeen) {
-          _garageSeen = true;
-          const m = MODEL_CATALOG.find((x) => x.id === podiumModelId);
-          if (m?.driveIn && glbRoot) { try { startDriveIn(glbRoot, podiumModelId); } catch (_) {} }
-        }
+        // v119: three.js и сцена — при первом заходе в Бокс; модель — только выбранная
+        const wasReady = !!(renderer && podiumBooted);
+        void ensurePodium3d().then(() => {
+          try { onResize(); } catch (_) {}
+          try { podiumInvalidate(400, true); } catch (_) {}
+          if (!_garageSeen) {
+            _garageSeen = true;
+            const m = MODEL_CATALOG.find((x) => x.id === podiumModelId);
+            // первый вход: drive-in запускает сама загрузка модели (fitGlb); здесь — только если модель уже стояла
+            if (wasReady && m?.driveIn && glbRoot) { try { startDriveIn(glbRoot, podiumModelId); } catch (_) {} }
+          }
+        });
+      } else if (id === 'lap') {
+        // v119: карта (Leaflet) и chase Сочи (three.js) — подгружаем при входе на «Круг», чтобы HUD открылся как раньше
+        void ensureLeaflet().catch(() => {});
+        void ensureThree().then(() => { try { sochiChaseSync(); } catch (_) {} }).catch(() => {});
       }
     } catch (err) { console.warn('onViewEnter', id, err); }
   }, 0);

@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v118';
+const CACHE = 'pitlane-v119';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -59,8 +59,6 @@ const CORE = [
   './img/track-maps/don-thumb.webp',
   './track-sat-map.js',
   './geo/outlines.js',
-  './vendor/leaflet/leaflet.js',
-  './vendor/leaflet/leaflet.css',
   './api.js',
   './tma.js',
   './vendor/telegram-web-app.js',
@@ -85,40 +83,10 @@ const CORE = [
   './img/banners/tracks-800.webp',
   './img/banners/paddock-800.webp',
   './audio/huracan-start.mp3',
-  './vendor/three/three.module.js',
-  './vendor/three/addons/controls/OrbitControls.js',
-  './vendor/three/addons/loaders/GLTFLoader.js',
-  './vendor/three/addons/environments/RoomEnvironment.js',
-  './vendor/three/addons/objects/Reflector.js',
-  './vendor/three/addons/lights/RectAreaLightUniformsLib.js',
-  './vendor/three/addons/lights/RectAreaLightTexturesLib.js',
-  './vendor/three/addons/utils/BufferGeometryUtils.js',
-  './vendor/three/addons/utils/SkeletonUtils.js',
 ];
+/* v119: three.js, Leaflet и GLB не качаются при установке/активации — только при первом заходе в Бокс / на «Круг»
+ * (fetch-обработчик ниже кладёт их в кэш после первой загрузки, офлайн дальше работает как раньше). */
 
-const THREE_CDN = [
-  'https://unpkg.com/three@0.168.0/build/three.module.js',
-  'https://unpkg.com/three@0.168.0/examples/jsm/controls/OrbitControls.js',
-  'https://unpkg.com/three@0.168.0/examples/jsm/loaders/GLTFLoader.js',
-  'https://unpkg.com/three@0.168.0/examples/jsm/environments/RoomEnvironment.js',
-  'https://unpkg.com/three@0.168.0/examples/jsm/objects/Reflector.js',
-  'https://unpkg.com/three@0.168.0/examples/jsm/lights/RectAreaLightUniformsLib.js',
-  'https://unpkg.com/three@0.168.0/examples/jsm/lights/RectAreaLightTexturesLib.js',
-  'https://unpkg.com/three@0.168.0/examples/jsm/utils/BufferGeometryUtils.js',
-];
-
-const GLB_MODELS = [
-  './models/g87-m2.glb',
-  './models/m3.glb',
-  './models/m4.glb',
-  './models/c63-ed507.glb',
-  './models/gt3rs.glb',
-  './models/g63.glb',
-  './models/isf.glb',
-  './models/mclaren-765lt.glb',
-  './models/spark.glb',
-  './models/x6.glb',
-];
 
 async function softPut(cache, url, init) {
   try {
@@ -132,8 +100,6 @@ self.addEventListener('install', (e) => {
     (async () => {
       const c = await caches.open(CACHE);
       await Promise.all(CORE.map((u) => softPut(c, u)));
-      const t = await caches.open(THREE_CACHE);
-      await Promise.all(THREE_CDN.map((u) => softPut(t, u, { mode: 'cors' })));
       self.skipWaiting();
     })()
   );
@@ -148,15 +114,7 @@ self.addEventListener('activate', (e) => {
           .filter((k) => k !== CACHE && k !== GLB_CACHE && k !== THREE_CACHE)
           .map((k) => caches.delete(k))
       );
-      const g = await caches.open(GLB_CACHE);
-      await Promise.all(
-        GLB_MODELS.map(async (u) => {
-          try {
-            if (await g.match(u)) return;
-            await softPut(g, u);
-          } catch (_) {}
-        })
-      );
+      // v119: GLB больше не докачиваются здесь (было ~111 МБ в фоне на первом визите) — только по запросу модели
       await self.clients.claim();
     })()
   );
