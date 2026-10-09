@@ -331,6 +331,7 @@
               <div class="mycar-bar-txt">
                 <span class="mycar-bar-k" id="myCarBarK">Машина для зачёта</span>
                 <b class="mycar-bar-v" data-mycar-line>не выбрана</b>
+                <span class="mycar-bar-cls" data-mycar-class hidden></span>
               </div>
               <button type="button" class="mycar-bar-btn" id="btnMyCarGarage">Это моя машина</button>
             </div>
@@ -587,6 +588,16 @@
               <button type="button" class="wx-chip" data-wx="wet">Мокро</button>
             </div>
             <p class="tiny muted tops-weather-cap" id="topWeatherCaption">Показаны круги: сухо.</p>
+            <div class="tops-weather" id="topPrepChips" role="group" aria-label="Класс подготовки">
+              <span class="tops-weather-label">класс · со слов пилота</span>
+              <button type="button" class="wx-chip on" data-prep="all">Все</button>
+              <button type="button" class="wx-chip" data-prep="stock">Сток</button>
+              <button type="button" class="wx-chip" data-prep="st1">Stage 1</button>
+              <button type="button" class="wx-chip" data-prep="st2">Stage 2+</button>
+              <button type="button" class="wx-chip" data-prep="semi">Полуслик</button>
+              <button type="button" class="wx-chip" data-prep="none">Не указан</button>
+            </div>
+            <label class="tops-check"><input type="checkbox" id="topMyCarOnly" /> только моя машина (та же модель)</label>
           </div>
           <article class="card sector-tops-card" id="sectorTopsCard">
             <div class="sector-tops-head">
@@ -852,7 +863,7 @@
         <div class="share-meta-row">
           <span class="share-weather-chip hidden" id="shareWeather"></span>
         </div>
-        <p class="share-car" id="shareCarRow"><i class="share-swatch hidden" id="shareSwatch" aria-hidden="true"></i><span id="shareCar">—</span></p>
+        <p class="share-car" id="shareCarRow"><i class="share-swatch hidden" id="shareSwatch" aria-hidden="true"></i><span id="shareCar">—</span></p><p class="share-cls" id="shareCls" hidden></p>
         <p class="share-nick" id="shareNick">—</p>
         <p class="share-date" id="shareDate">—</p>
         <div id="shareSectorBattle" class="sector-battle-host" hidden></div>

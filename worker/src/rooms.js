@@ -55,7 +55,43 @@ export function sanitizeMyCar(body, h) {
   if (!model || h.containsPhone(model)) return { error: 'model required' };
   if (!tyre || h.containsPhone(tyre)) return { error: 'tyre required' };
   const carId = h.slugOk(body?.carId) ? String(body.carId) : null;
-  return { model, tyre, carId };
+  const out = { model, tyre, carId };
+  // v113: класс подготовки и тип шин — со слов пилота (проверить нельзя), только из списка; числа — в разумных пределах
+  if (body?.prep != null && body.prep !== '') {
+    if (!PREP_CLASSES.includes(body.prep)) return { error: 'bad prep' };
+    out.prep = body.prep;
+  }
+  if (body?.tyreT != null && body.tyreT !== '') {
+    if (!TYRE_TYPES.includes(body.tyreT)) return { error: 'bad tyreT' };
+    out.tyreT = body.tyreT;
+  }
+  if (out.prep && !out.tyreT) return { error: 'tyreT required' };
+  const num = (v, lo, hi, dp) => {
+    if (v == null || v === '') return undefined;
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < lo || n > hi) return null;
+    const k = 10 ** dp; return Math.round(n * k) / k;
+  };
+  for (const [k, lo, hi, dp] of [['hp', 30, 2500, 0], ['kg', 400, 4000, 0], ['bar', 1, 4, 1]]) {
+    const v = num(body?.[k], lo, hi, dp);
+    if (v === null) return { error: 'bad ' + k };
+    if (v !== undefined) out[k] = v;
+  }
+  if (out.prep || out.tyreT || out.hp || out.kg || out.bar) out.self = true; // «со слов пилота»
+  return out;
+}
+export const PREP_CLASSES = ['stock', 'st1', 'st2'];
+export const TYRE_TYPES = ['street', 'semi'];
+/** v113: class stamp for a run row — only when the run is on the declared car. */
+export function carClassStamp(myCar, row) {
+  if (!myCar) return {};
+  const same = (myCar.carId && row?.carId) ? myCar.carId === row.carId
+    : String(myCar.model || '').trim().toLowerCase() === String(row?.car || '').trim().toLowerCase();
+  if (!same) return {};
+  const o = {};
+  if (PREP_CLASSES.includes(myCar.prep)) o.prep = myCar.prep;
+  if (TYRE_TYPES.includes(myCar.tyreT)) o.tyreT = myCar.tyreT;
+  return o;
 }
 
 export async function loadMyCar(kv, pid, h) {

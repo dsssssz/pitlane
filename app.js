@@ -15,7 +15,7 @@ import { createExtGps } from './ext-gps.js';
 import { TRACK_OUTLINES } from './geo/outlines.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
-import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth } from './crew-rooms.js';
+import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 import { initTips, tipsOnView, resetTips, showMyCarHowTo } from './tips.js';
 import { createChaseTracker } from './chase-match.js';
@@ -5067,6 +5067,15 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
   if (trackId && Array.isArray(sectors) && Number.isFinite(ms)) {
     try { Object.assign(payload, sectorLossOf(trackId, { sectors, ms }, payload.at)); } catch (_) {}
   }
+  // v113: класс подготовки «со слов пилота» — только если заезд на заявленной машине
+  try {
+    const mc = myCarLocal();
+    const isLapP = payload.type === 'lap' || payload.type === 'круг';
+    const cc = currentCar();
+    const same = mc && (isLapP || (mc.carId ? mc.carId === cc?.id : String(mc.model).toLowerCase() === String(cc?.name || '').toLowerCase()));
+    if (same && PREP_LABEL[mc.prep]) payload.prep = mc.prep;
+    if (same && TYRE_T_LABEL[mc.tyreT]) payload.tyreT = mc.tyreT;
+  } catch (_) {}
   return payload;
 }
 
@@ -5138,6 +5147,7 @@ function stockRefCached(kind, ref, carId, model, onReady) {
   return undefined;
 }
 function stockDeltaText(d, lab) {
+  if (Math.abs(Number(d)) < 0.005) return 'на уровне лучшего стокового времени ' + lab;
   return fmtPbDelta(d) + ' к стоку ' + lab;
 }
 /** v112: weakest sector of this lap vs own best sectors (this lap excluded) → { secI, secD } | { secOk } | {}. */
@@ -5263,6 +5273,13 @@ function openShareCard(payload) {
   if (secEl) { const t = sectorLossText(payload, _shareOwn); secEl.textContent = t; secEl.hidden = !t; }
   renderShareStock(payload);
   if (_shareOwn) requestShareStock(payload);
+  const clsEl = document.getElementById('shareCls');
+  if (clsEl) {
+    const known = !!PREP_LABEL[payload.prep];
+    clsEl.textContent = known ? 'класс: ' + classLine(payload) + ' · со слов пилота' : 'класс не указан';
+    clsEl.classList.toggle('none', !known);
+    clsEl.hidden = payload.src === 'sim';
+  }
 
   const trackRow = document.getElementById('shareTrackRow');
   const trackLab = document.getElementById('shareTrackLabel');
@@ -5388,6 +5405,7 @@ function shareTextRu(p) {
   if (p.ghost) lines.push(`Призрак: ${p.ghost}${p.ghostVs ? ' · vs ' + p.ghostVs : ''}`);
   if (Number.isFinite(p.pbD)) lines.push(fmtPbDelta(p.pbD) + ' к моему лучшему');
   else if (p.pbFirst) lines.push(isLap ? 'первый круг здесь' : 'первый замер 0–100');
+  if (PREP_LABEL[p.prep]) lines.push('Класс: ' + classLine(p) + ' (со слов пилота)');
   if (Number.isFinite(p.stD) && p.stLab) lines.push(stockDeltaText(p.stD, p.stLab));
   { const sl = sectorLossText(p, false).replace(' к своему лучшему', ' к моему лучшему').replace('своих лучших', 'моих лучших'); if (sl) lines.push(sl); }
   if (p.duelId) lines.push('Принять вызов: ' + publicLinkFor('duel_' + p.duelId, duelPublicUrl(p.duelId)));
@@ -11079,7 +11097,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v112';
+const APP_VERSION = 'v113';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13132,7 +13150,13 @@ function buildTopsRow(r, i, sel) {
   const nick = padEl('span', 'tb-nick', clipText(r.name || 'пилот', 12));
   if ((r.name || '').length > 12) nick.title = r.name;
   li.appendChild(nick);
-  li.appendChild(padEl('span', 'tb-car', shortCarName(r.car, r.carId) || '—'));
+  const carEl = padEl('span', 'tb-car', shortCarName(r.car, r.carId) || '—');
+  // v113: бейдж класса (со слов пилота); старые заезды — «класс не указан»
+  const PREP_SHORT = { stock: 'Сток', st1: 'St 1', st2: 'St 2+' };
+  const cb = padEl('i', 'tb-cls' + (PREP_SHORT[r.prep] ? ' p-' + r.prep : ' none'), PREP_SHORT[r.prep] ? PREP_SHORT[r.prep] + (r.tyreT === 'semi' ? ' · ПС' : '') : 'класс ?');
+  cb.title = PREP_SHORT[r.prep] ? 'класс со слов пилота: ' + classLine(r) : 'класс не указан';
+  carEl.appendChild(cb);
+  li.appendChild(carEl);
   const ic = padEl('span', 'tb-ic');
   if (sel.kind === 'lap') ic.appendChild(trackSilhouetteSvg(sel.id, 26));
   else ic.appendChild(discTag(sel.id));
@@ -13144,6 +13168,32 @@ function buildTopsRow(r, i, sel) {
   if (isMyPilotId(r.pilotId)) li.classList.add('me');
   return li;
 }
+/** v113: tops class filter (stock = Сток на уличных) + «моя машина» (та же модель, что в «Моей машине»). */
+let _topsPrep = 'all';
+function topsClassPass(r) {
+  if (!r) return false;
+  const q = _topsPrep;
+  if (q === 'stock' && !(r.prep === 'stock' && r.tyreT === 'street')) return false;
+  if ((q === 'st1' || q === 'st2') && r.prep !== q) return false;
+  if (q === 'semi' && r.tyreT !== 'semi') return false;
+  if (q === 'none' && r.prep) return false;
+  if (document.getElementById('topMyCarOnly')?.checked) {
+    const mc = myCarLocal();
+    if (!mc) return false;
+    if (mc.carId && r.carId) return mc.carId === r.carId;
+    return String(mc.model).trim().toLowerCase() === String(r.car || '').trim().toLowerCase();
+  }
+  return true;
+}
+document.getElementById('topPrepChips')?.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('.wx-chip[data-prep]');
+  if (!b) return;
+  _topsPrep = b.dataset.prep;
+  document.querySelectorAll('#topPrepChips .wx-chip').forEach((x) => x.classList.toggle('on', x === b));
+  hap(6);
+  void renderTopsBoard();
+});
+document.getElementById('topMyCarOnly')?.addEventListener('change', () => { void renderTopsBoard(); });
 let _topsBoardSeq = 0;
 async function renderTopsBoard() {
   const ol = document.getElementById('topsBoard');
@@ -13181,7 +13231,7 @@ async function renderTopsBoard() {
   let rows = [];
   try {
     if (sel.kind === 'lap') {
-      const raw = (await api.listLapBoard(sel.id, wx)) || [];
+      const raw = ((await api.listLapBoard(sel.id, wx)) || []).filter(topsClassPass);
       const best = new Map();
       raw.forEach((r) => {
         const k = r.pilotId || ('n:' + (r.name || '') + ':' + (r.car || ''));
@@ -13197,12 +13247,14 @@ async function renderTopsBoard() {
   } catch (_) { rows = []; }
   if (seq !== _topsBoardSeq) return;
   try { rows = filterTopRows(rows, { model }); } catch (_) {}
+  try { rows = rows.filter(topsClassPass); } catch (_) {}
   rows.sort((a, b) => (sel.kind === 'lap' ? (a._ms ?? lapMs(a.t)) - (b._ms ?? lapMs(b.t)) : Number(a.t) - Number(b.t)));
   ol.replaceChildren();
   ol.removeAttribute('aria-busy');
   if (!rows.length) {
     const li = padEl('li', 'tb-empty');
-    li.appendChild(padEl('b', '', 'пока нет валидных заездов'));
+    const filtered = _topsPrep !== 'all' || document.getElementById('topMyCarOnly')?.checked;
+    li.appendChild(padEl('b', '', filtered ? 'в этом срезе пока нет заездов' : 'пока нет валидных заездов'));
     li.appendChild(padEl('span', '', sel.kind === 'lap' ? 'Проедь валидный круг с GPS A/B — и займи первую строку.' : 'Сделай замер с GPS A/B — лучший результат попадёт сюда.'));
     const go = padEl('button', 'home-link', sel.kind === 'lap' ? 'К кругу' : 'К замеру');
     go.type = 'button';

@@ -9,6 +9,19 @@ const ACTIVE_KEY = 'pitlane-room-active-v1';
 const CAR_KEY = 'pitlane-mycar-v1';
 const TYRES = ['Michelin Pilot Sport 4S', 'Michelin Pilot Sport Cup 2', 'Pirelli P Zero Trofeo R', 'Pirelli P Zero', 'Yokohama Advan A052', 'Toyo Proxes R888R', 'Bridgestone Potenza RE-71RS', 'Nankang CR-S', 'Continental SportContact 7'];
 
+// v113: класс подготовки + тип шин (со слов пилота, тот же список, что на сервере)
+export const PREP_LABEL = { stock: 'Сток', st1: 'Stage 1', st2: 'Stage 2+' };
+export const TYRE_T_LABEL = { street: 'уличные', semi: 'полуслик' };
+export function classLine(c) {
+  if (!c || !PREP_LABEL[c.prep]) return 'класс не указан';
+  return PREP_LABEL[c.prep] + (TYRE_T_LABEL[c.tyreT] ? ' · ' + TYRE_T_LABEL[c.tyreT] : '');
+}
+function passportOf(c) {
+  const o = {};
+  for (const k of ['prep', 'tyreT', 'hp', 'kg', 'bar']) if (c && c[k] != null && c[k] !== '') o[k] = c[k];
+  return o;
+}
+
 let D = null; // deps from app.js
 const st = { car: null, carLoaded: false, rooms: [], room: null, tab: 'laps', laps: [], pending: null, inviteCode: null };
 
@@ -61,6 +74,12 @@ function cacheCar(car) {
   st.carLoaded = true;
   try { if (st.car) localStorage.setItem(CAR_KEY, JSON.stringify(st.car)); else localStorage.removeItem(CAR_KEY); } catch (_) {}
   document.querySelectorAll('[data-mycar-line]').forEach((n) => { n.textContent = st.car ? st.car.model + ' · ' + st.car.tyre : 'не выбрана'; });
+  document.querySelectorAll('[data-mycar-class]').forEach((n) => {
+    if (!st.car) { n.textContent = ''; n.hidden = true; return; }
+    const nums = [st.car.hp ? st.car.hp + ' л.с.' : '', st.car.kg ? st.car.kg + ' кг' : '', st.car.bar ? st.car.bar + ' бар' : ''].filter(Boolean).join(' · ');
+    n.textContent = classLine(st.car) + (nums ? ' · ' + nums : '') + (st.car.prep ? ' · со слов пилота' : '');
+    n.hidden = false;
+  });
   try { refreshMyCarBar(); } catch (_) {}
 }
 export async function loadMyCar(force) {
@@ -82,7 +101,7 @@ export async function loadMyCar(force) {
       // server empty → keep a locally chosen car and push it up (covers TMA login after offline pick)
       const local = fromLs();
       if (local) {
-        const up = await api.putMyCar({ model: local.model, tyre: local.tyre, carId: local.carId || undefined });
+        const up = await api.putMyCar({ model: local.model, tyre: local.tyre, carId: local.carId || undefined, ...passportOf(local) });
         cacheCar(up && up.ok !== false && up.car ? up.car : local);
       } else cacheCar(null);
     }
@@ -130,6 +149,7 @@ export function openMyCarSheet(opts = {}) {
   if (!pick.model && st.car) { pick.model = st.car.model; pick.carId = st.car.carId || ''; }
   if (!pick.model && cars[0]) { pick.model = cars[0].name; pick.carId = cars[0].id || ''; }
   if (st.car && st.car.model === pick.model) pick.tyre = st.car.tyre;
+  const pass = passportOf(st.car && st.car.model === pick.model ? st.car : null);
 
   // —— step 1: машина ——
   const s1 = el('section', 'mycar-step');
@@ -190,7 +210,34 @@ export function openMyCarSheet(opts = {}) {
   if (pick.tyre) { tyre.value = pick.tyre; if (!TYRES.includes(pick.tyre)) tyre.classList.remove('hidden'); }
   s2.append(chips, tyre, dl);
 
-  // —— step 3: итог + кнопка ——
+  // —— v113 step 3: класс подготовки + тип шин + паспорт (опционально, со слов пилота) ——
+  const s3 = el('section', 'mycar-step');
+  s3.appendChild(el('span', 'mycar-step-k', '3 · Класс подготовки'));
+  const segRow = (id, label, map, key) => {
+    const row = el('div', 'mycar-tyres mycar-class'); row.id = id; row.setAttribute('role', 'radiogroup'); row.setAttribute('aria-label', label);
+    const bs = Object.entries(map).map(([v, t]) => {
+      const b = btn('mycar-tyre-chip', t, () => { pass[key] = pass[key] === v ? undefined : v; refresh(); });
+      b.dataset.v = v; b.setAttribute('role', 'radio'); row.appendChild(b); return b;
+    });
+    return { row, bs, key };
+  };
+  const prepRow = segRow('myCarPrep', 'Класс подготовки', PREP_LABEL, 'prep');
+  const tyreTRow = segRow('myCarTyreT', 'Тип шин', TYRE_T_LABEL, 'tyreT');
+  const tyreTk = el('span', 'tiny muted mycar-sub', 'Шины');
+  const nums = el('div', 'mycar-nums');
+  const numIn = (key, ph, lab, lo, hi, step) => {
+    const w = el('label', 'mycar-num'); w.appendChild(el('span', 'tiny muted', lab));
+    const i = el('input', 'mycar-custom'); i.type = 'number'; i.inputMode = 'decimal'; i.min = String(lo); i.max = String(hi); i.step = String(step); i.placeholder = ph; i.id = 'myCar_' + key;
+    if (pass[key] != null) i.value = String(pass[key]);
+    i.addEventListener('input', () => { pass[key] = i.value.trim() === '' ? undefined : Number(i.value.replace(',', '.')); });
+    w.appendChild(i); nums.appendChild(w); return i;
+  };
+  numIn('hp', 'л.с.', 'мощность', 30, 2500, 1);
+  numIn('kg', 'кг', 'масса', 400, 4000, 1);
+  numIn('bar', 'бар', 'давление шин', 1, 4, 0.1);
+  s3.append(prepRow.row, tyreTk, tyreTRow.row, nums, el('p', 'tiny muted mycar-note', 'Со слов пилота — проверить класс мы не можем, как и превью эмблем. Указывай честно: «Сток» на уличных шинах — это эталон «к стоку» для своей модели. Можно не указывать — тогда «класс не указан».'));
+
+  // —— step 4: итог + кнопка ——
   const sum = el('div', 'mycar-sum');
   const sumK = el('span', 'mycar-sum-k', 'Круги запишутся на');
   const sumV = el('b', 'mycar-sum-v', '—');
@@ -202,12 +249,17 @@ export function openMyCarSheet(opts = {}) {
     const t = pick.tyre.trim();
     if (!model) { msg.textContent = 'Выбери машину'; msg.classList.add('mycar-msg-err'); return; }
     if (!t) { msg.textContent = 'Выбери резину — топ сравнивает только равных'; msg.classList.add('mycar-msg-err'); return; }
+    if (pass.prep && !pass.tyreT) { msg.textContent = 'Укажи тип шин: уличные или полуслик'; msg.classList.add('mycar-msg-err'); return; }
+    const LIM = { hp: [30, 2500], kg: [400, 4000], bar: [1, 4] };
+    for (const [k, [lo, hi]] of Object.entries(LIM)) {
+      if (pass[k] != null && !(Number.isFinite(pass[k]) && pass[k] >= lo && pass[k] <= hi)) { msg.textContent = 'Проверь поле: ' + ({ hp: 'мощность', kg: 'масса', bar: 'давление' }[k]) + ' (' + lo + '–' + hi + ')'; msg.classList.add('mycar-msg-err'); return; }
+    }
     msg.classList.remove('mycar-msg-err');
-    const local = { model, tyre: t, carId: pick.carId || undefined, at: Date.now() };
+    const local = { model, tyre: t, carId: pick.carId || undefined, ...passportOf(pass), at: Date.now() };
     save.disabled = true;
     let car = local;
     if (loggedIn()) {
-      const r = await api.putMyCar({ model, tyre: t, carId: pick.carId || undefined });
+      const r = await api.putMyCar({ model, tyre: t, carId: pick.carId || undefined, ...passportOf(pass) });
       if (!r || r.ok === false) {
         save.disabled = false;
         msg.textContent = 'Не сохранилось: ' + (r?.error || 'нет сети');
@@ -238,7 +290,7 @@ export function openMyCarSheet(opts = {}) {
     tail.push(btn('mycar-skip', opts.skip.label || 'Без зачёта', () => { st.pending = null; closeSheet('myCarSheet'); opts.skip.fn(); }));
   }
   const how = btn('mycar-how', 'Как это работает?', () => { closeSheet('myCarSheet'); D.howCar?.(); });
-  body.append(s1, s2, ...tail, msg, note, how);
+  body.append(s1, s2, s3, ...tail, msg, note, how);
 
   function refresh() {
     carBtns.forEach((b) => {
@@ -249,8 +301,9 @@ export function openMyCarSheet(opts = {}) {
       const on = b.dataset.tyre === '__own' ? !tyre.classList.contains('hidden') : b.dataset.tyre === pick.tyre && tyre.classList.contains('hidden');
       b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
     });
+    for (const g of [prepRow, tyreTRow]) g.bs.forEach((b) => { const on = pass[g.key] === b.dataset.v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
     const ready = !!(pick.model.trim() && pick.tyre.trim());
-    sumV.textContent = ready ? pick.model.trim() + ' · ' + pick.tyre.trim() : (pick.model.trim() ? pick.model.trim() + ' · выбери резину' : 'выбери машину и резину');
+    sumV.textContent = ready ? pick.model.trim() + ' · ' + pick.tyre.trim() + ' · ' + classLine(pass) : (pick.model.trim() ? pick.model.trim() + ' · выбери резину' : 'выбери машину и резину');
     sum.classList.toggle('ready', ready);
     save.classList.toggle('is-dim', !ready);
     save.setAttribute('aria-disabled', ready ? 'false' : 'true');

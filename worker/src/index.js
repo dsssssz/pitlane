@@ -1,6 +1,6 @@
 import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner } from './botcopy.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
-import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
+import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
  * Pitlane shared tops API — Cloudflare Worker + KV
  * Bindings: PITLANE (KV namespace)
@@ -504,6 +504,7 @@ function sanitizeWeather(v) {
 const PUBLIC_ROW_FIELDS = [
   'car', 't', 'gps', 'valid', 'gpsQ', 'src', 'n', 'avgAcc', 'hz', 'weather', 'track',
   'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost', 'tyre',
+  'prep', 'tyreT',
 ];
 
 /** Whitelisted public tops row (straight / lap / sector / duel run). No phone, ever. */
@@ -1045,6 +1046,8 @@ function sanitizeSharePayload(p) {
   const secI = boundedNum(p.secI, 0, 2); const secD = boundedNum(p.secD, 0, 600);
   if (secI != null && Number.isInteger(secI) && secD != null) { out.secI = secI; out.secD = Math.round(secD * 1000) / 1000; }
   else if (p.secOk === true) out.secOk = true;
+  if (PREP_CLASSES.includes(p.prep)) out.prep = p.prep; // v113: класс со слов пилота
+  if (TYRE_TYPES.includes(p.tyreT)) out.tyreT = p.tyreT;
   return out;
 }
 
@@ -1484,6 +1487,16 @@ function isAbLapRow(r) {
  * v112: «сток» = класс подготовки, заявленный пилотом в «Моей машине» (prep:'stock' + уличные шины).
  * Эталон стока — только реальные серверно зачтённые A/B строки той же модели; никаких паспортных времён.
  */
+/** v113: tops class filter — stock (street tyres) | st1 | st2 | semi (semi-slicks) | none (class not given). */
+function prepFilter(q) {
+  switch (q) {
+    case 'stock': return isStockRow;
+    case 'st1': case 'st2': return (r) => r.prep === q;
+    case 'semi': return (r) => r.tyreT === 'semi';
+    case 'none': return (r) => !r.prep;
+    default: return () => true;
+  }
+}
 function isStockRow(r) {
   return isValidGpsRow(r) && r.prep === 'stock' && r.tyreT === 'street';
 }
@@ -3111,6 +3124,8 @@ export default {
           return json({ error: 'pilot mismatch' }, 403, headers);
         }
         row.pilotId = pilot.id;
+        row.carId = row.carId || carId;
+        Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
         const key = `straight:${carId}`;
         const rows = await readList(env.PITLANE, key);
         rows.push(row);
@@ -3130,6 +3145,7 @@ export default {
         const wx = sanitizeWeather(url.searchParams.get('weather'));
         let rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter(isValidGpsRow);
         if (wx) rows = rows.filter((r) => r && r.weather === wx);
+        rows = rows.filter(prepFilter(url.searchParams.get('prep')));
         if (url.searchParams.get('avatars') === '1') {
           rows.sort((a, b) => (parseLapMs(a.t) ?? 1e12) - (parseLapMs(b.t) ?? 1e12));
           await enrichAvatars(env.PITLANE, rows, 40);
@@ -3157,6 +3173,8 @@ export default {
         row.car = myCar.model;
         row.tyre = myCar.tyre;
         if (myCar.carId) row.carId = myCar.carId;
+        Object.assign(row, carClassStamp(myCar, row)); // v113: класс со слов пилота
+
         row.pilotId = pilot.id;
         const av = row.avatar || null;
         // keep KV lap lists lean — avatar lives in pilotmeta, not on every row
@@ -3184,6 +3202,7 @@ export default {
           let rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
           if (wx) rows = rows.filter((r) => r && r.weather === wx);
           if (car && slugOk(car)) rows = rows.filter((r) => r && r.carId === car);
+          rows = rows.filter(prepFilter(url.searchParams.get('prep')));
           rows = rows.slice(0, 100);
           await enrichAvatars(env.PITLANE, rows, 40);
           return json(publicRows(rows), 200, headers);
@@ -3202,6 +3221,7 @@ export default {
           const row = res.row;
           row.pilotId = pilot.id;
           { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
+          Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
           const stored = await upsertDrag(env.PITLANE, disc, row);
           const rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
           return json({ ok: true, stored, valid: row.valid, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
