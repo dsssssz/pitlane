@@ -20,6 +20,8 @@ import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-
 import { initTips, tipsOnView, resetTips, showMyCarHowTo } from './tips.js';
 import { musicList, renderMyMusic, initMusic, stopMusic } from './music-ui.js';
 import { createChaseTracker } from './chase-match.js';
+import { dragSplits as coreDragSplits } from './gps-core.js';
+import { GRID as RM_GRID, LABEL as RM_LABEL, DIST_KEYS as RM_DIST, createRunMarks, stepRunMarks, speedSeries, elevation as rmElevation, shareCurve, shareSplits, cleanCurve, cleanSplits, drawSpeedChart, chartTags } from './run-marks.js';
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ, withSpeed as coreWithSpeed, launchTime as coreLaunchTime, speedCross as coreSpeedCross, distCross as coreDistCross } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
 import { legalReady } from './legal-config.js';
@@ -2997,17 +2999,19 @@ function setRunText(id, text) {
   if (el) el.textContent = text;
 }
 
-function openRunDrive() {
+function openRunDrive(phase = 'ready') {
   const el = document.getElementById('runDrive');
   if (!el) return;
   el.classList.remove('hidden');
   el.setAttribute('aria-hidden', 'false');
   document.body.classList.add('run-drive-on');
-  const marks = document.getElementById('runDriveMarks');
-  if (marks) marks.innerHTML = '';
-  setRunText('runDriveMsg', 'почти стой (< 8 км/ч), потом газ');
-  setRunText('runDriveDist', '0 м');
+  rdGridBuild();
+  rdPhase(phase);
+  setRunText('runDriveMsg', '');
+  setRunText('runDriveDist', '0');
+  setRunText('rdTimer', '0.00');
   setRunText('runDriveSpeed', document.getElementById('liveSpeed')?.textContent || '0');
+  rdReadySet('wait', 'Ждём GPS', 'встаньте на открытом небе');
 }
 
 function closeRunDrive() {
@@ -3026,22 +3030,201 @@ function markHap() {
   if (isTMA && tmaHaptic('light')) return;
   try { navigator.vibrate?.(15); } catch (_) {}
 }
-function revealRunMark(key, label, value) {
-  if (run.revealed?.[key]) return;
-  run.revealed = run.revealed || {};
-  run.revealed[key] = true;
+
+/* ——— v117: экран замера в логике драг-метров: готовность → живой замер (скорость, таймер, график, сетка) → итог ———
+ * Все цифры — gps-core.dragSplits по сырому треку (run-marks.js): живые = итоговые = серверный пересчёт. */
+function rdPhase(ph) {
+  const el = document.getElementById('runDrive');
+  if (!el) return;
+  el.dataset.phase = ph;
+  setRunText('rdLabel', ph === 'ready' ? 'ГОТОВНОСТЬ' : ph === 'live' ? 'ЗАМЕР' : 'ИТОГ ЗАЕЗДА');
+  document.getElementById('rdFinal')?.classList.toggle('hidden', ph !== 'final');
+  document.body.classList.toggle('run-sum-on', ph === 'final');
+  const box = document.getElementById('rdChartBox');
+  const slot = document.getElementById(ph === 'final' ? 'rdChartSlotF' : 'rdChartSlotL');
+  if (box && slot && box.parentNode !== slot) slot.appendChild(box);
+  if (ph === 'final') document.getElementById('runDrivePop')?.classList.add('hidden');
+  rdChartDirty();
+}
+function rdGridBuild() {
   const ul = document.getElementById('runDriveMarks');
   if (!ul) return;
-  const li = document.createElement('li');
-  li.className = 'run-mark-in';
-  const lb = document.createElement('span');
-  lb.textContent = String(label);
-  const vl = document.createElement('strong');
-  vl.textContent = String(value);
-  li.append(lb, vl);
-  ul.appendChild(li);
-  markHap();
-  try { ul.scrollTop = ul.scrollHeight; } catch (_) {}
+  ul.replaceChildren();
+  for (const g of RM_GRID) {
+    const li = padEl('li', 'rd-cell' + (g.hero ? ' hero' : ''));
+    li.dataset.k = g.k;
+    li.append(padEl('span', '', g.label), padEl('strong', '', '—'), padEl('small', '', g.k === 'vmax' ? 'км/ч' : ''));
+    ul.appendChild(li);
+  }
+}
+function rdCell(k) {
+  const ul = document.getElementById('runDriveMarks');
+  if (!ul) return null;
+  for (const li of ul.children) if (li.dataset.k === k) return li;
+  return null;
+}
+/** Заполнить ячейку сетки. pre — предварительное значение чипа (до точек), потом его заменит gps-core. */
+function rdGridSet(k, val, sub, { flash = false, pre = false } = {}) {
+  const li = rdCell(k);
+  if (!li) return;
+  if (pre && li.classList.contains('done')) return;
+  li.children[1].textContent = String(val);
+  li.children[2].textContent = String(sub || '');
+  li.classList.toggle('pre', pre);
+  if (!pre) li.classList.add('done');
+  if (flash) { li.classList.remove('rd-in'); void li.offsetWidth; li.classList.add('rd-in'); }
+}
+function rdReadySet(state, title, sub) {
+  const r = document.getElementById('rdReady');
+  if (!r) return;
+  if (r.dataset.ready !== state) r.dataset.ready = state;
+  setRunText('rdReadyT', title);
+  setRunText('rdReadyS', sub || '');
+}
+/** Медианная частота последних точек. */
+function rdHz() {
+  const n = rawTrace.length;
+  if (n < 6) return null;
+  const dts = [];
+  for (let i = Math.max(1, n - 25); i < n; i++) dts.push(rawTrace[i].t - rawTrace[i - 1].t);
+  dts.sort((a, b) => a - b);
+  const med = dts[Math.floor(dts.length / 2)];
+  return med > 0 ? 1000 / med : null;
+}
+function rdSrcName() {
+  const st = extGps?.state?.() || 'off';
+  return st === 'wifi' ? 'Wi-Fi' : st === 'sim' ? 'Симулятор' : st === 'ble' ? 'Bluetooth' : 'Телефон';
+}
+let _rdStatusAt = 0;
+/** Статус-чипы (источник · спутники · точность · Гц) — не чаще 4 раз в секунду. */
+function rdStatusUpdate(pos, now) {
+  if (!document.body.classList.contains('run-drive-on')) return;
+  const t = performance.now();
+  if (t - _rdStatusAt < 250) return;
+  _rdStatusAt = t;
+  const chip = (id, txt, q) => { setRunText(id + 'V', txt); const el = document.getElementById(id); if (el && el.dataset.q !== q) el.dataset.q = q; };
+  const ext = !!pos?.coords?.ext;
+  const src = rdSrcName();
+  chip('rdSrc', src, ext ? 'good' : 'mid');
+  const sv = pos?.ext?.numSV;
+  chip('rdSv', Number.isFinite(sv) ? String(sv) : '—', !Number.isFinite(sv) ? 'none' : sv >= 8 ? 'good' : sv >= 5 ? 'mid' : 'bad');
+  const acc = Number(pos?.coords?.accuracy);
+  chip('rdAcc', Number.isFinite(acc) ? `±${acc < 10 ? acc.toFixed(1) : Math.round(acc)} м` : '—', !Number.isFinite(acc) ? 'none' : acc <= 2.5 ? 'good' : acc <= 8 ? 'mid' : 'bad');
+  const hz = rdHz();
+  chip('rdHz', hz ? `${hz >= 9.5 ? Math.round(hz) : hz.toFixed(1)} Гц` : '—', !hz ? 'none' : hz >= 9.5 ? 'good' : hz >= 4.5 ? 'mid' : 'bad');
+}
+/** «Готово — трогайся»: стоим, фикс точный. Только подсказка — старт всё равно считает gps-core по трогания. */
+function rdReadyUpdate(v, pos) {
+  const acc = Number(pos?.coords?.accuracy);
+  const ext = !!pos?.coords?.ext;
+  const src = traceSource(rawTrace.slice(-5));
+  if (Number.isFinite(acc) && acc > (ext ? 5 : 15)) { rdReadySet('wait', 'Ждём точный GPS', `сейчас ±${Math.round(acc)} м — нужно небо над головой`); return; }
+  if (v >= 1.5) { rdReadySet('wait', 'Остановитесь', 'старт — с полной остановки'); return; }
+  const sub = src === 'sim' ? 'симулятор · не в топ' : !ext ? 'телефон · не в топ (топ — внешний GPS от 10 Гц)' : 'старт считается с первого сантиметра';
+  rdReadySet('go', 'Готово — трогайся', sub);
+}
+
+/* График: canvas, одна перерисовка на кадр (25 Гц точек не дают лишних кадров). */
+let _rdChartQ = false;
+const _rdPerf = { n: 0, ms: 0, max: 0 };
+function rdChartDirty() {
+  if (_rdChartQ) return;
+  _rdChartQ = true;
+  requestAnimationFrame(rdChartDraw);
+}
+function rdChartDraw() {
+  _rdChartQ = false;
+  const cv = document.getElementById('rdChart');
+  const el = document.getElementById('runDrive');
+  if (!cv || !el || el.classList.contains('hidden')) return;
+  const t0p = performance.now();
+  const w = cv.clientWidth; const h = cv.clientHeight;
+  if (!w || !h) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext('2d');
+  if (!ctx) return;
+  const ph = el.dataset.phase;
+  const S = run.rm?.S;
+  let series = []; let tags = []; let xMax = 10;
+  if (S && S.t0 != null && ph !== 'ready') {
+    const pts = ph === 'final' && run.sumPts ? run.sumPts : rawSince(run.rawSeq0 || 0);
+    series = speedSeries(pts, S.t0, ph === 'final' ? 360 : 220);
+    tags = chartTags(S.marks);
+    const last = series.length ? series[series.length - 1].x : 0;
+    xMax = ph === 'final' ? Math.max(4, last) : Math.max(10, Math.ceil((last * 1.12) / 5) * 5);
+  }
+  drawSpeedChart(ctx, series, tags, { w, h, dpr, xMax, live: ph === 'live', glow: ph === 'final' });
+  const dt = performance.now() - t0p;
+  _rdPerf.n++; _rdPerf.ms += dt; _rdPerf.max = Math.max(_rdPerf.max, dt);
+  try { window.__plChartPerf = _rdPerf; } catch (_) {}
+}
+window.addEventListener('resize', () => rdChartDirty());
+
+/** Пройдена отметка (по gps-core): сетка, попап, топы, паспорт — как раньше, но из одного расчёта. */
+function onRunMark(k, S) {
+  const m = S.marks[k];
+  if (!m) return;
+  const sec = m.sec;
+  const dist = RM_DIST.includes(k);
+  rdGridSet(k, sec.toFixed(2), dist ? `${Math.round(m.v)} км/ч` : (m.d != null ? `${Math.round(m.d)} м` : ''), { flash: true });
+  try { (window.__plMarkLog = window.__plMarkLog || []).push({ k, sec, at: Date.now() }); } catch (_) {}
+  const iv = (key) => S.marks[key]?.sec ?? null;
+  switch (k) {
+    case '0-50':
+      setRunText('run050', fmtRunSec(sec)); run.saved050 = true; publishDragMark('0-50', sec); break;
+    case '0-60':
+      run.saved060 = true; publishDragMark('0-60', sec); break;
+    case '60ft':
+      run.saved60ft = true; publishDragMark('60ft', sec); break;
+    case '80-120':
+      setRunText('run80120', fmtRunSec(sec));
+      setRunText('slip80120', `${sec.toFixed(2)}s`);
+      run.saved80120 = true;
+      publishDragMark('80-120', sec);
+      try {
+        const gq80120 = gpsQualityFromStraightRun();
+        if (foldPassportGps({ v80120: Number(sec.toFixed(2)) }, gq80120.gpsQ)) { save(); try { applyPassportUI(); } catch (_) {} }
+      } catch (_) {}
+      break;
+    case '0-100':
+      setRunText('run0100', fmtRunSec(sec));
+      setRunText('slip0100', `${sec.toFixed(2)}s`);
+      setRunText('slipHero', `${sec.toFixed(2)}s`);
+      run.saved0100 = true;
+      ghostRunMark('0-100', sec * 1000);
+      publishDragMark('0-100', sec);
+      showMarkPop('0-100', sec, 'core');
+      void publishGps(sec, iv('100-200'), iv('200-300'));
+      break;
+    case '201m':
+      run.saved18 = true; publishDragMark('201m', sec); break;
+    case '100-200':
+      setRunText('run100200', fmtRunSec(sec));
+      setRunText('slip100200', `${sec.toFixed(2)}s`);
+      run.saved100200 = true;
+      publishDragMark('100-200', sec);
+      void publishGps(null, sec, iv('200-300'));
+      break;
+    case '0-200':
+      setRunText('slip0200', `${sec.toFixed(2)}s`);
+      publishDragMark('0-200', sec);
+      showMarkPop('0-200', sec, 'core');
+      break;
+    case '402m':
+      run.saved14 = true; ghostRunMark('402m', sec * 1000); publishDragMark('402m', sec); break;
+    case '200-300':
+      setRunText('run200300', fmtRunSec(sec));
+      setRunText('slip200300', `${sec.toFixed(2)}s`);
+      run.saved200300 = true;
+      publishDragMark('200-300', sec);
+      void publishGps(null, null, sec);
+      break;
+    case '0-300':
+      showMarkPop('0-300', sec, 'core');
+      break;
+    default: break;
+  }
 }
 
 function fmtRunSec(sec) {
@@ -3059,10 +3242,17 @@ function pushRawFix(pos, now) {
   if (!c || !Number.isFinite(c.latitude) || !Number.isFinite(c.longitude)) return;
   const sp = Number(c.speed);
   const src = c.ext ? (pos.ext?.source === 'sim' || extGps?.state?.() === 'sim' ? 'sim' : 'ext') : 'phone';
-  rawTrace.push({ seq: ++rawSeq, t: now, lat: c.latitude, lon: c.longitude, v: c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : null, acc: Number.isFinite(Number(c.accuracy)) ? Number(c.accuracy) : null, src });
+  const alt = c.altitude != null && Number.isFinite(Number(c.altitude)) ? Number(c.altitude) : null; // v117: высота — только если источник её даёт (телефон); в трек для сервера не уходит
+  rawTrace.push({ seq: ++rawSeq, t: now, lat: c.latitude, lon: c.longitude, v: c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : null, acc: Number.isFinite(Number(c.accuracy)) ? Number(c.accuracy) : null, src, alt });
   if (rawTrace.length > 9000) rawTrace.splice(0, rawTrace.length - 8000);
 }
 function rawSince(seq0, tFrom = -Infinity, tTo = Infinity) {
+  if (tFrom === -Infinity && tTo === Infinity) {
+    // v117: seq идут подряд — срез без перебора всего буфера (вызывается на каждой точке 25 Гц)
+    if (!rawTrace.length) return [];
+    const i = Math.max(0, seq0 + 1 - rawTrace[0].seq);
+    return rawTrace.slice(i);
+  }
   return rawTrace.filter((p) => p.seq > seq0 && p.t >= tFrom && p.t <= tTo);
 }
 function traceSource(pts) {
@@ -3148,7 +3338,7 @@ function onGpsPoint(pos) {
   const vShow = displayKmh();
   setRunText('liveSpeed', String(vShow));
   setRunText('boxLive', String(vShow));
-  if (document.body.classList.contains('run-drive-on')) setRunText('runDriveSpeed', String(vShow));
+  if (document.body.classList.contains('run-drive-on')) { setRunText('runDriveSpeed', String(vShow)); rdStatusUpdate(pos, now); }
   if (lapRun.active) onLapGps(pos, v);
   if (wifiMode() && !lapRun.active) wifiRunTick(pos, v, now);
 
@@ -3184,172 +3374,45 @@ function onGpsPoint(pos) {
       }
       setRunText('runFrom', 'ожидание старта');
       setRunText('runStatus', fus.zupt ? 'Вооружён · ZUPT (стойка чистая)' : 'Вооружён. Трогайтесь');
-      setRunText('runDriveMsg', 'вооружён — газ');
+      rdReadyUpdate(v, pos);
     } else if (run.t0 && v >= 8) {
       if (pos.coords?.ext && run.t0Ext && run.t0 - run.t0Ext >= 0 && run.t0 - run.t0Ext < 4000) run.t0 = run.t0Ext;
       run.launched = true;
       setRunText('runFrom', 'пошли');
       setRunText('runStatus', 'Идёт разгон…');
-      setRunText('runDriveMsg', 'поехали!');
+      rdPhase('live');
       run.dist = 0; run.prevDist = 0; run.lastPos = null; run.lastFusT = now;
       ghostRunLaunch(now, v, pos.coords.latitude, pos.coords.longitude);
     } else {
       setRunText('runStatus', 'Для чистого 0–100 почти остановитесь (< 8 км/ч)');
+      rdReadyUpdate(v, pos);
     }
     return;
   }
 
-  // distance from launch (drag traps): blend ∫v dt + filtered haversine (navigator-style)
+  // v117: позиция для призрака; дистанция, время и все отметки — из gps-core по сырому треку (как на сервере)
   const lat = fus.healthy && fus.lat != null ? fus.lat : pos.coords.latitude;
   const lon = fus.healthy && fus.lon != null ? fus.lon : pos.coords.longitude;
-  if (lat != null && lon != null) {
-    const here = { lat, lon };
-    const dt = run.lastFusT ? Math.max(0.05, Math.min(2.5, (now - run.lastFusT) / 1000)) : 0.25;
-    let stepH = 0;
-    if (run.lastPos) {
-      stepH = haversineM(run.lastPos, here);
-      if (stepH >= 80) stepH = 0; // teleport guard
-    }
-    const stepV = (v / 3.6) * dt; // ∫v
-    // Prefer speed integration when filter healthy; haversine alone zigzags
-    const step = fus.healthy ? (0.62 * stepV + 0.38 * stepH) : (stepH || stepV);
-    if (step < 90) run.dist = (run.dist || 0) + Math.max(0, step);
-    run.lastPos = here;
-    run.lastFusT = now;
-    setRunText('runDriveDist', `${Math.round(run.dist || 0)} м`);
+  if (lat != null && lon != null) { run.lastPos = { lat, lon }; run.lastFusT = now; }
+  if (!run.rm) run.rm = createRunMarks();
+  let S = null; let fresh = [];
+  try { ({ S, fresh } = stepRunMarks(run.rm, rawSince(run.rawSeq0 || 0))); } catch (_) {}
+  if (S && S.t0 != null) {
+    run.dist = S.dist;
+    setRunText('runDriveDist', String(Math.round(S.dist)));
+    setRunText('rdTimer', Math.max(0, (now - S.t0) / 1000).toFixed(2));
+    if (S.vmax > 0) rdGridSet('vmax', String(Math.round(S.vmax)), 'км/ч');
   }
   ghostRunPoint(now, v);
-
+  for (const k of fresh) onRunMark(k, S);
+  rdChartDirty();
   if (!prev) return;
-  for (const gate of [50, 60, 80, 100, 120, 200, 300]) {
-    const key = String(gate);
-    if (run.marks[key] != null) continue;
-    if (prev.v < gate && sample.v >= gate) {
-      run.marks[key] = interpolateCross(prev, sample, gate);
-    }
-  }
-
-  // distance traps: 60 ft, 1/8 mi, 1/4 mi
-  const DIST_TRAPS = [
-    { key: 'd60ft', m: 18.288, label: '60 ft' },
-    { key: 'd18', m: 201.168, label: '⅛ мили' },
-    { key: 'd14', m: 402.336, label: '¼ мили' },
-  ];
-  for (const tr of DIST_TRAPS) {
-    if (run.marks[tr.key] != null) continue;
-    const prevD = run.prevDist || 0;
-    const curD = run.dist || 0;
-    if (prevD < tr.m && curD >= tr.m && run.t0) {
-      const k = (tr.m - prevD) / Math.max(0.01, curD - prevD);
-      const tCross = (run.lastT || now) + ((now - (run.lastT || now)) * k);
-      // better: interpolate by time of samples
-      run.marks[tr.key] = prev.t + (sample.t - prev.t) * k;
-    }
-  }
-  run.prevDist = run.dist || 0;
-  run.lastT = now;
-
-  // v105: время дисциплины = та же функция, что на сервере (gps-core.dragTime по сырому треку);
-  // запасной вариант — живая интерполяция по отфильтрованной скорости (если сырых точек мало)
-  const coreSec = (disc, fallback) => {
-    try { const t = coreDragTime(rawSince(run.rawSeq0 || 0), disc); if (t != null && t > 0) return t; } catch (_) {}
-    return fallback;
-  };
-  const t60 = run.marks['60'];
-  const t100 = run.marks['100'];
-  const t200 = run.marks['200'];
-  const t300 = run.marks['300'];
-  if (run.marks['50'] && !run.saved050) {
-    const sec = coreSec('0-50', (run.marks['50'] - run.t0) / 1000);
-    setRunText('run050', fmtRunSec(sec));
-    revealRunMark('050', '0–50', fmtRunSec(sec));
-    run.saved050 = true;
-    publishDragMark('0-50', sec);
-  }
-  if (t60 && !run.saved060) {
-    const sec = coreSec('0-60', (t60 - run.t0) / 1000);
-    revealRunMark('060', '0–60', fmtRunSec(sec));
-    run.saved060 = true;
-    publishDragMark('0-60', sec);
-  }
-  if (run.marks['d60ft'] && !run.saved60ft) {
-    const sec = coreSec('60ft', (run.marks['d60ft'] - run.t0) / 1000);
-    revealRunMark('60ft', '60 ft', fmtRunSec(sec));
-    run.saved60ft = true;
-    publishDragMark('60ft', sec);
-  }
-  if (run.marks['80'] && run.marks['120'] && !run.saved80120) {
-    const s = coreSec('80-120', (run.marks['120'] - run.marks['80']) / 1000);
-    setRunText('run80120', fmtRunSec(s));
-    setRunText('slip80120', `${s.toFixed(2)}s`);
-    revealRunMark('80120', '80–120', fmtRunSec(s));
-    run.saved80120 = true;
-    publishDragMark('80-120', s);
-    try {
-      const gq80120 = gpsQualityFromStraightRun();
-      if (foldPassportGps({ v80120: Number(s.toFixed(2)) }, gq80120.gpsQ)) {
-        save();
-        try { applyPassportUI(); } catch (_) {}
-      }
-    } catch (_) {}
-  }
-  if (t100 && !run.saved0100) {
-    const sec = coreSec('0-100', (t100 - run.t0) / 1000);
-    setRunText('run0100', fmtRunSec(sec));
-    setRunText('slip0100', `${sec.toFixed(2)}s`);
-    setRunText('slipHero', `${sec.toFixed(2)}s`);
-    revealRunMark('0100', '0–100', fmtRunSec(sec));
-    run.saved0100 = true;
-    ghostRunMark('0-100', t100 - run.t0);
-    publishDragMark('0-100', sec);
-    if (wifiMode()) showMarkPop('0-100', sec, 'app');
-    void publishGps(sec, t100 && t200 ? coreSec('100-200', (t200 - t100) / 1000) : null, t200 && t300 ? coreSec('200-300', (t300 - t200) / 1000) : null);
-  }
-  if (run.marks['d18'] && !run.saved18) {
-    const sec = coreSec('201m', (run.marks['d18'] - run.t0) / 1000);
-    revealRunMark('18', '⅛ мили', fmtRunSec(sec));
-    run.saved18 = true;
-    publishDragMark('201m', sec);
-  }
-  if (t100 && t200 && !run.saved100200) {
-    const s = coreSec('100-200', (t200 - t100) / 1000);
-    const s0200 = coreSec('0-200', (t200 - run.t0) / 1000);
-    setRunText('run100200', fmtRunSec(s));
-    setRunText('slip100200', `${s.toFixed(2)}s`);
-    if (t100) setRunText('slip0200', `${s0200.toFixed(2)}s`);
-    revealRunMark('100200', '100–200', fmtRunSec(s));
-    revealRunMark('0200', '0–200', fmtRunSec(s0200));
-    if (wifiMode()) showMarkPop('0-200', s0200, 'app');
-    run.saved100200 = true;
-    publishDragMark('100-200', s);
-    publishDragMark('0-200', s0200);
-    void publishGps(null, s, t200 && t300 ? coreSec('200-300', (t300 - t200) / 1000) : null);
-  }
-  if (run.marks['d14'] && !run.saved14) {
-    const sec = coreSec('402m', (run.marks['d14'] - run.t0) / 1000);
-    revealRunMark('14', '¼ мили', fmtRunSec(sec));
-    run.saved14 = true;
-    ghostRunMark('402m', run.marks['d14'] - run.t0);
-    publishDragMark('402m', sec);
-  }
-  if (t200 && t300 && !run.saved200300) {
-    const s = coreSec('200-300', (t300 - t200) / 1000);
-    setRunText('run200300', fmtRunSec(s));
-    setRunText('slip200300', `${s.toFixed(2)}s`);
-    revealRunMark('200300', '200–300', fmtRunSec(s));
-    run.saved200300 = true;
-    if (wifiMode()) { const s0300 = wifi0300(); if (s0300) showMarkPop('0-300', s0300, 'app'); }
-    publishDragMark('200-300', s);
-    void publishGps(null, null, s);
-  }
   run.peak = Math.max(run.peak || 0, v);
   setRunText('runStatus', `Разгон: ${Math.round(v)} км/ч`);
-  setRunText('runDriveMsg', `разгон · ${Math.round(v)} км/ч`);
   if (run.launched && run.peak >= 70 && v < run.peak - 12 && v < prev.v) {
-    if (wifiMode()) { finishWifiRun('app'); return; } // v116: итог — по событию чипа или здесь, что раньше
-    stopRun();
+    // v117: итог для всех источников (Wi-Fi — по событию чипа или здесь, что раньше)
+    finishRun();
     setRunText('runStatus', 'Скорость упала — замер записан');
-    setRunText('runDriveMsg', 'готово — скорость упала');
   }
 }
 
@@ -3543,42 +3606,47 @@ function startWifiSource() {
   document.getElementById('extGpsWifi')?.classList.remove('hidden');
   void refreshWifiDevs();
 }
-function wifiShare(payload) {
-  if (wifiMode() && (run.armed || run.summary)) {
-    run.pendingShare = payload; // карточка — вместе с итогом, когда начали сбавлять
-    if (run.summary) document.getElementById('runDriveShare')?.classList.remove('hidden');
+/** Карточка шейра — вместе с итогом (для всех источников): во время заезда только запоминаем. */
+function runShare(payload) {
+  if (run.armed || run.summary) {
+    run.pendingShare = payload;
+    if (run.summary) { rdShareAugment(); rdFinalButtons(); rdDeltas(); }
     return;
   }
   openShareCard(payload);
 }
+const wifiShare = runShare;
 function showMarkPop(key, sec, src, lagMs, at) {
   if (!(run.armed || run.chipOnly) || run.summary || !(sec > 0)) return;
   run.pops = run.pops || {};
   const prevPop = run.pops[key];
-  if (prevPop && (prevPop.src === 'chip' || src !== 'chip')) return; // значение чипа главнее; приложение — запасной путь
-  run.pops[key] = { sec, src, lagMs, at: Date.now() };
   const box = document.getElementById('runDrivePop');
+  if (prevPop) {
+    // правда — gps-core по сырому треку; значение чипа — только ранний показ, пока точки в пути
+    if (src === 'chip' || prevPop.src === 'core') return;
+    prevPop.src = 'core'; prevPop.sec = sec;
+    if (box?.dataset.k === key) { setRunText('runPopV', fmtRunSec(sec)); setRunText('runPopN', popNote('core')); }
+    return;
+  }
+  run.pops[key] = { sec, src, lagMs, at: Date.now() };
+  if (src === 'chip') rdGridSet(key, sec.toFixed(2), 'чип', { flash: true, pre: true });
   if (!box) return;
+  box.dataset.k = key;
   setRunText('runPopK', POP_LABEL[key] || key);
   setRunText('runPopV', fmtRunSec(sec));
-  setRunText('runPopN', src === 'chip' ? 'справочно · посчитал чип' + (lagMs != null ? ` · пришло за ${fmtLag(lagMs)}` : '') : 'справочно');
-  box.classList.remove('hidden', 'pop-in');
+  setRunText('runPopN', popNote(src, lagMs));
+  box.classList.remove('hidden', 'pop-in', 'pop-out');
   void box.offsetWidth;
   box.classList.add('pop-in');
-  if (!prevPop) markHap();
-  if (key === '0-300') revealRunMark('0300', '0–300', fmtRunSec(sec));
+  clearTimeout(run.popTimer);
+  run.popTimer = setTimeout(() => box.classList.add('pop-out'), 2600); // отметка остаётся в сетке
+  markHap();
   try { (window.__plPopLog = window.__plPopLog || []).push({ key, sec, src, lagMs, at: at ?? null, shownAt: Date.now() }); } catch (_) {}
 }
-/** 0–300 по сырому треку (та же математика gps-core: старт + пересечение 300). */
-function wifi0300() {
-  try {
-    const P = coreWithSpeed(rawSince(run.rawSeq0 || 0));
-    const t0 = coreLaunchTime(P);
-    if (t0 == null) return null;
-    const from = P.findIndex((q) => q.t >= t0);
-    const b = coreSpeedCross(P, 300, Math.max(1, from));
-    return b ? Math.round(b.t - t0) / 1000 : null;
-  } catch (_) { return null; }
+function popNote(src, lagMs) {
+  const s0 = traceSource(rawTrace.slice(-5));
+  const base = s0 === 'phone' ? 'справочно · телефон · не в топ' : s0 === 'sim' ? 'справочно · симулятор' : 'справочно';
+  return src === 'chip' ? base + ' · посчитал чип' + (lagMs != null ? ` · пришло за ${fmtLag(lagMs)}` : '') : base;
 }
 /** Каждая точка Wi-Fi: авто-«Старт» на стоянке, перезапуск, если тронулся и встал без 100; итог по событию чипа. */
 function wifiRunTick(pos, v, now) {
@@ -3599,7 +3667,7 @@ function onWifiEvent(ev) {
     if (old || lapRun.active) return;
     if (!run.armed && !run.summary && !run.chipOnly) {
       // разгон начался, пока точки не доходили: показываем хотя бы отметки чипа
-      openRunDrive(); run.chipOnly = true; run.pops = {};
+      openRunDrive('live'); run.chipOnly = true; run.pops = {};
       setRunText('runDriveMsg', 'разгон начался без связи — отметки чипа, точки догружаются');
     }
     showMarkPop(ev.k, ev.ms / 1000, 'chip', ev.lagMs, ev.at);
@@ -3615,100 +3683,156 @@ function onWifiEvent(ev) {
     }
   }
 }
-function finishWifiRun() {
+function finishRun() {
   if (!run.armed || run.summary) return;
   run.pendingEnd = null;
   stopRun();
   run.summary = true;
-  renderWifiSummary();
+  renderRunSummary();
 }
+function finishWifiRun() { finishRun(); }
 function wifiSummaryReset() {
   document.body.classList.remove('run-sum-on');
-  document.getElementById('runDriveMarks')?.classList.remove('final');
   document.getElementById('runDrivePop')?.classList.add('hidden');
-  ['runDriveDuel', 'runDriveAgain'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
-  document.getElementById('runDriveShare')?.classList.remove('hidden');
+  ['runDriveDuel', 'runDriveAgain', 'runDriveShare'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
   setRunText('runDriveStop', 'Стоп');
-  if (typeof run !== 'undefined' && run) { run.summary = false; run.chipOnly = false; }
+  if (typeof run !== 'undefined' && run) { run.summary = false; run.chipOnly = false; run.sumPts = null; }
 }
-function sumRow(ul, label, sec, extra, hero) {
-  const li = padEl('li', hero ? 'hero' : '');
-  li.appendChild(padEl('span', '', label));
-  const st = padEl('strong', '', fmtRunSec(sec));
-  if (extra) st.appendChild(padEl('small', '', extra));
-  li.appendChild(st);
-  ul.appendChild(li);
-}
-function sumShow(ul, rowsN, note) {
-  if (!rowsN) ul.appendChild(padEl('li', 'note', '')).appendChild(padEl('span', '', 'До 60 км/ч не дошло — отметок нет.'));
-  const li = padEl('li', 'note');
-  li.appendChild(padEl('span', 'wifi-sum-note', note));
-  ul.appendChild(li);
-  ul.classList.add('final');
-  document.body.classList.add('run-sum-on');
-  document.getElementById('runDrivePop')?.classList.add('hidden');
-  document.getElementById('runDriveShare')?.classList.toggle('hidden', !run.pendingShare);
-  document.getElementById('runDriveDuel')?.classList.toggle('hidden', !run.pendingShare);
+function rdFinalButtons() {
+  const has = !!run.pendingShare;
+  document.getElementById('runDriveShare')?.classList.toggle('hidden', !has);
+  document.getElementById('runDriveDuel')?.classList.toggle('hidden', !has);
   document.getElementById('runDriveAgain')?.classList.remove('hidden');
   setRunText('runDriveStop', 'Закрыть');
-  try { ul.scrollTop = 0; } catch (_) {}
+}
+/** К карточке шейра — кривая скорости и отметки (без координат), тот же расчёт, что в итоге. */
+function rdShareAugment() {
+  const p = run.pendingShare; const S = run.rm?.S;
+  if (!p || !S || !run.sumPts) return;
+  try { const c = shareCurve(run.sumPts, S); if (c) p.curve = c; p.splits = shareSplits(S); } catch (_) {}
+}
+/** Дельты под главным результатом: к своему лучшему и к стоку (те же, что на карточке). */
+function rdDeltas() {
+  const p = run.pendingShare;
+  const d = document.getElementById('rdHeroD'); const st = document.getElementById('rdHeroS');
+  if (!d || !st) return;
+  const isHero0100 = document.getElementById('rdHeroK')?.textContent === '0–100';
+  const dt = p && isHero0100 ? pbDeltaText(p, true) : null;
+  d.className = 'rd-delta' + (dt ? ' ' + dt.cls : '');
+  d.textContent = dt ? dt.text : ''; d.hidden = !dt;
+  let sText = ''; let sCls = '';
+  if (p && isHero0100 && Number.isFinite(p.stD) && p.stLab) { sText = stockDeltaText(p.stD, p.stLab); sCls = p.stD <= -0.005 ? 'faster' : (p.stD >= 0.005 ? 'slower' : 'even'); }
+  else if (p && isHero0100 && p.stNone === true) { sText = 'стокового времени здесь пока нет'; sCls = 'first'; }
+  st.className = 'rd-delta' + (sCls ? ' ' + sCls : '');
+  st.textContent = sText; st.hidden = !sText;
+  if (p && isHero0100 && !Number.isFinite(p.stD) && !p.stNone && shareStockEligible(p) && !run.stockAsked) {
+    run.stockAsked = true;
+    try { requestShareStock(p); } catch (_) {}
+    [1200, 3500].forEach((ms) => setTimeout(() => { if (run.summary && run.pendingShare === p) rdDeltas(); }, ms));
+  }
+}
+function rdBadge(tp) {
+  const b = document.getElementById('rdBadge');
+  if (!b) return;
+  const topOk = /в топе ✓/.test(run.topMsg || '');
+  let text; let q;
+  if (tp.src === 'phone') { text = 'телефон · не в топ'; q = 'off'; }
+  else if (tp.src === 'sim') { text = 'симулятор · не в топ'; q = 'off'; }
+  else { text = `GPS ${tp.gpsQ}` + (topOk ? ' · в топе ✓' : tp.gpsQ === 'C' ? ' · не в топ' : ''); q = tp.gpsQ === 'C' ? 'off' : tp.gpsQ; }
+  b.textContent = text;
+  b.dataset.q = q;
 }
 function wifiSummaryVerdict() {
-  const n = document.querySelector('#runDriveMarks .wifi-sum-note');
-  if (n) n.textContent = wifiNote();
+  if (!run.summary) return;
+  setRunText('rdNote', wifiNote());
+  try { rdBadge(tracePassport(run.sumPts || rawSince(run.rawSeq0 || 0))); } catch (_) {}
 }
 function wifiNote() {
-  const tp = tracePassport(rawSince(run.rawSeq0 || 0));
+  const tp = tracePassport(run.sumPts || rawSince(run.rawSeq0 || 0));
   const verdict = run.topMsg || (run.saved0100 ? 'в топ — проверяем на сервере…' : 'до 100 не дошло — в топ нечего');
-  const v = String(verdict); 
+  const v = String(verdict);
   return `На экране — справочно. ${v.charAt(0).toUpperCase()}${v.slice(1)} · ${passportLine(tp)}`;
 }
-function renderWifiSummary() {
-  const ul = document.getElementById('runDriveMarks');
-  if (!ul) return;
-  const pts = rawSince(run.rawSeq0 || 0);
-  ul.replaceChildren();
-  let n = 0;
-  let P = []; let t0 = null;
-  try { P = coreWithSpeed(pts); t0 = coreLaunchTime(P); } catch (_) {}
-  const T = (d) => { try { const x = coreDragTime(pts, d); return x > 0 ? x : null; } catch (_) { return null; } };
-  const vAt = (t) => {
-    for (let i = 1; i < P.length; i++) if (P[i].t >= t) { const a = P[i - 1]; const b = P[i]; const k = (t - a.t) / Math.max(1, b.t - a.t); return a.v + (b.v - a.v) * k; }
-    return null;
-  };
-  const trap = (m) => { if (t0 == null) return null; const t = coreDistCross(P, m, t0); if (t == null) return null; const v = vAt(t); return { sec: Math.round(t - t0) / 1000, v }; };
-  const add = (label, sec, extra, hero) => { if (sec > 0) { sumRow(ul, label, sec, extra, hero); n++; } };
-  const chip = (k) => run.pops?.[k]?.src === 'chip' ? run.pops[k].sec : null;
-  add('0–60', T('0-60'));
-  add('0–100', T('0-100') ?? chip('0-100'), '', true);
-  add('100–200', T('100-200'));
-  add('0–200', T('0-200') ?? chip('0-200'));
-  add('0–300', wifi0300() ?? chip('0-300'));
-  add('200–300', T('200-300'));
-  for (const [m, label] of [[18.288, '60 ft'], [201.168, '⅛ мили'], [402.336, '¼ мили']]) {
-    const r = trap(m);
-    if (r) add(label, r.sec, r.v != null ? `${Math.round(r.v)} км/ч` : '');
-  }
-  const vmax = P.reduce((a, q) => Math.max(a, q.v || 0), 0);
-  if (vmax > 0) {
-    const li = padEl('li', '');
-    li.append(padEl('span', '', 'Vmax'), padEl('strong', '', `${Math.round(vmax)} км/ч`));
-    ul.appendChild(li);
-  }
-  sumShow(ul, n, wifiNote());
-  setRunText('runDriveMsg', 'итог заезда · начали сбавлять');
+function rdRow(tb, label, a, b, cls) {
+  const tr = padEl('tr', cls || '');
+  tr.append(padEl('th', '', label), padEl('td', '', a), padEl('td', '', b));
+  tb.appendChild(tr);
 }
+/** Итог заезда (все источники): главный результат, график, дистанция / ¼ мили / уклон, таблица, бейдж, дельты. */
+function renderRunSummary() {
+  const pts = rawSince(run.rawSeq0 || 0);
+  run.sumPts = pts;
+  let S = null;
+  try { S = coreDragSplits(pts); } catch (_) { S = { t0: null, marks: {}, dist: 0, vmax: 0 }; }
+  if (!run.rm) run.rm = createRunMarks();
+  run.rm.S = S;
+  rdPhase('final');
+  const M = S.marks;
+  const chip = (k) => (run.pops?.[k]?.src === 'chip' ? run.pops[k].sec : null);
+  const heroK = ['0-100', '402m', '201m', '0-60', '60ft'].find((k) => M[k]) || (chip('0-100') ? '0-100' : null);
+  setRunText('rdHeroK', heroK ? RM_LABEL[heroK] : 'Vmax');
+  setRunText('rdHeroV', heroK ? fmtRunSec(M[heroK]?.sec ?? chip(heroK)) : (S.vmax > 0 ? `${Math.round(S.vmax)} км/ч` : '—'));
+  setRunText('rdStDist', S.t0 != null ? `${Math.round(S.dist)} м` : '—');
+  const q = M['402m'] ? '402m' : M['201m'] ? '201m' : null;
+  setRunText('rdStQK', q ? RM_LABEL[q] : '¼ мили');
+  setRunText('rdStQ', q ? `${M[q].sec.toFixed(2)} с @${Math.round(M[q].v)}` : '—');
+  let el = null;
+  try { el = rmElevation(pts, S.t0, M['402m']?.t ?? S.tEnd, M['402m'] ? 402.336 : S.dist); } catch (_) {}
+  const tp = tracePassport(pts);
+  if (el) {
+    setRunText('rdStSlope', `${el.slope > 0 ? '+' : ''}${el.slope.toFixed(1)}%`);
+    setRunText('rdStSlopeN', `перепад ${el.dAlt > 0 ? '+' : ''}${el.dAlt.toFixed(1)} м · по высоте GPS`);
+  } else {
+    setRunText('rdStSlope', '—');
+    setRunText('rdStSlopeN', tp.src === 'ext' ? 'чип не передаёт высоту' : 'нет высоты в точках');
+  }
+  const tb = document.getElementById('rdTable');
+  if (tb) {
+    tb.replaceChildren();
+    const head = padEl('tr', 'h'); head.append(padEl('th', '', 'отметка'), padEl('td', '', 'время'), padEl('td', '', 'скорость · путь')); tb.appendChild(head);
+    for (const k of RM_DIST) if (M[k]) rdRow(tb, RM_LABEL[k], M[k].sec.toFixed(2) + ' с', `${Math.round(M[k].v)} км/ч`);
+    const span = (a, b) => (M[a]?.d != null && M[b]?.d != null ? `${Math.round(M[b].d - M[a].d)} м` : '');
+    const speedRows = [['0-60', ''], ['0-100', ''], ['100-200', span('0-100', '0-200')], ['0-200', ''], ['200-300', span('0-200', '0-300')], ['0-300', ''], ['80-120', '']];
+    for (const [k, path] of speedRows) {
+      const sec = M[k]?.sec ?? chip(k);
+      if (!(sec > 0)) continue;
+      const via = !M[k] ? 'чип' : k.startsWith('0-') && M[k].d != null ? `${Math.round(M[k].d)} м` : path;
+      rdRow(tb, RM_LABEL[k], sec.toFixed(2) + ' с', via, k === heroK ? 'hero' : '');
+    }
+    if (S.vmax > 0) rdRow(tb, 'Vmax', `${Math.round(S.vmax)} км/ч`, '');
+    if (tb.children.length === 1) rdRow(tb, 'До 60 км/ч не дошло', '—', '');
+  }
+  document.getElementById('rdChartBox')?.classList.toggle('empty', !(S.t0 != null && pts.length >= 2));
+  rdBadge(tp);
+  setRunText('rdNote', wifiNote());
+  rdShareAugment();
+  rdFinalButtons();
+  rdDeltas();
+  setRunText('runDriveMsg', '');
+}
+const renderWifiSummary = renderRunSummary;
 function renderChipOnlySummary(ev) {
-  const ul = document.getElementById('runDriveMarks');
-  if (!ul) return;
-  ul.replaceChildren();
-  let n = 0;
   const m = ev.marks || {};
-  for (const k of ['0-100', '0-200', '0-300']) if (m[k] > 0) { sumRow(ul, POP_LABEL[k], m[k] / 1000, '', k === '0-100'); n++; }
-  if (ev.vmax > 0) { const li = padEl('li', ''); li.append(padEl('span', '', 'Vmax'), padEl('strong', '', `${Math.round(ev.vmax)} км/ч`)); ul.appendChild(li); }
-  run.summary = true; run.chipOnly = false;
-  sumShow(ul, n, 'Только отметки чипа (справочно): разгон начался, пока точки не доходили до приложения — в топ этот заезд не отправлялся.');
-  setRunText('runDriveMsg', 'итог заезда · по отметкам чипа');
+  run.summary = true; run.chipOnly = false; run.sumPts = [];
+  run.rm = createRunMarks();
+  run.rm.S = { t0: null, marks: {}, dist: 0, vmax: 0 };
+  rdPhase('final');
+  const k0 = m['0-100'] > 0 ? '0-100' : null;
+  setRunText('rdHeroK', k0 ? '0–100' : 'Vmax');
+  setRunText('rdHeroV', k0 ? fmtRunSec(m['0-100'] / 1000) : (ev.vmax > 0 ? `${Math.round(ev.vmax)} км/ч` : '—'));
+  ['rdStDist', 'rdStQ', 'rdStSlope'].forEach((id) => setRunText(id, '—'));
+  setRunText('rdStSlopeN', '');
+  const tb = document.getElementById('rdTable');
+  if (tb) {
+    tb.replaceChildren();
+    for (const k of ['0-100', '0-200', '0-300']) if (m[k] > 0) rdRow(tb, POP_LABEL[k], (m[k] / 1000).toFixed(2) + ' с', 'чип', k === '0-100' ? 'hero' : '');
+    if (ev.vmax > 0) rdRow(tb, 'Vmax', `${Math.round(ev.vmax)} км/ч`, 'чип');
+  }
+  document.getElementById('rdChartBox')?.classList.add('empty');
+  const b = document.getElementById('rdBadge'); if (b) { b.textContent = 'только чип · не в топ'; b.dataset.q = 'off'; }
+  setRunText('rdNote', 'Только отметки чипа (справочно): разгон начался, пока точки не доходили до приложения — в топ этот заезд не отправлялся.');
+  rdFinalButtons();
+  rdDeltas();
 }
 
 function initExtGps() {
@@ -3865,6 +3989,7 @@ function armRun(opts = {}) {
   run.brakeArmed = false;
   run.brakeT0 = null;
   run.pops = {}; run.pendingShare = null; run.pendingEnd = null; run.topMsg = ''; run.summary = false; run.auto = !!opts.auto;
+  run.rm = createRunMarks(); run.stockAsked = false; run.sumPts = null;
   wifiSummaryReset();
   ['run050', 'run0100', 'run100200', 'run80120', 'run200300', 'run1000'].forEach((id) => setRunText(id, '—'));
   setRunText('runFrom', 'вооружён');
@@ -5225,7 +5350,11 @@ document.getElementById('lapDriveCancel')?.addEventListener('click', () => {
 document.getElementById('btnGps')?.addEventListener('click', startWatch);
 document.getElementById('btnArm')?.addEventListener('click', () => { withSafety(armRun)(); });
 document.getElementById('btnStop')?.addEventListener('click', stopRun);
-document.getElementById('runDriveStop')?.addEventListener('click', () => { stopRun(); closeRunDrive(); wifiSummaryReset(); });
+document.getElementById('runDriveStop')?.addEventListener('click', () => {
+  // v117: «Стоп» посреди заезда с пройденными отметками — сразу итог; иначе закрыть
+  if (run.armed && run.launched && Object.keys(run.rm?.S?.marks || {}).length) { finishRun(); return; }
+  stopRun(); closeRunDrive(); wifiSummaryReset();
+});
 document.getElementById('runDriveDuel')?.addEventListener('click', () => {
   if (!run.pendingShare) return;
   openShareCard(run.pendingShare);
@@ -5696,6 +5825,43 @@ function openShareCard(payload) {
 
   card.classList.remove('hidden');
   card.setAttribute('aria-hidden', 'false');
+  renderShareRun(payload);
+}
+
+/** v117: график разгона на карточке (кривая скорости + бирки отметок) и строка «60 ft · ⅛ · ¼ — время @ скорость». */
+function renderShareRun(payload) {
+  const box = document.getElementById('shareRun');
+  if (!box) return;
+  const isLap = payload.type === 'lap' || payload.type === 'круг';
+  const curve = isLap ? null : cleanCurve(payload.curve);
+  const sp = isLap ? {} : cleanSplits(payload.splits);
+  box.hidden = !curve;
+  const row = document.getElementById('shareRunSplits');
+  if (row) {
+    row.replaceChildren();
+    for (const [k, withV] of [['60ft', true], ['100-200', false], ['201m', true], ['402m', true]]) {
+      const r = sp[k];
+      if (!r) continue;
+      const cell = padEl('span', 'srs');
+      cell.append(padEl('i', '', RM_LABEL[k]), padEl('b', '', Number(r[0]).toFixed(2)));
+      if (withV) cell.appendChild(padEl('small', '', `@${Math.round(r[1])}`));
+      row.appendChild(cell);
+    }
+  }
+  if (!curve) return;
+  requestAnimationFrame(() => {
+    const cv = document.getElementById('shareRunChart');
+    if (!cv) return;
+    const w = cv.clientWidth; const h = cv.clientHeight;
+    if (!w || !h) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    const ctx = cv.getContext('2d');
+    if (!ctx) return;
+    const n = curve.v.length;
+    const series = curve.v.map((v, i) => ({ x: (curve.s * i) / (n - 1), v }));
+    drawSpeedChart(ctx, series, chartTags(sp).filter((t) => t.x <= curve.s), { w, h, dpr, xMax: curve.s, glow: true });
+  });
 }
 
 function closeShareCard() {
@@ -11427,7 +11593,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v116';
+const APP_VERSION = 'v117';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

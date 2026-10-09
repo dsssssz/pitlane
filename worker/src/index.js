@@ -1052,8 +1052,28 @@ function sanitizeSharePayload(p) {
   else if (p.secOk === true) out.secOk = true;
   if (PREP_CLASSES.includes(p.prep)) out.prep = p.prep; // v113: класс со слов пилота
   if (TYRE_TYPES.includes(p.tyreT)) out.tyreT = p.tyreT;
+  // v117: график разгона на карточке — только кривая скорости по времени (без координат) + отметки [сек, км/ч]
+  if (out.type !== 'lap') {
+    const c = p.curve;
+    const cs = c && typeof c === 'object' ? boundedNum(c.s, 0.5, 120) : null;
+    if (cs != null && Array.isArray(c.v) && c.v.length >= 2 && c.v.length <= 64) {
+      const v = c.v.map((x) => boundedNum(x, 0, 500));
+      if (v.every((x) => x != null)) out.curve = { s: Math.round(cs * 10) / 10, v: v.map((x) => Math.round(x)) };
+    }
+    if (p.splits && typeof p.splits === 'object' && !Array.isArray(p.splits)) {
+      const sp = {};
+      for (const k of SHARE_SPLIT_KEYS) {
+        const r = p.splits[k];
+        if (!Array.isArray(r)) continue;
+        const sec = boundedNum(r[0], 0.001, 600); const kmh = boundedNum(r[1], 0, 500);
+        if (sec != null && kmh != null) sp[k] = [Math.round(sec * 1000) / 1000, Math.round(kmh)];
+      }
+      if (Object.keys(sp).length) out.splits = sp;
+    }
+  }
   return out;
 }
+const SHARE_SPLIT_KEYS = ['0-60', '0-100', '100-200', '0-200', '200-300', '0-300', '60ft', '201m', '402m'];
 
 /**
  * Fixed-window counter in KV → true when over the limit. v80: the window no longer slides on every hit,

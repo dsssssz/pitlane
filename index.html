@@ -825,26 +825,61 @@
       </main>
     </div>
 
-    <div id="runDrive" class="run-drive hidden" aria-hidden="true">
+    <div id="runDrive" class="run-drive hidden" aria-hidden="true" data-phase="ready">
+      <div class="rd-status" id="rdStatus" aria-label="Статус GPS">
+        <span class="rd-chip" id="rdSrc" data-q="mid"><i>источник</i><b id="rdSrcV">—</b></span>
+        <span class="rd-chip" id="rdSv" data-q="mid"><i>спутники</i><b id="rdSvV">—</b></span>
+        <span class="rd-chip" id="rdAcc" data-q="mid"><i>точность</i><b id="rdAccV">—</b></span>
+        <span class="rd-chip" id="rdHz" data-q="mid"><i>частота</i><b id="rdHzV">—</b></span>
+      </div>
       <div class="run-drive-top">
-        <p class="run-drive-label">ЗАМЕР</p>
+        <p class="run-drive-label" id="rdLabel">ГОТОВНОСТЬ</p>
+        <div class="rd-ready" id="rdReady" data-ready="0" role="status" aria-live="polite">
+          <strong id="rdReadyT">Ждём GPS</strong>
+          <span id="rdReadyS">встаньте на открытом небе</span>
+        </div>
         <div class="run-drive-speed"><strong id="runDriveSpeed">0</strong><span>км/ч</span></div>
+        <div class="rd-clock" aria-label="Время и дистанция от старта">
+          <div><strong id="rdTimer">0.00</strong><span>с</span></div>
+          <div><strong id="runDriveDist">0</strong><span>м</span></div>
+        </div>
         <div class="ghost-delta hidden" id="runGhostDelta">
           <div class="gd-top"><span class="gd-lab" id="runGhostWho">призрак</span><strong class="gd-num" id="runGhostNum">±0.00</strong></div>
           <div class="gd-bar" aria-hidden="true"><i id="runGhostBar"></i></div>
         </div>
-        <div class="run-pop hidden" id="runDrivePop" role="status" aria-live="assertive">
-          <span class="run-pop-k" id="runPopK">0–100</span>
-          <strong class="run-pop-v" id="runPopV">—</strong>
-          <span class="run-pop-n" id="runPopN">справочно</span>
-        </div>
         <p class="tiny" id="runDriveMsg">GPS…</p>
-        <p class="tiny" id="runDriveDist">0 м</p>
       </div>
-      <ul id="runDriveMarks" class="run-drive-marks"></ul>
+      <div class="rd-final hidden" id="rdFinal">
+        <div class="rd-hero">
+          <span class="rd-badge" id="rdBadge">—</span>
+          <span class="rd-hero-k" id="rdHeroK">0–100</span>
+          <strong class="rd-hero-v" id="rdHeroV">—</strong>
+          <p class="rd-delta" id="rdHeroD" hidden></p>
+          <p class="rd-delta" id="rdHeroS" hidden></p>
+        </div>
+        <div class="rd-chart-slot" id="rdChartSlotF"></div>
+        <div class="rd-stats">
+          <div><i>дистанция</i><b id="rdStDist">—</b></div>
+          <div><i id="rdStQK">¼ мили</i><b id="rdStQ">—</b></div>
+          <div><i>уклон</i><b id="rdStSlope">—</b><small id="rdStSlopeN"></small></div>
+        </div>
+        <table class="rd-table" aria-label="Отметки заезда"><tbody id="rdTable"></tbody></table>
+        <p class="rd-note" id="rdNote"></p>
+      </div>
+      <div class="rd-chart-slot" id="rdChartSlotL">
+        <div class="rd-chart-box" id="rdChartBox">
+          <canvas class="rd-chart" id="rdChart" role="img" aria-label="График скорости по времени"></canvas>
+          <div class="run-pop hidden" id="runDrivePop" role="status" aria-live="assertive">
+            <span class="run-pop-k" id="runPopK">0–100</span>
+            <strong class="run-pop-v" id="runPopV">—</strong>
+            <span class="run-pop-n" id="runPopN">справочно</span>
+          </div>
+        </div>
+      </div>
+      <ul id="runDriveMarks" class="run-drive-marks rd-grid" aria-label="Отметки"></ul>
       <div class="run-drive-actions">
         <button type="button" class="go-btn" id="runDriveStop">Стоп</button>
-        <button type="button" id="runDriveShare" class="share-hud-btn">Шейр</button>
+        <button type="button" id="runDriveShare" class="share-hud-btn hidden">Шейр</button>
         <button type="button" id="runDriveDuel" class="share-hud-btn hidden">В дуэль</button>
         <button type="button" id="runDriveAgain" class="share-hud-btn hidden">Ещё заезд</button>
       </div>
@@ -918,6 +953,10 @@
         </div>
         <p class="share-type" id="shareType">—</p>
         <p class="share-time" id="shareTime">—</p><p class="share-delta" id="shareDelta" hidden></p><p class="share-delta share-stock" id="shareStock" hidden></p><p class="share-delta share-sector" id="shareSector" hidden></p>
+        <div class="share-run" id="shareRun" hidden>
+          <canvas class="share-run-chart" id="shareRunChart" role="img" aria-label="График разгона"></canvas>
+          <div class="share-run-splits" id="shareRunSplits"></div>
+        </div>
         <div class="share-meta-row">
           <span class="share-weather-chip hidden" id="shareWeather"></span>
         </div>

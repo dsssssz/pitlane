@@ -176,26 +176,75 @@ export const DRAG_DEFS = {
   '60ft': { dist: 18.288 }, '201m': { dist: 201.168 }, '402m': { dist: 402.336 },
 };
 
+/** v117: дистанция ∫v dt (трапецией) от t0 до t — та же математика, что distCross. */
+export function distAt(p, t0, t) {
+  let d = 0;
+  for (let i = 1; i < p.length; i++) {
+    const a = p[i - 1]; const b = p[i];
+    if (b.t <= t0) continue;
+    if (a.t >= t) break;
+    const ta = Math.max(a.t, t0); const tb = Math.min(b.t, t);
+    const vAt = (x) => a.v + (b.v - a.v) * ((x - a.t) / Math.max(1, b.t - a.t));
+    d += (((vAt(ta) + vAt(tb)) / 2) / 3.6) * ((tb - ta) / 1000);
+  }
+  return d;
+}
+/** Скорость (км/ч) в момент t — линейно между соседними точками. */
+export function speedAt(p, t) {
+  for (let i = 1; i < p.length; i++) {
+    if (p[i].t >= t) { const a = p[i - 1]; const b = p[i]; return a.v + (b.v - a.v) * ((t - a.t) / Math.max(1, b.t - a.t)); }
+  }
+  return p.length ? p[p.length - 1].v : null;
+}
+
+/** Пересечение дисциплины → { t (момент пересечения), tFrom (момент начала отсчёта) } или null. p — после withSpeed. */
+function discCross(p, def, t0) {
+  if (def.from != null) {
+    const a = speedCross(p, def.from);
+    if (!a) return null;
+    const b = speedCross(p, def.to, a.i);
+    return b ? { t: b.t, tFrom: a.t } : null;
+  }
+  if (t0 == null) return null;
+  if (def.dist != null) {
+    const t = distCross(p, def.dist, t0);
+    return t != null ? { t, tFrom: t0 } : null;
+  }
+  const from = p.findIndex((q) => q.t >= t0);
+  const b = speedCross(p, def.to, Math.max(1, from));
+  return b ? { t: b.t, tFrom: t0 } : null;
+}
+const secOf = (c) => Math.round(c.t - c.tFrom) / 1000;
+
 /** Время дисциплины в секундах (null, если порог не пересечён). Одна функция для клиента и сервера. */
 export function dragTime(points, disc) {
   const def = DRAG_DEFS[disc];
   if (!def || !points || points.length < 2) return null;
   const p = withSpeed(points);
-  if (def.from != null) {
-    const a = speedCross(p, def.from);
-    if (!a) return null;
-    const b = speedCross(p, def.to, a.i);
-    return b ? Math.round(b.t - a.t) / 1000 : null;
-  }
+  const c = discCross(p, def, def.from != null ? null : launchTime(p));
+  return c ? secOf(c) : null;
+}
+
+/** v117: дисциплины экрана замера (= DRAG_DEFS сервера + 0–300 для показа). */
+export const SPLIT_DEFS = { ...DRAG_DEFS, '0-300': { to: 300 } };
+/**
+ * v117: ОДИН расчёт всех отметок заезда по сырому треку — для живого экрана, итога, шейра (и он же = dragTime сервера).
+ * → { t0, tEnd, dist, vmax, marks: { disc: { sec, t, v (км/ч в момент пересечения), d (м от старта) } } }
+ */
+export function dragSplits(points, defs = SPLIT_DEFS) {
+  const out = { t0: null, tEnd: null, dist: 0, vmax: 0, marks: {} };
+  if (!points || points.length < 2) return out;
+  const p = withSpeed(points);
   const t0 = launchTime(p);
-  if (t0 == null) return null;
-  if (def.dist != null) {
-    const t = distCross(p, def.dist, t0);
-    return t != null ? Math.round(t - t0) / 1000 : null;
+  out.t0 = t0; out.tEnd = p[p.length - 1].t;
+  for (const q of p) if (t0 != null && q.t >= t0 && q.v > out.vmax) out.vmax = q.v;
+  if (t0 != null) out.dist = distAt(p, t0, out.tEnd);
+  for (const [k, def] of Object.entries(defs)) {
+    const c = discCross(p, def, def.from != null ? null : t0);
+    if (!c) continue;
+    out.marks[k] = { sec: secOf(c), t: c.t, v: speedAt(p, c.t), d: t0 != null ? distAt(p, t0, c.t) : null };
   }
-  const from = p.findIndex((q) => q.t >= t0);
-  const b = speedCross(p, def.to, Math.max(1, from));
-  return b ? Math.round(b.t - t0) / 1000 : null;
+  return out;
 }
 
 /* ———————————— круги: ворота ———————————— */
