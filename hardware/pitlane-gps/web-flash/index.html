@@ -23,6 +23,10 @@
     <span slot="unsupported">Этот браузер не поддерживает Web Serial — нужен Chrome/Edge на компьютере.</span>
     <span slot="not-allowed">Нужна страница по HTTPS.</span>
   </esp-web-install-button>
+  <p><b>Прошивка 2.0.0 (Wi-Fi):</b> при первой прошивке отметьте «стереть устройство» — изменилась таблица разделов.
+  После перезапуска чип сам включит сеть <code>PITLANE-GPS-XXXX</code> (пароль <code>pitlanegps</code>) для настройки
+  хотспота и привязки к аккаунту — с iPhone тоже. Пошагово — в README чипа, раздел «Wi-Fi и iPhone».</p>
+  <p class="muted">Прошить с iPhone нельзя (в iOS нет Web Serial) — нужен один раз компьютер; дальше всё настраивается с телефона.</p>
   <p class="muted">Если порт не появляется: зажмите кнопку BOOT, нажмите RESET (или переподключите USB), отпустите BOOT — и повторите.</p>
   <p class="muted">Исходники: <code>hardware/pitlane-gps/</code> в репозитории pitlane.</p>
 </body>

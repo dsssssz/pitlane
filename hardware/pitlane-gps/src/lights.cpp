@@ -9,6 +9,7 @@ static Adafruit_NeoPixel strip(LEDS_COUNT, LEDS_PIN, NEO_GRB + NEO_KHZ800);
 
 namespace lights {
 
+static const uint32_t VIOLET = 0x9D4DFF;
 static const uint32_t NEON = 0x39FF14, CYAN = 0x00E5FF, BLUE = 0x0040FF, RED = 0xFF0000, AMBER = 0xFF7A00, GREEN = 0x00FF00;
 static const int RING0 = LEDS_STATUS, RING_N = LEDS_COUNT - LEDS_STATUS;
 static Mode cur = MODE_OFF;
@@ -75,8 +76,9 @@ const char* modeName(Mode m) {
 
 void update(uint32_t now, const State& s) {
   cur = pick(s);
-  if (s.ble && !blePrev) bleSince = now;
-  blePrev = s.ble;
+  bool link = s.ble || s.net == 4;
+  if (link && !blePrev) bleSince = now;
+  blePrev = link;
 #if LEDS_PIN >= 0
   if (now - lastShow < 20) return;   // 50 Гц
   lastShow = now;
@@ -102,7 +104,7 @@ void update(uint32_t now, const State& s) {
     default: fillRing(0);
   }
   // BLE подключён: при подключении 3 голубые вспышки всем кольцом, дальше голубая искра, круг за 4 с
-  if (s.ble && cur >= MODE_MEASURE) {
+  if ((s.ble || s.net == 4) && cur >= MODE_MEASURE) {
     uint32_t t = now - bleSince;
     if (t < 1200) { if (blink(t, 400, 150)) fillRing(scale(CYAN, B, 1)); }
     else if (cur != MODE_MEASURE) setRing((int)((now % 4000) * RING_N / 4000), scale(CYAN, B, 1));
@@ -117,8 +119,18 @@ void update(uint32_t now, const State& s) {
     if (cur == MODE_BATT_CRIT) c = 0;
     strip.setPixelColor(0, c);
   }
-  if (LEDS_STATUS >= 2) {   // [1] BLE: горит — подключено, короткая вспышка раз в 2 с — реклама
-    uint32_t c = s.ble ? scale(BLUE, S, 1) : (blink(now, 2000, 60) ? scale(BLUE, S, 0.6f) : 0);
+  if (LEDS_STATUS >= 2) {   // [1] связь
+    // BLE подключён — синий; Wi-Fi (v116): онлайн — голубой горит, Wi-Fi без сервера — голубой 1 Гц,
+    // ищем хотспот — короткая голубая вспышка раз в секунду, настройка — фиолетовый пульс,
+    // нужна привязка — красная двойная вспышка; иначе — короткая синяя вспышка раз в 2 с (BLE-реклама)
+    uint32_t c;
+    if (s.ble) c = scale(BLUE, S, 1);
+    else if (s.net == 4) c = scale(CYAN, S, 1);
+    else if (s.net == 3) c = blink(now, 1000, 500) ? scale(CYAN, S, 1) : 0;
+    else if (s.net == 2) c = blink(now, 1000, 70) ? scale(CYAN, S, 0.8f) : 0;
+    else if (s.net == 1) c = scale(VIOLET, S, pulse(now, 1600, 0.1f));
+    else if (s.net == 5) c = (blink(now, 1500, 90) || (now % 1500 >= 220 && now % 1500 < 310)) ? scale(RED, S, 1) : 0;
+    else c = blink(now, 2000, 60) ? scale(BLUE, S, 0.6f) : 0;
     if (cur == MODE_BATT_CRIT) c = 0;
     strip.setPixelColor(1, c);
   }

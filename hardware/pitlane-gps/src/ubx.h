@@ -32,7 +32,14 @@ struct NavPvt {
   int32_t  gSpeed;        // мм/с
   int32_t  headMot;       // 1e-5 град
   uint32_t sAcc;          // мм/с
+  // v116: UTC эпохи (для меток времени в сети: чип сам ставит время каждой точки)
+  uint16_t year; uint8_t month, day, hour, min, sec;
+  uint8_t valid;          // бит0 validDate, бит1 validTime, бит2 fullyResolved
+  int32_t nano;           // доля секунды, нс (может быть < 0)
 };
+
+// UTC эпохи NAV-PVT → мс от 1970 (или -1, если время ещё не решено приёмником)
+int64_t pvtEpochMs(const NavPvt& p);
 
 class UbxGps {
 public:

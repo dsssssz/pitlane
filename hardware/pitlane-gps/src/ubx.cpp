@@ -50,6 +50,9 @@ void UbxGps::onFrame() {
     pvt.gSpeed = rdI4(p + 60);
     pvt.headMot = rdI4(p + 64);
     pvt.sAcc = rdU4(p + 68);
+    pvt.year = (uint16_t)(p[4] | (p[5] << 8)); pvt.month = p[6]; pvt.day = p[7];
+    pvt.hour = p[8]; pvt.min = p[9]; pvt.sec = p[10]; pvt.valid = p[11];
+    pvt.nano = rdI4(p + 16);
     havePvt = true;
   } else if (cls == 0x05 && len >= 2) {                     // ACK-ACK / ACK-NAK
     ackCls = buf[0]; ackId = buf[1];
@@ -161,4 +164,21 @@ bool UbxGps::takePvt(NavPvt& out) {
   if (!havePvt) return false;
   out = pvt; havePvt = false;
   return true;
+}
+
+// дни от 1970-01-01 (алгоритм Howard Hinnant, days_from_civil)
+static int64_t daysFromCivil(int y, unsigned m, unsigned d) {
+  y -= m <= 2;
+  const int era = (y >= 0 ? y : y - 399) / 400;
+  const unsigned yoe = (unsigned)(y - era * 400);
+  const unsigned doy = (153 * (m + (m > 2 ? -3 : 9)) + 2) / 5 + d - 1;
+  const unsigned doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+  return (int64_t)era * 146097 + (int64_t)doe - 719468;
+}
+
+int64_t pvtEpochMs(const NavPvt& p) {
+  if ((p.valid & 0x07) != 0x07 || p.year < 2024 || p.month < 1 || p.month > 12 || p.day < 1 || p.day > 31) return -1;
+  int64_t s = daysFromCivil(p.year, p.month, p.day) * 86400 + p.hour * 3600 + p.min * 60 + p.sec;
+  int64_t ms = s * 1000 + (p.nano >= 0 ? (p.nano + 500000) / 1000000 : -((-p.nano + 500000) / 1000000));
+  return ms;
 }

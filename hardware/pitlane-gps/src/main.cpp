@@ -1,10 +1,14 @@
 // PITLANE GPS — внешний GNSS-приёмник 10–25 Гц для приложения Pitlane.
-// u-blox NEO-M9N / MAX-M10S (UART, UBX NAV-PVT) → ESP32-C3/S3 → BLE GATT notify.
+// u-blox NEO-M9N / MAX-M10S (UART, UBX NAV-PVT) → ESP32-C3/S3 → BLE GATT notify (Android + Chrome)
+// и v116: Wi-Fi (режим модема телефона) → Worker (WSS) → Telegram Mini App / iPhone.
 #include <Arduino.h>
 #include <NimBLEDevice.h>
 #include "protocol.h"
 #include "ubx.h"
 #include "lights.h"
+#include "netlink.h"
+
+#define FW_VERSION "2.0.0"
 
 #ifndef GPS_RX_PIN
 #define GPS_RX_PIN 20
@@ -78,7 +82,7 @@ static void ledTask(uint32_t now) {
   bool on;
   if (!alive) on = (now / 125) % 2;
   else if (!fix) on = (now / 500) % 2;
-  else if (!bleConnected) on = (now % 2000) < 80;
+  else if (!bleConnected && !netlink::online()) on = (now % 2000) < 80;
   else on = true;
   led(on);
 }
@@ -176,7 +180,8 @@ void setup() {
   readBattery();
   lights::begin();
   setupBle();
-  Serial.printf("[pitlane-gps] BLE: %s\n", devName);
+  Serial.printf("[pitlane-gps] BLE: %s · прошивка %s\n", devName, FW_VERSION);
+  netlink::begin(devName, FW_VERSION);
 }
 
 void loop() {
@@ -187,16 +192,19 @@ void loop() {
   if (gps.takePvt(p)) {
     last = p; lastPvtMs = now; pvtCount++;
     sendPvt(p);
+    netlink::onPvt(p, now);
   }
 
-  // кнопка: короткое нажатие — 10 ↔ 25 Гц
+  // кнопка: короткое нажатие — 10 ↔ 25 Гц; удержание 3 с — режим настройки Wi-Fi на 10 мин
 #if BTN_PIN >= 0
-  static bool btnPrev = true; static uint32_t btnT = 0;
+  static bool btnPrev = true, btnLong = false; static uint32_t btnT = 0;
   bool b = digitalRead(BTN_PIN);
-  if (!b && btnPrev) btnT = now;
-  if (b && !btnPrev && now - btnT > 30 && now - btnT < 1500) pendingRate = gps.rate() == 25 ? 10 : 25;
+  if (!b && btnPrev) { btnT = now; btnLong = false; }
+  if (!b && !btnLong && now - btnT >= 3000) { btnLong = true; netlink::startPortal(10); }
+  if (b && !btnPrev && !btnLong && now - btnT > 30 && now - btnT < 1500) pendingRate = gps.rate() == 25 ? 10 : 25;
   btnPrev = b;
 #endif
+  netlink::loop(now);
 
   if (pendingMeasure >= 0) {
     measureManual = pendingMeasure == 1;
@@ -224,7 +232,10 @@ void loop() {
                   last.fixType, last.gnssFixOK, last.numSV, last.lat * 1e-7, last.lon * 1e-7,
                   last.gSpeed * 0.0036, last.sAcc / 1000.0, last.hAcc / 1000.0, (unsigned long)pvtRate,
                   battmV, battPct, bleConnected ? "on" : "off");
-    Serial.printf("  leds: %s\n", lights::modeName(lights::mode()));
+    netlink::setStatus(gps.rate(), battmV, battPct, (uint8_t)min<uint32_t>(pvtRate, 255));
+    Serial.printf("  leds: %s | Wi-Fi: %s, в буфере %lu, потеряно %lu | heap %lu\n", lights::modeName(lights::mode()),
+                  netlink::stateName(netlink::state()), (unsigned long)netlink::bufferedPoints(), (unsigned long)netlink::droppedPoints(),
+                  (unsigned long)ESP.getFreeHeap());
     static uint32_t silentSec = 0;
     silentSec = (now - lastPvtMs > 3000) ? silentSec + 1 : 0;
     if (silentSec >= 5) { silentSec = 0; gps.begin(GPS_RX_PIN, GPS_TX_PIN, gps.rate()); }
@@ -235,11 +246,12 @@ void loop() {
   bool alive = now - lastPvtMs < 2000;
   bool fix = alive && last.gnssFixOK && last.fixType >= 3;
   float kmh = last.gSpeed * 0.0036f;
-  if (bleConnected && fix && kmh >= 5.0f) measureAuto = true;
+  const bool linked = bleConnected || netlink::online();
+  if (linked && fix && kmh >= 5.0f) measureAuto = true;
   if (!fix || kmh >= 2.0f) slowSinceMs = now;
-  if (measureAuto && (!bleConnected || now - slowSinceMs > 3000)) measureAuto = false;
+  if (measureAuto && (!linked || now - slowSinceMs > 3000)) measureAuto = false;
   if (!bleConnected) measureManual = false;
-  lights::State ls{alive, fix, bleConnected, measureManual || measureAuto, battmV, battPct};
+  lights::State ls{alive, fix, bleConnected, (uint8_t)netlink::state(), measureManual || measureAuto || netlink::measuring(), battmV, battPct};
   lights::update(now, ls);
   delay(1);
 }
