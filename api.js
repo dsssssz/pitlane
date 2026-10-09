@@ -726,6 +726,15 @@ export const api = {
   async orderMusic(ids) { return await remoteKeep('/me/music', { method: 'PUT', body: JSON.stringify({ order: ids }) }); },
   async delMusic(id) { return await remoteKeep('/me/music/' + encodeURIComponent(id), { method: 'DELETE' }); },
   musicUrl(pid, tid, kind) { const b = apiBase(); return b ? b + '/music/' + encodeURIComponent(pid) + '/' + encodeURIComponent(tid) + '/' + (kind === 'cover' ? 'cover' : 'audio') : ''; },
+  /** v116: PITLANE GPS по Wi-Fi — привязка чипа и live-сокет (сессия в subprotocol, не в URL). */
+  async gpsPair() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/gps/pair', { method: 'POST', body: '{}' }); },
+  async gpsDevices() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/gps/devices'); },
+  async gpsRevoke(id) { return await remoteKeep('/gps/devices/' + encodeURIComponent(id), { method: 'DELETE' }); },
+  gpsLiveSocket() {
+    const b = apiBase(); const tok = getSessionToken();
+    if (!b || !tok || typeof WebSocket === 'undefined') return null;
+    return new WebSocket(b.replace(/^http/i, 'ws') + '/gps/live', ['pitlane.v1', 'bearer.' + tok]);
+  },
   teamAvatarUrl(id, v) { const b = apiBase(); return b && v ? b + '/teams/' + encodeURIComponent(id) + '/avatar?v=' + encodeURIComponent(v) : ''; },
   teamImgUrl(id, pid) { const b = apiBase(); return b ? b + '/teams/' + encodeURIComponent(id) + '/img/' + encodeURIComponent(pid) : ''; },
 

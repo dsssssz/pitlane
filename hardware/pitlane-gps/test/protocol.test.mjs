@@ -54,7 +54,8 @@ assert.deepEqual([s.rateHz, s.battmV, s.battPct, s.configured, s.pvtAlive, s.fas
   await new Promise((r) => setTimeout(r, 9500));
   g.stopSim();
   assert.ok(pts.length >= 80, `мало точек: ${pts.length}`);
-  for (let i = 1; i < pts.length; i++) assert.equal(pts[i].timestamp - pts[i - 1].timestamp, 100);
+  // v89: шаг симулятора — по реальному времени (таймер может подтормаживать), поэтому интервал ~100 мс, не ровно
+  for (let i = 1; i < pts.length; i++) { const d = pts[i].timestamp - pts[i - 1].timestamp; assert.ok(d >= 20 && d <= 500, `интервал ${d} мс`); }
   const i0 = pts.findIndex((x) => x.coords.speed > 0.3);
   const i100 = pts.findIndex((x) => x.coords.speed * 3.6 >= 100);
   assert.ok(i0 > 0 && i100 > i0, 'симулятор должен разгоняться');

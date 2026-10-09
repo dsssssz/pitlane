@@ -326,7 +326,7 @@ export class GpsLive {
     if (msg.s && typeof msg.s === 'object') {
       const s = msg.s; const n = (x, lo, hi) => (Number.isFinite(Number(x)) ? Math.max(lo, Math.min(hi, Math.round(Number(x)))) : null);
       this.m.status = { hz: n(s.hz, 0, 50), bat: n(s.bat, 0, 5000), pct: n(s.pct, 0, 100), sv: n(s.sv, 0, 99), rssi: n(s.rssi, -127, 0), buf: n(s.buf, 0, 100000), fix: n(s.fix, 0, 15), fw: /^[0-9][0-9a-z.+-]{0,15}$/i.test(String(s.fw || '')) ? String(s.fw) : null, at: this.now() };
-      this.bcast({ type: 'st', ...this.m.status });
+      this.bcast({ type: 'st', ...this.m.status, s: this.now() });
     }
   }
 

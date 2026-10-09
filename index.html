@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1a1a1a" />
     <!-- v80: minimal CSP that cannot break the app (no plugins, no <base> hijack, forms only to self) -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-z2CTz9Y7ug2+lIHkdShb8RDoC8+FDWBnh50ogSss6nA=' 'sha256-8XvUhfOyAQ0xrN2l4lAR1NWN2swizirH1cFFwd7NzCY='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://*.workers.dev https://api.open-meteo.com https://server.arcgisonline.com https://tile.openstreetmap.org; media-src 'self' data: blob: https://pitlane-api.pitlane-taksimaga.workers.dev; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-z2CTz9Y7ug2+lIHkdShb8RDoC8+FDWBnh50ogSss6nA=' 'sha256-8XvUhfOyAQ0xrN2l4lAR1NWN2swizirH1cFFwd7NzCY='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://*.workers.dev wss://pitlane-api.pitlane-taksimaga.workers.dev https://api.open-meteo.com https://server.arcgisonline.com https://tile.openstreetmap.org; media-src 'self' data: blob: https://pitlane-api.pitlane-taksimaga.workers.dev; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <script>try{if(/tgWebAppData|tgWebAppVersion/.test(location.hash)||sessionStorage.getItem("pitlane-tma")==="1")document.documentElement.classList.add("tma")}catch(e){}</script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -444,6 +444,7 @@
             <div class="ext-gps-src" role="group" aria-label="Источник GPS">
               <button type="button" data-gps-src="phone" class="on" aria-pressed="true">Телефон</button>
               <button type="button" data-gps-src="ble" aria-pressed="false">Внешний GPS (PITLANE GPS)</button>
+              <button type="button" data-gps-src="wifi" aria-pressed="false">Внешний GPS (Wi-Fi)</button>
               <button type="button" data-gps-src="sim" aria-pressed="false">Симулятор</button>
             </div>
             <div class="ext-gps-rate hidden" id="extGpsRate" role="group" aria-label="Частота приёмника">
@@ -453,7 +454,32 @@
             </div>
             <p class="tiny ext-gps-msg hidden" id="extGpsMsg" role="status"></p>
             <p class="tiny muted" id="extGpsIosNote" hidden></p>
-            <p class="tiny muted">Внешний приёмник u-blox 10–25 Гц по Bluetooth — Android + Chrome. Топ разгонов (0–100, 100–200, 80–120, ¼ мили) принимает только его; телефон и симулятор — в личную историю.</p>
+            <div class="ext-gps-wifi hidden" id="extGpsWifi">
+              <p class="tiny wifi-state" id="wifiState" role="status">Wi-Fi: не подключено</p>
+              <ul class="wifi-devs" id="wifiDevs"></ul>
+              <div class="form-row">
+                <button type="button" class="share-hud-btn" id="wifiPairBtn">Привязать чип</button>
+              </div>
+              <div class="wifi-pair hidden" id="wifiPairBox">
+                <p class="tiny">Код привязки (20 минут, один раз):</p>
+                <strong class="wifi-code" id="wifiPairCode">——————</strong>
+                <p class="tiny muted" id="wifiPairWait">Введите код на странице настройки чипа — привязка пройдёт, как только чип выйдет в интернет.</p>
+              </div>
+              <details class="wifi-howto">
+                <summary>Как подключить с iPhone</summary>
+                <ol class="tiny">
+                  <li>Здесь нажмите «Привязать чип» — появится код.</li>
+                  <li>Чип: первый запуск — сам включает сеть настройки; иначе удерживайте кнопку BOOT 3 с (индикатор связи — фиолетовый).</li>
+                  <li>iPhone: Настройки → Wi-Fi → «PITLANE-GPS-XXXX», пароль <b>pitlanegps</b>. Откроется страница настройки (если нет — Safari, адрес 192.168.4.1).</li>
+                  <li>Впишите имя iPhone (Настройки → Основные → Об этом устройстве → Имя), пароль режима модема и код. «Сохранить».</li>
+                  <li>Выйдите из сети PITLANE-GPS. Настройки → Режим модема → включите «Разрешать другим» и «Максимальная совместимость» (2.4 ГГц). Не закрывайте этот экран, пока чип не подключится.</li>
+                  <li>Индикатор связи на чипе горит голубым — поток идёт. Здесь появится «чип в сети».</li>
+                  <li>Едем: стоите — замер сам вооружается, трогаетесь — отметки всплывают, начали сбавлять — итог.</li>
+                </ol>
+              </details>
+              <label class="wifi-hap tiny"><input type="checkbox" id="markHaptic" /> Короткая вибрация на отметке</label>
+            </div>
+            <p class="tiny muted">Внешний приёмник u-blox 10–25 Гц: по Bluetooth — Android + Chrome; по Wi-Fi (режим модема телефона) — iPhone и Telegram. Топ разгонов (0–100, 100–200, 80–120, ¼ мили) принимает только его; телефон и симулятор — в личную историю. Время на экране — справочно, в топ — после проверки сервером по сырым точкам.</p>
           </article>
           <!-- hidden legacy ids for slip/publish compatibility -->
           <div class="sr-only" aria-hidden="true">
@@ -807,6 +833,11 @@
           <div class="gd-top"><span class="gd-lab" id="runGhostWho">призрак</span><strong class="gd-num" id="runGhostNum">±0.00</strong></div>
           <div class="gd-bar" aria-hidden="true"><i id="runGhostBar"></i></div>
         </div>
+        <div class="run-pop hidden" id="runDrivePop" role="status" aria-live="assertive">
+          <span class="run-pop-k" id="runPopK">0–100</span>
+          <strong class="run-pop-v" id="runPopV">—</strong>
+          <span class="run-pop-n" id="runPopN">справочно</span>
+        </div>
         <p class="tiny" id="runDriveMsg">GPS…</p>
         <p class="tiny" id="runDriveDist">0 м</p>
       </div>
@@ -814,6 +845,8 @@
       <div class="run-drive-actions">
         <button type="button" class="go-btn" id="runDriveStop">Стоп</button>
         <button type="button" id="runDriveShare" class="share-hud-btn">Шейр</button>
+        <button type="button" id="runDriveDuel" class="share-hud-btn hidden">В дуэль</button>
+        <button type="button" id="runDriveAgain" class="share-hud-btn hidden">Ещё заезд</button>
       </div>
     </div>
 

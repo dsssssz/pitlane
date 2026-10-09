@@ -20,7 +20,7 @@ import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-
 import { initTips, tipsOnView, resetTips, showMyCarHowTo } from './tips.js';
 import { musicList, renderMyMusic, initMusic, stopMusic } from './music-ui.js';
 import { createChaseTracker } from './chase-match.js';
-import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ } from './gps-core.js';
+import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ, withSpeed as coreWithSpeed, launchTime as coreLaunchTime, speedCross as coreSpeedCross, distCross as coreDistCross } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
 import { legalReady } from './legal-config.js';
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
@@ -3018,6 +3018,14 @@ function closeRunDrive() {
   document.body.classList.remove('run-drive-on');
 }
 
+/* v116: вибрация на отметках замера — по умолчанию выключена (просили без жужжания), включается галочкой */
+const MARK_HAPTIC_KEY = 'pitlane-mark-haptic-v1';
+function markHapticOn() { try { return localStorage.getItem(MARK_HAPTIC_KEY) === '1'; } catch (_) { return false; } }
+function markHap() {
+  if (!markHapticOn()) return;
+  if (isTMA && tmaHaptic('light')) return;
+  try { navigator.vibrate?.(15); } catch (_) {}
+}
 function revealRunMark(key, label, value) {
   if (run.revealed?.[key]) return;
   run.revealed = run.revealed || {};
@@ -3032,7 +3040,7 @@ function revealRunMark(key, label, value) {
   vl.textContent = String(value);
   li.append(lb, vl);
   ul.appendChild(li);
-  hap([10, 30, 10]);
+  markHap();
   try { ul.scrollTop = ul.scrollHeight; } catch (_) {}
 }
 
@@ -3142,9 +3150,10 @@ function onGpsPoint(pos) {
   setRunText('boxLive', String(vShow));
   if (document.body.classList.contains('run-drive-on')) setRunText('runDriveSpeed', String(vShow));
   if (lapRun.active) onLapGps(pos, v);
+  if (wifiMode() && !lapRun.active) wifiRunTick(pos, v, now);
 
   if (!run.armed) {
-    let tip = 'GPS живой. Стоите — жмите «Старт»';
+    let tip = wifiMode() ? 'PITLANE GPS по Wi-Fi живой. Стоите — замер вооружится сам' : 'GPS живой. Стоите — жмите «Старт»';
     if (rawAcc != null && rawAcc > 35) tip = 'GPS грубый (±' + Math.round(rawAcc) + ' м). Лучше на открытом небе.';
     else if (fus.imuDenied) tip = 'GPS ок. IMU недоступен (iOS: разрешите движение) — фильтр GPS-only.';
     setRunText('runStatus', tip);
@@ -3293,7 +3302,7 @@ function onGpsPoint(pos) {
     run.saved0100 = true;
     ghostRunMark('0-100', t100 - run.t0);
     publishDragMark('0-100', sec);
-    tmaHaptic('success');
+    if (wifiMode()) showMarkPop('0-100', sec, 'app');
     void publishGps(sec, t100 && t200 ? coreSec('100-200', (t200 - t100) / 1000) : null, t200 && t300 ? coreSec('200-300', (t300 - t200) / 1000) : null);
   }
   if (run.marks['d18'] && !run.saved18) {
@@ -3310,6 +3319,7 @@ function onGpsPoint(pos) {
     if (t100) setRunText('slip0200', `${s0200.toFixed(2)}s`);
     revealRunMark('100200', '100–200', fmtRunSec(s));
     revealRunMark('0200', '0–200', fmtRunSec(s0200));
+    if (wifiMode()) showMarkPop('0-200', s0200, 'app');
     run.saved100200 = true;
     publishDragMark('100-200', s);
     publishDragMark('0-200', s0200);
@@ -3328,6 +3338,7 @@ function onGpsPoint(pos) {
     setRunText('slip200300', `${s.toFixed(2)}s`);
     revealRunMark('200300', '200–300', fmtRunSec(s));
     run.saved200300 = true;
+    if (wifiMode()) { const s0300 = wifi0300(); if (s0300) showMarkPop('0-300', s0300, 'app'); }
     publishDragMark('200-300', s);
     void publishGps(null, null, s);
   }
@@ -3335,6 +3346,7 @@ function onGpsPoint(pos) {
   setRunText('runStatus', `Разгон: ${Math.round(v)} км/ч`);
   setRunText('runDriveMsg', `разгон · ${Math.round(v)} км/ч`);
   if (run.launched && run.peak >= 70 && v < run.peak - 12 && v < prev.v) {
+    if (wifiMode()) { finishWifiRun('app'); return; } // v116: итог — по событию чипа или здесь, что раньше
     stopRun();
     setRunText('runStatus', 'Скорость упала — замер записан');
     setRunText('runDriveMsg', 'готово — скорость упала');
@@ -3391,16 +3403,18 @@ var extGps = null;
 function extGpsRender(info) {
   const bar = document.getElementById('extGpsBar');
   const st = info?.state || 'off';
-  document.body.classList.toggle('ext-gps-on', st === 'ble' || st === 'sim');
+  document.body.classList.toggle('ext-gps-on', st === 'ble' || st === 'sim' || st === 'wifi');
   document.querySelectorAll('[data-gps-src]').forEach((b) => {
     const src = b.getAttribute('data-gps-src');
-    const on = (src === 'phone' && st === 'off') || (src === 'ble' && (st === 'ble' || st === 'connecting')) || (src === 'sim' && st === 'sim');
+    const on = (src === 'phone' && st === 'off') || (src === 'ble' && (st === 'ble' || st === 'connecting')) || (src === 'sim' && st === 'sim') || (src === 'wifi' && st === 'wifi');
     b.classList.toggle('on', on);
     b.setAttribute('aria-pressed', on ? 'true' : 'false');
   });
   const rateRow = document.getElementById('extGpsRate');
   rateRow?.classList.toggle('hidden', !(st === 'ble' || st === 'sim'));
+  if (st === 'wifi') document.getElementById('extGpsWifi')?.classList.remove('hidden');
   if (!bar) return;
+  if (st === 'wifi') { wifiRender(info, bar); return; }
   if (st === 'off') { bar.textContent = 'Источник: GPS телефона (1 Гц на iPhone, до ~1–5 Гц на Android)'; bar.dataset.q = ''; return; }
   if (st === 'connecting') { bar.textContent = 'PITLANE GPS: подключение…'; bar.dataset.q = 'mid'; return; }
   const p = info.last;
@@ -3429,13 +3443,286 @@ function extGpsMsg(text) {
   el.textContent = text || '';
   el.classList.toggle('hidden', !text);
 }
+
+/* -------- v116: PITLANE GPS по Wi-Fi (режим модема → Worker → сюда), см. worker/src/gpslive.js -------- */
+const WIFI_SRC_KEY = 'pitlane-gps-src-v1';
+const POP_LABEL = { '0-100': '0–100', '0-200': '0–200', '0-300': '0–300' };
+const wifiAuto = { stillSince: 0 };
+let wifiDevCache = null;
+function fmtLag(ms) { return ms < 1000 ? `${Math.max(10, Math.round(ms / 10) * 10)} мс` : `${(ms / 1000).toFixed(1)} с`; }
+function wifiMode() { try { return extGps?.state?.() === 'wifi'; } catch (_) { return false; } }
+function safetyAccepted() { try { return !!localStorage.getItem(SAFETY_KEY); } catch (_) { return true; } }
+function wifiRender(info, bar) {
+  const w = info.wifi || {};
+  const p = info.last;
+  let txt; let q;
+  if (w.link !== 'up') { txt = 'Wi-Fi: нет связи с сервером PITLANE — переподключаемся…'; q = 'bad'; }
+  else if (!w.chipOn) { txt = 'Wi-Fi: чип не в сети. iPhone: Режим модема → «Разрешать другим» + «Максимальная совместимость» — чип подключится сам.'; q = 'bad'; }
+  else if (!p || w.stale) { txt = 'Wi-Fi: чип в сети, ждём точки (нужен фикс GPS — открытое небо)…'; q = 'mid'; }
+  else {
+    const parts = ['PITLANE GPS · Wi-Fi', `${info.hz ? info.hz.toFixed(1) : '—'} Гц`];
+    parts.push(p.fixOk && p.fixType >= 3 ? `${p.numSV} спутн.` : `нет фикса · ${p.numSV} спутн.`);
+    parts.push(`±${p.hAcc.toFixed(1)} м`);
+    if (w.lagMs != null) parts.push(`задержка ${fmtLag(w.lagMs)}`);
+    if (info.status?.battmV) parts.push(`АКБ ${info.status.battPct}%`);
+    if (w.buf) parts.push(`догружаем ${w.buf} т.`);
+    txt = parts.join(' · ');
+    q = p.fixOk && p.fixType >= 3 && p.hAcc <= 2.5 && info.hz >= 8 ? 'good' : 'mid';
+  }
+  bar.textContent = txt; bar.dataset.q = q;
+  const ws = document.getElementById('wifiState');
+  if (ws) { ws.textContent = txt; ws.dataset.q = q; }
+  if (wifiDevCache && w.link === 'up') renderWifiDevs(wifiDevCache, w.chipOn);
+}
+function renderWifiDevs(d, chipOn) {
+  const ul = document.getElementById('wifiDevs');
+  if (!ul) return;
+  ul.replaceChildren();
+  const devs = Array.isArray(d?.devices) ? d.devices : [];
+  if (!devs.length) { ul.appendChild(padEl('li', 'muted', 'Чип ещё не привязан к аккаунту')); return; }
+  const liveId = chipOn ? (d.live?.devId || null) : null;
+  devs.forEach((x) => {
+    const li = padEl('li', '');
+    const name = padEl('span', '', x.name || 'PITLANE GPS');
+    const st = padEl('span', liveId === x.devId || (chipOn && devs.length === 1) ? 'on' : 'muted', liveId === x.devId || (chipOn && devs.length === 1) ? 'в сети' : 'не в сети');
+    const b = padEl('button', '', 'Отвязать');
+    b.type = 'button';
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      const r = await api.gpsRevoke(x.devId);
+      if (r && r.ok) { wifiDevCache = r.devices ? { ...wifiDevCache, devices: r.devices } : wifiDevCache; renderWifiDevs(wifiDevCache, false); extGpsMsg('Чип отвязан: его токен больше не принимается. Новый код — «Привязать чип».'); }
+      else { b.disabled = false; extGpsMsg('Не удалось отвязать — нет связи с сервером.'); }
+    });
+    li.append(name, st, b);
+    ul.appendChild(li);
+  });
+}
+async function refreshWifiDevs() {
+  const d = await api.gpsDevices();
+  if (d && d.ok) { wifiDevCache = d; renderWifiDevs(d, !!d.live?.online); }
+  return d;
+}
+let _pairPoll = null;
+async function wifiPair() {
+  const box = document.getElementById('wifiPairBox');
+  const r = await api.gpsPair();
+  if (!r || !r.ok) {
+    extGpsMsg(r?.code === 'devices_full' ? 'К аккаунту уже привязано 3 чипа — сначала отвяжите один.' : (r?.status === 429 ? 'Слишком много кодов подряд — попробуйте через час.' : 'Не удалось получить код — нужен вход и связь с сервером.'));
+    return;
+  }
+  box?.classList.remove('hidden');
+  setRunText('wifiPairCode', r.code);
+  setRunText('wifiPairWait', 'Введите код на странице настройки чипа (сеть PITLANE-GPS-XXXX). Привязка пройдёт, как только чип выйдет в интернет через ваш хотспот.');
+  const n0 = (wifiDevCache?.devices || []).length;
+  const until = Date.now() + (r.ttl || 1200) * 1000;
+  clearInterval(_pairPoll);
+  _pairPoll = setInterval(async () => {
+    if (Date.now() > until) { clearInterval(_pairPoll); setRunText('wifiPairWait', 'Код истёк — получите новый.'); return; }
+    if (document.visibilityState !== 'visible') return;
+    const d = await refreshWifiDevs();
+    if (d && d.ok && (d.devices || []).length > n0) {
+      clearInterval(_pairPoll);
+      box?.classList.add('hidden');
+      extGpsMsg('Чип привязан ✓ Как только он выйдет в сеть, здесь появятся точки.');
+    }
+  }, 5000);
+}
+function startWifiSource() {
+  if (!isRemoteApi() || !currentUser()) {
+    document.getElementById('extGpsWifi')?.classList.remove('hidden');
+    extGpsMsg('Wi-Fi-чип привязывается к аккаунту: войдите через Telegram (вкладка «Аккаунт») и вернитесь сюда.');
+    return;
+  }
+  extGps.connectWifi({
+    open: async (fails) => {
+      if (fails > 0) { try { await api.gpsDevices(); } catch (_) {} } // обновит access-токен, если истёк
+      return api.gpsLiveSocket();
+    },
+  });
+  try { localStorage.setItem(WIFI_SRC_KEY, 'wifi'); } catch (_) {}
+  document.getElementById('extGpsWifi')?.classList.remove('hidden');
+  void refreshWifiDevs();
+}
+function wifiShare(payload) {
+  if (wifiMode() && (run.armed || run.summary)) {
+    run.pendingShare = payload; // карточка — вместе с итогом, когда начали сбавлять
+    if (run.summary) document.getElementById('runDriveShare')?.classList.remove('hidden');
+    return;
+  }
+  openShareCard(payload);
+}
+function showMarkPop(key, sec, src, lagMs, at) {
+  if (!(run.armed || run.chipOnly) || run.summary || !(sec > 0)) return;
+  run.pops = run.pops || {};
+  const prevPop = run.pops[key];
+  if (prevPop && (prevPop.src === 'chip' || src !== 'chip')) return; // значение чипа главнее; приложение — запасной путь
+  run.pops[key] = { sec, src, lagMs, at: Date.now() };
+  const box = document.getElementById('runDrivePop');
+  if (!box) return;
+  setRunText('runPopK', POP_LABEL[key] || key);
+  setRunText('runPopV', fmtRunSec(sec));
+  setRunText('runPopN', src === 'chip' ? 'справочно · посчитал чип' + (lagMs != null ? ` · пришло за ${fmtLag(lagMs)}` : '') : 'справочно');
+  box.classList.remove('hidden', 'pop-in');
+  void box.offsetWidth;
+  box.classList.add('pop-in');
+  if (!prevPop) markHap();
+  if (key === '0-300') revealRunMark('0300', '0–300', fmtRunSec(sec));
+  try { (window.__plPopLog = window.__plPopLog || []).push({ key, sec, src, lagMs, at: at ?? null, shownAt: Date.now() }); } catch (_) {}
+}
+/** 0–300 по сырому треку (та же математика gps-core: старт + пересечение 300). */
+function wifi0300() {
+  try {
+    const P = coreWithSpeed(rawSince(run.rawSeq0 || 0));
+    const t0 = coreLaunchTime(P);
+    if (t0 == null) return null;
+    const from = P.findIndex((q) => q.t >= t0);
+    const b = coreSpeedCross(P, 300, Math.max(1, from));
+    return b ? Math.round(b.t - t0) / 1000 : null;
+  } catch (_) { return null; }
+}
+/** Каждая точка Wi-Fi: авто-«Старт» на стоянке, перезапуск, если тронулся и встал без 100; итог по событию чипа. */
+function wifiRunTick(pos, v, now) {
+  if (run.pendingEnd && now >= run.pendingEnd.at) { finishWifiRun('chip'); return; }
+  if (run.summary || run.chipOnly) return; // итог на экране — ждём «Закрыть» / «Ещё заезд»
+  const fresh = (pos.ext?.ageMs ?? 0) < 5000; // старые точки (догрузка из буфера) не вооружают
+  const fixOk = (pos.ext?.fixType ?? 3) >= 3;
+  if (v < 1.5 && fixOk && fresh) { if (!wifiAuto.stillSince) wifiAuto.stillSince = now; }
+  else wifiAuto.stillSince = 0;
+  if (!wifiAuto.stillSince || now - wifiAuto.stillSince < 800) return;
+  if (!run.armed) { if (safetyAccepted()) armRun({ quiet: true, auto: true }); }
+  else if (run.launched && !run.saved0100) armRun({ quiet: true, auto: true });
+}
+function onWifiEvent(ev) {
+  if (!wifiMode() || !ev) return;
+  const old = (ev.ageMs ?? 0) > 20000; // повтор старого заезда при переподключении — не показываем
+  if (ev.e === 'mark' && POP_LABEL[ev.k]) {
+    if (old || lapRun.active) return;
+    if (!run.armed && !run.summary && !run.chipOnly) {
+      // разгон начался, пока точки не доходили: показываем хотя бы отметки чипа
+      openRunDrive(); run.chipOnly = true; run.pops = {};
+      setRunText('runDriveMsg', 'разгон начался без связи — отметки чипа, точки догружаются');
+    }
+    showMarkPop(ev.k, ev.ms / 1000, 'chip', ev.lagMs, ev.at);
+  } else if (ev.e === 'end') {
+    if (old) return;
+    if (run.armed && run.launched) {
+      run.pendingEnd = { at: Number(ev.at) || Date.now(), ev };
+      const last = rawTrace[rawTrace.length - 1];
+      if (last && last.t >= run.pendingEnd.at) finishWifiRun('chip');
+      else setTimeout(() => { if (run.pendingEnd) finishWifiRun('chip-timeout'); }, 8000);
+    } else if (run.chipOnly) {
+      renderChipOnlySummary(ev);
+    }
+  }
+}
+function finishWifiRun() {
+  if (!run.armed || run.summary) return;
+  run.pendingEnd = null;
+  stopRun();
+  run.summary = true;
+  renderWifiSummary();
+}
+function wifiSummaryReset() {
+  document.body.classList.remove('run-sum-on');
+  document.getElementById('runDriveMarks')?.classList.remove('final');
+  document.getElementById('runDrivePop')?.classList.add('hidden');
+  ['runDriveDuel', 'runDriveAgain'].forEach((id) => document.getElementById(id)?.classList.add('hidden'));
+  document.getElementById('runDriveShare')?.classList.remove('hidden');
+  setRunText('runDriveStop', 'Стоп');
+  if (typeof run !== 'undefined' && run) { run.summary = false; run.chipOnly = false; }
+}
+function sumRow(ul, label, sec, extra, hero) {
+  const li = padEl('li', hero ? 'hero' : '');
+  li.appendChild(padEl('span', '', label));
+  const st = padEl('strong', '', fmtRunSec(sec));
+  if (extra) st.appendChild(padEl('small', '', extra));
+  li.appendChild(st);
+  ul.appendChild(li);
+}
+function sumShow(ul, rowsN, note) {
+  if (!rowsN) ul.appendChild(padEl('li', 'note', '')).appendChild(padEl('span', '', 'До 60 км/ч не дошло — отметок нет.'));
+  const li = padEl('li', 'note');
+  li.appendChild(padEl('span', 'wifi-sum-note', note));
+  ul.appendChild(li);
+  ul.classList.add('final');
+  document.body.classList.add('run-sum-on');
+  document.getElementById('runDrivePop')?.classList.add('hidden');
+  document.getElementById('runDriveShare')?.classList.toggle('hidden', !run.pendingShare);
+  document.getElementById('runDriveDuel')?.classList.toggle('hidden', !run.pendingShare);
+  document.getElementById('runDriveAgain')?.classList.remove('hidden');
+  setRunText('runDriveStop', 'Закрыть');
+  try { ul.scrollTop = 0; } catch (_) {}
+}
+function wifiSummaryVerdict() {
+  const n = document.querySelector('#runDriveMarks .wifi-sum-note');
+  if (n) n.textContent = wifiNote();
+}
+function wifiNote() {
+  const tp = tracePassport(rawSince(run.rawSeq0 || 0));
+  const verdict = run.topMsg || (run.saved0100 ? 'в топ — проверяем на сервере…' : 'до 100 не дошло — в топ нечего');
+  const v = String(verdict); 
+  return `На экране — справочно. ${v.charAt(0).toUpperCase()}${v.slice(1)} · ${passportLine(tp)}`;
+}
+function renderWifiSummary() {
+  const ul = document.getElementById('runDriveMarks');
+  if (!ul) return;
+  const pts = rawSince(run.rawSeq0 || 0);
+  ul.replaceChildren();
+  let n = 0;
+  let P = []; let t0 = null;
+  try { P = coreWithSpeed(pts); t0 = coreLaunchTime(P); } catch (_) {}
+  const T = (d) => { try { const x = coreDragTime(pts, d); return x > 0 ? x : null; } catch (_) { return null; } };
+  const vAt = (t) => {
+    for (let i = 1; i < P.length; i++) if (P[i].t >= t) { const a = P[i - 1]; const b = P[i]; const k = (t - a.t) / Math.max(1, b.t - a.t); return a.v + (b.v - a.v) * k; }
+    return null;
+  };
+  const trap = (m) => { if (t0 == null) return null; const t = coreDistCross(P, m, t0); if (t == null) return null; const v = vAt(t); return { sec: Math.round(t - t0) / 1000, v }; };
+  const add = (label, sec, extra, hero) => { if (sec > 0) { sumRow(ul, label, sec, extra, hero); n++; } };
+  const chip = (k) => run.pops?.[k]?.src === 'chip' ? run.pops[k].sec : null;
+  add('0–60', T('0-60'));
+  add('0–100', T('0-100') ?? chip('0-100'), '', true);
+  add('100–200', T('100-200'));
+  add('0–200', T('0-200') ?? chip('0-200'));
+  add('0–300', wifi0300() ?? chip('0-300'));
+  add('200–300', T('200-300'));
+  for (const [m, label] of [[18.288, '60 ft'], [201.168, '⅛ мили'], [402.336, '¼ мили']]) {
+    const r = trap(m);
+    if (r) add(label, r.sec, r.v != null ? `${Math.round(r.v)} км/ч` : '');
+  }
+  const vmax = P.reduce((a, q) => Math.max(a, q.v || 0), 0);
+  if (vmax > 0) {
+    const li = padEl('li', '');
+    li.append(padEl('span', '', 'Vmax'), padEl('strong', '', `${Math.round(vmax)} км/ч`));
+    ul.appendChild(li);
+  }
+  sumShow(ul, n, wifiNote());
+  setRunText('runDriveMsg', 'итог заезда · начали сбавлять');
+}
+function renderChipOnlySummary(ev) {
+  const ul = document.getElementById('runDriveMarks');
+  if (!ul) return;
+  ul.replaceChildren();
+  let n = 0;
+  const m = ev.marks || {};
+  for (const k of ['0-100', '0-200', '0-300']) if (m[k] > 0) { sumRow(ul, POP_LABEL[k], m[k] / 1000, '', k === '0-100'); n++; }
+  if (ev.vmax > 0) { const li = padEl('li', ''); li.append(padEl('span', '', 'Vmax'), padEl('strong', '', `${Math.round(ev.vmax)} км/ч`)); ul.appendChild(li); }
+  run.summary = true; run.chipOnly = false;
+  sumShow(ul, n, 'Только отметки чипа (справочно): разгон начался, пока точки не доходили до приложения — в топ этот заезд не отправлялся.');
+  setRunText('runDriveMsg', 'итог заезда · по отметкам чипа');
+}
+
 function initExtGps() {
   extGps = createExtGps({
     isTMA,
     onPoint: (pos) => { hideGeoDenied(); onGpsPoint(pos); },
     onStatus: (info) => extGpsRender(info),
+    onEvent: (ev) => onWifiEvent(ev),
     onState: (state) => {
-      if (state === 'ble' || state === 'sim') {
+      if (state === 'wifi') {
+        stopGeoWatch();
+        extGpsMsg('');
+        setRunText('runStatus', 'PITLANE GPS по Wi-Fi: стоите — замер вооружится сам, трогайтесь');
+      } else if (state === 'ble' || state === 'sim') {
         stopGeoWatch();
         extGpsMsg(state === 'sim' ? 'Симулятор: 4 с стоим, затем разгон до 230 км/ч и торможение — по кругу. Жмите «Старт». Симулятор не идёт в топ и дуэли.' : '');
         if (run.armed || lapRun.active) void keepAwake(true);
@@ -3443,6 +3730,7 @@ function initExtGps() {
       } else if (state === 'off') {
         extSpeedTs = 0;
         resetSpeedFilter();
+        document.getElementById('extGpsWifi')?.classList.add('hidden');
         if (run.armed || lapRun.active) {
           extGpsMsg('Внешний GPS отключился — переключились на GPS телефона.');
           startWatch();
@@ -3462,7 +3750,7 @@ function initExtGps() {
       const note = document.getElementById('extGpsIosNote');
       if (note) {
         note.hidden = false;
-        note.textContent = 'На iPhone внешний GPS-приёмник не подключается: браузеры и Telegram на iOS не дают доступ к Bluetooth. Замеры телефоном сохраняются у вас и в шейрах с пометкой «телефон · не в топ». Топ 0–100, 100–200, 80–120 и ¼ мили — только с внешним приёмником от 10 Гц (Android + Chrome).';
+        note.textContent = 'На iPhone Bluetooth для веба недоступен — PITLANE GPS подключается по Wi-Fi: чип выходит в интернет через Режим модема iPhone, точки идут через сервер сюда (задержка обычно меньше секунды). Замеры телефоном — в личную историю с пометкой «телефон · не в топ».';
       }
     }
   } catch (_) {}
@@ -3472,6 +3760,11 @@ function initExtGps() {
     if (src === 'phone') {
       extGps.disconnect();
       extGpsMsg('');
+      try { localStorage.removeItem(WIFI_SRC_KEY); } catch (_) {}
+      return;
+    }
+    if (src === 'wifi') {
+      withSafety(startWifiSource)();
       return;
     }
     if (src === 'sim') {
@@ -3499,6 +3792,15 @@ function initExtGps() {
   }));
 }
 try { initExtGps(); } catch (e) { console.warn('[ext-gps] init', e); }
+try {
+  document.getElementById('wifiPairBtn')?.addEventListener('click', () => { void wifiPair(); });
+  const mh = document.getElementById('markHaptic');
+  if (mh) { mh.checked = markHapticOn(); mh.addEventListener('change', () => { try { localStorage.setItem(MARK_HAPTIC_KEY, mh.checked ? '1' : '0'); } catch (_) {} if (mh.checked) markHap(); }); }
+  // v116: источник Wi-Fi помним — при следующем открытии сразу ждём чип (если вход выполнен и согласие уже дано)
+  setTimeout(() => {
+    try { if (localStorage.getItem(WIFI_SRC_KEY) === 'wifi' && safetyAccepted() && currentUser() && isRemoteApi() && extGps.state() === 'off') startWifiSource(); } catch (_) {}
+  }, 1200);
+} catch (e) { console.warn('[wifi-gps] init', e); }
 
 function showGeoDenied() {
   const box = document.getElementById('geoDenied');
@@ -3531,13 +3833,13 @@ document.getElementById('geoDeniedRetry')?.addEventListener('click', () => {
   startWatch();
 });
 
-function armRun() {
+function armRun(opts = {}) {
   resetSpeedFilter();
   void GpsFusion.enableImu().then((ok) => {
     if (!ok) setRunText('runStatus', 'IMU недоступен — GPS-only fusion. На iOS: разрешите «Движение и ориентация».');
   });
 
-  hap([18, 40, 18]);
+  if (!opts.quiet) hap([18, 40, 18]);
   startWatch();
   void keepAwake(true); // re-acquire each arm (the watch may already be running from a previous run)
   run.armed = true;
@@ -3562,6 +3864,8 @@ function armRun() {
   run.passportFolded = {};
   run.brakeArmed = false;
   run.brakeT0 = null;
+  run.pops = {}; run.pendingShare = null; run.pendingEnd = null; run.topMsg = ''; run.summary = false; run.auto = !!opts.auto;
+  wifiSummaryReset();
   ['run050', 'run0100', 'run100200', 'run80120', 'run200300', 'run1000'].forEach((id) => setRunText(id, '—'));
   setRunText('runFrom', 'вооружён');
   setRunText('runStatus', 'Вооружён. Почти остановитесь и газуйте');
@@ -3611,7 +3915,8 @@ async function publishGps(v0100, v100200, v200300) {
       rec0.pass0100 = { ...tp, top: false };
       save();
       setRunText('runDriveMsg', 'Паспорт: ' + passportLine(tp) + ' · в топ — после входа');
-      openShareCard(buildSharePayload({
+      run.topMsg = 'в топ — после входа';
+      wifiShare(buildSharePayload({
         type: '0-100',
         time: Number(rec0.v0100).toFixed(2) + ' с',
         valid: false,
@@ -3657,6 +3962,8 @@ async function publishGps(v0100, v100200, v200300) {
       const res = await pSub;
       valid = Array.isArray(res) || !!(res && res.ok);
       const msg = topVerdict(res);
+      run.topMsg = msg;
+      if (run.summary) wifiSummaryVerdict();
       setRunText('runDriveMsg', msg + ' · ' + passportLine(tp));
       setRunText('runStatus', msg);
     }
@@ -3676,7 +3983,7 @@ async function publishGps(v0100, v100200, v200300) {
       hz: tp.hz,
       paint: getStoredPaintHex() || undefined,
     });
-    openShareCard(payload);
+    wifiShare(payload);
   }
   applyCarUI();
 }
@@ -4918,7 +5225,13 @@ document.getElementById('lapDriveCancel')?.addEventListener('click', () => {
 document.getElementById('btnGps')?.addEventListener('click', startWatch);
 document.getElementById('btnArm')?.addEventListener('click', () => { withSafety(armRun)(); });
 document.getElementById('btnStop')?.addEventListener('click', stopRun);
-document.getElementById('runDriveStop')?.addEventListener('click', () => { stopRun(); closeRunDrive(); });
+document.getElementById('runDriveStop')?.addEventListener('click', () => { stopRun(); closeRunDrive(); wifiSummaryReset(); });
+document.getElementById('runDriveDuel')?.addEventListener('click', () => {
+  if (!run.pendingShare) return;
+  openShareCard(run.pendingShare);
+  setTimeout(() => { try { document.getElementById('shareCardDuel')?.click(); } catch (_) {} }, 60);
+});
+document.getElementById('runDriveAgain')?.addEventListener('click', () => { withSafety(() => armRun({ quiet: true }))(); });
 function pushSlip() {
   const rec = state.meas[state.carId] || {};
   state.slips = state.slips || [];
@@ -4955,6 +5268,7 @@ document.getElementById('btnShareRun')?.addEventListener('click', async () => {
   openShareCard(payload);
 });
 document.getElementById('runDriveShare')?.addEventListener('click', () => {
+  if (run.pendingShare) { openShareCard(run.pendingShare); return; }
   const rec = state.meas[state.carId] || {};
   if (rec.v0100 == null) return;
   const ps = rec.pass0100 || {};
@@ -11113,7 +11427,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v115';
+const APP_VERSION = 'v116';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

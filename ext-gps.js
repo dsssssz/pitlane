@@ -1,5 +1,6 @@
 /**
- * PITLANE GPS — внешний GNSS-приёмник (u-blox M9N/M10 + ESP32) по Web Bluetooth.
+ * PITLANE GPS — внешний GNSS-приёмник (u-blox M9N/M10 + ESP32) по Web Bluetooth
+ * и (v116) по Wi-Fi: чип → режим модема телефона → Worker (Durable Object) → WebSocket сюда.
  * Протокол: hardware/pitlane-gps/src/protocol.h (20-байтный NAV-PVT пакет + 8-байтный статус).
  * Модуль ничего не знает о замерах: отдаёт точки в формате GeolocationPosition через onPoint.
  */
@@ -92,9 +93,10 @@ export function extGpsUnsupportedReason({ isTMA = false } = {}) {
 /**
  * Источник точек: реальное устройство (connect) или симулятор (startSim).
  * onPoint(pos) — pos совместим с GeolocationPosition (+ pos.ext = {numSV, sAcc, fixType}).
- * onStatus(info) — для индикатора; onState(state) — 'off' | 'connecting' | 'ble' | 'sim'.
+ * onStatus(info) — для индикатора; onState(state) — 'off' | 'connecting' | 'ble' | 'sim' | 'wifi'.
+ * onEvent(ev) — v116: события чипа по Wi-Fi (launch / mark {k, ms} / end / abort), ev.lagMs — задержка доставки.
  */
-export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {}) {
+export function createExtGps({ onPoint, onStatus, onState, onEvent, isTMA = false } = {}) {
   const s = {
     state: 'off',
     device: null,
@@ -108,6 +110,7 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
     status: null,
     simTimer: null,
     simHz: 10,
+    wifi: null, // v116: { ws, open, chipOn, name, bid, lastQ, lagMs, rttMs, fails, timer, pingTimer, evSeen }
   };
   const emitState = (st) => { s.state = st; try { onState?.(st); } catch (_) {} };
   const hz = () => {
@@ -122,24 +125,29 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
     last: s.last,
     status: s.status,
     lost: s.lost,
-    name: s.device?.name || (s.state === 'sim' ? 'Симулятор' : null),
+    name: s.device?.name || (s.state === 'sim' ? 'Симулятор' : (s.wifi?.name || null)),
+    wifi: s.wifi ? { link: s.wifi.link, chipOn: s.wifi.chipOn, lagMs: s.wifi.lagMs, rttMs: s.wifi.rttMs, rssi: s.wifi.rssi ?? null, buf: s.wifi.buf ?? null, stale: s.last ? Date.now() - (s.wifi.lastRecv || 0) > 3000 : true } : null,
   });
   const emitStatus = () => { try { onStatus?.(info()); } catch (_) {} };
 
   function ingestPvt(p, recvMs) {
     if (!p) return;
-    if (s.lastSeq != null) {
-      const gap = (p.seq - s.lastSeq - 1 + 256) % 256;
-      if (gap > 0 && gap < 128) s.lost += gap;
-    }
-    s.lastSeq = p.seq;
     // Время эпохи — по часам приёмника (iTOW): интервалы точные, без джиттера BLE.
     const now = recvMs ?? Date.now();
     if (s.offset == null || s.lastITOW == null || p.iTOW < s.lastITOW || Math.abs(now - (p.iTOW + s.offset)) > 1500) {
       s.offset = now - p.iTOW;
     }
     s.lastITOW = p.iTOW;
-    const ts = p.iTOW + s.offset;
+    ingestAt(p, p.iTOW + s.offset);
+  }
+
+  /** Точка с готовым временем эпохи (BLE — iTOW+offset; Wi-Fi — UTC, которое поставил сам чип). */
+  function ingestAt(p, ts) {
+    if (s.lastSeq != null) {
+      const gap = (p.seq - s.lastSeq - 1 + 256) % 256;
+      if (gap > 0 && gap < 128) s.lost += gap;
+    }
+    s.lastSeq = p.seq;
     s.stamps.push(ts);
     while (s.stamps.length > 2 && ts - s.stamps[0] > 2000) s.stamps.shift();
     s.last = p;
@@ -158,7 +166,7 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
         ext: true,
         sAcc: p.sAcc,
       },
-      ext: { numSV: p.numSV, sAcc: p.sAcc, fixType: p.fixType, source: s.state },
+      ext: { numSV: p.numSV, sAcc: p.sAcc, fixType: p.fixType, source: s.state, ageMs: p.ageMs ?? 0 },
     };
     try { onPoint?.(pos); } catch (e) { console.warn('[ext-gps] onPoint', e); }
   }
@@ -219,7 +227,120 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
     emitState('off');
   }
 
+  /* ---------- v116: Wi-Fi (чип → Worker → WebSocket) ---------- */
+  function wifiRow(bid, q, t, r, prev) {
+    // r = [dt, lat_e7, lon_e7, v_cms, hAcc_cm, sAcc_cms, numSV, fix]
+    const lat = r[1] / 1e7; const lon = r[2] / 1e7;
+    let heading = prev ? prev.heading : 0;
+    if (prev) {
+      const dy = (lat - prev.lat) * 111320; const dx = (lon - prev.lon) * 111320 * Math.cos(lat * Math.PI / 180);
+      if (Math.hypot(dx, dy) > 0.3) heading = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+    }
+    return { seq: q & 0xff, fixType: r[7] & 7, fixOk: (r[7] & 8) !== 0, numSV: r[6], hAcc: r[4] / 100, iTOW: null, lat, lon, speed: r[3] / 100, sAcc: r[5] / 100, heading, t };
+  }
+  function wifiMsg(m) {
+    const w = s.wifi;
+    if (!w || !m || typeof m !== 'object') return;
+    const recv = Date.now();
+    w.lastRecv = recv;
+    // сдвиг часов телефона относительно сервера (минимум по свежим сообщениям) — чтобы отличать догрузку старых точек
+    if (Number.isFinite(m.s) && (m.type === 'hello' || m.type === 'pong' || m.type === 'st')) {
+      const sk = recv - m.s;
+      w.srvSkew = w.srvSkew == null || m.type === 'hello' ? sk : Math.min(w.srvSkew, sk);
+    }
+    const ageOf = (t) => (w.srvSkew != null && Number.isFinite(t) ? Math.max(0, recv - w.srvSkew - t) : 0);
+    if (m.type === 'hello') {
+      w.chipOn = !!m.dev?.on; w.name = m.dev?.name || w.name;
+      if (m.status) wifiStatus(m.status);
+      emitStatus();
+    } else if (m.type === 'dev') {
+      w.chipOn = !!m.on; if (m.name) w.name = m.name;
+      if (m.revoked) w.revoked = true;
+      emitStatus();
+    } else if (m.type === 'st') {
+      wifiStatus(m); emitStatus();
+    } else if (m.type === 'pts' && Array.isArray(m.p)) {
+      if (m.bid !== w.bid) { w.bid = m.bid; w.lastQ = -1; s.lastSeq = null; }
+      w.chipOn = true;
+      let prev = w.prevPt || null;
+      for (let i = 0; i < m.p.length; i++) {
+        const q = m.q + i; const r = m.p[i];
+        if (q <= w.lastQ || !Array.isArray(r)) continue;
+        w.lastQ = q;
+        const p = wifiRow(m.bid, q, Number(m.t0) + r[0], r, prev);
+        p.ageMs = ageOf(p.t);
+        prev = p;
+        ingestAt(p, p.t);
+      }
+      w.prevPt = prev;
+      // задержка без часов телефона: чип→сервер (серверное время m.s минус UTC точки) + сервер→телефон (½ RTT)
+      if (prev && Number.isFinite(m.s)) {
+        const lag = Math.max(0, m.s - prev.t) + (w.rttMs != null ? w.rttMs / 2 : 0);
+        w.lagMs = w.lagMs == null ? lag : Math.round(w.lagMs * 0.7 + lag * 0.3);
+      }
+    } else if (m.type === 'ev') {
+      const key = m.bid + ':' + m.id;
+      if (w.evSeen.has(key)) return;
+      w.evSeen.add(key);
+      if (w.evSeen.size > 200) w.evSeen = new Set([...w.evSeen].slice(-100));
+      const lagMs = Number.isFinite(m.at) && Number.isFinite(m.s) ? Math.max(0, m.s - m.at) + (w.rttMs != null ? w.rttMs / 2 : 0) : null;
+      try { onEvent?.({ ...m, lagMs, ageMs: ageOf(m.at), recvAt: recv }); } catch (e) { console.warn('[ext-gps] onEvent', e); }
+    } else if (m.type === 'pong') {
+      const rtt = recv - Number(m.c);
+      if (rtt >= 0 && rtt < 30000) w.rttMs = w.rttMs == null ? rtt : Math.round(w.rttMs * 0.6 + rtt * 0.4);
+    }
+  }
+  function wifiStatus(st) {
+    s.status = { ver: 2, rateHz: st.hz >= 18 ? 25 : (st.hz || 0) >= 8 ? 10 : (st.hz || 0), battmV: st.bat || 0, battPct: st.pct || 0, configured: true, pvtAlive: (st.hz || 0) > 0, fast: (st.hz || 0) >= 18, m10: false, pvtRate: st.hz || 0 };
+    if (s.wifi) { s.wifi.rssi = st.rssi; s.wifi.buf = st.buf; }
+  }
+  function wifiSchedule(ms) {
+    const w = s.wifi; if (!w) return;
+    clearTimeout(w.timer);
+    w.timer = setTimeout(() => { void wifiOpen(); }, ms);
+  }
+  async function wifiOpen() {
+    const w = s.wifi; if (!w || s.state !== 'wifi') return;
+    if (w.ws && (w.ws.readyState === 0 || w.ws.readyState === 1)) return;
+    let ws;
+    try { ws = await w.open(w.fails); } catch (_) { ws = null; }
+    if (!ws || s.wifi !== w || s.state !== 'wifi') { try { ws?.close(); } catch (_) {} if (s.wifi === w) { w.fails++; w.link = 'down'; emitStatus(); wifiSchedule(Math.min(10000, 1000 * 2 ** Math.min(4, w.fails))); } return; }
+    w.ws = ws; w.link = 'connecting'; emitStatus();
+    ws.onopen = () => { if (s.wifi !== w) return; w.fails = 0; w.link = 'up'; emitStatus(); try { ws.send(JSON.stringify({ type: 'ping', c: Date.now() })); } catch (_) {} };
+    ws.onmessage = (ev) => { if (s.wifi !== w) return; let m = null; try { m = JSON.parse(ev.data); } catch (_) {} wifiMsg(m); };
+    ws.onclose = () => {
+      if (s.wifi !== w || w.ws !== ws) return;
+      w.ws = null; w.link = 'down'; w.fails++;
+      emitStatus();
+      if (s.state === 'wifi') wifiSchedule(Math.min(10000, 700 * 2 ** Math.min(4, w.fails - 1)));
+    };
+    ws.onerror = () => {};
+  }
+  /** open(fails) → WebSocket (приложение само подставляет сессию в subprotocol и обновляет токен после сбоев). */
+  function connectWifi({ open }) {
+    if (typeof open !== 'function') throw new Error('нет open()');
+    stopSim();
+    if (s.state === 'ble') disconnect();
+    if (s.wifi) stopWifi();
+    resetStream();
+    s.wifi = { ws: null, open, chipOn: false, name: null, bid: null, lastQ: -1, lagMs: null, rttMs: null, fails: 0, timer: null, link: 'connecting', evSeen: new Set(), lastRecv: 0 };
+    const w = s.wifi;
+    w.pingTimer = setInterval(() => { try { if (w.ws?.readyState === 1) w.ws.send(JSON.stringify({ type: 'ping', c: Date.now() })); } catch (_) {} emitStatus(); }, 5000);
+    w.onVis = () => { if (document.visibilityState === 'visible' && s.wifi === w && (!w.ws || w.ws.readyState > 1)) { w.fails = Math.max(0, w.fails - 1); wifiSchedule(0); } };
+    try { document.addEventListener('visibilitychange', w.onVis); } catch (_) {}
+    emitState('wifi');
+    void wifiOpen();
+  }
+  function stopWifi() {
+    const w = s.wifi; if (!w) return;
+    s.wifi = null;
+    clearTimeout(w.timer); clearInterval(w.pingTimer);
+    try { document.removeEventListener('visibilitychange', w.onVis); } catch (_) {}
+    try { w.ws?.close(1000, 'bye'); } catch (_) {}
+  }
+
   function disconnect() {
+    stopWifi();
     stopSim();
     const d = s.device;
     s.device = null;
@@ -338,7 +459,9 @@ export function createExtGps({ onPoint, onStatus, onState, isTMA = false } = {})
     routeActive: () => !!route,
     setRate,
     ingestPvt,
-    active: () => s.state === 'ble' || s.state === 'sim',
+    connectWifi,
+    wifiMsg, // для тестов: подать сообщение сервера напрямую
+    active: () => s.state === 'ble' || s.state === 'sim' || s.state === 'wifi',
     state: () => s.state,
     info,
     unsupportedReason: () => extGpsUnsupportedReason({ isTMA }),
