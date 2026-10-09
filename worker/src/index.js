@@ -1,5 +1,6 @@
 import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner } from './botcopy.js';
 import { seasonRoute, seasonRecord0100 } from './season.js';
+import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
@@ -985,6 +986,7 @@ async function buildPilotProfile(kv, pid, viewer) {
     postCount: mine.length,
     likesReceived,
     posts: publicPulseList(mine.slice(0, 20), viewer),
+    music: (await loadMusic(kv, pid, MUSIC_H)).map(publicTrack), // v115
   };
 }
 
@@ -1712,6 +1714,9 @@ function tgRoute(text, info) {
   const m = t.match(/^\/([a-z_]{1,32})(?:@[A-Za-z0-9_]{3,64})?(?:\s+([\s\S]*))?$/i);
   const cmd = m ? m[1].toLowerCase() : '';
   const arg = m && m[2] ? m[2].trim() : '';
+  if (cmd === 'music' || (cmd === 'start' && arg === 'music')) {
+    return { cmd: 'music', method: 'sendMessage', payload: { text: BOT_TEXT.music, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: [[webAppBtn('Открыть профиль', { view: 'account', skipIntro: '1' })]] } } };
+  }
   if (cmd === 'start') {
     const param = TMA_PARAM_RE.test(arg) ? arg : '';
     const extra = param ? startPayloadLine(param, info) : '';
@@ -1772,6 +1777,12 @@ async function tgHandleMessage(env, msg) {
   if (msg?.chat?.type !== 'private' || !Number.isSafeInteger(chatId)) return null;
   // per-chat flood guard: 12 replies / minute, then silence (fixed window, no writes once over)
   if (await rateHit(env.PITLANE, 'rl:tgchat:' + chatId, 12, 60)) return { cmd: 'limited' };
+  // v115: аудио → музыка в профиле автора сообщения
+  const mus = await musicFromBot(env, msg, MUSIC_H);
+  if (mus) {
+    const r = await tgCall(env, 'sendMessage', { chat_id: chatId, text: mus.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: [[webAppBtn(mus.kind === 'nologin' ? 'Открыть PITLANE и войти' : 'Открыть профиль', { view: 'account', skipIntro: '1' })]] } });
+    return { cmd: 'music:' + mus.kind, sent: !!r?.ok };
+  }
   const text = typeof msg.text === 'string' ? msg.text.slice(0, 512) : '';
   const route = tgRoute(text, await startInfo(env, text));
   let r = await tgCall(env, route.method, { chat_id: chatId, ...route.payload });
@@ -2285,6 +2296,8 @@ async function deleteAccount(kv, pid, currentToken) {
   for (const k of await kvListAll(kv, 'feedback:')) {
     if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.feedback++; }
   }
+  // v115: profile music (Telegram file ids only — the files stay in Telegram)
+  Object.assign(rep, await deleteAccountMusic(kv, pid));
   // v114: monthly 0–100 season aggregates
   rep.season = 0;
   for (const k of await kvListAll(kv, 'season:')) {
@@ -2630,6 +2643,14 @@ async function notifyDuel(env, d, submitterId) {
   }
   return false;
 }
+
+/** v115: helpers for ./music.js */
+const MUSIC_H = {
+  get json() { return json; }, get readJson() { return readJson; }, get limitOr429() { return limitOr429; }, get requireAuth() { return requireAuth; },
+  get kvJson() { return kvJson; }, get safeDecode() { return safeDecode; }, get cleanLabel() { return cleanLabel; }, get containsPhone() { return containsPhone; },
+  get randB36() { return randB36; }, get tgCall() { return tgCall; }, get tgEsc() { return tgEsc; }, get providerKey() { return providerKey; }, get rateHit() { return rateHit; },
+  botUsername: (env) => String(env.TELEGRAM_BOT_USERNAME || '').trim().replace(/^@/, '') || null,
+};
 
 /** Helpers handed to ./rooms.js (avoids a circular import). */
 const ROOM_H = {
@@ -3768,6 +3789,8 @@ export default {
 
       // —— v114: сезонный зачёт экипажей (публичный, read-only) ——
       { const sr = await seasonRoute({ req, env, path, url, headers, ip, h: ROOM_H }); if (sr) return sr; }
+      // —— v115: музыка в профиле (список + стрим-прокси файлов бота) ——
+      { const mr = await musicRoute({ req, env, path, url, headers, ip, pilot, h: MUSIC_H }); if (mr) return mr; }
 
       // —— v97: «Это моя машина» + комнаты экипажей (+ Stars season) ——
       {

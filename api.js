@@ -721,6 +721,11 @@ export const api = {
   async teamRequestAct(id, rid, act) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/requests/' + encodeURIComponent(rid) + '/' + (act === 'approve' ? 'approve' : 'decline'), { method: 'POST' }); },
   async teamMemberAct(id, mid, act) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/members/' + encodeURIComponent(mid) + '/' + (act === 'captain' ? 'captain' : 'remove'), { method: 'POST' }); },
   async teamDuelPost(id, a, b) { return await remoteKeep('/teams/' + encodeURIComponent(id) + '/duelpost', { method: 'POST', body: JSON.stringify({ a, b }) }); },
+  /** v115: profile music (tracks are added by forwarding audio to the bot). */
+  async myMusic() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/me/music'); },
+  async orderMusic(ids) { return await remoteKeep('/me/music', { method: 'PUT', body: JSON.stringify({ order: ids }) }); },
+  async delMusic(id) { return await remoteKeep('/me/music/' + encodeURIComponent(id), { method: 'DELETE' }); },
+  musicUrl(pid, tid, kind) { const b = apiBase(); return b ? b + '/music/' + encodeURIComponent(pid) + '/' + encodeURIComponent(tid) + '/' + (kind === 'cover' ? 'cover' : 'audio') : ''; },
   teamAvatarUrl(id, v) { const b = apiBase(); return b && v ? b + '/teams/' + encodeURIComponent(id) + '/avatar?v=' + encodeURIComponent(v) : ''; },
   teamImgUrl(id, pid) { const b = apiBase(); return b ? b + '/teams/' + encodeURIComponent(id) + '/img/' + encodeURIComponent(pid) : ''; },
 

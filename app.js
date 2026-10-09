@@ -18,6 +18,7 @@ import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilo
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 import { initTips, tipsOnView, resetTips, showMyCarHowTo } from './tips.js';
+import { musicList, renderMyMusic, initMusic, stopMusic } from './music-ui.js';
 import { createChaseTracker } from './chase-match.js';
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
@@ -5691,6 +5692,11 @@ function refreshAccount() {
   const phones = document.querySelectorAll('#accPhone, #accPhoneStatus');
   const demoBan = document.getElementById('accDemoBanner');
   if (demoBan) demoBan.classList.add('hidden'); // v104: демо-входа больше нет
+  // v115: music card — only for a real server account
+  try {
+    const tok = String(getSessionToken() || '');
+    void renderMyMusic(u && tok && !tok.startsWith('local-') && isRemoteApi() ? accountPilotId() : '');
+  } catch (_) {}
   if (!u) {
     document.getElementById('btnDeleteAccount')?.classList.add('hidden');
     phones.forEach((el) => { el.textContent = 'гость'; });
@@ -8553,6 +8559,7 @@ async function padOnCardClick(e) {
 function padShow(id, on) {
   const el = document.getElementById(id);
   if (!el) return;
+  if (id === 'pilotSheet' && !on) { try { stopMusic(); } catch (_) {} } // v115: plaque gone → stop
   el.classList.toggle('hidden', !on);
   el.setAttribute('aria-hidden', on ? 'false' : 'true');
   document.body.classList.toggle('pad-lock', !!document.querySelector('.pad-sheet:not(.hidden)'));
@@ -8727,6 +8734,14 @@ function renderPilotProfile(pr) {
     stats.appendChild(s);
   });
   body.appendChild(stats);
+
+  // v115: музыка в профиле (только если пилот добавил треки — пустую секцию не показываем)
+  const mu = musicList(pr.pilotId, pr.music);
+  if (mu) {
+    const secMu = padSection('Музыка');
+    secMu.appendChild(mu);
+    body.appendChild(secMu);
+  }
 
   const secRuns = padSection('Лучшие заезды');
   const dragKeys = DRAG_DISC.map((x) => x.id).filter((k) => drag[k] && Number.isFinite(Number(drag[k].t)));
@@ -10969,6 +10984,7 @@ initTeams({
     if (ta) { ta.value = String(text || '').slice(0, 1900); ta.dispatchEvent(new Event('input')); ta.focus(); }
   },
 });
+initMusic(() => { const t = String(getSessionToken() || ''); return t && !t.startsWith('local-') ? accountPilotId() : ''; }); // v115
 initTips({ goToView: (v) => goToView(v), openMyCar: () => openMyCarSheet({ preselect: currentCar()?.name }) });
 document.getElementById('btnTipsReset')?.addEventListener('click', () => {
   resetTips();
@@ -11097,7 +11113,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v114';
+const APP_VERSION = 'v115';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

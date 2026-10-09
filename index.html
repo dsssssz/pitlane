@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#1a1a1a" />
     <!-- v80: minimal CSP that cannot break the app (no plugins, no <base> hijack, forms only to self) -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-z2CTz9Y7ug2+lIHkdShb8RDoC8+FDWBnh50ogSss6nA=' 'sha256-8XvUhfOyAQ0xrN2l4lAR1NWN2swizirH1cFFwd7NzCY='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://*.workers.dev https://api.open-meteo.com https://server.arcgisonline.com https://tile.openstreetmap.org; media-src 'self' data: blob:; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-z2CTz9Y7ug2+lIHkdShb8RDoC8+FDWBnh50ogSss6nA=' 'sha256-8XvUhfOyAQ0xrN2l4lAR1NWN2swizirH1cFFwd7NzCY='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://*.workers.dev https://api.open-meteo.com https://server.arcgisonline.com https://tile.openstreetmap.org; media-src 'self' data: blob: https://pitlane-api.pitlane-taksimaga.workers.dev; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <script>try{if(/tgWebAppData|tgWebAppVersion/.test(location.hash)||sessionStorage.getItem("pitlane-tma")==="1")document.documentElement.classList.add("tma")}catch(e){}</script>
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -713,6 +713,12 @@
               <p class="muted" id="accPhone">не вошли</p>
             </div>
           </div>
+          <article class="card music-card hidden" id="accMusic">
+            <h3>Музыка</h3>
+            <ul class="mu-list" data-mu-list></ul>
+            <p class="muted tiny" data-mu-hint></p>
+            <button type="button" class="go-btn mu-add" data-mu-add>Добавить трек</button>
+          </article>
           <label class="lang-field">Language / Язык
             <select id="langSelect" class="lang-select" aria-label="Language">
               <option value="ru">Русский</option>
