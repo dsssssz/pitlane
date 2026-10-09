@@ -657,6 +657,25 @@
           </div>
           <div id="duelsList" class="duels-list" aria-live="polite"></div>
           <button type="button" class="duel-linkish duels-paste" id="duelsPaste">Открыть по ссылке / id…</button>
+          <!-- v114: сезонный зачёт экипажей (календарный месяц, МСК) -->
+          <article class="card season-card" id="seasonCard">
+            <div class="season-head">
+              <h3>Сезон экипажей</h3>
+              <span class="season-month" id="seasonMonth">—</span>
+            </div>
+            <p class="tiny muted">Календарный месяц по МСК. Круг: сумма лучших кругов трёх лучших пилотов экипажа — только зачтённые A/B. Только публичные команды.</p>
+            <label class="tops-model">трасса
+              <select id="seasonTrack" aria-label="Трасса сезона"></select>
+            </label>
+            <ol id="seasonLap" class="tops-board season-board" aria-live="polite"></ol>
+            <p class="tops-weather-label season-sub">0–100 · справочно · только внешний GPS от 10 Гц</p>
+            <ol id="seasonDrag" class="tops-board season-board"></ol>
+            <div class="season-actions">
+              <button type="button" class="go-btn" id="seasonShareText">Таблица в чат</button>
+              <button type="button" class="btn-secondary" id="seasonShareImg">Картинкой</button>
+            </div>
+            <p class="tiny muted" id="seasonMsg"></p>
+          </article>
         </section>
 
         <section id="view-cars" class="view">

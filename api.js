@@ -378,6 +378,13 @@ export const api = {
     if (remoteRes && remoteRes.id) return remoteRes;
     return localCreateShare(payload);
   },
+  /** v114: crews monthly season table (public). */
+  async getCrewSeason(month, trackId) {
+    const q = new URLSearchParams();
+    if (month) q.set('month', month);
+    if (trackId) q.set('track', trackId);
+    return await remote('/season/crews?' + q.toString());
+  },
   /** v112: best real A/B stock row (same model, class «сток») → { best } | null when offline. */
   async getStockRef(kind, ref, carId, model) {
     const q = new URLSearchParams();

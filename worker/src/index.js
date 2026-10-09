@@ -1,4 +1,5 @@
 import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner } from './botcopy.js';
+import { seasonRoute, seasonRecord0100 } from './season.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
@@ -2284,6 +2285,16 @@ async function deleteAccount(kv, pid, currentToken) {
   for (const k of await kvListAll(kv, 'feedback:')) {
     if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.feedback++; }
   }
+  // v114: monthly 0–100 season aggregates
+  rep.season = 0;
+  for (const k of await kvListAll(kv, 'season:')) {
+    const agg = await kvJson(kv, k.name);
+    if (agg && typeof agg === 'object' && agg[pid]) {
+      delete agg[pid];
+      await kvPutKeep(kv, k.name, JSON.stringify(agg), k.expiration);
+      rep.season++;
+    }
+  }
   // v89: ghosts (own bests + frozen duel copies — KV metadata carries the pid) and ghost boards
   rep.ghosts = 0;
   for (const k of await kvListAll(kv, 'ghost:')) {
@@ -3134,6 +3145,7 @@ export default {
         await indexPilotTop(env.PITLANE, pilot.id, 's', carId);
         // v84: 0–100 also feeds the global per-discipline board (all cars)
         await upsertDrag(env.PITLANE, '0-100', { ...row, carId, disc: '0-100' });
+        await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114
         return json(publicRows(rows.filter(isValidGpsRow)), 200, headers);
       }
 
@@ -3223,6 +3235,7 @@ export default {
           { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
           Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
           const stored = await upsertDrag(env.PITLANE, disc, row);
+          if (disc === '0-100') await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114
           const rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
           return json({ ok: true, stored, valid: row.valid, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
         }
@@ -3752,6 +3765,9 @@ export default {
         return json(publicDuel(d), 200, headers);
       }
 
+
+      // —— v114: сезонный зачёт экипажей (публичный, read-only) ——
+      { const sr = await seasonRoute({ req, env, path, url, headers, ip, h: ROOM_H }); if (sr) return sr; }
 
       // —— v97: «Это моя машина» + комнаты экипажей (+ Stars season) ——
       {

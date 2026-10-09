@@ -11097,7 +11097,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v113';
+const APP_VERSION = 'v114';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12986,7 +12986,153 @@ function buildDuelCard(d) {
   return card;
 }
 let _duelsLoading = false;
+/* ———————— v114: сезон экипажей (месяц МСК) — таблица + шейр текстом / картинкой ———————— */
+let _season = null;
+let _seasonSeq = 0;
+const SEASON_TRACK_KEY = 'pitlane-season-track-v1';
+function seasonLapStr(ms) { return Number.isFinite(ms) ? formatMs(ms) : '—'; }
+function seasonRow(i, team, sub, time, need) {
+  const li = padEl('li', 'tb-row season-row' + (i < 3 && !need ? ' podium p' + (i + 1) : '') + (need ? ' season-need' : ''));
+  li.appendChild(padEl('span', 'tb-n', need ? '·' : String(i + 1)));
+  const av = team.avatarV ? api.teamAvatarUrl(team.id, team.avatarV) : '';
+  li.appendChild(padAvatar(team.name || 'К', av || null, 28));
+  li.appendChild(padEl('span', 'tb-nick', clipText(team.name || 'команда', 16)));
+  li.appendChild(padEl('span', 'tb-car season-pilots', sub));
+  li.appendChild(padEl('span', 'tb-ic'));
+  li.appendChild(padEl('span', 'tb-t' + (need ? ' season-need-t' : ''), time));
+  return li;
+}
+async function renderCrewSeason() {
+  const card = document.getElementById('seasonCard');
+  if (!card) return;
+  const sel = document.getElementById('seasonTrack');
+  if (sel && !sel.childElementCount) {
+    TRACKS.forEach((t) => { const o = padEl('option', '', t.name); o.value = t.id; sel.appendChild(o); });
+    let pick = '';
+    try { pick = localStorage.getItem(SEASON_TRACK_KEY) || ''; } catch (_) {}
+    sel.value = TRACKS.some((t) => t.id === pick) ? pick : (state.trackId && TRACKS.some((t) => t.id === state.trackId) ? state.trackId : TRACKS[0]?.id);
+  }
+  const trackId = sel?.value || TRACKS[0]?.id;
+  const lapOl = document.getElementById('seasonLap');
+  const dragOl = document.getElementById('seasonDrag');
+  const msg = document.getElementById('seasonMsg');
+  const seq = ++_seasonSeq;
+  if (!isRemoteApi()) { if (msg) msg.textContent = 'Сезон считается на сервере — нужен интернет.'; return; }
+  lapOl?.setAttribute('aria-busy', 'true');
+  const r = await api.getCrewSeason('', trackId).catch(() => null);
+  if (seq !== _seasonSeq) return;
+  lapOl?.removeAttribute('aria-busy');
+  _season = r && r.ok ? r : null;
+  const mEl = document.getElementById('seasonMonth');
+  if (mEl) mEl.textContent = _season ? _season.label : '—';
+  const empty = (ol, b, sub) => { const li = padEl('li', 'tb-empty'); li.appendChild(padEl('b', '', b)); if (sub) li.appendChild(padEl('span', '', sub)); ol.appendChild(li); };
+  if (lapOl) {
+    lapOl.replaceChildren();
+    if (!_season) empty(lapOl, 'не удалось загрузить сезон', 'Проверь сеть и открой ещё раз.');
+    else if (!_season.lap.length) empty(lapOl, 'в этом месяце на трассе пока нет зачтённых кругов экипажей', _season.teams ? 'Проедь круг A/B — он сразу попадёт в зачёт твоей команды.' : 'Публичных команд пока нет — собери свою в разделе команд.');
+    else {
+      let rank = 0;
+      _season.lap.forEach((x) => {
+        const sub = x.pilots.map((p) => p.nick + ' ' + seasonLapStr(p.ms)).join(' · ');
+        if (x.need) lapOl.appendChild(seasonRow(0, x.team, sub, 'не хватает ' + x.need, true));
+        else lapOl.appendChild(seasonRow(rank++, x.team, sub, seasonLapStr(x.sumMs), false));
+      });
+    }
+  }
+  if (dragOl) {
+    dragOl.replaceChildren();
+    if (_season && !_season.drag.length) empty(dragOl, 'в этом месяце 0–100 экипажей с внешним GPS пока нет', '');
+    else if (_season) _season.drag.forEach((x, i) => dragOl.appendChild(seasonRow(i, x.team, x.nick + ' · ' + shortCarName(x.car, x.carId), Number(x.t).toFixed(2), false)));
+  }
+  if (msg) msg.textContent = '';
+}
+function seasonShareText() {
+  const s = _season;
+  if (!s) return '';
+  const tr = TRACKS.find((t) => t.id === s.trackId)?.name || s.trackId || '';
+  const lines = ['PITLANE · сезон экипажей · ' + s.label, 'Таблица на субботу · ' + tr, '', 'Круг — сумма 3 лучших пилотов (GPS A/B):'];
+  if (!s.lap.length) lines.push('пока нет зачтённых кругов');
+  let rank = 1;
+  s.lap.forEach((x) => {
+    const who = x.pilots.map((p) => p.nick + ' ' + seasonLapStr(p.ms)).join(', ');
+    lines.push(x.need ? `· ${x.team.name} — не хватает ${x.need} (${who})` : `${rank++}. ${x.team.name} — ${seasonLapStr(x.sumMs)} (${who})`);
+  });
+  lines.push('', '0–100 справочно (внешний GPS ≥10 Гц):');
+  if (!s.drag.length) lines.push('пока нет');
+  s.drag.slice(0, 10).forEach((x, i) => lines.push(`${i + 1}. ${x.team.name} — ${Number(x.t).toFixed(2)} с (${x.nick})`));
+  return lines.join('\n');
+}
+/** PNG of the table (1080 wide) — same dark/neon language as the app. */
+async function seasonImageBlob() {
+  const s = _season;
+  if (!s) return null;
+  try { await document.fonts?.ready; } catch (_) {}
+  const W = 1080; const rowH = 92;
+  const H = 360 + Math.max(1, s.lap.length) * rowH + 150 + Math.max(1, Math.min(10, s.drag.length)) * rowH + 120;
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, W, H);
+  const NEON = '#39FF14'; const TXT = '#f2f2f2'; const MUTE = '#8a8a8a';
+  const font = (w, px) => `${w} ${px}px Manrope, system-ui, sans-serif`;
+  g.fillStyle = MUTE; g.font = font(700, 30); g.fillText('P I T L A N E', 64, 90);
+  g.fillStyle = TXT; g.font = font(700, 64); g.fillText('Сезон экипажей', 64, 180);
+  const tr = TRACKS.find((t) => t.id === s.trackId)?.name || s.trackId || '';
+  g.fillStyle = NEON; g.font = font(600, 34); g.fillText(s.label + ' · ' + tr, 64, 236);
+  g.fillStyle = MUTE; g.font = font(500, 26); g.fillText('Круг: сумма 3 лучших пилотов · только GPS A/B', 64, 290);
+  let y = 340;
+  const clip = (t, n) => (String(t).length > n ? String(t).slice(0, n - 1) + '…' : String(t));
+  const row = (n, name, sub, time, dim) => {
+    g.strokeStyle = '#262626'; g.beginPath(); g.moveTo(64, y); g.lineTo(W - 64, y); g.stroke();
+    g.fillStyle = dim ? MUTE : (n === '1' ? NEON : TXT); g.font = font(700, 34); g.fillText(n, 64, y + 56);
+    g.fillStyle = TXT; g.font = font(700, 34); g.fillText(clip(name, 22), 120, y + 46);
+    g.fillStyle = MUTE; g.font = font(500, 22); g.fillText(clip(sub, 60), 120, y + 78);
+    g.fillStyle = dim ? MUTE : TXT; g.font = font(dim ? 600 : 700, dim ? 28 : 44); g.textAlign = 'right'; g.fillText(time, W - 64, y + 58); g.textAlign = 'left';
+    y += rowH;
+  };
+  if (!s.lap.length) row('·', 'пока нет зачтённых кругов', '', '', true);
+  let rank = 1;
+  s.lap.forEach((x) => {
+    const sub = x.pilots.map((p) => p.nick + ' ' + seasonLapStr(p.ms)).join(' · ');
+    if (x.need) row('·', x.team.name, sub, 'не хватает ' + x.need, true);
+    else row(String(rank++), x.team.name, sub, seasonLapStr(x.sumMs), false);
+  });
+  y += 40;
+  g.fillStyle = MUTE; g.font = font(600, 26); g.fillText('0–100 · справочно · внешний GPS ≥ 10 Гц', 64, y + 20); y += 50;
+  if (!s.drag.length) row('·', 'пока нет', '', '', true);
+  s.drag.slice(0, 10).forEach((x, i) => row(String(i + 1), x.team.name, x.nick + ' · ' + shortCarName(x.car, x.carId), Number(x.t).toFixed(2), false));
+  g.fillStyle = MUTE; g.font = font(500, 22); g.fillText('месяц по МСК · честный GPS · pitlane', 64, H - 50);
+  return await new Promise((res) => c.toBlob(res, 'image/png'));
+}
+document.getElementById('seasonTrack')?.addEventListener('change', (e) => {
+  try { localStorage.setItem(SEASON_TRACK_KEY, e.target.value); } catch (_) {}
+  void renderCrewSeason();
+});
+document.getElementById('seasonShareText')?.addEventListener('click', async () => {
+  const text = seasonShareText();
+  const msg = document.getElementById('seasonMsg');
+  if (!text) { if (msg) msg.textContent = 'Таблица ещё не загрузилась.'; return; }
+  const url = SHARE_ORIGIN;
+  if (isTMA) { await shareViaTelegram('', url, text); return; }
+  try { if (navigator.share) { await navigator.share({ title: 'PITLANE · сезон экипажей', text, url }); return; } } catch (err) { if (err?.name === 'AbortError') return; }
+  try { await navigator.clipboard.writeText(text + '\n' + url); if (msg) msg.textContent = 'Скопировано — вставь в чат.'; hap(20); } catch (_) { if (msg) msg.textContent = 'Не удалось скопировать.'; }
+});
+document.getElementById('seasonShareImg')?.addEventListener('click', async () => {
+  const msg = document.getElementById('seasonMsg');
+  const blob = await seasonImageBlob().catch(() => null);
+  if (!blob) { if (msg) msg.textContent = 'Таблица ещё не загрузилась.'; return; }
+  const file = new File([blob], 'pitlane-season.png', { type: 'image/png' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'PITLANE · сезон экипажей' }); return; }
+  } catch (err) { if (err?.name === 'AbortError') return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'pitlane-season.png';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+  if (msg) msg.textContent = 'Картинка сохранена — отправь её в чат.';
+});
+
 async function renderDuelsView() {
+  try { void renderCrewSeason(); } catch (_) {}
   const list = document.getElementById('duelsList');
   if (!list || _duelsLoading) return;
   _duelsLoading = true;
