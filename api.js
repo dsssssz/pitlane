@@ -378,6 +378,14 @@ export const api = {
     if (remoteRes && remoteRes.id) return remoteRes;
     return localCreateShare(payload);
   },
+  /** v112: best real A/B stock row (same model, class «сток») → { best } | null when offline. */
+  async getStockRef(kind, ref, carId, model) {
+    const q = new URLSearchParams();
+    if (carId) q.set('car', carId);
+    if (model) q.set('model', String(model).slice(0, 80));
+    const r = await remote('/stock/' + (kind === 'lap' ? 'lap' : 'drag') + '/' + encodeURIComponent(ref) + '?' + q.toString());
+    return r && !r.error && 'best' in r ? r : null;
+  },
   async getShare(id) {
     const remoteRes = await remote('/share/' + encodeURIComponent(id));
     if (remoteRes && !remoteRes.error) return remoteRes;

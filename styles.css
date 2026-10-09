@@ -5468,3 +5468,12 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 .share-delta.faster { color: #39FF14; }
 .share-delta.slower { color: #ff5a4f; }
 .share-delta[hidden] { display: none; }
+/* v112: stock delta + weakest sector (same type scale as the PB delta) */
+.share-delta + .share-delta { margin-top: -10px; }
+.share-sector { font-weight: 500; }
+.lap-stock { display: block; color: var(--h-mute); font-variant-numeric: tabular-nums; }
+.lap-stock.faster { color: #39FF14; }
+.lap-stock.slower { color: #ff5a4f; }
+.duel-sec { opacity: .85; }
+#lapList .lap-stock.faster { color: #39FF14; }
+#lapList .lap-stock.slower { color: #ff5a4f; }

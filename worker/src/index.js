@@ -1037,6 +1037,14 @@ function sanitizeSharePayload(p) {
   if (pbD != null) out.pbD = Math.round(pbD * 1000) / 1000;
   else if (p.pbFirst === true) out.pbFirst = true;
   if (typeof p.duelId === 'string' && /^d[a-z0-9]{6,40}$/.test(p.duelId)) out.duelId = p.duelId;
+  // v112: delta to the best real stock time of the same model (or «no stock time yet») + weakest sector vs own best
+  const stD = boundedNum(p.stD, -600, 600);
+  const stLab = cleanLabel(p.stLab, 24);
+  if (stD != null && stLab) { out.stD = Math.round(stD * 1000) / 1000; out.stLab = stLab; }
+  else if (p.stNone === true) out.stNone = true;
+  const secI = boundedNum(p.secI, 0, 2); const secD = boundedNum(p.secD, 0, 600);
+  if (secI != null && Number.isInteger(secI) && secD != null) { out.secI = secI; out.secD = Math.round(secD * 1000) / 1000; }
+  else if (p.secOk === true) out.secOk = true;
   return out;
 }
 
@@ -1224,6 +1232,7 @@ function sanitizeDuelRun(body, pilot, type, trackId, disc) {
       hz: row.hz,
       weather: row.weather || null,
       dist: row.dist,
+      ...(Array.isArray(row.sectors) ? { sectors: row.sectors } : {}),
       pilotId: pilot.id || null,
       at: Date.now(),
     };
@@ -1469,6 +1478,30 @@ function pickSessionOfDay(manual) {
 
 function isAbLapRow(r) {
   return isValidGpsRow(r);
+}
+
+/**
+ * v112: «сток» = класс подготовки, заявленный пилотом в «Моей машине» (prep:'stock' + уличные шины).
+ * Эталон стока — только реальные серверно зачтённые A/B строки той же модели; никаких паспортных времён.
+ */
+function isStockRow(r) {
+  return isValidGpsRow(r) && r.prep === 'stock' && r.tyreT === 'street';
+}
+function sameModel(r, carId, model) {
+  if (carId && r.carId) return r.carId === carId;
+  const a = String(r.car || '').trim().toLowerCase();
+  return !!a && !!model && a === model.trim().toLowerCase();
+}
+/** Best stock row for a lap track / drag discipline on the same model → public row | null. */
+async function stockBest(kv, kind, ref, carId, model) {
+  if (kind === 'lap') {
+    const rows = (await readList(kv, 'lap:' + ref)).filter((r) => isStockRow(r) && sameModel(r, carId, model) && Number.isFinite(r.ms));
+    rows.sort((a, b) => a.ms - b.ms);
+    return rows[0] || null;
+  }
+  const rows = (await readList(kv, 'drag:' + ref)).filter((r) => isStockRow(r) && sameModel(r, carId, model) && Number.isFinite(Number(r.t)));
+  rows.sort((a, b) => Number(a.t) - Number(b.t));
+  return rows[0] || null;
 }
 
 
@@ -3173,6 +3206,23 @@ export default {
           const rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
           return json({ ok: true, stored, valid: row.valid, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
         }
+      }
+
+      // —— v112: stock reference (best real A/B row of the same model in class «сток») ——
+      m = path.match(/^\/stock\/(lap|drag)\/([^/]+)$/);
+      if (req.method === 'GET' && m) {
+        const kind = m[1];
+        const ref = kind === 'lap' ? safeDecode(m[2]) : dragDisc(safeDecode(m[2]));
+        if (!ref || !slugOk(ref)) return json({ ok: true, best: null }, 200, headers);
+        const lim = await limitOr429(env, headers, [['rl:stock:ip:' + ip, 240, 3600]]);
+        if (lim) return lim;
+        const carQ = url.searchParams.get('car');
+        const carId = slugOk(carQ) ? String(carQ) : null;
+        const model = cleanLabel(url.searchParams.get('model'), 80);
+        if (!carId && !model) return json({ ok: true, best: null }, 200, headers);
+        const best = await stockBest(env.PITLANE, kind, ref, carId, model);
+        const pub = best ? publicTopRow(best) : null;
+        return json({ ok: true, best: pub ? { name: pub.name, car: pub.car, carId: pub.carId || null, t: pub.t, ms: pub.ms ?? null, gpsQ: pub.gpsQ, at: pub.at, pilotId: pub.pilotId } : null }, 200, headers);
       }
 
       // —— Tops sector (public A/B best sector times) ——

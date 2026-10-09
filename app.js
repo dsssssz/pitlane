@@ -4521,6 +4521,7 @@ async function completeLapRun(how, atTs, gsnap) {
     slipPeak: Math.round(lapRun.slipPeak * 10) / 10,
     flags: lapRun.flags.slice(0, 8),
     session: true,
+    ...lapCarTag(),
     why: valid ? '' : (how === 'manual' ? 'ручной финиш — круг не попадает в топ (нужен авто-финиш на С/Ф)' : check.why),
   };
   state.laps[trackId] = state.laps[trackId] || [];
@@ -4849,7 +4850,16 @@ function renderLaps() {
           }).join(' ');
           secHtml = `<div class="sb-mini">${bits}</div>`;
         }
-        return `<li><span>${tag}</span><strong class="tops-time">${formatMs(l.ms)}${badge}</strong><em class="tiny">${note}</em>${secHtml}</li>`;
+        // v112: «−0.2 к стоку G87» — only A/B laps bound to a model; reference = real stock row from the server
+        let stockHtml = '';
+        if (l.valid !== false && lapIsAbQuality(l) && (l.carId || l.car)) {
+          const best = stockRefCached('lap', trackId, l.carId || null, l.car || '', () => { try { renderLaps(); } catch (_) {} });
+          if (best && Number.isFinite(Number(best.ms))) {
+            const d = Math.round(l.ms - Number(best.ms)) / 1000;
+            stockHtml = `<em class="tiny lap-stock ${d <= -0.005 ? 'faster' : (d >= 0.005 ? 'slower' : '')}">${esc(stockDeltaText(d, stockLabel(best.carId || l.carId, best.car || l.car)))}</em>`;
+          } else if (best === null && i === 0) stockHtml = '<em class="tiny lap-stock">стокового времени здесь пока нет</em>';
+        }
+        return `<li><span>${tag}</span><strong class="tops-time">${formatMs(l.ms)}${badge}</strong><em class="tiny">${note}</em>${stockHtml}${secHtml}</li>`;
       }).join('')
     : '<li><span>пока пусто</span><strong>—</strong></li>';
   try { renderSectorBattlePanel(); } catch (_) {}
@@ -5054,6 +5064,9 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
   if (payload.src !== 'sim') {
     try { Object.assign(payload, sharePbDelta(payload)); } catch (_) {}
   }
+  if (trackId && Array.isArray(sectors) && Number.isFinite(ms)) {
+    try { Object.assign(payload, sectorLossOf(trackId, { sectors, ms }, payload.at)); } catch (_) {}
+  }
   return payload;
 }
 
@@ -5089,6 +5102,68 @@ function sharePbDelta(p) {
   return { pbD: Math.round((t - best) * 1000) / 1000 };
 }
 
+/** v112: the car a lap is bound to (server ties laps to «Моя машина»; same on device for the history). */
+function myCarLocal() {
+  try { const c = JSON.parse(localStorage.getItem('pitlane-mycar-v1') || 'null'); return c && c.model ? c : null; } catch (_) { return null; }
+}
+function lapCarTag() {
+  const m = myCarLocal();
+  if (m) return { car: String(m.model).slice(0, 80), carId: m.carId || null };
+  const c = currentCar();
+  return c?.name ? { car: c.name, carId: c.id || null } : {};
+}
+/** «G87» for catalog cars (chassis code from name/trim), else the short model name. */
+function stockLabel(carId, model) {
+  const c = carId ? CARS.find((x) => x.id === carId) : null;
+  const src = [c?.name, c?.trim, model].filter(Boolean).join(' ');
+  const m = src.match(/\b([A-Z]\d{2,3})\b/);
+  return (m ? m[1] : shortCarName(model || c?.name || '', carId) || 'модели').slice(0, 24);
+}
+const _stockCache = new Map();
+/** Cached /stock lookup: undefined = loading/unknown (offline), null = no stock time, row = reference. */
+function stockRefCached(kind, ref, carId, model, onReady) {
+  if (!ref || (!carId && !model) || !isRemoteApi()) return undefined;
+  const key = [kind, ref, carId || '', model || ''].join('|');
+  const hit = _stockCache.get(key);
+  if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.p ? undefined : hit.best;
+  if (!hit?.p) {
+    const ent = { at: Date.now(), p: true, best: undefined };
+    _stockCache.set(key, ent);
+    void api.getStockRef(kind, ref, carId, model).then((r) => {
+      if (r) { ent.best = r.best || null; ent.p = false; ent.at = Date.now(); }
+      else _stockCache.delete(key);
+      if (r && typeof onReady === 'function') onReady(ent.best);
+    }).catch(() => { _stockCache.delete(key); });
+  }
+  return undefined;
+}
+function stockDeltaText(d, lab) {
+  return fmtPbDelta(d) + ' к стоку ' + lab;
+}
+/** v112: weakest sector of this lap vs own best sectors (this lap excluded) → { secI, secD } | { secOk } | {}. */
+function sectorLossOf(trackId, lap, excludeAt) {
+  const sp = sectorSplits(lap);
+  if (!sp || !trackId) return {};
+  const best = personalBestSectors(trackId, excludeAt);
+  let wi = -1; let wd = 0; let any = false;
+  for (let i = 0; i < 3; i++) {
+    if (best[i] == null) continue;
+    any = true;
+    const d = sp[i] - best[i];
+    if (d > wd) { wd = d; wi = i; }
+  }
+  if (!any) return {};
+  if (wi < 0 || wd < 50) return { secOk: true };
+  return { secI: wi, secD: Math.round(wd) / 1000 };
+}
+function sectorLossText(p, own) {
+  if (Number.isInteger(p.secI) && p.secI >= 0 && p.secI <= 2 && Number.isFinite(p.secD)) {
+    return 'сектор ' + (p.secI + 1) + ' отдал ' + Math.abs(p.secD).toFixed(2).replace(/0$/, '') + ' к ' + (own ? 'твоему' : 'своему') + ' лучшему';
+  }
+  if (p.secOk === true) return 'все сектора на уровне ' + (own ? 'твоих' : 'своих') + ' лучших';
+  return '';
+}
+
 /** «−0.4» / «+0.05» / «±0» — U+2212 minus, no trailing zeros. */
 function fmtPbDelta(d) {
   const a = Math.abs(Number(d) || 0);
@@ -5110,6 +5185,47 @@ function pbDeltaText(p, own) {
 function sharePublicUrl(payload, shareId) {
   if (shareId) return SHARE_ORIGIN + '?s=' + encodeURIComponent(shareId);
   return SHARE_ORIGIN + '#r=' + b64urlEncode(payload);
+}
+
+/** v112: «−0.2 к стоку G87» / «стокового времени здесь пока нет» (only for an honest A/B result). */
+function renderShareStock(p) {
+  const el = document.getElementById('shareStock');
+  if (!el) return;
+  el.classList.remove('faster', 'slower', 'even', 'first');
+  if (Number.isFinite(p.stD) && p.stLab) {
+    el.textContent = stockDeltaText(p.stD, p.stLab);
+    el.classList.add(p.stD <= -0.005 ? 'faster' : (p.stD >= 0.005 ? 'slower' : 'even'));
+    el.hidden = false;
+  } else if (p.stNone === true) {
+    el.textContent = 'стокового времени здесь пока нет';
+    el.classList.add('first');
+    el.hidden = false;
+  } else { el.textContent = ''; el.hidden = true; }
+}
+function shareStockEligible(p) {
+  if (!p || p.valid === false || (p.gpsQ !== 'A' && p.gpsQ !== 'B')) return false;
+  if (p.src === 'sim' || p.src === 'phone') return false; // телефонный 0–100 не сравниваем с зачётом
+  const isLap = p.type === 'lap' || p.type === 'круг';
+  return isLap ? !!(p.trackId && Number.isFinite(p.ms)) : (p.type === '0-100' || p.type === '402m');
+}
+function requestShareStock(p) {
+  if (!shareStockEligible(p) || Number.isFinite(p.stD) || p.stNone) return;
+  const isLap = p.type === 'lap' || p.type === 'круг';
+  const tag = isLap ? lapCarTag() : { carId: currentCar()?.id || null, car: currentCar()?.name || '' };
+  const kind = isLap ? 'lap' : 'drag';
+  const ref = isLap ? p.trackId : p.type;
+  const apply = (best) => {
+    if (best === undefined) return;
+    if (best) {
+      const mine = isLap ? p.ms : Number(String(p.time || '').replace(',', '.').replace(/[^\d.]/g, '')) * 1000;
+      const theirs = isLap ? Number(best.ms) : Number(best.t) * 1000;
+      if (!Number.isFinite(mine) || !Number.isFinite(theirs)) return;
+      p.stD = Math.round(mine - theirs) / 1000;
+      p.stLab = stockLabel(best.carId || tag.carId, best.car || tag.car);
+    } else p.stNone = true;
+    if (_sharePayload === p) renderShareStock(p);
+  };
+  apply(stockRefCached(kind, ref, tag.carId, tag.car, apply));
 }
 
 let _shareNextForeign = false;
@@ -5143,6 +5259,10 @@ function openShareCard(payload) {
     if (dt) { dEl.textContent = dt.text; dEl.classList.add(dt.cls); dEl.hidden = false; }
     else { dEl.textContent = ''; dEl.hidden = true; }
   }
+  const secEl = document.getElementById('shareSector');
+  if (secEl) { const t = sectorLossText(payload, _shareOwn); secEl.textContent = t; secEl.hidden = !t; }
+  renderShareStock(payload);
+  if (_shareOwn) requestShareStock(payload);
 
   const trackRow = document.getElementById('shareTrackRow');
   const trackLab = document.getElementById('shareTrackLabel');
@@ -5268,6 +5388,8 @@ function shareTextRu(p) {
   if (p.ghost) lines.push(`Призрак: ${p.ghost}${p.ghostVs ? ' · vs ' + p.ghostVs : ''}`);
   if (Number.isFinite(p.pbD)) lines.push(fmtPbDelta(p.pbD) + ' к моему лучшему');
   else if (p.pbFirst) lines.push(isLap ? 'первый круг здесь' : 'первый замер 0–100');
+  if (Number.isFinite(p.stD) && p.stLab) lines.push(stockDeltaText(p.stD, p.stLab));
+  { const sl = sectorLossText(p, false).replace(' к своему лучшему', ' к моему лучшему').replace('своих лучших', 'моих лучших'); if (sl) lines.push(sl); }
   if (p.duelId) lines.push('Принять вызов: ' + publicLinkFor('duel_' + p.duelId, duelPublicUrl(p.duelId)));
   if (p.src === 'sim') lines.push('симулятор · не в топ');
   else if (p.src === 'phone' && !isLap) lines.push('телефон · не в топ');
@@ -9009,6 +9131,14 @@ function renderDuelSides(d) {
     if (run?.gpsQ === 'A' || run?.gpsQ === 'B') time.appendChild(padEl('span', 'duel-badge' + (run.gpsQ === 'B' ? ' b' : ''), run.gpsQ));
     el.appendChild(time);
     el.appendChild(padEl('div', 'meta', run?.car ? shortCarName(run.car, run.carId) : '—'));
+    // v112: «сектор 2 отдал 0.3» — my own run vs my best sectors on this track (server sectors of the duel run)
+    if (d.type === 'lap' && run && Array.isArray(run.sectors) && duelIsMine(who?.id)) {
+      try {
+        const same = (state.laps?.[d.trackId] || []).find((x) => x.ms === run.ms);
+        const t = sectorLossText(sectorLossOf(d.trackId, { sectors: run.sectors, ms: run.ms }, same ? same.at : undefined), true);
+        if (t) el.appendChild(padEl('div', 'meta duel-sec', t));
+      } catch (_) {}
+    }
     if (win) el.appendChild(padEl('div', 'duel-win', 'победа'));
     return el;
   };
@@ -10949,7 +11079,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v111';
+const APP_VERSION = 'v112';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
