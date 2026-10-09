@@ -1,6 +1,7 @@
 import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner } from './botcopy.js';
 import { seasonRoute, seasonRecord0100 } from './season.js';
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
+import { gpsRoute, deleteAccountGps, GpsLive } from './gpslive.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
@@ -2296,6 +2297,8 @@ async function deleteAccount(kv, pid, currentToken) {
   for (const k of await kvListAll(kv, 'feedback:')) {
     if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.feedback++; }
   }
+  // v116: Wi-Fi GPS chips bound to the account (token hashes)
+  Object.assign(rep, await deleteAccountGps(kv, pid, GPS_H));
   // v115: profile music (Telegram file ids only — the files stay in Telegram)
   Object.assign(rep, await deleteAccountMusic(kv, pid));
   // v114: monthly 0–100 season aggregates
@@ -2643,6 +2646,13 @@ async function notifyDuel(env, d, submitterId) {
   }
   return false;
 }
+
+/** v116: helpers for ./gpslive.js */
+const GPS_H = {
+  get json() { return json; }, get readJson() { return readJson; }, get limitOr429() { return limitOr429; }, get requireAuth() { return requireAuth; },
+  get kvJson() { return kvJson; }, get safeDecode() { return safeDecode; }, get cleanLabel() { return cleanLabel; }, get randB36() { return randB36; },
+  get randomToken() { return randomToken; }, get sha256Hex() { return sha256Hex; }, get isPilotUuid() { return isPilotUuid; },
+};
 
 /** v115: helpers for ./music.js */
 const MUSIC_H = {
@@ -3791,6 +3801,8 @@ export default {
       { const sr = await seasonRoute({ req, env, path, url, headers, ip, h: ROOM_H }); if (sr) return sr; }
       // —— v115: музыка в профиле (список + стрим-прокси файлов бота) ——
       { const mr = await musicRoute({ req, env, path, url, headers, ip, pilot, h: MUSIC_H }); if (mr) return mr; }
+      // —— v116: PITLANE GPS по Wi-Fi (привязка чипа + live через Durable Object) ——
+      { const gr = await gpsRoute({ req, env, path, url, headers, ip, pilot, h: GPS_H }); if (gr) return gr; }
 
       // —— v97: «Это моя машина» + комнаты экипажей (+ Stars season) ——
       {
@@ -4106,4 +4118,5 @@ export default {
   },
 };
 
+export { GpsLive };
 export { tgRoute, tgWebhookPath, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, ROOM_SEASON_DAYS, ROOM_SEASON_STARS };

@@ -1,7 +1,7 @@
 # Canonical Worker config. Deploy from this directory:
 #   cd worker && npx wrangler@3.114.17 deploy
 name = "pitlane-api"
-main = "src/index.js"
+main = "src/main.js"
 compatibility_date = "2024-09-01"
 account_id = "dc344532c11330ddd28198123f1bf95f"
 workers_dev = true
@@ -21,6 +21,15 @@ TELEGRAM_BOT_USERNAME = "pitlane_official_bot"
 FEEDBACK_CHAT_ID = "8591275999"
 # optional comma-separated extra origins (local dev only — never localhost in prod)
 # EXTRA_ORIGINS = "http://127.0.0.1:5174"
+
+# v116: live stream PITLANE GPS (Wi-Fi) → Mini App. One SQLite-backed Durable Object per pilot (works on the Free plan).
+[[durable_objects.bindings]]
+name = "GPS_LIVE"
+class_name = "GpsLive"
+
+[[migrations]]
+tag = "v116-gpslive"
+new_sqlite_classes = ["GpsLive"]
 
 # Per-IP burst limits (Workers Rate Limiting API; in-memory per colo, no KV cost). period: 10 or 60 s.
 [[unsafe.bindings]]
