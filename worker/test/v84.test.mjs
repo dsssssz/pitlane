@@ -53,7 +53,7 @@ ok(r.status === 422 && r.data.code === 'no_trace', 'NaN time / no trace → 422 
 r = await call('POST', '/tops/drag/402m', { token: A.token, body: run({ trace: null }) });
 ok(r.status === 422, 'no raw points → 422');
 r = await call('POST', '/tops/drag/402m', { token: A.token, body: run({ t: 12 }, '402m', { src: 'phone', hz: 1 }) });
-ok(r.status === 422 && r.data.code === 'phone_source', 'phone 1 Hz ¼ mile → 422 phone_source (not in top)');
+ok(r.status === 200 && r.data.cls === 'c' && r.data.rows.every((x) => x.gpsQ === 'C' && x.cls === 'c'), 'v118: phone 1 Hz ¼ mile → зачёт C (своя доска, не A/B)', r.data);
 r = await call('POST', '/tops/drag/402m', { token: A.token, body: run({ pilotId: B.id }) });
 ok(r.status === 403, 'forged pilotId → 403');
 r = await call('POST', '/tops/drag/402m', { token: A.token, body: run({ carId: '../x', car: 'M2 <script>' }) });

@@ -578,6 +578,10 @@
             </div>
           </div>
           <div class="tops-chips" id="topsChips" role="tablist" aria-label="Трасса или замер"></div>
+          <div class="seg-control tops-cls" id="topsCls" role="tablist" aria-label="Класс зачёта">
+            <button type="button" class="seg-btn on" data-cls="ab" role="tab" aria-selected="true">A/B · внешний GPS</button>
+            <button type="button" class="seg-btn" data-cls="c" role="tab" aria-selected="false">C · телефон</button>
+          </div>
           <article class="card tops-board-card">
             <div class="tops-board-head">
               <h3 id="topsBoardTitle">0–100 км/ч</h3>
@@ -672,7 +676,7 @@
           <div class="duels-head">
             <div>
               <h2>Дуэли</h2>
-              <p class="muted">Личный вызов на 0–100 или круг. Ссылка живёт 7 дней, засчитывается только GPS A/B.</p>
+              <p class="muted">Личный вызов на 0–100 или круг. Ссылка живёт 7 дней. Сравнение внутри класса: A/B (внешний GPS) или C (телефон на телефон).</p>
             </div>
             <button type="button" class="go-btn duels-new" id="btnDuelOpen">Вызвать</button>
           </div>
@@ -1000,7 +1004,7 @@
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title">Дуэль</h2>
-          <p class="race-sheet-sub">Личный вызов · только GPS A/B</p>
+          <p class="race-sheet-sub">Личный вызов · A/B или зачёт C (телефон)</p>
         </header>
         <div id="duelCreatePane" class="race-sheet-body">
           <div class="duel-type-row seg-control" role="group" aria-label="Тип дуэли">

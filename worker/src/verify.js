@@ -4,7 +4,13 @@
  * и наружу не отдаются — в ответе только код причины.
  *
  * Коды отказа (клиент показывает русский текст): no_trace, gps_c, manual_finish, teleport,
- * speed_flag, pause, too_short, simulator, track_uncalibrated, phone_source, low_hz, stale, duplicate.
+ * speed_flag, pause, too_short, simulator, track_uncalibrated, phone_source, low_hz, stale, duplicate, phone_disc.
+ *
+ * v118 · Два класса зачёта, никогда не смешиваются:
+ *   cls 'ab' — внешний приёмник (разгоны: ≥10 Гц), оценка A/B по точкам;
+ *   cls 'c'  — телефон (или внешний < 10 Гц на разгонах): честная метка gpsQ 'C' («зачёт C»), свой топ.
+ * Для класса C антифрод тот же (телепорт, скорость/ускорение, симулятор, синтетика, дубли), но пороги
+ * под ~1 Гц: дыра до PHONE_RULE.*GapMs, частота не ниже minHz, точность не хуже B, без коротких отметок.
  */
 import {
   decodeTrace, traceStats, gradeTrace, dragTime, lapFromTrace, haversineM, withSpeed, traceHash,
@@ -22,6 +28,8 @@ const AC = {
   maxAgeMs: 14 * 86400_000,
   futureMs: 5 * 60_000,
 };
+/** v118: зачёт C (телефон, ~1 Гц). 60 ft и 0–50 короче 2–3 точек телефона — не зачитываются. */
+export const PHONE_RULE = { minHz: 0.8, dragGapMs: 2600, lapGapMs: 4000, noDiscs: ['60ft', '0-50'] };
 
 function flagsOf(pts, gapMs) {
   const v = withSpeed(pts);
@@ -60,13 +68,13 @@ function looksSynthetic(pts) {
   return smooth / (pts.length - 2) > 0.95;
 }
 
-function base(trace, now, gapMs) {
+function base(trace, now, gapMs, phoneGapMs = gapMs) {
   const dec = decodeTrace(trace);
   if (!dec) return { code: 'no_trace' };
   if (dec.src === 'sim') return { code: 'simulator', dec };
   if (dec.t0 > now + AC.futureMs || dec.t0 < now - AC.maxAgeMs) return { code: 'stale', dec };
   if (looksSynthetic(dec.pts)) return { code: 'simulator', dec };
-  const f = flagsOf(dec.pts, gapMs);
+  const f = flagsOf(dec.pts, dec.src === 'ext' ? gapMs : phoneGapMs);
   if (f) return { code: f, dec };
   return { dec };
 }
@@ -74,13 +82,17 @@ function base(trace, now, gapMs) {
 function passport(st, grade, src) {
   return { gpsQ: grade, src, hz: st.hz, avgAcc: st.avgAcc, n: st.n };
 }
+/** v118: паспорт зачёта C — метка всегда 'C' (класс источника), сырая оценка точности — в acq. */
+function classC(st, grade, src) {
+  return { ...passport(st, 'C', src), cls: 'c', acq: grade };
+}
 
 /** Круг. → { ok:true, tMs, sectors, dist, hash, pass } | { ok:false, code } */
 export function verifyLap(body, trackId, now = Date.now()) {
   if (body?.how === 'manual') return { ok: false, code: 'manual_finish' };
   const cal = trackCal(trackId);
   if (!cal || !cal.calibrated) return { ok: false, code: 'track_uncalibrated' };
-  const b = base(body?.trace, now, AC.lapGapMs);
+  const b = base(body?.trace, now, AC.lapGapMs, PHONE_RULE.lapGapMs);
   if (b.code) return { ok: false, code: b.code };
   const lap = lapFromTrace(b.dec.pts, cal);
   if (!lap.ok) return { ok: false, code: lap.code };
@@ -89,15 +101,23 @@ export function verifyLap(body, trackId, now = Date.now()) {
   const st = traceStats(seg);
   const grade = gradeTrace(st);
   if (grade === 'C') return { ok: false, code: 'gps_c' };
-  return { ok: true, tMs: lap.ms, sectors: lap.sectors, dist: Math.round(lap.dist), hash: traceHash(b.dec.pts), pass: passport(st, grade, b.dec.src) };
+  let pass;
+  if (b.dec.src === 'ext') pass = { ...passport(st, grade, b.dec.src), cls: 'ab' };
+  else {
+    if (!(st.hz >= PHONE_RULE.minHz)) return { ok: false, code: 'low_hz' };
+    pass = classC(st, grade, b.dec.src);
+  }
+  return { ok: true, tMs: lap.ms, sectors: lap.sectors, dist: Math.round(lap.dist), hash: traceHash(b.dec.pts), pass };
 }
 
 /**
- * Разгон/дистанция. bounds = { lo, hi } секунд. topRule: внешний приёмник ≥10 Гц.
- * → { ok:true, t, hash, pass } | { ok:false, code }
+ * Разгон/дистанция. bounds = { lo, hi } секунд.
+ * v118: внешний ≥10 Гц → класс 'ab' (как раньше); телефон / внешний < 10 Гц → класс 'c' (зачёт C).
+ * allowC=false — старое правило «только внешний ≥10 Гц» (коды phone_source / low_hz).
+ * → { ok:true, t, hash, pass:{ gpsQ, cls, … } } | { ok:false, code }
  */
-export function verifyDrag(body, disc, bounds, now = Date.now(), { topRule = true } = {}) {
-  const b = base(body?.trace, now, AC.dragGapMs);
+export function verifyDrag(body, disc, bounds, now = Date.now(), { allowC = true } = {}) {
+  const b = base(body?.trace, now, AC.dragGapMs, PHONE_RULE.dragGapMs);
   if (b.code) return { ok: false, code: b.code };
   const t = dragTime(b.dec.pts, disc);
   if (t == null) return { ok: false, code: 'too_short' };
@@ -106,9 +126,12 @@ export function verifyDrag(body, disc, bounds, now = Date.now(), { topRule = tru
   const st = traceStats(b.dec.pts);
   const grade = gradeTrace(st);
   if (grade === 'C') return { ok: false, code: 'gps_c' };
-  if (topRule && b.dec.src !== 'ext') return { ok: false, code: 'phone_source' };
-  if (topRule && !(st.hz >= DRAG_TOP_MIN_HZ - 0.5)) return { ok: false, code: 'low_hz' };
-  return { ok: true, t, hash: traceHash(b.dec.pts), pass: passport(st, grade, b.dec.src) };
+  const hash = traceHash(b.dec.pts);
+  if (b.dec.src === 'ext' && st.hz >= DRAG_TOP_MIN_HZ - 0.5) return { ok: true, t, hash, pass: { ...passport(st, grade, b.dec.src), cls: 'ab' } };
+  if (!allowC) return { ok: false, code: b.dec.src !== 'ext' ? 'phone_source' : 'low_hz' };
+  if (PHONE_RULE.noDiscs.includes(disc)) return { ok: false, code: 'phone_disc' };
+  if (!(st.hz >= PHONE_RULE.minHz)) return { ok: false, code: 'low_hz' };
+  return { ok: true, t, hash, pass: classC(st, grade, b.dec.src) };
 }
 
 /** Круг внутри комнаты на некалиброванной трассе: автокруг (не ручной), без флагов, A/B по точкам. */

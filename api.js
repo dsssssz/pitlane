@@ -316,9 +316,10 @@ export const api = {
     return remoteKeep('/pulse/' + encodeURIComponent(id) + '/like', { method: 'POST', body: JSON.stringify(body) });
   },
   /** v84: global straight-line board for a discipline (0-100, 100-200, 402m…). */
-  async listDrag(disc, { car, weather } = {}) {
+  async listDrag(disc, { car, weather, cls } = {}) {
     let path = '/tops/drag/' + encodeURIComponent(disc);
     const q = [];
+    if (cls === 'c') q.push('cls=c'); // v118: зачёт C (телефон)
     if (car) q.push('car=' + encodeURIComponent(car));
     if (weather === 'dry' || weather === 'damp' || weather === 'wet') q.push('weather=' + weather);
     if (q.length) path += '?' + q.join('&');
@@ -330,8 +331,8 @@ export const api = {
     return remoteKeep('/tops/drag/' + encodeURIComponent(disc), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
   },
   /** v84: lap board with avatars (pilotmeta) for the compact tops list. */
-  async listLapBoard(trackId, weather) {
-    let path = '/tops/lap/' + encodeURIComponent(trackId) + '?avatars=1';
+  async listLapBoard(trackId, weather, cls) {
+    let path = '/tops/lap/' + encodeURIComponent(trackId) + '?avatars=1' + (cls === 'c' ? '&cls=c' : '');
     if (weather === 'dry' || weather === 'damp' || weather === 'wet') path += '&weather=' + weather;
     const rows = await remote(path);
     return Array.isArray(rows) ? rows : [];

@@ -5608,6 +5608,7 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 .rd-badge { padding: 5px 11px; border-radius: 999px; border: 1px solid var(--h-line-2); font: 600 10px/1 Manrope, sans-serif; letter-spacing: .12em; text-transform: uppercase; color: var(--h-sub); }
 .rd-badge[data-q="A"] { color: var(--h-acc); border-color: rgba(57,255,20,.45); background: rgba(57,255,20,.07); }
 .rd-badge[data-q="B"] { color: #ffc94a; border-color: rgba(255,201,74,.4); }
+.rd-badge[data-q="C"] { color: #9fd3ff; border-color: rgba(120,190,255,.42); background: rgba(120,190,255,.07); } /* v118: зачёт C */
 .rd-badge[data-q="off"] { color: #c8c8c8; border-color: rgba(255,255,255,.18); background: rgba(255,255,255,.04); }
 .rd-hero-k { margin-top: 4px; font: 600 10.5px/1 Manrope, sans-serif; letter-spacing: .2em; text-transform: uppercase; color: var(--h-sub); }
 .rd-hero-v { font: 500 clamp(54px, 17vw, 72px)/.95 var(--h-num); color: var(--h-acc); letter-spacing: -.01em; text-shadow: 0 0 22px rgba(57,255,20,.25); }
@@ -5662,3 +5663,9 @@ body.run-sum-on .run-drive-actions > * { flex: 1 1 calc(50% - 10px); }
 .rd-hero-v { font-size: clamp(50px, 15vw, 64px); }
 .rd-table th, .rd-table td { padding: 4.5px 4px; }
 .rd-table td { font-size: 16px; }
+
+/* v118: переключатель класса зачёта в топах */
+.tops-cls { margin: 10px 0 12px; }
+.tops-cls .seg-btn { font-size: 12px; }
+.duel-badge.c { color: #9fd3ff; border-color: rgba(120,190,255,.45); background: rgba(120,190,255,.08); } /* v118 */
+.rd-table tr.off th, .rd-table tr.off td { opacity: .5; } /* v118: справочная отметка вне зачёта C */

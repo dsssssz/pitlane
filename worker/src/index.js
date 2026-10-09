@@ -498,6 +498,19 @@ function isValidGpsRow(r) {
   return true;
 }
 
+/** v118: строка зачёта C (телефон): зачтена сервером, метка C, класс 'c'. Никогда не попадает в A/B-выдачу. */
+function isClassCRow(r) {
+  return !!r && !!r.gps && r.valid === true && r.srv === 1 && r.gpsQ === 'C' && r.cls === 'c';
+}
+/** v118: ключ доски по классу: A/B — как раньше (drag:/lap:), C — dragc:/lapc:. */
+function boardKey(kind, ref, cls) {
+  return (cls === 'c' ? kind + 'c:' : kind + ':') + ref;
+}
+/** ?cls=c → 'c', иначе 'ab'. */
+function clsParam(url) {
+  return url.searchParams.get('cls') === 'c' ? 'c' : 'ab';
+}
+
 function sanitizeWeather(v) {
   const s = String(v || '').toLowerCase();
   if (s === 'dry' || s === 'damp' || s === 'wet') return s;
@@ -507,7 +520,7 @@ function sanitizeWeather(v) {
 const PUBLIC_ROW_FIELDS = [
   'car', 't', 'gps', 'valid', 'gpsQ', 'src', 'n', 'avgAcc', 'hz', 'weather', 'track',
   'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost', 'tyre',
-  'prep', 'tyreT',
+  'prep', 'tyreT', 'cls', 'asC',
 ];
 
 /** Whitelisted public tops row (straight / lap / sector / duel run). No phone, ever. */
@@ -588,8 +601,9 @@ function sanitizeDrag(body, pilot, disc, opts = {}) {
  * Returns true when the row became (or improved) the pilot's best for that car.
  */
 async function upsertDrag(kv, disc, row) {
-  if (!row || !isValidGpsRow(row) || !row.pilotId) return false;
-  const key = 'drag:' + disc;
+  const c = row && row.cls === 'c';
+  if (!row || !(c ? isClassCRow(row) : isValidGpsRow(row)) || !row.pilotId) return false;
+  const key = boardKey('drag', disc, c ? 'c' : 'ab');
   const rows = await readList(kv, key);
   const same = (r) => r && r.pilotId === row.pilotId && String(r.carId || r.car || '') === String(row.carId || row.car || '');
   const prev = rows.find(same);
@@ -1235,6 +1249,7 @@ function sanitizeDuelRun(body, pilot, type, trackId, disc) {
       gps: true,
       valid: true,
       gpsQ: row.gpsQ,
+      cls: row.cls === 'c' ? 'c' : 'ab',
       src: row.src, n: row.n, th: row.th,
       avgAcc: row.avgAcc,
       hz: row.hz,
@@ -1254,6 +1269,7 @@ function sanitizeDuelRun(body, pilot, type, trackId, disc) {
       gps: true,
       valid: true,
       gpsQ: row.gpsQ,
+      cls: row.cls === 'c' ? 'c' : 'ab',
       src: row.src, n: row.n, th: row.th, ms: row.ms,
       avgAcc: row.avgAcc,
       hz: row.hz,
@@ -1307,7 +1323,16 @@ function publicDuel(d) {
     days: d.days || 7,
     ghostId: d.ghostId || null,
     disc: d.disc || null,
+    cls: duelCls(d),
   };
+}
+/** v118: класс дуэли — задан при создании, иначе по первому заезду (старые заезды без cls = A/B). */
+function runCls(r) { return r && r.cls === 'c' ? 'c' : 'ab'; }
+function duelCls(d) {
+  if (!d) return null;
+  if (d.cls === 'c' || d.cls === 'ab') return d.cls;
+  const first = d.creatorRun || d.challengerRun;
+  return first ? runCls(first) : null;
 }
 
 
@@ -2209,7 +2234,7 @@ async function deleteAccount(kv, pid, currentToken) {
   await del('garage:' + pid);
 
   // tops (sector tops are derived from lap rows)
-  for (const [prefix, field] of [['straight:', 'straightRows'], ['lap:', 'lapRows'], ['drag:', 'dragRows']]) {
+  for (const [prefix, field] of [['straight:', 'straightRows'], ['lap:', 'lapRows'], ['drag:', 'dragRows'], ['lapc:', 'lapRows'], ['dragc:', 'dragRows']]) {
     for (const k of await kvListAll(kv, prefix)) {
       const rows = await readList(kv, k.name);
       const kept = rows.filter((r) => !(r && r.pilotId === pid));
@@ -3017,7 +3042,7 @@ export default {
         const kind = body?.kind === 'duel' ? 'duel' : body?.kind === 'top' ? 'top' : null;
         if (!kind) return json({ error: 'kind must be top|duel' }, 400, headers);
         const board = String(body?.board || '').trim().slice(0, 64);
-        if (kind === 'top' && !/^(drag|lap|straight|sector):[A-Za-z0-9_-]{1,48}$/.test(board)) return json({ error: 'bad board' }, 400, headers);
+        if (kind === 'top' && !/^(drag|lap|dragc|lapc|straight|sector):[A-Za-z0-9_-]{1,48}$/.test(board)) return json({ error: 'bad board' }, 400, headers);
         const target = String(body?.target || '').trim().slice(0, 64);
         if (!/^[A-Za-z0-9_-]{1,64}$/.test(target)) return json({ error: 'bad target' }, 400, headers);
         const rowAt = boundedNum(body?.at, 0, Date.now() + 86400_000);
@@ -3188,6 +3213,12 @@ export default {
         row.pilotId = pilot.id;
         row.carId = row.carId || carId;
         Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
+        if (row.cls === 'c') {
+          // v118: зачёт C — только своя доска dragc:0-100 (не в A/B-список машины, не в сезон и не в сток)
+          const stored = await upsertDrag(env.PITLANE, '0-100', { ...row, disc: '0-100' });
+          const crow = (await readList(env.PITLANE, boardKey('drag', '0-100', 'c'))).filter(isClassCRow).sort((a, b) => a.t - b.t);
+          return json({ ok: true, cls: 'c', stored, rows: publicRows(crow.slice(0, 50)) }, 200, headers);
+        }
         const key = `straight:${carId}`;
         const rows = await readList(env.PITLANE, key);
         rows.push(row);
@@ -3206,7 +3237,8 @@ export default {
         const trackId = safeDecode(m[1]);
         if (!slugOk(trackId)) return json([], 200, headers);
         const wx = sanitizeWeather(url.searchParams.get('weather'));
-        let rows = (await readList(env.PITLANE, `lap:${trackId}`)).filter(isValidGpsRow);
+        const cls = clsParam(url); // v118: ?cls=c — зачёт C (телефон)
+        let rows = (await readList(env.PITLANE, boardKey('lap', trackId, cls))).filter(cls === 'c' ? isClassCRow : isValidGpsRow);
         if (wx) rows = rows.filter((r) => r && r.weather === wx);
         rows = rows.filter(prepFilter(url.searchParams.get('prep')));
         if (url.searchParams.get('avatars') === '1') {
@@ -3242,6 +3274,14 @@ export default {
         const av = row.avatar || null;
         // keep KV lap lists lean — avatar lives in pilotmeta, not on every row
         delete row.avatar;
+        if (row.cls === 'c') {
+          // v118: зачёт C — своя доска lapc:<трасса>; A/B-доска, секторы, сезон и команды его не видят
+          const ckey = boardKey('lap', trackId, 'c');
+          const crows = await readList(env.PITLANE, ckey);
+          crows.push(row);
+          await writeList(env.PITLANE, ckey, crows);
+          return json({ ok: true, cls: 'c', rows: publicRows(crows.filter(isClassCRow)) }, 200, headers);
+        }
         const key = `lap:${trackId}`;
         const rows = await readList(env.PITLANE, key);
         rows.push(row);
@@ -3262,7 +3302,8 @@ export default {
           if (!disc) return json([], 200, headers);
           const wx = sanitizeWeather(url.searchParams.get('weather'));
           const car = url.searchParams.get('car');
-          let rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
+          const cls = clsParam(url); // v118: ?cls=c — зачёт C (телефон)
+          let rows = (await readList(env.PITLANE, boardKey('drag', disc, cls))).filter(cls === 'c' ? isClassCRow : isValidGpsRow).sort((a, b) => a.t - b.t);
           if (wx) rows = rows.filter((r) => r && r.weather === wx);
           if (car && slugOk(car)) rows = rows.filter((r) => r && r.carId === car);
           rows = rows.filter(prepFilter(url.searchParams.get('prep')));
@@ -3286,9 +3327,10 @@ export default {
           { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
           Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
           const stored = await upsertDrag(env.PITLANE, disc, row);
-          if (disc === '0-100') await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114
-          const rows = (await readList(env.PITLANE, 'drag:' + disc)).filter(isValidGpsRow).sort((a, b) => a.t - b.t);
-          return json({ ok: true, stored, valid: row.valid, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
+          const c = row.cls === 'c';
+          if (disc === '0-100' && !c) await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114 (сезон — только A/B)
+          const rows = (await readList(env.PITLANE, boardKey('drag', disc, c ? 'c' : 'ab'))).filter(c ? isClassCRow : isValidGpsRow).sort((a, b) => a.t - b.t);
+          return json({ ok: true, cls: c ? 'c' : 'ab', stored, valid: row.valid, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
         }
       }
 
@@ -3627,6 +3669,8 @@ export default {
           challengerRun: null,
           winner: null,
         };
+        // v118: класс вызова: 'c' — телефон на телефон, 'ab' — только внешний GPS; не задан — по первому заезду
+        if (body?.cls === 'c' || body?.cls === 'ab') duel.cls = body.cls;
         // v89: "beat my lap / run" — attach the creator's ghost (frozen copy) and lock in the target time
         if (body?.ghostId != null) {
           if (!pilot.authed) return json({ error: 'auth required for ghost duel' }, 401, headers);
@@ -3653,10 +3697,12 @@ export default {
             gps: true,
             valid: true,
             gpsQ: src.gpsQ,
+            cls: src.gpsQ === 'C' ? 'c' : 'ab',
             pilotId: pilot.id,
             ghost: true,
             at: now,
           };
+          duel.cls = duel.creatorRun.cls;
         }
         await env.PITLANE.put('duel:' + id, JSON.stringify(duel), { expirationTtl: days * 86400 + 86400 });
         // index for mine list
@@ -3746,6 +3792,14 @@ export default {
         if (lim) return lim;
         const run = sanitizeDuelRun(body, { id: who.id, name: who.name }, d.type, d.trackId, d.disc);
         if (!run || run.code) return rejectRun(run?.code || 'gps_c', headers);
+        // v118: сравнение только внутри класса. A/B-вызов — ответ только A/B (телефон несопоставим → отказ).
+        // C-вызов (телефон) принимает любой честный заезд, а считает его по худшему классу — «зачёт C».
+        {
+          const dc = duelCls(d);
+          if (dc === 'ab' && run.cls === 'c') return rejectRun('class_mismatch', headers);
+          if (dc === 'c' && run.cls !== 'c') { run.cls = 'c'; run.asC = true; }
+          if (!d.cls) d.cls = run.cls;
+        }
         { const g = await guardRun(env, req, run, who.id, headers); if (g) return g; }
         // v107: обе стороны дуэли с одного устройства (два аккаунта) или одним треком — не зачитываем
         {
@@ -4004,6 +4058,7 @@ export default {
         const res = sanitizeLap(body, { id: pilotId, name: member.nick || who.name }, crew.trackId);
         if (res.code) return rejectRun(res.code, headers);
         const row = res.row;
+        if (row.cls === 'c') return rejectRun('crew_ab_only', headers); // v118: борд экипажа и сезон — только A/B
         { const g = await guardRun(env, req, row, pilotId, headers); if (g) return g; }
         const ms = parseLapMs(row.t);
         if (ms == null) return json({ error: 'bad time' }, 400, headers);

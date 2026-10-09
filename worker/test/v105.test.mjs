@@ -50,11 +50,11 @@ console.log('\n[drag top: external ≥10 Hz only]');
 let seed = 10;
 for (const [disc, t] of [['0-100', 4.4], ['100-200', 9.1], ['80-120', 2.6], ['402m', 12.3]]) {
   let r = await call('POST', '/tops/drag/' + disc, { token: A.token, body: dragBody(disc, t, {}, { src: 'phone', hz: 1, seed: seed++ }) });
-  ok(r.status === 422 && r.data.code === 'phone_source', `${disc}: phone → 422 phone_source`, r);
+  ok(r.status === 200 && r.data.cls === 'c' && r.data.rows.every((x) => x.gpsQ === 'C'), `v118 ${disc}: phone → зачёт C`, r);
   r = await call('POST', '/tops/drag/' + disc, { token: A.token, body: dragBody(disc, t, {}, { src: 'sim', hz: 10, seed: seed++ }) });
   ok(r.status === 422 && r.data.code === 'simulator', `${disc}: simulator → 422 simulator`, r);
   r = await call('POST', '/tops/drag/' + disc, { token: A.token, body: dragBody(disc, t, {}, { src: 'ext', hz: 5, seed: seed++ }) });
-  ok(r.status === 422 && r.data.code === 'low_hz', `${disc}: external 5 Hz → 422 low_hz`, r);
+  ok(r.status === 200 && r.data.cls === 'c', `v118 ${disc}: external 5 Hz → зачёт C`, r);
   r = await call('POST', '/tops/drag/' + disc, { token: A.token, body: dragBody(disc, t, {}, { src: 'ext', hz: 10, acc: 20, seed: seed++ }) });
   ok(r.status === 422 && r.data.code === 'gps_c', `${disc}: external 10 Hz but ±20 m → 422 gps_c`, r);
   const body = dragBody(disc, t, { t: 1.11 }, { src: 'ext', hz: 10, seed: seed++ });
@@ -68,7 +68,9 @@ for (const [disc, t] of [['0-100', 4.4], ['100-200', 9.1], ['80-120', 2.6], ['40
 console.log('\n[straight 0–100 card top follows the same rule]');
 {
   let r = await call('POST', '/tops/straight/m4csl', { token: A.token, body: { name: 'Мага', ...dragBody('0-100', 4.6, {}, { src: 'phone', hz: 1, seed: 99 }) } });
-  ok(r.status === 422 && r.data.code === 'phone_source', 'straight via phone → phone_source', r);
+  ok(r.status === 200 && r.data.cls === 'c' && r.data.rows[0]?.gpsQ === 'C', 'v118: straight via phone → зачёт C (не в A/B-список машины)', r.data);
+  const ab = await call('GET', '/tops/straight/m4csl');
+  ok(Array.isArray(ab.data) && ab.data.length === 0, 'v118: A/B-список машины пуст после телефонного 0–100', ab.data);
 }
 console.log(fails ? `\n✗ ${fails} failed` : '\n✓ v105 all passed');
 process.exit(fails ? 1 : 0);

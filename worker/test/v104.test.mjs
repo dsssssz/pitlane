@@ -86,12 +86,15 @@ r = await call('POST', '/tops/drag/0-100', { token: A.token, body: { ...dragBody
 ok(r.status === 200 && near(r.data.rows[0].t, 4.5, 0.06) && r.data.rows[0].gpsQ === 'A' && r.data.rows[0].hz === 10 && r.data.rows[0].src === 'ext', 'time & grade recomputed from points', r.data.rows?.[0]);
 ok(!('th' in r.data.rows[0]) && !('flags' in r.data.rows[0]) && !('trace' in r.data.rows[0]), 'public row: no trace / hash / flags');
 const codes = [
-  ['phone 1 Hz', dragBody('0-100', 5, {}, { src: 'phone', hz: 1 }), 'phone_source'],
-  ['external 5 Hz', dragBody('0-100', 5, {}, { hz: 5 }), 'low_hz'],
   ['simulator', dragBody('0-100', 5, {}, { src: 'sim' }), 'simulator'],
   ['accuracy 30 m', dragBody('0-100', 5, {}, { acc: 30 }), 'gps_c'],
   ['no trace', { t: 4.0, gps: true, gpsQ: 'A', valid: true }, 'no_trace'],
 ];
+// v118: телефон 1 Гц и внешний 5 Гц больше не отказ — зачёт C (метка C, своя доска, A/B-доска не видит)
+for (const [label, body] of [['phone 1 Hz', dragBody('0-100', 5, {}, { src: 'phone', hz: 1, seed: 71 })], ['external 5 Hz', dragBody('0-100', 5, {}, { hz: 5, seed: 72 })]]) {
+  r = await call('POST', '/tops/drag/0-100', { token: A.token, body });
+  ok(r.status === 200 && r.data.cls === 'c' && r.data.rows[0]?.gpsQ === 'C', label + ' → зачёт C', r.data);
+}
 for (const [label, body, code] of codes) {
   r = await call('POST', '/tops/drag/0-100', { token: A.token, body });
   ok(r.status === 422 && r.data.code === code, label + ' → ' + code, r.data);

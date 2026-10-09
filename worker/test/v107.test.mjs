@@ -77,7 +77,7 @@ ok(r.data.winner === 'challenger', 'lower time wins', r.data.winner);
 // drag duel: phone refused
 const dd = (await call('POST', '/duel', { token: A.token, body: { type: 'drag', createdBy: 'x' } })).data;
 r = await call('POST', `/duel/${dd.id}/run`, { token: A.token, dev: DA, body: dragBody('0-100', 4.9, {}, { src: 'phone', hz: 1, seed: 13 }) });
-ok(r.status === 422 && r.data.code === 'phone_source', 'sprint duel: phone run refused', r.data);
+ok(r.status === 200 && r.data.cls === 'c' && r.data.creatorRun?.gpsQ === 'C', 'v118: sprint duel: phone run → дуэль класса C', r.data);
 // expired link
 const de = await mkDuel(A, { days: 1 });
 const raw = JSON.parse(await kv.get('duel:' + de.id)); raw.expiresAt = Date.now() - 1000; await kv.put('duel:' + de.id, JSON.stringify(raw));
@@ -99,7 +99,7 @@ r = await call('POST', '/dispute', { token: C.token, body: { kind: 'duel', targe
 ok(r.status === 200, 'duel dispute accepted');
 
 console.log('\n[thresholds are not revealed]');
-r = await call('POST', '/tops/drag/0-100', { token: C.token, dev: 'devCCCCCCCCCC3', body: dragBody('0-100', 4.4, {}, { hz: 5, seed: 15 }) });
+r = await call('POST', '/tops/drag/0-100', { token: C.token, dev: 'devCCCCCCCCCC3', body: dragBody('0-100', 4.4, {}, { acc: 30, seed: 15 }) }); // v118: 5 Гц теперь зачёт C — отказ даём слабой точностью
 ok(r.status === 422 && Object.keys(r.data).sort().join() === 'code,error' && !/\d/.test(r.text), '422 body = {error, code} only, no numbers', r.text);
 console.log(fails ? `\n✗ ${fails} failed` : '\n✓ v107 all passed');
 process.exit(fails ? 1 : 0);

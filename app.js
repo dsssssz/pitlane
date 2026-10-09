@@ -2987,13 +2987,6 @@ function displayKmh() {
   return Math.round(s.showKmh || s.vKmh || filtShow || filtV || 0);
 }
 
-function interpolateCross(prev, next, target) {
-  if (prev.v >= target) return prev.t;
-  if (next.v < target) return null;
-  const k = (target - prev.v) / Math.max(0.01, next.v - prev.v);
-  return prev.t + (next.t - prev.t) * k;
-}
-
 function setRunText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
@@ -3120,7 +3113,7 @@ function rdReadyUpdate(v, pos) {
   const src = traceSource(rawTrace.slice(-5));
   if (Number.isFinite(acc) && acc > (ext ? 5 : 15)) { rdReadySet('wait', 'Ждём точный GPS', `сейчас ±${Math.round(acc)} м — нужно небо над головой`); return; }
   if (v >= 1.5) { rdReadySet('wait', 'Остановитесь', 'старт — с полной остановки'); return; }
-  const sub = src === 'sim' ? 'симулятор · не в топ' : !ext ? 'телефон · не в топ (топ — внешний GPS от 10 Гц)' : 'старт считается с первого сантиметра';
+  const sub = src === 'sim' ? 'симулятор · не в топ' : !ext ? 'телефон · зачёт C (≈ ±0,3 с, отдельный топ)' : 'старт считается с первого сантиметра';
   rdReadySet('go', 'Готово — трогайся', sub);
 }
 
@@ -3242,6 +3235,10 @@ function pushRawFix(pos, now) {
   if (!c || !Number.isFinite(c.latitude) || !Number.isFinite(c.longitude)) return;
   const sp = Number(c.speed);
   const src = c.ext ? (pos.ext?.source === 'sim' || extGps?.state?.() === 'sim' ? 'sim' : 'ext') : 'phone';
+  // v118: опрос getCurrentPosition (каждые 400 мс) отдаёт ту же кэшированную точку телефона — в сырой трек
+  // её не пишем повторно: dt = 0 сервер считает телепортом (а телефон теперь идёт в зачёт C)
+  const last = rawTrace[rawTrace.length - 1];
+  if (last && last.src === src && now <= last.t) return;
   const alt = c.altitude != null && Number.isFinite(Number(c.altitude)) ? Number(c.altitude) : null; // v117: высота — только если источник её даёт (телефон); в трек для сервера не уходит
   rawTrace.push({ seq: ++rawSeq, t: now, lat: c.latitude, lon: c.longitude, v: c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : null, acc: Number.isFinite(Number(c.accuracy)) ? Number(c.accuracy) : null, src, alt });
   if (rawTrace.length > 9000) rawTrace.splice(0, rawTrace.length - 8000);
@@ -3259,10 +3256,22 @@ function traceSource(pts) {
   if (pts.some((p) => p.src === 'sim')) return 'sim';
   return pts.length && pts.every((p) => p.src === 'ext') ? 'ext' : 'phone';
 }
+/** Короткие отметки, которые телефон (~1 Гц) не меряет — на доске C их нет (сервер тоже не принимает). */
+const PHONE_NO_DISCS = ['60ft', '0-50'];
+const CLASS_C_NOTE = 'телефон · зачёт C (≈ ±0,3 с, отдельный топ)';
+/** v118: класс зачёта по сырому треку (то же правило, что на сервере): внешний ≥10 Гц → 'ab', иначе 'c'. */
+function runClassOf(pts, { lap = false } = {}) {
+  const src = traceSource(pts || []);
+  if (src === 'sim') return 'sim';
+  if (src === 'ext' && (lap || (traceStats(pts).hz || 0) >= DRAG_TOP_MIN_HZ - 0.5)) return 'ab';
+  return 'c';
+}
 /** Паспорт замера (то же, что считает сервер): Гц, точность, точки, A/B/C, источник. */
 function tracePassport(pts) {
   const st = traceStats(pts);
-  return { hz: st.hz, avgAcc: st.avgAcc, n: st.n, gpsQ: gradeTrace(st), src: traceSource(pts) };
+  const g = gradeTrace(st);
+  // v118: телефон (и внешний < 10 Гц) — метка класса C, как на сервере; сырая оценка точности — в acq
+  return { hz: st.hz, avgAcc: st.avgAcc, n: st.n, gpsQ: runClassOf(pts) === 'c' ? 'C' : g, acq: g, src: traceSource(pts) };
 }
 /** v105: строка паспорта замера: «12.0 Гц · ±1.4 м · 312 точек · A». */
 function passportLine(tp) {
@@ -3290,8 +3299,11 @@ const REJECT_TEXT = {
   too_short: 'Дистанция не набрана или трек обрезан — замер не принят в топ.',
   simulator: 'Симулятор — только для проверки, в топ и дуэли не идёт.',
   track_uncalibrated: 'Трасса ещё не откалибрована — круг только в личной истории.',
-  phone_source: 'Замер телефоном · не в топ. Топ разгонов — только внешний GPS-приёмник от 10 Гц.',
-  low_hz: 'Частота приёмника ниже 10 Гц — в топ разгонов не идёт.',
+  phone_source: 'Замер телефоном идёт в зачёт C (свой топ), а не в A/B.',
+  low_hz: 'GPS обновлялся реже раза в секунду — замер не принят.',
+  phone_disc: 'Телефон (~1 Гц) эту короткую отметку не меряет — в зачёт C идут 0–100, 100–200, ⅛ и ¼ мили, круги.',
+  class_mismatch: 'Это вызов класса A/B (внешний GPS). Телефонный заезд с ним несопоставим — брось ответный вызов «телефон на телефон».',
+  crew_ab_only: 'Борд экипажа и сезон — только A/B (внешний GPS). Круг телефоном — в топе «C · телефон».',
   stale: 'Замер слишком старый — отправьте свежий.',
   no_trace: 'Нет сырых точек GPS — обновите приложение и повторите замер.',
   duplicate: 'Этот трек уже зачтён другому аккаунту (или обе стороны дуэли с одного устройства) — не принят.',
@@ -3305,6 +3317,7 @@ function rejectText(res) {
 }
 /** Итог отправки в топ → строка для статуса. */
 function topVerdict(res) {
+  if (res && res.ok && res.cls === 'c') return 'в зачёте C ✓ (телефон, проверено сервером)';
   if (Array.isArray(res) || (res && res.ok)) return 'в топе ✓ (проверено сервером)';
   return rejectText(res);
 }
@@ -3645,7 +3658,7 @@ function showMarkPop(key, sec, src, lagMs, at) {
 }
 function popNote(src, lagMs) {
   const s0 = traceSource(rawTrace.slice(-5));
-  const base = s0 === 'phone' ? 'справочно · телефон · не в топ' : s0 === 'sim' ? 'справочно · симулятор' : 'справочно';
+  const base = s0 === 'phone' ? 'справочно · телефон · зачёт C' : s0 === 'sim' ? 'справочно · симулятор' : 'справочно';
   return src === 'chip' ? base + ' · посчитал чип' + (lagMs != null ? ` · пришло за ${fmtLag(lagMs)}` : '') : base;
 }
 /** Каждая точка Wi-Fi: авто-«Старт» на стоянке, перезапуск, если тронулся и встал без 100; итог по событию чипа. */
@@ -3710,6 +3723,12 @@ function rdShareAugment() {
   const p = run.pendingShare; const S = run.rm?.S;
   if (!p || !S || !run.sumPts) return;
   try { const c = shareCurve(run.sumPts, S); if (c) p.curve = c; p.splits = shareSplits(S); } catch (_) {}
+  // v118: паспорт на карточке = паспорт итога (весь заезд), а не срез на момент сохранения 0–100 (было 73 vs 231 точка)
+  try {
+    const tp = tracePassport(run.sumPts); p.n = tp.n; p.hz = tp.hz; p.avgAcc = tp.avgAcc;
+    // v118: на карточке телефона — только отметки зачёта C (60 ft / 0–50 телефон не меряет)
+    if (tp.gpsQ === 'C' && tp.src !== 'sim' && p.splits) for (const k of PHONE_NO_DISCS) delete p.splits[k];
+  } catch (_) {}
 }
 /** Дельты под главным результатом: к своему лучшему и к стоку (те же, что на карточке). */
 function rdDeltas() {
@@ -3734,9 +3753,9 @@ function rdDeltas() {
 function rdBadge(tp) {
   const b = document.getElementById('rdBadge');
   if (!b) return;
-  const topOk = /в топе ✓/.test(run.topMsg || '');
+  const topOk = /в топе ✓|в зачёте C ✓/.test(run.topMsg || '');
   let text; let q;
-  if (tp.src === 'phone') { text = 'телефон · не в топ'; q = 'off'; }
+  if (tp.src === 'phone') { text = 'телефон · зачёт C' + (topOk ? ' ✓' : ''); q = 'C'; }
   else if (tp.src === 'sim') { text = 'симулятор · не в топ'; q = 'off'; }
   else { text = `GPS ${tp.gpsQ}` + (topOk ? ' · в топе ✓' : tp.gpsQ === 'C' ? ' · не в топ' : ''); q = tp.gpsQ === 'C' ? 'off' : tp.gpsQ; }
   b.textContent = text;
@@ -3790,7 +3809,9 @@ function renderRunSummary() {
   if (tb) {
     tb.replaceChildren();
     const head = padEl('tr', 'h'); head.append(padEl('th', '', 'отметка'), padEl('td', '', 'время'), padEl('td', '', 'скорость · путь')); tb.appendChild(head);
-    for (const k of RM_DIST) if (M[k]) rdRow(tb, RM_LABEL[k], M[k].sec.toFixed(2) + ' с', `${Math.round(M[k].v)} км/ч`);
+    // v118: у телефона (зачёт C) 60 ft короче 2–3 точек — показываем справочно, с пометкой «вне зачёта»
+    const offC = (k) => tp.gpsQ === 'C' && tp.src !== 'sim' && PHONE_NO_DISCS.includes(k);
+    for (const k of RM_DIST) if (M[k]) rdRow(tb, RM_LABEL[k] + (offC(k) ? ' · вне зачёта' : ''), M[k].sec.toFixed(2) + ' с', `${Math.round(M[k].v)} км/ч`, offC(k) ? 'off' : '');
     const span = (a, b) => (M[a]?.d != null && M[b]?.d != null ? `${Math.round(M[b].d - M[a].d)} м` : '');
     const speedRows = [['0-60', ''], ['0-100', ''], ['100-200', span('0-100', '0-200')], ['0-200', ''], ['200-300', span('0-200', '0-300')], ['0-300', ''], ['80-120', '']];
     for (const [k, path] of speedRows) {
@@ -3874,7 +3895,7 @@ function initExtGps() {
       const note = document.getElementById('extGpsIosNote');
       if (note) {
         note.hidden = false;
-        note.textContent = 'На iPhone Bluetooth для веба недоступен — PITLANE GPS подключается по Wi-Fi: чип выходит в интернет через Режим модема iPhone, точки идут через сервер сюда (задержка обычно меньше секунды). Замеры телефоном — в личную историю с пометкой «телефон · не в топ».';
+        note.textContent = 'На iPhone Bluetooth для веба недоступен — PITLANE GPS подключается по Wi-Fi: чип выходит в интернет через Режим модема iPhone, точки идут через сервер сюда (задержка обычно меньше секунды). Замеры телефоном идут в отдельный зачёт C («телефон · зачёт C», точность ≈ ±0,3 с) и не смешиваются с A/B.';
       }
     }
   } catch (_) {}
@@ -4063,6 +4084,8 @@ async function publishGps(v0100, v100200, v200300) {
   state.meas[state.carId] = rec;
   try {
     const gqFold = gpsQualityFromStraightRun();
+    // v118: телефон в паспорт «честных» A/B не идёт (метка C)
+    if (runClassOf(rawSince(run.rawSeq0 || 0)) !== 'ab') gqFold.gpsQ = 'C';
     foldPassportGps({
       v0100: v0100 != null ? Number(v0100.toFixed(2)) : null,
       v100200: v100200 != null ? Number(v100200.toFixed(2)) : null,
@@ -5030,7 +5053,8 @@ async function completeLapRun(how, atTs, gsnap) {
       valid: topOk,
       car: currentCar().name,
       nick: String(who),
-      gpsQ: gq.gpsQ,
+      src: lapTrace?.src === 'phone' ? 'phone' : undefined, // v118: круг телефоном — зачёт C
+      gpsQ: lapTrace?.src === 'phone' ? 'C' : gq.gpsQ,
       avgAcc: gq.avgAcc,
       hz: gq.hz,
       weather: wxShare || undefined,
@@ -5487,7 +5511,7 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
     type: type || '0-100',
     track: trackName || '',
     time: time != null ? String(time) : '—',
-    valid: (valid !== false) && gpsQ !== 'C',
+    valid: (valid !== false) && (gpsQ !== 'C' || src === 'phone'), // v118: C у телефона — класс зачёта, а не «слабый GPS»
     at: at || Date.now(),
     date: new Date(at || Date.now()).toLocaleString('ru-RU', {
       day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -5774,10 +5798,12 @@ function openShareCard(payload) {
       mark = 'СИМУЛЯТОР';
       badge.classList.add('invalid');
       honesty = 'симулятор · не реальный заезд, не в топ';
-    } else if (payload.src === 'phone' && isDragCard) {
-      mark = 'ТЕЛЕФОН · НЕ В ТОП';
-      badge.classList.add('invalid');
-      honesty = 'телефон · не в топ (топ разгонов — внешний GPS от 10 Гц)';
+    } else if (payload.src === 'phone') {
+      // v118: телефон — свой зачёт C (не «не в топ»): честная метка и точность
+      mark = payload.valid === false ? 'ТЕЛЕФОН · ЗАЧЁТ C · НЕ ПРИНЯТ' : 'ТЕЛЕФОН · ЗАЧЁТ C';
+      badge.classList.add('gps-c');
+      if (payload.valid === false) badge.classList.add('invalid');
+      honesty = CLASS_C_NOTE;
     } else if (payload.valid === false || q === 'C') {
       mark = q === 'C' ? 'НЕ В ТОП · Слабый GPS' : 'НЕ В ТОП';
       badge.classList.add('invalid');
@@ -5891,7 +5917,7 @@ function shareTextRu(p) {
   { const sl = sectorLossText(p, false).replace(' к своему лучшему', ' к моему лучшему').replace('своих лучших', 'моих лучших'); if (sl) lines.push(sl); }
   if (p.duelId) lines.push('Принять вызов: ' + publicLinkFor('duel_' + p.duelId, duelPublicUrl(p.duelId)));
   if (p.src === 'sim') lines.push('симулятор · не в топ');
-  else if (p.src === 'phone' && !isLap) lines.push('телефон · не в топ');
+  else if (p.src === 'phone') lines.push(p.valid === false ? 'телефон · зачёт C · не принят' : 'телефон · зачёт C');
   else if (p.valid === false || p.gpsQ === 'C') lines.push('не в публичный топ');
   else lines.push('VALID');
   return lines.join('\n');
@@ -9641,8 +9667,11 @@ function renderDuelSides(d) {
     el.appendChild(padAvatar(who?.name || '?', who?.avatar, 64));
     el.appendChild(padEl('div', 'who', who ? clipText(who.name || 'пилот', 14) : (key === 'creator' ? 'создатель' : 'соперник?')));
     const time = padEl('div', 'time' + (run ? '' : ' wait'), run ? duelTimeText(d, run) : 'ждём заезд');
-    if (run?.gpsQ === 'A' || run?.gpsQ === 'B') time.appendChild(padEl('span', 'duel-badge' + (run.gpsQ === 'B' ? ' b' : ''), run.gpsQ));
+    if (run?.asC) time.appendChild(padEl('span', 'duel-badge c', 'C'));
+    else if (run?.gpsQ === 'A' || run?.gpsQ === 'B') time.appendChild(padEl('span', 'duel-badge' + (run.gpsQ === 'B' ? ' b' : ''), run.gpsQ));
+    else if (run?.gpsQ === 'C') time.appendChild(padEl('span', 'duel-badge c', 'C'));
     el.appendChild(time);
+    if (run?.asC) el.appendChild(padEl('div', 'meta', 'внешний GPS · засчитан как C'));
     el.appendChild(padEl('div', 'meta', run?.car ? shortCarName(run.car, run.carId) : '—'));
     // v112: «сектор 2 отдал 0.3» — my own run vs my best sectors on this track (server sectors of the duel run)
     if (d.type === 'lap' && run && Array.isArray(run.sectors) && duelIsMine(who?.id)) {
@@ -9673,7 +9702,7 @@ async function showDuelView(id) {
   const trackName = d.trackId ? (TRACKS.find((x) => x.id === d.trackId)?.name || d.trackId) : '';
   const typeLab = d.type === 'lap' ? ('круг' + (trackName ? ' · ' + trackName : '')) : (d.disc === '402m' ? '¼ мили' : '0–100');
   const st = document.getElementById('duelStatusLine');
-  if (st) st.textContent = statusLabelRu(d.status) + ' · ' + typeLab;
+  if (st) st.textContent = statusLabelRu(d.status) + ' · ' + typeLab + (d.cls === 'c' ? ' · зачёт C (телефон)' : d.cls === 'ab' ? ' · A/B' : '');
   const vs = document.getElementById('duelVsLine');
   if (vs) {
     const a = d.createdBy?.name || 'пилот';
@@ -9725,8 +9754,11 @@ async function showDuelView(id) {
   const hint = document.getElementById('duelHint');
   if (hint) {
     if (!isRemoteApi()) hint.textContent = 'Нужен Worker API (meta pitlane-api).';
-    else if (d.status === 'open') hint.textContent = 'Нужен честный GPS A или B. C не принимается. Ссылка действует ' + (d.days || 7) + ' дн.';
-    else hint.textContent = 'Дуэль зафиксирована. C не может победить — такие заезды отклоняются.';
+    // v118: класс дуэли — по первому заезду; сравнение только внутри класса
+    else if (d.status === 'open' && d.cls === 'c') hint.textContent = 'Зачёт C: телефон на телефон (≈ ±0,3 с). Внешний GPS тоже можно — его заезд считается как C. Ссылка действует ' + (d.days || 7) + ' дн.';
+    else if (d.status === 'open' && d.cls === 'ab') hint.textContent = 'Зачёт A/B: нужен внешний GPS. Телефонный ответ несопоставим и не принимается. Ссылка действует ' + (d.days || 7) + ' дн.';
+    else if (d.status === 'open') hint.textContent = 'Класс задаст первый заезд: внешний GPS → A/B, телефон → зачёт C. Ссылка действует ' + (d.days || 7) + ' дн.';
+    else hint.textContent = d.cls === 'c' ? 'Дуэль зафиксирована · зачёт C (оба заезда сравнены по худшему классу).' : 'Дуэль зафиксирована · зачёт A/B.';
   }
 }
 
@@ -9740,7 +9772,7 @@ async function refreshDuelList() {
   }
   ul.innerHTML = rows.slice(0, 12).map((d) => {
     const typeLab = d.type === 'lap' ? 'круг' : '0–100';
-    const title = typeLab + ' · ' + (d.createdBy?.name || 'пилот');
+    const title = typeLab + (d.cls === 'c' ? ' · C' : '') + ' · ' + (d.createdBy?.name || 'пилот');
     return `<li data-duel-id="${esc(d.id)}"><span class="dl-main">${esc(title)}</span><span class="dl-st">${esc(statusLabelRu(d.status))}</span></li>`;
   }).join('');
 }
@@ -11492,7 +11524,7 @@ const FEATURE_HELP = {
     title: 'Дуэль',
     lines: [
       'Личный вызов 1 на 1: <strong>0–100</strong> или <strong>круг</strong> на выбранном треке.',
-      '<strong>Как:</strong> создай дуэль → скопируй ссылку другу → оба прикрепляют свой валидный заезд GPS A/B. C не принимается.',
+      '<strong>Как:</strong> создай дуэль → скопируй ссылку другу → оба прикрепляют свой заезд, проверенный сервером. Класс задаёт первый заезд: внешний GPS → A/B, телефон → зачёт C. Телефон против A/B несопоставим.',
       '<strong>Где:</strong> Топы → «Дуэль». Список своих — внизу этого листа. Из карточки результата — «Вызвать на дуэль».',
     ],
   },
@@ -11593,7 +11625,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v117';
+const APP_VERSION = 'v118';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -11922,19 +11954,22 @@ function publishDragMark(disc, sec) {
     const gq = gpsQualityFromStraightRun();
     const flags = (run.flags || []).slice(0, 8);
     if (!(runRowValid(gq, flags) && canPublishTop(gq, flags))) return;
-    // v85: personal bests on device (A/B only) — feeds the home hero card
-    try { recordLocalDragBest(currentCar()?.id, disc, t, gq.gpsQ); } catch (_) {}
+    const pts = rawSince(run.rawSeq0 || 0);
+    const cls = runClassOf(pts);
+    if (cls === 'sim') return;
+    // v85: personal bests on device — feeds the home hero card. v118: телефон — отдельно, с меткой C (не «A/B»)
+    try { recordLocalDragBest(currentCar()?.id, disc, t, cls === 'c' ? 'C' : gq.gpsQ); } catch (_) {}
+    if (cls === 'c' && PHONE_NO_DISCS.includes(disc)) return; // телефон эти отметки не меряет — сервер не примет
     if (disc === '0-100') return; // server copy goes via /tops/straight (mirrored)
     if (!isRemoteApi() || !currentUser()) return;
     const car = currentCar();
-    const pts = rawSince(run.rawSeq0 || 0);
     void Promise.resolve(api.addDrag(disc, {
       carId: car?.id,
       car: car?.name,
       name: String(pulseWho() || 'пилот').slice(0, 24),
       weather: lapDrive.weather || undefined,
       trace: packTrace(pts),
-    })).then((res) => { if (res && !res.ok && res.code && res.code !== 'phone_source') setRunText('runStatus', disc + ': ' + rejectText(res)); }).catch(() => {});
+    })).then((res) => { if (res && !res.ok && res.code && res.code !== 'phone_source' && res.code !== 'phone_disc') setRunText('runStatus', disc + ': ' + rejectText(res)); }).catch(() => {});
   } catch (err) { console.warn('publishDragMark', err); }
 }
 
@@ -12128,9 +12163,11 @@ function localDragBest(carId, disc) {
   return r && Number.isFinite(Number(r.t)) ? r : null;
 }
 function recordLocalDragBest(carId, disc, t, gpsQ) {
-  if (!carId || !(t > 0) || (gpsQ !== 'A' && gpsQ !== 'B')) return;
-  state.dragBest = state.dragBest || {};
-  const car = (state.dragBest[carId] = state.dragBest[carId] || {});
+  if (!carId || !(t > 0) || (gpsQ !== 'A' && gpsQ !== 'B' && gpsQ !== 'C')) return;
+  // v118: зачёт C (телефон) — своё хранилище; на главной показывается с меткой «телефон · C», не «GPS A/B»
+  const store = gpsQ === 'C' ? 'dragBestC' : 'dragBest';
+  state[store] = state[store] || {};
+  const car = (state[store][carId] = state[store][carId] || {});
   const prev = car[disc];
   if (!prev || t < Number(prev.t)) {
     car[disc] = { t: Number(t.toFixed(3)), at: Date.now(), gpsQ };
@@ -12228,7 +12265,9 @@ async function renderHomeHero() {
     }
     box.replaceChildren();
     const tiles = [];
+    const c0100 = Number(state.dragBestC?.[m.id]?.['0-100']?.t);
     if (b0100 != null) tiles.push(homeStatTile('0–100 км/ч', b0100.toFixed(2), 'GPS A/B', '', 'с'));
+    else if (c0100 > 0) tiles.push(homeStatTile('0–100 км/ч', c0100.toFixed(2), 'телефон · C', '', 'с')); // v118
     if (bQ != null) tiles.push(homeStatTile('¼ мили', bQ.toFixed(2), '402 м', '', 'с'));
     if (lap) tiles.push(homeStatTile('Лучший круг', fmtLapTime(lap.ms), clipText(trackShortName(lap.trackId), 14)));
     if (rank) tiles.push(homeStatTile('Топ 0–100', '#' + rank.n, 'из ' + rank.of, 'hh-rank'));
@@ -13837,10 +13876,30 @@ document.getElementById('topPrepChips')?.addEventListener('click', (e) => {
 });
 document.getElementById('topMyCarOnly')?.addEventListener('change', () => { void renderTopsBoard(); });
 let _topsBoardSeq = 0;
+/* v118: класс зачёта в топах — A/B (внешний GPS) или C (телефон). Доски разные, строки не смешиваются. */
+const TOPS_CLS_KEY = 'pitlane-tops-cls-v1';
+let _topsCls = (() => { try { return localStorage.getItem(TOPS_CLS_KEY) === 'c' ? 'c' : 'ab'; } catch (_) { return 'ab'; } })();
+function syncTopsCls() {
+  document.querySelectorAll('#topsCls [data-cls]').forEach((b) => {
+    const on = b.dataset.cls === _topsCls;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', String(on));
+  });
+}
+document.getElementById('topsCls')?.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('[data-cls]');
+  if (!b || b.dataset.cls === _topsCls) return;
+  _topsCls = b.dataset.cls === 'c' ? 'c' : 'ab';
+  try { localStorage.setItem(TOPS_CLS_KEY, _topsCls); } catch (_) {}
+  syncTopsCls();
+  void renderTopsBoard();
+});
 async function renderTopsBoard() {
   const ol = document.getElementById('topsBoard');
   if (!ol) return;
   renderTopsChips();
+  syncTopsCls();
+  const cls = _topsCls;
   const sel = { ..._topsSel };
   const seq = ++_topsBoardSeq;
   const title = document.getElementById('topsBoardTitle');
@@ -13851,7 +13910,7 @@ async function renderTopsBoard() {
   if (title) title.textContent = sel.kind === 'lap' ? trackShortName(sel.id) : (dragDiscMeta(sel.id)?.title || sel.id);
   if (sub) {
     const tr = sel.kind === 'lap' ? TRACKS.find((t) => t.id === sel.id) : null;
-    sub.textContent = [sel.kind === 'lap' ? (tr?.km ? tr.km + ' км' : 'круг') : 'GPS A/B', sel.kind === 'lap' ? wxLab : '', model ? shortCarName(model) : 'все машины'].filter(Boolean).join(' · ');
+    sub.textContent = [sel.kind === 'lap' ? (tr?.km ? tr.km + ' км' : 'круг') : (cls === 'c' ? '' : 'GPS A/B'), cls === 'c' ? CLASS_C_NOTE : '', sel.kind === 'lap' ? wxLab : '', model ? shortCarName(model) : 'все машины'].filter(Boolean).join(' · ');
   }
   const bm = document.getElementById('topsBoardMap');
   if (bm) {
@@ -13871,9 +13930,18 @@ async function renderTopsBoard() {
   }
   ol.setAttribute('aria-busy', 'true');
   let rows = [];
+  if (cls === 'c' && sel.kind !== 'lap' && PHONE_NO_DISCS.includes(sel.id)) {
+    ol.replaceChildren();
+    ol.removeAttribute('aria-busy');
+    const li = padEl('li', 'tb-empty');
+    li.appendChild(padEl('b', '', 'телефон эту отметку не меряет'));
+    li.appendChild(padEl('span', '', 'GPS телефона ~1 раз в секунду — для 60 ft и 0–50 это 2–3 точки. Зачёт C: 0–100, 100–200, ⅛ и ¼ мили и круги.'));
+    ol.appendChild(li);
+    return;
+  }
   try {
     if (sel.kind === 'lap') {
-      const raw = ((await api.listLapBoard(sel.id, wx)) || []).filter(topsClassPass);
+      const raw = ((await api.listLapBoard(sel.id, wx, cls)) || []).filter(topsClassPass);
       const best = new Map();
       raw.forEach((r) => {
         const k = r.pilotId || ('n:' + (r.name || '') + ':' + (r.car || ''));
@@ -13884,11 +13952,14 @@ async function renderTopsBoard() {
       });
       rows = [...best.values()];
     } else {
-      rows = (await api.listDrag(sel.id, {})) || [];
+      rows = (await api.listDrag(sel.id, { cls })) || [];
     }
   } catch (_) { rows = []; }
-  if (seq !== _topsBoardSeq) return;
-  try { rows = filterTopRows(rows, { model }); } catch (_) {}
+  if (seq !== _topsBoardSeq || cls !== _topsCls) return;
+  // v118: доска C — только строки зачёта C; доска A/B — прежний фильтр (A/B, без телепортов)
+  if (cls === 'c') rows = rows.filter((r) => r && r.gps && r.valid !== false && r.gpsQ === 'C' && r.cls === 'c');
+  else try { rows = filterTopRows(rows, { model }); } catch (_) {}
+  if (cls === 'c' && model) rows = rows.filter((r) => String(r.car || '') === model);
   try { rows = rows.filter(topsClassPass); } catch (_) {}
   rows.sort((a, b) => (sel.kind === 'lap' ? (a._ms ?? lapMs(a.t)) - (b._ms ?? lapMs(b.t)) : Number(a.t) - Number(b.t)));
   ol.replaceChildren();
@@ -13897,7 +13968,9 @@ async function renderTopsBoard() {
     const li = padEl('li', 'tb-empty');
     const filtered = _topsPrep !== 'all' || document.getElementById('topMyCarOnly')?.checked;
     li.appendChild(padEl('b', '', filtered ? 'в этом срезе пока нет заездов' : 'пока нет валидных заездов'));
-    li.appendChild(padEl('span', '', sel.kind === 'lap' ? 'Проедь валидный круг с GPS A/B — и займи первую строку.' : 'Сделай замер с GPS A/B — лучший результат попадёт сюда.'));
+    li.appendChild(padEl('span', '', cls === 'c'
+      ? (sel.kind === 'lap' ? 'Проедь круг с телефоном по линии С/Ф — он попадёт в зачёт C.' : 'Сделай замер телефоном — лучший результат попадёт в зачёт C.')
+      : (sel.kind === 'lap' ? 'Проедь валидный круг с GPS A/B — и займи первую строку.' : 'Сделай замер с GPS A/B — лучший результат попадёт сюда.')));
     const go = padEl('button', 'home-link', sel.kind === 'lap' ? 'К кругу' : 'К замеру');
     go.type = 'button';
     go.addEventListener('click', () => goToView(sel.kind === 'lap' ? 'lap' : 'run'));
@@ -13921,7 +13994,7 @@ document.getElementById('topsChips')?.addEventListener('click', (e) => {
 document.getElementById('topsBoard')?.addEventListener('click', (e) => {
   const li = e.target?.closest?.('.tb-row[data-pilot]');
   if (li) {
-    _disputeCtx = { kind: 'top', board: (_topsSel.kind === 'lap' ? 'lap:' : 'drag:') + _topsSel.id, target: li.dataset.pilot, at: Number(li.dataset.at) || undefined };
+    _disputeCtx = { kind: 'top', board: (_topsSel.kind === 'lap' ? 'lap' : 'drag') + (_topsCls === 'c' ? 'c:' : ':') + _topsSel.id, target: li.dataset.pilot, at: Number(li.dataset.at) || undefined };
     void openPilotProfile(li.dataset.pilot);
   }
 });

@@ -161,7 +161,7 @@ export function createChaseTracker(samples, L, opts = {}) {
     if (state === 'idle' || state === 'far') {
       const sf = C.sfS || 0;
       const p = pointAt(sf);
-      return { state, x: p.x, z: p.z, h: tangentAt(sf), s: sf, kmh: state === 'far' && st.kmh >= C.STOP_KMH ? st.kmh : 0, acc: st.acc, d: st.d };
+      return { state, x: p.x, z: p.z, h: tangentAt(sf), s: sf, kmh: state === 'far' && age <= C.LOST_S && st.kmh >= C.STOP_KMH ? st.kmh : 0, acc: st.acc, d: st.d }; // v118: старая точка вне трассы — скорость 0, а не последняя
     }
     // extrapolate to «now» (between fixes), with the measured acceleration so braking does not overshoot;
     // horizon ≤ one fix interval + LEAD_S, so the car is never shown more than ~0.5 s ahead of the real spot
