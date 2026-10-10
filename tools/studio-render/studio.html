@@ -1,0 +1,129 @@
+<!doctype html><html><head><meta charset="utf-8">
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}</script>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style></head><body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { attachPitlanePlates } from './plates.js';
+const P = new URLSearchParams(location.search);
+const W = +P.get('w') || 3120, H = +P.get('h') || 1950;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(1); renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// ——— студийное окружение для отражений: софтбокс сверху, длинные стрипы по бокам, контровые панели ———
+function studioEnv() {
+  const s = new THREE.Scene();
+  s.background = new THREE.Color(0x050505);
+  const room = new THREE.Mesh(new THREE.SphereGeometry(30, 32, 16), new THREE.MeshBasicMaterial({ color: 0x0a0a0a, side: THREE.BackSide }));
+  s.add(room);
+  const panel = (w, h, pos, look, int, col = 0xffffff) => {
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color: new THREE.Color(col).multiplyScalar(int), side: THREE.DoubleSide }));
+    m.position.set(...pos); m.lookAt(...look); s.add(m);
+  };
+  panel(14, 5, [0, 9, 0], [0, 0, 0], 3.4);              // большой верхний софтбокс
+  panel(16, 0.7, [0, 4, 8], [0, 1, 0], 6.0);            // длинный стрип спереди-сверху → блик по капоту
+  panel(0.8, 4, [-9, 3, 2], [0, 1, 0], 4.5);            // боковые вертикальные стрипы
+  panel(0.8, 4, [9, 3, -2], [0, 1, 0], 3.2);
+  panel(10, 2.2, [-6, 2.5, -9], [0, 1, 0], 2.6);         // контровые панели
+  panel(10, 2.2, [7, 2.5, -9], [0, 1, 0], 2.0);
+  panel(30, 1.2, [0, 0.8, -14], [0, 1, 0], 0.5, 0xd8e6dc); // горизонт — даёт линию по борту
+  panel(12, 0.18, [-10, 0.9, -4], [0, 1, 0], 1.6, 0x39ff14); // тонкий неоновый стрип — только отблеск по кромке кузова
+  return s;
+}
+const pmrem = new THREE.PMREMGenerator(renderer);
+const envTex = pmrem.fromScene(studioEnv(), 0.035).texture;
+
+const scene = new THREE.Scene();
+scene.environment = envTex;
+// фон: графит со светлым «ореолом» за машиной, края уходят в цвет карточки (#101111)
+function bgTex() {
+  const c = document.createElement('canvas'); c.width = 1024; c.height = 640; const g = c.getContext('2d');
+  g.fillStyle = '#0e0f0f'; g.fillRect(0, 0, 1024, 640);
+  let r = g.createRadialGradient(560, 300, 20, 560, 300, 560); r.addColorStop(0, '#34383a'); r.addColorStop(.45, '#1c1e1f'); r.addColorStop(1, 'rgba(14,15,15,0)');
+  g.fillStyle = r; g.fillRect(0, 0, 1024, 640);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+scene.background = bgTex();
+
+// свет: ключ сверху-спереди с мягкой тенью, два контровых, лёгкий неоновый контур слева-сзади (дозированно)
+const key = new THREE.DirectionalLight(0xffffff, 2.8); key.position.set(3, 9, 6); key.castShadow = true;
+key.shadow.mapSize.set(4096, 4096); key.shadow.radius = 9; key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+Object.assign(key.shadow.camera, { left: -5, right: 5, top: 5, bottom: -5, near: 1, far: 30 }); scene.add(key);
+const rimL = new THREE.DirectionalLight(0xe9f1ff, 3.0); rimL.position.set(-7, 4, -8); scene.add(rimL);
+const rimR = new THREE.DirectionalLight(0xffffff, 2.2); rimR.position.set(8, 3.5, -6); scene.add(rimR);
+scene.add(new THREE.HemisphereLight(0xbfc8cc, 0x0a0a0a, 0.5));
+
+// пол: глянцевый графит (полупрозрачный — под ним зеркальная копия = мягкое отражение) + контактная тень
+const floorAlpha = (() => { const c = document.createElement('canvas'); c.width = c.height = 512; const g = c.getContext('2d'); const r = g.createRadialGradient(256, 256, 0, 256, 256, 256); r.addColorStop(0, '#f7f7f7'); r.addColorStop(.25, '#f0f0f0'); r.addColorStop(.5, '#555'); r.addColorStop(.8, '#000'); g.fillStyle = r; g.fillRect(0, 0, 512, 512); return new THREE.CanvasTexture(c); })();
+const floorMat = new THREE.MeshStandardMaterial({ color: 0x070808, roughness: 0.3, metalness: 0.0, transparent: true, opacity: 1, alphaMap: floorAlpha, envMapIntensity: 0.1, depthWrite: false });
+const floor = new THREE.Mesh(new THREE.CircleGeometry(16, 96), floorMat); floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(40, 40), new THREE.ShadowMaterial({ opacity: 0.72 }));
+shadowPlane.rotation.x = -Math.PI / 2; shadowPlane.position.y = 0.002; shadowPlane.receiveShadow = true; scene.add(shadowPlane);
+// мягкая «AO» под днищем — радиальное затемнение
+{ const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d'); const r = g.createRadialGradient(128, 128, 10, 128, 128, 128); r.addColorStop(0, 'rgba(0,0,0,.92)'); r.addColorStop(.55, 'rgba(0,0,0,.55)'); r.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = r; g.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c); const ao = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }));
+  ao.rotation.x = -Math.PI / 2; ao.position.y = 0.004; ao.name = 'ao'; scene.add(ao); }
+
+const camera = new THREE.PerspectiveCamera(24, W / H, 0.1, 200);
+const loader = new GLTFLoader();
+let cur = null;
+function prep(root) {
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    o.castShadow = true; o.receiveShadow = true;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    let glassish = false;
+    mats.forEach((mat) => {
+      if (!mat) return;
+      mat.side = THREE.DoubleSide;
+      const tr = Number(mat.transmission || 0); const op = mat.opacity == null ? 1 : Number(mat.opacity);
+      const isGlass = !!(mat.transparent || mat.alphaMap || tr > 0.01 || op < 0.999);
+      if (isGlass) { glassish = true; mat.transparent = true; if (tr > 0.01 || op < 0.95) mat.depthWrite = false; }
+      ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap'].forEach((k) => { const t = mat[k]; if (!t || !t.isTexture) return; t.anisotropy = maxAniso; if (k === 'map' || k === 'emissiveMap') t.colorSpace = THREE.SRGBColorSpace; });
+      if (mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial) {
+        if (isGlass) { mat.envMapIntensity = Math.max(1.05, mat.envMapIntensity || 0); }
+        else {
+          mat.envMapIntensity = 1.6;
+          if (mat.color && mat.roughness != null) { const lum = 0.2126 * mat.color.r + 0.7152 * mat.color.g + 0.0722 * mat.color.b; if (lum < 0.085) mat.roughness = Math.max(Number(mat.roughness), 0.2); }
+        }
+      }
+      mat.needsUpdate = true;
+    });
+    if (glassish) o.castShadow = false;
+  });
+}
+window.renderCar = async (id, opt = {}) => {
+  if (cur) { scene.remove(cur.root); scene.remove(cur.mirror); }
+  const gltf = await loader.loadAsync('./models/' + id + '.glb');
+  const root = gltf.scene; prep(root);
+  let box = new THREE.Box3().setFromObject(root); const size = new THREE.Vector3(); box.getSize(size);
+  root.scale.setScalar(4.8 / Math.max(size.x, size.y, size.z, 0.001)); root.updateMatrixWorld(true);
+  box = new THREE.Box3().setFromObject(root); box.getSize(size); const mid = box.getCenter(new THREE.Vector3());
+  root.position.x -= mid.x; root.position.z -= mid.z; root.position.y -= box.min.y;
+  const yaw = opt.yaw ?? Math.PI * 0.2; root.rotation.y = yaw;
+  const pivot = new THREE.Group(); pivot.add(root); scene.add(pivot);
+  try { attachPitlanePlates(root, id, renderer); } catch (e) { console.warn('plates', e); }
+  pivot.updateMatrixWorld(true);
+  // зеркальная копия под полом (мягкое отражение)
+  const mirror = pivot.clone(true); mirror.scale.y = -1; mirror.updateMatrixWorld(true); scene.add(mirror);
+  mirror.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  cur = { root: pivot, mirror };
+  const fb = new THREE.Box3().setFromObject(pivot); const fs = fb.getSize(new THREE.Vector3()); const fc = fb.getCenter(new THREE.Vector3());
+  const ao = scene.getObjectByName('ao'); ao.scale.set(fs.x * 1.25, fs.z * 1.25, 1); ao.position.x = fc.x; ao.position.z = fc.z;
+  // камера: 3/4 спереди, низко, длинный фокус — как в рекламе
+  const az = opt.az ?? 0.62, el = opt.el ?? 0.11;
+  const target = new THREE.Vector3(fc.x, fs.y * (opt.ty ?? 0.42), fc.z);
+  const radius = Math.max(fs.x, fs.z, fs.y * 1.6) * 0.5;
+  const dist = (radius / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * (opt.zoom ?? 1.02) / Math.min(1, camera.aspect * 0.72);
+  camera.position.set(target.x + Math.sin(az) * Math.cos(el) * dist, target.y + Math.sin(el) * dist + 0.25, target.z + Math.cos(az) * Math.cos(el) * dist);
+  camera.lookAt(target); camera.updateProjectionMatrix();
+  renderer.render(scene, camera); await new Promise((r) => requestAnimationFrame(r)); renderer.render(scene, camera);
+  return renderer.domElement.toDataURL('image/png');
+};
+window.__ready = true;
+</script></body></html>
