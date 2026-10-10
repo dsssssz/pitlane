@@ -226,16 +226,16 @@ export function mountLapSatMap(trackId, hostEl, opts) {
         Math.abs(latlngs[0][1] - latlngs[latlngs.length - 1][1]) < 1e-5);
     if (isClosed && o.quality === 'footprint') {
       state.outline = L.polygon(latlngs, {
-        color: '#39FF14',
+        color: '#9ECDB0',
         weight: 2.5,
         opacity: 0.95,
-        fillColor: '#39FF14',
+        fillColor: '#9ECDB0',
         fillOpacity: 0.08,
         lineJoin: 'round',
         interactive: false,
       }).addTo(map);
     } else {
-      // racing line / approx: thick asphalt-like stroke + neon core
+      // racing line / approx: thick asphalt-like stroke + muted core
       L.polyline(latlngs, {
         color: '#111',
         weight: 10,
@@ -245,7 +245,7 @@ export function mountLapSatMap(trackId, hostEl, opts) {
         interactive: false,
       }).addTo(map);
       state.outline = L.polyline(latlngs, {
-        color: '#39FF14',
+        color: '#9ECDB0',
         weight: 3.2,
         opacity: 1,
         lineJoin: 'round',

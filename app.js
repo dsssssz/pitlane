@@ -428,7 +428,7 @@ function drawTrack(id, elId, opts) {
     + '<line x1="-11" y1="-16" x2="-11" y2="16" stroke="#fff" stroke-width="2.2"/>'
     + '<rect x="-11" y="-16" width="9" height="9" fill="#111"/><rect x="-2" y="-16" width="9" height="9" fill="#eee"/>'
     + '<rect x="-11" y="-7" width="9" height="9" fill="#eee"/><rect x="-2" y="-7" width="9" height="9" fill="#111"/>'
-    + '<text x="16" y="4" fill="#39FF14" font-size="11" font-family="Manrope,sans-serif" font-weight="700">С/Ф</text>'
+    + '<text x="16" y="4" fill="#9ECDB0" font-size="11" font-family="Manrope,sans-serif" font-weight="700">С/Ф</text>'
     + '</g>';
   const car = live
     ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)">'
@@ -436,14 +436,14 @@ function drawTrack(id, elId, opts) {
       + '<polygon class="lap-car-chevron" points="0,-13 10,12 -10,12"/>'
       + '</g>'
     : '';
-  // Autodrome layers: runoff apron → asphalt ribbon → curb dashes → neon racing line
+  // Autodrome layers: runoff apron → asphalt ribbon → curb dashes → muted racing line (v133)
   const join = ' stroke-linejoin="round" stroke-linecap="round"';
   const layers =
     '<path class="track-apron" d="' + d + '" fill="none" stroke="#2c2c2c" stroke-width="28"' + join + '/>'
     + '<path class="track-asphalt" d="' + d + '" fill="none" stroke="#1a1a1a" stroke-width="16"' + join + '/>'
     + '<path class="track-curb" d="' + d + '" fill="none" stroke="rgba(240,240,240,.22)" stroke-width="16" stroke-dasharray="3 9"' + join + '/>'
-    + '<path class="track-edge" d="' + d + '" fill="none" stroke="rgba(57,255,20,.12)" stroke-width="10"' + join + '/>'
-    + '<path class="track-line" d="' + d + '" fill="none" stroke="#39FF14" stroke-width="3.2"' + join + '/>';
+    + '<path class="track-edge" d="' + d + '" fill="none" stroke="rgba(158,205,176,.10)" stroke-width="10"' + join + '/>'
+    + '<path class="track-line" d="' + d + '" fill="none" stroke="#9ECDB0" stroke-width="3.2"' + join + '/>';
   const svgInner = '<g class="track-scene">' + layers + sfMark + car + '</g>';
   const svg = '<svg viewBox="0 0 300 210" class="track-svg" ' + (live ? 'id="lapTrackSvg" ' : '')
     + 'preserveAspectRatio="xMidYMid meet">' + svgInner + '</svg>';
@@ -1877,10 +1877,10 @@ function build3dScene() {
   ringGlow = new THREE.Mesh(
     new THREE.RingGeometry(2.92, 3.48, 96),
     new THREE.MeshBasicMaterial({
-      color: 0x39FF14,
+      color: 0x9ECDB0, // v133
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.11,
+      opacity: 0.04, // v133: без ореола
       depthWrite: false,
     })
   );
@@ -1890,10 +1890,10 @@ function build3dScene() {
   ring = new THREE.Mesh(
     new THREE.RingGeometry(3.1, 3.28, 96),
     new THREE.MeshBasicMaterial({
-      color: 0x39FF14,
+      color: 0x9ECDB0, // v133
       side: THREE.DoubleSide,
       transparent: true,
-      opacity: 0.5,
+      opacity: 0.32,
       depthWrite: false,
     })
   );
@@ -1998,11 +1998,11 @@ function applyQualityTier(fromEnv = false) {
     renderer.shadowMap.needsUpdate = true;
   } catch (_) {}
   try { areaLights.forEach((l) => { l.visible = !!p.areaLights; }); } catch (_) {}
-  // no mirror on low → the neon ring loses its reflected green; render it un-tonemapped so it stays neon
+  // no mirror on low → render the muted accent ring un-tonemapped so it keeps its tone (v133: no neon)
   try {
     const flat = p.refl === 'off';
     if (ring.material.toneMapped === flat) { ring.material.toneMapped = !flat; ring.material.needsUpdate = true; }
-    ring.material.opacity = flat ? 0.55 : 0.5;
+    ring.material.opacity = flat ? 0.34 : 0.32; // v133: сдержанно, без неона
   } catch (_) {}
   if (podiumEnvReady) {
     try {
@@ -2027,7 +2027,7 @@ function applyQualityTier(fromEnv = false) {
 
 /* Soft contact-shadow disk under the car (cinema stand) */
 
-/* Subtle neon-green accent — soft core + faint halo (not loud) */
+/* v133: muted accent ring (no neon halo) */
  // module-time: shadows / area lights / ring for the initial tier (podium env not built yet)
 
 const moving = {};
@@ -2116,7 +2116,7 @@ function texRim() {
       ctx.lineTo(s / 2 + Math.cos(a) * s * 0.45, s / 2 + Math.sin(a) * s * 0.45);
       ctx.stroke();
     }
-    ctx.fillStyle = '#39FF14';
+    ctx.fillStyle = '#9ECDB0';
     ctx.beginPath();
     ctx.arc(s / 2, s / 2, s * 0.12, 0, Math.PI * 2);
     ctx.fill();
@@ -12154,7 +12154,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v132';
+const APP_VERSION = 'v133';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -14799,7 +14799,7 @@ function seasonShareText() {
   s.drag.slice(0, 10).forEach((x, i) => lines.push(`${i + 1}. ${x.team.name} — ${Number(x.t).toFixed(2)} с (${x.nick})`));
   return lines.join('\n');
 }
-/** PNG of the table (1080 wide) — same dark/neon language as the app. */
+/** PNG of the table (1080 wide) — graphite + muted accent (v133). */
 async function seasonImageBlob() {
   const s = _season;
   if (!s) return null;
@@ -14809,7 +14809,7 @@ async function seasonImageBlob() {
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
   g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, W, H);
-  const NEON = '#39FF14'; const TXT = '#f2f2f2'; const MUTE = '#8a8a8a';
+  const NEON = '#9ECDB0'; const TXT = '#f2f2f2'; const MUTE = '#8a8a8a';
   const font = (w, px) => `${w} ${px}px Manrope, system-ui, sans-serif`;
   g.fillStyle = MUTE; g.font = font(700, 30); g.fillText('P I T L A N E', 64, 90);
   g.fillStyle = TXT; g.font = font(700, 64); g.fillText('Сезон экипажей', 64, 180);

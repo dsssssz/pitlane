@@ -43,20 +43,16 @@
           <svg class="intro-mark-svg" viewBox="0 0 280 120" aria-hidden="true">
             <defs>
               <linearGradient id="introChevronGlow" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#39FF14" stop-opacity="0"/>
-                <stop offset="40%" stop-color="#39FF14" stop-opacity=".45"/>
-                <stop offset="100%" stop-color="#39FF14" stop-opacity="1"/>
+                <stop offset="0%" stop-color="#9ECDB0" stop-opacity="0"/>
+                <stop offset="40%" stop-color="#9ECDB0" stop-opacity=".45"/>
+                <stop offset="100%" stop-color="#9ECDB0" stop-opacity="1"/>
               </linearGradient>
-              <filter id="introNeon" x="-30%" y="-50%" width="160%" height="200%">
-                <feGaussianBlur stdDeviation="2.4" result="b"/>
-                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-              </filter>
             </defs>
-            <!-- double neon chevron / speed arrow -->
-            <g fill="none" stroke-linecap="round" stroke-linejoin="round" filter="url(#introNeon)">
-              <path d="M28 60 L118 18 L208 60 L118 102 Z" stroke="url(#introChevronGlow)" stroke-width="3.2" fill="rgba(57,255,20,.06)"/>
-              <path d="M78 60 L168 18 L258 60 L168 102 Z" stroke="#39FF14" stroke-width="3.6" fill="rgba(10,10,10,.55)"/>
-              <path d="M148 60 L198 36 L248 60 L198 84 Z" stroke="#39FF14" stroke-width="2" fill="rgba(57,255,20,.18)" opacity=".9"/>
+            <!-- double chevron / speed arrow (v133: без glow) -->
+            <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M28 60 L118 18 L208 60 L118 102 Z" stroke="url(#introChevronGlow)" stroke-width="3.2" fill="rgba(158,205,176,0.06)"/>
+              <path d="M78 60 L168 18 L258 60 L168 102 Z" stroke="#9ECDB0" stroke-width="3.6" fill="rgba(10,10,10,.55)"/>
+              <path d="M148 60 L198 36 L248 60 L198 84 Z" stroke="#9ECDB0" stroke-width="2" fill="rgba(158,205,176,0.18)" opacity=".9"/>
             </g>
           </svg>
         </div>
@@ -178,7 +174,7 @@
             <button type="button" class="hg-btn" id="homeGoBtn" data-hq="run" aria-label="Замер: 0–100, ¼ мили, круг">
               <span class="hg-dial" aria-hidden="true">
                 <svg class="hg-svg" viewBox="0 0 120 120" focusable="false">
-                  <defs><linearGradient id="hgArcGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#39FF14" stop-opacity=".15"/><stop offset=".7" stop-color="#39FF14" stop-opacity=".9"/><stop offset="1" stop-color="#C9FFB8"/></linearGradient></defs>
+                  <defs><linearGradient id="hgArcGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#9ECDB0" stop-opacity=".15"/><stop offset=".7" stop-color="#9ECDB0" stop-opacity=".9"/><stop offset="1" stop-color="#D8E6DD"/></linearGradient></defs>
                   <circle class="hg-track" cx="60" cy="60" r="50" pathLength="360" transform="rotate(135 60 60)"/>
                   <circle class="hg-arc" cx="60" cy="60" r="50" pathLength="360" transform="rotate(135 60 60)"/>
                   <g class="hg-ticks" id="homeGoTicks"></g>

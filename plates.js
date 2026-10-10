@@ -85,7 +85,7 @@ export function drawPlateCanvas(canvas) {
   const ctx = canvas.getContext('2d');
   const px = W / FACE_W; // pixels per metre
   const b = Math.round(FRAME_B * px);
-  const NEON = '#39FF14';
+  const NEON = '#9ECDB0'; // v133: приглушённый акцент
   // frame (black)
   ctx.fillStyle = '#0a0a0a';
   ctx.fillRect(0, 0, W, H);
@@ -131,13 +131,9 @@ export function drawPlateCanvas(canvas) {
     ctx.restore();
   };
   ctx.fillStyle = NEON;
-  // glow passes (same green), then a crisp top pass with no blur
-  ctx.shadowColor = 'rgba(57,255,20,0.85)';
-  ctx.shadowBlur = Math.round(ph * 0.16);
+  // v133: одна чистая отрисовка, без glow
+  ctx.shadowBlur = 0; // v133: без неонового свечения
   drawText();
-  ctx.shadowBlur = Math.round(ph * 0.06);
-  drawText();
-  ctx.shadowBlur = 0;
   ctx.shadowColor = 'transparent';
   drawText();
   // tiny frame text (bottom) in neon
@@ -158,7 +154,7 @@ function getShared(renderer) {
   tex.generateMipmaps = true;
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   tex.needsUpdate = true;
-  // Unlit face: plate stays true black and PITLANE reads as neon #39FF14 (no ACES wash, no env grey-out)
+  // Unlit face: plate stays true black and PITLANE reads in the muted accent (v133) (no ACES wash, no env grey-out)
   const faceMat = new THREE.MeshBasicMaterial({
     name: 'PITLANE_plate_face',
     map: tex,
