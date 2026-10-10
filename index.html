@@ -104,7 +104,7 @@
           </button>
           <button class="nav-btn nav-off" data-view="pulse" title="Paddock" hidden aria-hidden="true" tabindex="-1">
             <span class="nav-ico" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="ico ico-pad"><circle class="ico-ring" cx="12" cy="12" r="7"/><circle class="ico-core" cx="12" cy="12" r="2.4"/></svg>
+              <svg viewBox="0 0 24 24" class="ico ico-pad ico-chat"><path class="ico-bb" d="M15.5 7.5h3A2.5 2.5 0 0 1 21 10v4.5A2.5 2.5 0 0 1 18.5 17H18v2.4L15.4 17"/><path class="ico-bf" d="M5.5 4h8A2.5 2.5 0 0 1 16 6.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-3.4 2.8V14h-.1A2.5 2.5 0 0 1 3 11.5v-5A2.5 2.5 0 0 1 5.5 4z"/><circle class="ico-d ico-d1" cx="6.6" cy="9" r="1"/><circle class="ico-d ico-d2" cx="9.5" cy="9" r="1"/><circle class="ico-d ico-d3" cx="12.4" cy="9" r="1"/></svg>
             </span>
             <i data-i18n="nav.paddock">Paddock</i>
           </button>
@@ -118,7 +118,7 @@
           </button>
           <button type="button" class="nav-btn sheet-tab" data-sheet="pulse" title="Paddock" aria-haspopup="dialog" aria-controls="tgSheet">
             <span class="nav-ico" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="ico ico-pad"><circle class="ico-ring" cx="12" cy="12" r="7"/><circle class="ico-core" cx="12" cy="12" r="2.4"/></svg>
+              <svg viewBox="0 0 24 24" class="ico ico-pad ico-chat"><path class="ico-bb" d="M15.5 7.5h3A2.5 2.5 0 0 1 21 10v4.5A2.5 2.5 0 0 1 18.5 17H18v2.4L15.4 17"/><path class="ico-bf" d="M5.5 4h8A2.5 2.5 0 0 1 16 6.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-3.4 2.8V14h-.1A2.5 2.5 0 0 1 3 11.5v-5A2.5 2.5 0 0 1 5.5 4z"/><circle class="ico-d ico-d1" cx="6.6" cy="9" r="1"/><circle class="ico-d ico-d2" cx="9.5" cy="9" r="1"/><circle class="ico-d ico-d3" cx="12.4" cy="9" r="1"/></svg>
             </span>
             <i>Paddock</i>
             <span class="nav-badge" id="sbBadgePulse" hidden></span>
@@ -212,8 +212,8 @@
             </button>
             <button type="button" class="hw" id="hwRec" data-hw="records"><span class="hw-k">Мои рекорды</span><span class="hw-body" id="hwRecBody"></span></button>
             <button type="button" class="hw" id="hwDuels" data-hw="duels"><span class="hw-k">Дуэли</span><span class="hw-body" id="hwDuelsBody"></span></button>
-            <button type="button" class="hw" id="hwPad" data-hw="pulse"><span class="hw-k">Paddock</span><span class="hw-body" id="hwPadBody"></span></button>
-            <button type="button" class="hw" id="hwTeam" data-hw="team"><span class="hw-k">Команда</span><span class="hw-body" id="hwTeamBody"></span></button>
+            <button type="button" class="hw hw-wide hw-chat" id="hwPad" data-hw="pulse" aria-label="Paddock — чат пилотов"><span class="hw-k">Paddock <span class="hw-k-sub">· чат пилотов</span></span><span class="hw-body" id="hwPadBody"></span></button>
+            <button type="button" class="hw hw-wide hw-slim" id="hwTeam" data-hw="team"><span class="hw-k">Команда</span><span class="hw-body" id="hwTeamBody"></span></button>
             <button type="button" class="hw hw-wide hw-slim" id="hwTop" data-hw="tops"><span class="hw-k">Топ 0–100</span><span class="hw-body" id="hwTopBody"></span></button>
           </div>
           <div class="home-carousel v120-off" id="homeCarousel" hidden role="region" aria-roledescription="карусель" aria-label="Разделы Pitlane">
@@ -795,13 +795,14 @@
 
         <section id="view-pulse" class="view">
           <h2 data-i18n="pad.title">Paddock</h2>
-          <p class="muted">Короткие посты про сборки и заезды. Без чужих имён из воздуха — только кто вошёл.</p>
+          <p class="muted pad-lead">Чат пилотов: заезды, сборки, ответы. Пишут только вошедшие — без чужих имён из воздуха.</p>
+          <div class="pad-live" id="pulseLive" hidden></div>
           <article class="card pulse-compose">
-            <textarea id="pulseText" maxlength="280" rows="3" placeholder="What did you do to the car…" data-i18n-placeholder="pad.ph"></textarea>
+            <textarea id="pulseText" maxlength="280" rows="3" placeholder="Написать в Paddock…" data-i18n-placeholder="pad.ph"></textarea>
             <div class="pulse-compose-bar">
-              <label class="file-btn pill">фото<input id="pulseImg" type="file" accept="image/*" hidden></label>
+              <label class="file-btn pill" aria-label="Добавить фото">фото<input id="pulseImg" type="file" accept="image/*" hidden></label>
               <span id="pulseCount">0/280</span>
-              <button type="button" id="pulseSend" data-i18n="pad.send">Опубликовать</button>
+              <button type="button" id="pulseSend" data-i18n="pad.send" aria-label="Отправить в Paddock">Опубликовать</button>
             </div>
             <p class="tiny" id="pulseMsg"></p>
           </article>
@@ -1189,7 +1190,7 @@
         </nav>
         <ul class="plm-list">
           <li><button type="button" data-plm="team"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5M14.5 15c2.6-.4 4.9.8 5.5 4"/></svg><span>Команда<small>экипаж и общий зачёт</small></span></button></li>
-          <li><button type="button" data-plm="pulse"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.4"/></svg><span>Paddock<small>посты и заезды пилотов</small></span></button></li>
+          <li><button type="button" data-plm="pulse"><svg viewBox="0 0 24 24" aria-hidden="true" class="plm-chat"><path class="ico-bb" d="M15.5 7.5h3A2.5 2.5 0 0 1 21 10v4.5A2.5 2.5 0 0 1 18.5 17H18v2.4L15.4 17"/><path class="ico-bf" d="M5.5 4h8A2.5 2.5 0 0 1 16 6.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-3.4 2.8V14h-.1A2.5 2.5 0 0 1 3 11.5v-5A2.5 2.5 0 0 1 5.5 4z"/><circle class="ico-d ico-d1" cx="6.6" cy="9" r="1"/><circle class="ico-d ico-d2" cx="9.5" cy="9" r="1"/><circle class="ico-d ico-d3" cx="12.4" cy="9" r="1"/></svg><span>Paddock<small>чат пилотов</small></span></button></li>
           <li><button type="button" data-plm="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 20v-5h6v5"/></svg><span>Бокс · 3D<small>машина на подиуме</small></span></button></li>
           <li><button type="button" data-plm="autodromes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17c0-5 3-6 6-6s4-1 4-4 2-3 4-2M5 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/><path d="M15 17h4"/></svg><span>Автодромы и трассы<small>справочник, круг по GPS</small></span></button></li>
           <li><button type="button" data-plm="gps"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="7"/></svg><span>Источник GPS · чип<small>телефон, Bluetooth, Wi-Fi</small></span></button></li>

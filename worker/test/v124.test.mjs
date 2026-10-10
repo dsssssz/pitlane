@@ -28,7 +28,7 @@ ok(/tgsPark\(v, body\)/.test(app) && /function tgsRestore\(\)/.test(app), 'ра�
 ok(/if \(typeof TGS !== 'undefined' && TGS\.open\) closeTgSheet\(\{ instant: true \}\)/.test(app), 'переход на любой вид закрывает шторку');
 ok(!/vibrate|HapticFeedback\.(impact|notification)Occurred\(/.test(app.slice(app.indexOf('/* ——— v124: нижняя панель'), app.indexOf('/* v120: главная кнопка'))), 'без вибрации');
 console.log('[бейджи]');
-ok(/duelCategory\(d\) === 'inbox'\)\.length/.test(app) && /Number\(p\.at\) > seen/.test(app), 'реальные счётчики: входящие вызовы, новые посты с последнего просмотра');
+ok(/duelCategory\(d\) === 'inbox'\)\.length/.test(app) && (/Number\(p\.at\) > seen/.test(app) || /items\.filter\(\(it\) => it\.at > seen\)\.length/.test(app)), 'реальные счётчики: входящие вызовы, новые посты с последнего просмотра');
 ok(/b\.textContent = n > 9 \? '9\+' : String\(n \|\| ''\)/.test(app), 'бейдж через textContent');
 console.log('[версия]');
 ok(/const APP_VERSION = 'v1(2[4-9]|[3-9]\d)'/.test(app) && /pitlane-v1(2[4-9]|[3-9]\d)/.test(sw), 'APP_VERSION / SW ≥ v124');

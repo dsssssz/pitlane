@@ -28,7 +28,7 @@ for (const id of ['homeHero', 'homeQuick', 'homeDuelsSec', 'homeTrackSec', 'home
 ok(/e\.hidden = !on \|\| e\.classList\.contains\('v123-off'\)/.test(app), 'скрытые блоки не всплывают через showWhen');
 const blk = app.slice(app.indexOf('/* ——— v123: Главная из окошек'), app.indexOf('/* v120: главная кнопка'));
 ok(blk.length > 1000 && !/innerHTML/.test(blk), 'v123: только textContent/DOM, без innerHTML');
-ok(/hwEmpty\('Пока пусто'/.test(blk) && /hwEmpty\('Нет активных'/.test(blk) && /hwEmpty\('Сегодня тихо'/.test(blk) && /hwEmpty\('Нет команды'/.test(blk) && /hwEmpty\('Топ пока пуст'/.test(blk), 'честные пустые состояния, без фейковых цифр');
+ok(/hwEmpty\('Пока пусто'/.test(blk) && /hwEmpty\('Нет активных'/.test(blk) && /Тут пилоты обсуждают заезды/.test(blk) && /hwEmpty\('Нет команды'/.test(blk) && /hwEmpty\('Топ пока пуст'/.test(blk), 'честные пустые состояния, без фейковых цифр');
 console.log('[навигация]');
 // v124: решение v123 «без таббара» заменено панелью из трёх шторок — старые 4 вкладки на телефоне по-прежнему скрыты
 ok(/document\.documentElement\.classList\.add\('nav-widgets'\)/.test(app) && /html\.nav-widgets \.rail nav\.tabbar > \.nav-btn:not\(\.sheet-tab\) \{ display: none !important; \}/.test(css), 'на телефоне старые 4 вкладки скрыты (код и десктопный рейл остаются)');

@@ -294,6 +294,12 @@ export const api = {
     if (!apiBase()) return { ok: false, code: 'offline' };
     return remoteKeep('/tops/lap/' + encodeURIComponent(trackId), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
   },
+  /** v125: свежие посты без картинок (превью чата на Главной); локально — свои посты */
+  async listPulseRecent() {
+    const rows = await remote('/pulse?recent=1');
+    if (Array.isArray(rows)) return rows.slice(0, 12).map((p) => ({ ...p, img: null }));
+    return localListPulse().slice(0, 12);
+  },
   async listPulse() {
     const remoteRows = await remote('/pulse');
     if (Array.isArray(remoteRows)) return remoteRows;

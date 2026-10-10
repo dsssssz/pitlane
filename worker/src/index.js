@@ -3438,6 +3438,10 @@ export default {
             return json(publicPulseList(day, viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
           }
           rows.sort((a, b) => (b.at || 0) - (a.at || 0));
+          // v125: ?recent=1 → свежие 12 постов, лёгкий ответ без картинок — превью «чата» на Главной
+          if (url.searchParams.get('recent') === '1') {
+            return json(publicPulseList(rows.slice(0, 12), viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
+          }
           return json(publicPulseList(rows.slice(0, 200), viewer), 200, headers);
         }
         if (req.method === 'POST') {

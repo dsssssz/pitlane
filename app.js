@@ -8818,7 +8818,7 @@ const I18N = {
     'run.title':'Замер','run.hint':'Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
-    'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Что сделал с машиной…','pad.empty':'Пока тихо. Напиши первый пост после входа.',
+    'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Написать в Paddock…','pad.empty':'Пока тихо. Напиши первый пост после входа.',
     'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
@@ -8827,7 +8827,7 @@ const I18N = {
     'run.title':'Run','run.hint':'Tap start, almost stop, then accelerate. When speed drops the run is saved.','run.start':'Start',
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
     'lap.title':'Lap','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start lap','lap.finish':'Finish lap',
-    'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'What did you do to the car…','pad.empty':'Quiet for now. Sign in and write the first post.',
+    'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'Write to Paddock…','pad.empty':'Quiet for now. Sign in and write the first post.',
     'acc.title':'Account','acc.login':'Sign in','acc.hint':'Telegram sign-in is needed for leaderboards, duels, teams and posts. Runs, garage and history work without it, on this device.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
   },
   zh: {
@@ -8991,8 +8991,11 @@ function padActionBtn(kind, count, on) {
   b.type = 'button';
   b.appendChild(padIcon(kind === 'like' ? 'heart' : 'bubble', 'pad-ico'));
   b.appendChild(padEl('span', 'pad-cnt', padCount(count)));
+  if (kind === 'comment') { b.appendChild(padEl('span', 'pad-cnt-l', padComLabel(count))); b.classList.toggle('has', Number(count) > 0); }
   return b;
 }
+/** v125: «3 ответа» / «ответить» — счётчик комментариев читается как разговор */
+function padComLabel(n) { n = Number(n) || 0; return n ? padRu(n, 'ответ', 'ответа', 'ответов') : 'ответить'; }
 function padSyncActions(id) {
   const p = _padPosts.get(id);
   if (!p) return;
@@ -9008,6 +9011,8 @@ function padSyncActions(id) {
     const com = card.querySelector('.pad-comment');
     if (com) {
       com.querySelector('.pad-cnt').textContent = padCount(p.commentCount);
+      const l = com.querySelector('.pad-cnt-l'); if (l) l.textContent = padComLabel(p.commentCount);
+      com.classList.toggle('has', Number(p.commentCount) > 0);
       com.setAttribute('aria-label', 'Комментарии, ' + (p.commentCount || 0));
     }
   });
@@ -9052,6 +9057,7 @@ function buildPostCard(p, { compact = false } = {}) {
 async function renderPulse() {
   const feed = document.getElementById('pulseFeed');
   if (!feed) return;
+  void padChatData().then(renderPadLive).catch(() => {});
   const rows = await api.listPulse();
   feed.replaceChildren();
   if (!rows || !rows.length) {
@@ -9565,8 +9571,14 @@ document.getElementById('pulseSend')?.addEventListener('click', async () => {
   const inp = document.getElementById('pulseImg');
   if (inp) inp.value = '';
   if (msg) msg.textContent = '';
+  // v125: свой пост — не «новое»; превью чата и бейдж пересчитать
+  try { localStorage.setItem(PULSE_SEEN_KEY, String(Date.now())); } catch (_) {}
+  _padChatAt = 0; _hwPadAt = 0;
+  if (pulseText) pulseText.style.height = '';
   void renderPulse();
 });
+// v125: поле «Написать в Paddock…» в шторке растёт по тексту (до ~4 строк)
+pulseText?.addEventListener('input', () => { if (!pulseText.closest('.pc-foot')) { pulseText.style.height = ''; return; } pulseText.style.height = 'auto'; pulseText.style.height = Math.min(pulseText.scrollHeight, 112) + 'px'; });
 document.getElementById('pulseFeed')?.addEventListener('click', (e) => { void padOnCardClick(e); });
 
 try { hydratePassportGpsFromGarage(); } catch (_) {}
@@ -11795,7 +11807,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v124';
+const APP_VERSION = 'v125';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13670,15 +13682,85 @@ async function renderHwDuels() {
   hwSet('hwDuelsBody', nodes);
 }
 let _hwPadAt = 0;
+/* v125: Paddock как чат — общие данные для виджета, бейджа и «живой» строки в шторке (только реальные посты/комментарии) */
+let _padChat = null; let _padChatAt = 0; let _padChatP = null;
+function padRu(n, one, few, many) { n = Math.abs(n) % 100; const d = n % 10; if (n > 10 && n < 20) return many; if (d === 1) return one; if (d >= 2 && d <= 4) return few; return many; }
+async function padChatData(force = false) {
+  if (!force && _padChat && Date.now() - _padChatAt < 60000) return _padChat;
+  if (_padChatP) return _padChatP;
+  _padChatP = (async () => {
+    let rows = []; try { rows = await api.listPulseRecent(); } catch (_) { rows = []; }
+    rows = (Array.isArray(rows) ? rows : []).filter((p) => p && p.id && (p.text || p.hasImg)).sort((x, y) => (Number(y.at) || 0) - (Number(x.at) || 0));
+    const items = rows.map((p) => ({ kind: 'post', id: p.id, who: String(p.who || 'Пилот'), pilotId: p.pilotId || '', text: String(p.text || '').trim() || (p.hasImg ? 'фото' : ''), at: Number(p.at) || 0, cc: Number(p.commentCount) || 0 }));
+    // ответы: GET комментариев только у 2 самых свежих постов, где они есть (лимит запросов)
+    const withCom = rows.filter((p) => Number(p.commentCount) > 0).slice(0, 2);
+    for (const p of withCom) {
+      try { const r = await api.listComments(p.id); const list = Array.isArray(r?.comments) ? r.comments : [];
+        for (const c of list.slice(-6)) if (c && c.text) items.push({ kind: 'reply', id: p.id, who: String(c.who || 'Пилот'), pilotId: c.pilotId || '', text: String(c.text), at: Number(c.at) || 0 });
+      } catch (_) {}
+    }
+    items.sort((x, y) => y.at - x.at);
+    let seen = 0; try { seen = Number(localStorage.getItem(PULSE_SEEN_KEY) || 0); if (!seen) { seen = Date.now(); localStorage.setItem(PULSE_SEEN_KEY, String(seen)); } } catch (_) {}
+    const who = []; for (const it of items) { if (!who.some((w) => w.name === it.who)) who.push({ name: it.who, pilotId: it.pilotId }); }
+    const last = items[0]?.at || 0;
+    _padChat = { items, who, last, active: !!last && Date.now() - last < 3600e3, fresh: items.filter((it) => it.at > seen).length };
+    _padChatAt = Date.now();
+    return _padChat;
+  })();
+  try { return await _padChatP; } finally { _padChatP = null; }
+}
+function padStack(who, max = 4, size = 26) {
+  const st = padEl('span', 'pc-stack');
+  who.slice(0, max).forEach((w) => st.appendChild(padAvatar(w.name, '', size)));
+  if (who.length > max) st.appendChild(padEl('span', 'pad-ava pc-more', '+' + (who.length - max)));
+  return st;
+}
 async function renderHwPaddock() {
   if (Date.now() - _hwPadAt < 60000 && document.getElementById('hwPadBody')?.childElementCount) return;
   _hwPadAt = Date.now();
-  let rows = []; try { rows = isRemoteApi() ? await api.listPulseTopDay() : []; } catch (_) { rows = []; }
-  const p = Array.isArray(rows) ? rows.find((x) => x && (x.text || x.title)) : null;
-  if (!p) { hwSet('hwPadBody', hwEmpty('Сегодня тихо', 'Поделись заездом первым')); return; }
-  const who = padEl('span', 'hw-who', clipText(String(p.who || 'пилот'), 18));
-  const txt = padEl('span', 'hw-quote', String(p.text || p.title || '').replace(/\s+/g, ' ').slice(0, 90));
-  hwSet('hwPadBody', [who, txt]);
+  const d = await padChatData();
+  const w = document.getElementById('hwPad');
+  if (!d.items.length) {
+    w?.classList.add('is-empty');
+    const e = padEl('span', 'pc-empty');
+    const ic = padEl('span', 'pc-empty-ico'); ic.appendChild(padIcon('bubble', 'pad-ico'));
+    const t = padEl('span', 'pc-empty-t'); t.append(padEl('b', '', 'Тут пилоты обсуждают заезды'), padEl('small', '', 'Напиши первым — про сборку, трассу или время'));
+    e.append(ic, t, padEl('span', 'pc-write', 'Написать'));
+    hwSet('hwPadBody', [e]); return;
+  }
+  w?.classList.remove('is-empty');
+  const top = padEl('span', 'pc-top');
+  top.appendChild(padStack(d.who));
+  const st = padEl('span', 'pc-status' + (d.active ? ' on' : ''));
+  st.appendChild(padEl('i', 'pc-dot'));
+  st.appendChild(document.createTextNode(d.active ? 'активно · ' + padAgo(d.last) : padAgo(d.last)));
+  top.appendChild(st);
+  if (d.fresh > 0) top.appendChild(padEl('span', 'pc-new', (d.fresh > 9 ? '9+' : d.fresh) + ' ' + padRu(d.fresh, 'новое', 'новых', 'новых')));
+  const list = padEl('span', 'pc-list');
+  d.items.slice(0, 2).forEach((it, i) => {
+    const row = padEl('span', 'pc-msg' + (i ? ' pc-msg-2' : ''));
+    row.appendChild(padAvatar(it.who, '', 22));
+    const bub = padEl('span', 'pc-bub');
+    const h = padEl('span', 'pc-bh'); h.appendChild(padEl('b', '', clipText(it.who, 16)));
+    if (it.kind === 'reply') h.appendChild(padEl('em', '', 'ответ'));
+    h.appendChild(padEl('time', '', padAgo(it.at)));
+    bub.append(h, padEl('span', 'pc-bt', it.text.replace(/\s+/g, ' ').slice(0, 120)));
+    row.appendChild(bub); list.appendChild(row);
+  });
+  hwSet('hwPadBody', [top, list]);
+}
+function renderPadLive(d) {
+  const box = document.getElementById('pulseLive'); if (!box) return;
+  box.replaceChildren();
+  if (!d || !d.items.length) { box.hidden = true; return; }
+  box.hidden = false;
+  box.appendChild(padStack(d.who, 5, 24));
+  const t = padEl('span', 'pl-live-t');
+  const n = d.who.length;
+  t.appendChild(padEl('b', '', n + ' ' + padRu(n, 'пилот', 'пилота', 'пилотов') + ' в чате'));
+  const st = padEl('small', 'pc-status' + (d.active ? ' on' : '')); st.appendChild(padEl('i', 'pc-dot'));
+  st.appendChild(document.createTextNode(d.active ? 'активно · ' + padAgo(d.last) : 'последнее · ' + padAgo(d.last)));
+  t.appendChild(st); box.appendChild(t);
 }
 let _hwTeamAt = 0;
 async function renderHwTeam() {
@@ -13719,6 +13801,11 @@ document.getElementById('homeWidgets')?.addEventListener('click', (e) => {
   if (k === 'garage') { openCarInGarage(w.dataset.car || homeHeroCarId()); return; }
   if (k === 'records') { goToView(w.dataset.empty === '1' ? 'run' : 'tops'); return; }
   if (k === 'team') { openCrewSheet(); return; }
+  if (k === 'pulse' && document.getElementById('hwPad')?.classList.contains('is-empty')) {
+    if (sheetNavOn()) openTgSheet('pulse'); else goToView('pulse');
+    setTimeout(() => { try { document.getElementById('pulseText')?.focus({ preventScroll: true }); } catch (_) {} }, 480);
+    return;
+  }
   if ((k === 'duels' || k === 'pulse') && sheetNavOn()) { openTgSheet(k); return; }
   goToView(k);
 });
@@ -13783,7 +13870,9 @@ const TGS = { open: null, homes: new Map(), closing: 0 };
 const tgsReduce = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 function tgsPark(el, into) { if (!el) return; if (!TGS.homes.has(el)) TGS.homes.set(el, { parent: el.parentNode, next: el.nextSibling }); into.appendChild(el); }
 function tgsRestore() {
-  for (const [el, h] of TGS.homes) { try { el.classList.remove('in-sheet'); if (h.next && h.next.parentNode === h.parent) h.parent.insertBefore(el, h.next); else h.parent.appendChild(el); } catch (_) {} }
+  document.getElementById('tgSheetPanel')?.classList.remove('has-foot');
+  { const pt = document.getElementById('pulseText'); if (pt) pt.style.height = ''; }
+  for (const [el, h] of TGS.homes) { try { el.classList.remove('in-sheet', 'pc-foot'); if (h.next && h.next.parentNode === h.parent) h.parent.insertBefore(el, h.next); else h.parent.appendChild(el); } catch (_) {} }
   TGS.homes.clear();
   const tr = document.getElementById('tgTracks'); if (tr) { tr.hidden = true; (document.getElementById('app') || document.body).appendChild(tr); }
 }
@@ -13794,7 +13883,12 @@ function tgsFill(kind) {
     const v = document.getElementById('view-' + kind); if (!v) return;
     tgsPark(v, body); v.classList.add('in-sheet');
     if (kind === 'duels') void renderDuelsView();
-    else { void renderPulse(); try { localStorage.setItem(PULSE_SEEN_KEY, String(Date.now())); } catch (_) {} setBadge('sbBadgePulse', 0); }
+    else {
+      void renderPulse(); try { localStorage.setItem(PULSE_SEEN_KEY, String(Date.now())); } catch (_) {} setBadge('sbBadgePulse', 0);
+      const cmp = v.querySelector('.pulse-compose'); const panel = document.getElementById('tgSheetPanel');
+      if (cmp && panel) { tgsPark(cmp, panel); cmp.classList.add('pc-foot'); panel.classList.add('has-foot'); }
+      if (_padChat) { _padChat.fresh = 0; _hwPadAt = 0; }
+    }
   } else if (kind === 'tracks') {
     const tr = document.getElementById('tgTracks'); const slot = document.getElementById('tgTracksSlot');
     tgsPark(document.getElementById('autodromeListPane'), slot); tgsPark(document.getElementById('autodromeDetailPane'), slot);
@@ -13888,8 +13982,8 @@ async function refreshSheetBadges(force = false) {
   try {
     let seen = Number(localStorage.getItem(PULSE_SEEN_KEY) || 0);
     if (!seen) { seen = Date.now(); localStorage.setItem(PULSE_SEEN_KEY, String(seen)); } // первый запуск: «новое» — только то, что появится после
-    const rows = isRemoteApi() ? await api.listPulseTopDay() : [];
-    if (TGS.open !== 'pulse') setBadge('sbBadgePulse', (Array.isArray(rows) ? rows : []).filter((p) => p && Number(p.at) > seen).length);
+    const d = await padChatData();
+    if (TGS.open !== 'pulse') setBadge('sbBadgePulse', d.fresh);
   } catch (_) {}
 }
 setInterval(() => { if (!document.hidden) void refreshSheetBadges(); }, 60000);
