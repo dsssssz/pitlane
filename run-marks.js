@@ -191,7 +191,7 @@ export function drawSpeedChart(ctx, series, tags, opts) {
     ctx.fillStyle = '#0a0a0a'; ctx.strokeStyle = t.dist ? 'rgba(255,255,255,.7)' : acc; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     const text = String(t.text);
-    ctx.font = '600 10px "Barlow Condensed", Manrope, system-ui, sans-serif';
+    ctx.font = '600 10px "PL Num", Manrope, system-ui, sans-serif';
     const tw = ctx.measureText(text).width + 8;
     const lane = t.dist ? 'd' : 's';
     flip = x - (lastTagX[lane] ?? -1e9) < tw + 6 ? (flips[lane] ^= 1) : (flips[lane] = 0);

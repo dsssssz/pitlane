@@ -427,7 +427,7 @@ function drawTrack(id, elId, opts) {
     + '<line x1="-11" y1="-16" x2="-11" y2="16" stroke="#fff" stroke-width="2.2"/>'
     + '<rect x="-11" y="-16" width="9" height="9" fill="#111"/><rect x="-2" y="-16" width="9" height="9" fill="#eee"/>'
     + '<rect x="-11" y="-7" width="9" height="9" fill="#eee"/><rect x="-2" y="-7" width="9" height="9" fill="#111"/>'
-    + '<text x="16" y="4" fill="#39FF14" font-size="11" font-family="Barlow Condensed,sans-serif" font-weight="700">С/Ф</text>'
+    + '<text x="16" y="4" fill="#39FF14" font-size="11" font-family="Manrope,sans-serif" font-weight="700">С/Ф</text>'
     + '</g>';
   const car = live
     ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)">'
@@ -1056,7 +1056,7 @@ function applyCarUI() {
       const manual = getPassportManual(c.id);
       // v107: в шапке — только свой замер; паспортное «сток» не выдаём за время (оно в карточке машины)
       const show = manual.v0100 ?? m.v0100 ?? null;
-      setTxt('hdr0100', show != null ? fmt(show, 'с') : '—');
+      setTxt('hdr0100', show != null ? fmt(show, 'с') : '');
       if (hdrEl) hdrEl.title = show != null ? 'ваш замер (не GPS A/B)' : (stockV != null ? `замера ещё нет · сток по паспорту ${fmtPassShort(stockV)}` : 'замера ещё нет');
     }
   }
@@ -1064,7 +1064,9 @@ function applyCarUI() {
   const mine = bestLapDisplay(track.id);
   setTxt('sLap', mine || 'нет заезда');
   const hdrLap = document.getElementById('hdrLap');
-  if (hdrLap) hdrLap.textContent = mine || '—';
+  if (hdrLap) hdrLap.textContent = mine || '';
+  // v127: пустые показатели в шапке не показываем (без прочерков)
+  for (const id of ['hdr0100', 'hdrLap']) { const el = document.getElementById(id); if (el) el.parentElement.hidden = !el.textContent.trim() || el.textContent.trim() === '—'; }
   const trackRef = document.getElementById('trackRef');
   if (trackRef) trackRef.textContent = isCalibrated(track.id) ? 'калибрована' : 'не откалибрована · только личная история';
   const trackMine = document.getElementById('trackMine');
@@ -1384,13 +1386,13 @@ async function renderTops() {
   if (sEl) {
     // straight: weather optional — show all (still store when present)
     const rows = filterTopRows(straightRaw).slice().sort((a, b) => a.t - b.t);
-    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li${/^p_[0-9a-f-]{36}$/.test(String(r.pilotId || '')) ? ` class="tp-link" data-pilot="${esc(r.pilotId)}" role="button" tabindex="0"` : ''}><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${Number(r.t).toFixed(2)} с${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>пока нет валидных заездов</span><strong>—</strong></li>';
+    sEl.innerHTML = rows.length ? rows.map((r, i) => `<li${/^p_[0-9a-f-]{36}$/.test(String(r.pilotId || '')) ? ` class="tp-link" data-pilot="${esc(r.pilotId)}" role="button" tabindex="0"` : ''}><span>${i + 1}. ${esc(r.name)} · ${esc(r.car)}</span><strong class="tops-time">${Number(r.t).toFixed(2)} с${topsGpsBadge(r)}</strong></li>`).join('') : '<li><span>пока нет валидных заездов</span><strong></strong></li>';
   }
   const lEl = document.getElementById('topLap');
   if (lEl) {
     const rows = filterTopRows(lapRaw);
     if (!rows.length) {
-      lEl.innerHTML = '<li><span>пока нет валидных заездов</span><strong>—</strong></li>';
+      lEl.innerHTML = '<li><span>пока нет валидных заездов</span><strong></strong></li>';
     } else {
       lEl.classList.add('tops-pilot-list');
       lEl.innerHTML = rows.map((r, i) => topsPilotRowHtml({
@@ -3379,8 +3381,8 @@ function rejectText(res) {
 }
 /** Итог отправки в топ → строка для статуса. */
 function topVerdict(res) {
-  if (res && res.ok && res.cls === 'c') return 'в зачёте C ✓ (телефон, проверено сервером)';
-  if (Array.isArray(res) || (res && res.ok)) return 'в топе ✓ (проверено сервером)';
+  if (res && res.ok && res.cls === 'c') return 'в зачёте C · телефон, проверено сервером';
+  if (Array.isArray(res) || (res && res.ok)) return 'в топе · проверено сервером';
   return rejectText(res);
 }
 
@@ -3406,7 +3408,7 @@ function onGpsPoint(pos) {
   const accLabel = acc != null
     ? (`±${Math.round(acc)} м` + (fus.imuOn ? ' · fusion' : (fus.healthy ? ' · KF' : '')))
     : '—';
-  setRunText('gpsAcc', accLabel);
+  setRunText('gpsAcc', accLabel === '—' ? '' : accLabel);
   if (v == null) {
     setRunText('runStatus', 'GPS холодный / indoor? Выйдите на улицу и подождите фикс.');
     return;
@@ -3662,7 +3664,7 @@ async function wifiPair() {
     if (d && d.ok && (d.devices || []).length > n0) {
       clearInterval(_pairPoll);
       box?.classList.add('hidden');
-      extGpsMsg('Чип привязан ✓ Как только он выйдет в сеть, здесь появятся точки.');
+      extGpsMsg('Чип привязан. Как только он выйдет в сеть, здесь появятся точки.');
     }
   }, 5000);
 }
@@ -3816,11 +3818,11 @@ function rdDeltas() {
 function rdBadge(tp) {
   const b = document.getElementById('rdBadge');
   if (!b) return;
-  const topOk = /в топе ✓|в зачёте C ✓/.test(run.topMsg || '');
+  const topOk = /в топе · проверено|в зачёте C · телефон/.test(run.topMsg || '');
   let text; let q;
-  if (tp.src === 'phone') { text = 'телефон · зачёт C' + (topOk ? ' ✓' : ''); q = 'C'; }
+  if (tp.src === 'phone') { text = 'телефон · зачёт C'; q = 'C'; }
   else if (tp.src === 'sim') { text = 'симулятор · не в топ'; q = 'off'; }
-  else { text = `GPS ${tp.gpsQ}` + (topOk ? ' · в топе ✓' : tp.gpsQ === 'C' ? ' · не в топ' : ''); q = tp.gpsQ === 'C' ? 'off' : tp.gpsQ; }
+  else { text = `GPS ${tp.gpsQ}` + (topOk ? ' · в топе' : tp.gpsQ === 'C' ? ' · не в топ' : ''); q = tp.gpsQ === 'C' ? 'off' : tp.gpsQ; }
   b.textContent = text;
   b.dataset.q = q;
 }
@@ -5169,7 +5171,7 @@ async function completeLapRun(how, atTs, gsnap) {
     const n = lapSession.laps.length;
     const best = lapSession.bestMs != null ? fmtLapTime(lapSession.bestMs) : '—';
     setLapMsg(valid
-      ? `круг ${n} ${tStr} ✓ · лучший ${best} · следующий`
+      ? `круг ${n} · ${tStr} · лучший ${best} · следующий`
       : (how === 'manual'
         ? `ручной финиш ${tStr} — не в топ (нужен авто-финиш на линии С/Ф)`
         : `круг ${n} ${tStr} ∅ ${rec.why} · следующий`));
@@ -5405,7 +5407,7 @@ function renderLaps() {
         }
         return `<li><span>${tag}</span><strong class="tops-time">${formatMs(l.ms)}${badge}</strong><em class="tiny">${note}</em>${stockHtml}${secHtml}</li>`;
       }).join('')
-    : '<li><span>пока пусто</span><strong>—</strong></li>';
+    : '<li><span>пока пусто</span><strong></strong></li>';
   try { renderSectorBattlePanel(); } catch (_) {}
   try { renderCompare(); } catch (_) {}
 }
@@ -8938,19 +8940,29 @@ function padInitials(name) {
   const s = parts.length > 1 ? parts[0][0] + parts[1][0] : (parts[0] || 'P').slice(0, 2);
   return s.toUpperCase();
 }
+/** v127: миниатюра фото пилота с Worker (кэшируется браузером по ?v=версии); только pilot uuid */
+function padAvaUrl(pilotId, ava) {
+  if (!ava || !/^[a-z0-9]{2,16}$/.test(String(ava)) || !/^p_[0-9a-f-]{36}$/.test(String(pilotId || '')) || !apiBase()) return '';
+  return apiBase() + '/pilot/' + encodeURIComponent(pilotId) + '/avatar?v=' + ava;
+}
+function padAvaHue(name) { let h = 0; const t = String(name || ''); for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0; return h % 360; }
 function padAvatar(name, avatar, size = 40) {
   const el = padEl('span', 'pad-ava');
   el.style.width = el.style.height = size + 'px';
-  if (avatar && (PAD_IMG_RE.test(avatar) || PAD_AVA_RE.test(avatar))) {
+  el.style.setProperty('--ava-h', String(padAvaHue(name)));
+  const apiAva = avatar && apiBase() && String(avatar).startsWith(apiBase() + '/pilot/');
+  if (avatar && (PAD_IMG_RE.test(avatar) || PAD_AVA_RE.test(avatar) || apiAva)) {
+    el.classList.add('has-img');
     const img = document.createElement('img');
     img.alt = '';
     img.loading = 'lazy';
     img.referrerPolicy = 'no-referrer';
+    img.addEventListener('error', () => { el.classList.remove('has-img'); img.remove(); el.textContent = padInitials(name); el.style.fontSize = Math.round(size * 0.36) + 'px'; }, { once: true });
     img.src = avatar;
     el.appendChild(img);
   } else {
     el.textContent = padInitials(name);
-    el.style.fontSize = Math.round(size * 0.38) + 'px';
+    el.style.fontSize = Math.round(size * 0.36) + 'px';
   }
   return el;
 }
@@ -9023,7 +9035,7 @@ function buildPostCard(p, { compact = false } = {}) {
   card.dataset.post = p.id;
   const head = padEl('header', 'pad-head');
   const meta = [p.car, padAgo(p.at)].filter(Boolean).join(' · ');
-  head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, meta }));
+  head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, avatar: padAvaUrl(p.pilotId, p.ava), meta }));
   const myPid = accountPilotId();
   if (p.pilotId && myPid && p.pilotId === myPid) {
     const del = padEl('button', 'pad-act pad-del');
@@ -9157,7 +9169,7 @@ function renderComments(list) {
   for (const c of list) {
     const row = padEl('div', 'pad-com');
     row.dataset.cid = c.id;
-    row.appendChild(padAuthor({ name: c.who, pilotId: c.pilotId, meta: padAgo(c.at), size: 34 }));
+    row.appendChild(padAuthor({ name: c.who, pilotId: c.pilotId, avatar: padAvaUrl(c.pilotId, c.ava), meta: padAgo(c.at), size: 34 }));
     if (c.mine) {
       const del = padEl('button', 'pad-act pad-del');
       del.type = 'button';
@@ -11807,7 +11819,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v126';
+const APP_VERSION = 'v127';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13691,17 +13703,17 @@ async function padChatData(force = false) {
   _padChatP = (async () => {
     let rows = []; try { rows = await api.listPulseRecent(); } catch (_) { rows = []; }
     rows = (Array.isArray(rows) ? rows : []).filter((p) => p && p.id && (p.text || p.hasImg)).sort((x, y) => (Number(y.at) || 0) - (Number(x.at) || 0));
-    const items = rows.map((p) => ({ kind: 'post', id: p.id, who: String(p.who || 'Пилот'), pilotId: p.pilotId || '', text: String(p.text || '').trim() || (p.hasImg ? 'фото' : ''), at: Number(p.at) || 0, cc: Number(p.commentCount) || 0 }));
+    const items = rows.map((p) => ({ kind: 'post', id: p.id, who: String(p.who || 'Пилот'), pilotId: p.pilotId || '', ava: p.ava || '', text: String(p.text || '').trim() || (p.hasImg ? 'фото' : ''), at: Number(p.at) || 0, cc: Number(p.commentCount) || 0 }));
     // ответы: GET комментариев только у 2 самых свежих постов, где они есть (лимит запросов)
     const withCom = rows.filter((p) => Number(p.commentCount) > 0).slice(0, 2);
     for (const p of withCom) {
       try { const r = await api.listComments(p.id); const list = Array.isArray(r?.comments) ? r.comments : [];
-        for (const c of list.slice(-6)) if (c && c.text) items.push({ kind: 'reply', id: p.id, who: String(c.who || 'Пилот'), pilotId: c.pilotId || '', text: String(c.text), at: Number(c.at) || 0 });
+        for (const c of list.slice(-6)) if (c && c.text) items.push({ kind: 'reply', id: p.id, who: String(c.who || 'Пилот'), pilotId: c.pilotId || '', ava: c.ava || '', text: String(c.text), at: Number(c.at) || 0 });
       } catch (_) {}
     }
     items.sort((x, y) => y.at - x.at);
     let seen = 0; try { seen = Number(localStorage.getItem(PULSE_SEEN_KEY) || 0); if (!seen) { seen = Date.now(); localStorage.setItem(PULSE_SEEN_KEY, String(seen)); } } catch (_) {}
-    const who = []; for (const it of items) { if (!who.some((w) => w.name === it.who)) who.push({ name: it.who, pilotId: it.pilotId }); }
+    const who = []; for (const it of items) { if (!who.some((w) => w.name === it.who)) who.push({ name: it.who, pilotId: it.pilotId, ava: it.ava }); }
     const last = items[0]?.at || 0;
     _padChat = { items, who, last, active: !!last && Date.now() - last < 3600e3, fresh: items.filter((it) => it.at > seen).length };
     _padChatAt = Date.now();
@@ -13711,7 +13723,7 @@ async function padChatData(force = false) {
 }
 function padStack(who, max = 4, size = 26) {
   const st = padEl('span', 'pc-stack');
-  who.slice(0, max).forEach((w) => st.appendChild(padAvatar(w.name, '', size)));
+  who.slice(0, max).forEach((w) => st.appendChild(padAvatar(w.name, padAvaUrl(w.pilotId, w.ava), size)));
   if (who.length > max) st.appendChild(padEl('span', 'pad-ava pc-more', '+' + (who.length - max)));
   return st;
 }
@@ -13739,7 +13751,7 @@ async function renderHwPaddock() {
   const list = padEl('span', 'pc-list');
   d.items.slice(0, 2).forEach((it, i) => {
     const row = padEl('span', 'pc-msg' + (i ? ' pc-msg-2' : ''));
-    row.appendChild(padAvatar(it.who, '', 22));
+    row.appendChild(padAvatar(it.who, padAvaUrl(it.pilotId, it.ava), 22));
     const bub = padEl('span', 'pc-bub');
     const h = padEl('span', 'pc-bh'); h.appendChild(padEl('b', '', clipText(it.who, 16)));
     if (it.kind === 'reply') h.appendChild(padEl('em', '', 'ответ'));
@@ -14495,10 +14507,10 @@ function buildTopsRow(r, i, sel) {
   const nick = padEl('span', 'tb-nick', clipText(r.name || 'пилот', 12));
   if ((r.name || '').length > 12) nick.title = r.name;
   li.appendChild(nick);
-  const carEl = padEl('span', 'tb-car', shortCarName(r.car, r.carId) || '—');
+  const carEl = padEl('span', 'tb-car', shortCarName(r.car, r.carId) || '');
   // v113: бейдж класса (со слов пилота); старые заезды — «класс не указан»
   const PREP_SHORT = { stock: 'Сток', st1: 'St 1', st2: 'St 2+' };
-  const cb = padEl('i', 'tb-cls' + (PREP_SHORT[r.prep] ? ' p-' + r.prep : ' none'), PREP_SHORT[r.prep] ? PREP_SHORT[r.prep] + (r.tyreT === 'semi' ? ' · ПС' : '') : 'класс ?');
+  const cb = padEl('i', 'tb-cls' + (PREP_SHORT[r.prep] ? ' p-' + r.prep : ' none'), PREP_SHORT[r.prep] ? PREP_SHORT[r.prep] + (r.tyreT === 'semi' ? ' · ПС' : '') : '');
   cb.title = PREP_SHORT[r.prep] ? 'класс со слов пилота: ' + classLine(r) : 'класс не указан';
   carEl.appendChild(cb);
   li.appendChild(carEl);

@@ -637,6 +637,16 @@ async function enrichAvatars(kv, rows, max = 50) {
   return rows;
 }
 
+/** v127: короткая версия аватарки (для кэшируемого /pilot/:id/avatar?v=…), без самой картинки в ленте. */
+function avatarVer(av) { let h = 2166136261; const t = String(av || ''); for (let i = 0; i < t.length; i += 7) { h ^= t.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36) + t.length.toString(36); }
+async function attachAvaVer(kv, rows, max = 30) {
+  const ids = [];
+  for (const r of rows) { if (r && isPilotUuid(r.pilotId) && !ids.includes(r.pilotId)) ids.push(r.pilotId); if (ids.length >= max) break; }
+  const ver = new Map();
+  await Promise.all(ids.map(async (id) => { try { const m = await kvJson(kv, 'pilotmeta:' + id); const av = sanitizeAvatar(m?.avatar); if (av) ver.set(id, avatarVer(av)); } catch (_) {} }));
+  return rows.map((r) => (r && ver.has(r.pilotId) ? { ...r, _ava: ver.get(r.pilotId) } : r));
+}
+
 /** Finite number within [lo, hi] or null (drops NaN / Infinity / absurd values). */
 function boundedNum(v, lo, hi) {
   if (v == null || v === '') return null;
@@ -896,6 +906,7 @@ function publicPulse(p, viewer = '') {
     liked: !!(viewer && likes.includes(viewer)),
     commentCount: Math.max(0, Number(p.cc) || 0),
     pilotId: pubId(p.pilotId),
+    ...(typeof p._ava === 'string' ? { ava: p._ava } : {}),
   };
 }
 
@@ -919,6 +930,7 @@ function publicComment(c, viewer = '') {
     text: String(c.text || ''),
     at: Number(c.at) || null,
     mine: !!(viewer && c.pilotId === viewer),
+    ...(typeof c._ava === 'string' ? { ava: c._ava } : {}),
   };
 }
 
@@ -3435,14 +3447,15 @@ export default {
             const day = rows.filter((r) => r && Number(r.at) >= since)
               .sort((a, b) => ((b.likes || []).length - (a.likes || []).length) || ((b.at || 0) - (a.at || 0)))
               .slice(0, 10);
-            return json(publicPulseList(day, viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
+            const dayA = await attachAvaVer(env.PITLANE, day);
+            return json(publicPulseList(dayA, viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
           }
           rows.sort((a, b) => (b.at || 0) - (a.at || 0));
           // v125: ?recent=1 → свежие 12 постов, лёгкий ответ без картинок — превью «чата» на Главной
           if (url.searchParams.get('recent') === '1') {
-            return json(publicPulseList(rows.slice(0, 12), viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
+            return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 12)), viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
           }
-          return json(publicPulseList(rows.slice(0, 200), viewer), 200, headers);
+          return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30), viewer), 200, headers);
         }
         if (req.method === 'POST') {
           const denied = requireAuth(pilot, headers);
@@ -3493,7 +3506,7 @@ export default {
           const rows = await readList(env.PITLANE, 'pulse');
           if (!rows.some((x) => x && x.id === postId)) return json({ error: 'not found' }, 404, headers);
           const list = (await kvJson(env.PITLANE, ckey)) || [];
-          const out = (Array.isArray(list) ? list : []).map((c) => publicComment(c, viewer)).filter(Boolean);
+          const out = (await attachAvaVer(env.PITLANE, Array.isArray(list) ? list : [], 30)).map((c) => publicComment(c, viewer)).filter(Boolean);
           return json({ postId, count: out.length, comments: out }, 200, headers);
         }
         if (req.method === 'POST') {
@@ -3574,6 +3587,24 @@ export default {
         }
         rows.sort((a, b) => (b.at || 0) - (a.at || 0));
         return json(publicPulseList(rows.slice(0, 200), viewer), 200, headers);
+      }
+
+      // —— v127: миниатюра аватарки пилота (кэшируемая; только уже сохранённые thumbs ≤16 КБ или Telegram CDN) ——
+      m = path.match(/^\/pilot\/([^/]+)\/avatar$/);
+      if (req.method === 'GET' && m) {
+        const pid = safeDecode(m[1]);
+        if (!isPilotUuid(pid)) return json({ error: 'not found' }, 404, headers);
+        const meta = await kvJson(env.PITLANE, 'pilotmeta:' + pid);
+        const av = sanitizeAvatar(meta?.avatar);
+        if (!av) return json({ error: 'not found' }, 404, headers);
+        const cache = { 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'cross-origin' };
+        if (av.startsWith('data:')) {
+          const mm = av.match(/^data:(image\/(?:jpeg|jpg|png|webp));base64,(.+)$/i);
+          if (!mm) return json({ error: 'not found' }, 404, headers);
+          const bin = Uint8Array.from(atob(mm[2]), (ch) => ch.charCodeAt(0));
+          return new Response(bin, { status: 200, headers: { ...cache, 'Content-Type': mm[1].toLowerCase().replace('jpg', 'jpeg') } });
+        }
+        return new Response(null, { status: 302, headers: { ...cache, Location: av } });
       }
 
       // —— v83: public pilot profile (public fields only) ——
