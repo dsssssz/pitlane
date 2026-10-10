@@ -87,6 +87,16 @@ function classC(st, grade, src) {
   return { ...passport(st, 'C', src), cls: 'c', acq: grade };
 }
 
+/** v128: старт разгона и курс (первая → последняя точка; разгон — прямая) — только для погоды/ветра. */
+function dragGeo(dec) {
+  const a = dec.pts[0]; const z = dec.pts[dec.pts.length - 1];
+  if (!a || !z) return null;
+  const r = Math.PI / 180; const y = Math.sin((z.lon - a.lon) * r) * Math.cos(z.lat * r);
+  const x = Math.cos(a.lat * r) * Math.sin(z.lat * r) - Math.sin(a.lat * r) * Math.cos(z.lat * r) * Math.cos((z.lon - a.lon) * r);
+  const far = Math.abs(z.lat - a.lat) + Math.abs(z.lon - a.lon) > 2e-4; // ≳ 20 м — курс осмысленный
+  return { lat: a.lat, lon: a.lon, t0: dec.t0 + (a.t || 0), hdg: far ? Math.round(((Math.atan2(y, x) / r) + 360) % 360) : null };
+}
+
 /** Круг. → { ok:true, tMs, sectors, dist, hash, pass } | { ok:false, code } */
 export function verifyLap(body, trackId, now = Date.now()) {
   if (body?.how === 'manual') return { ok: false, code: 'manual_finish' };
@@ -107,7 +117,10 @@ export function verifyLap(body, trackId, now = Date.now()) {
     if (!(st.hz >= PHONE_RULE.minHz)) return { ok: false, code: 'low_hz' };
     pass = classC(st, grade, b.dec.src);
   }
-  return { ok: true, tMs: lap.ms, sectors: lap.sectors, dist: Math.round(lap.dist), hash: traceHash(b.dec.pts), pass };
+  // v128: только для запроса погоды (в строку не пишется): точка и время старта круга
+  const p0 = seg[0] || b.dec.pts[0];
+  const geo = { lat: p0.lat, lon: p0.lon, t0: b.dec.t0 + (Number(lap.startT) || p0.t || 0) };
+  return { ok: true, tMs: lap.ms, sectors: lap.sectors, dist: Math.round(lap.dist), hash: traceHash(b.dec.pts), pass, geo };
 }
 
 /**
@@ -127,11 +140,12 @@ export function verifyDrag(body, disc, bounds, now = Date.now(), { allowC = true
   const grade = gradeTrace(st);
   if (grade === 'C') return { ok: false, code: 'gps_c' };
   const hash = traceHash(b.dec.pts);
-  if (b.dec.src === 'ext' && st.hz >= DRAG_TOP_MIN_HZ - 0.5) return { ok: true, t, hash, pass: { ...passport(st, grade, b.dec.src), cls: 'ab' } };
+  const geo = dragGeo(b.dec);
+  if (b.dec.src === 'ext' && st.hz >= DRAG_TOP_MIN_HZ - 0.5) return { ok: true, t, hash, geo, pass: { ...passport(st, grade, b.dec.src), cls: 'ab' } };
   if (!allowC) return { ok: false, code: b.dec.src !== 'ext' ? 'phone_source' : 'low_hz' };
   if (PHONE_RULE.noDiscs.includes(disc)) return { ok: false, code: 'phone_disc' };
   if (!(st.hz >= PHONE_RULE.minHz)) return { ok: false, code: 'low_hz' };
-  return { ok: true, t, hash, pass: classC(st, grade, b.dec.src) };
+  return { ok: true, t, hash, geo, pass: classC(st, grade, b.dec.src) };
 }
 
 /** Круг внутри комнаты на некалиброванной трассе: автокруг (не ручной), без флагов, A/B по точкам. */

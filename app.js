@@ -1345,6 +1345,23 @@ function setTopsWeatherFilter(w, { user } = {}) {
   });
 }
 
+/* v128: время суток по солнцу (данные метеосервиса); без данных погоды строка в этот фильтр не попадает */
+let topsTodFilter = 'all'; // all | day | evening
+function filterRowsByTod(rows) {
+  if (topsTodFilter === 'all') return rows || [];
+  const ok = topsTodFilter === 'day' ? ['morning', 'day'] : ['evening', 'night'];
+  return (rows || []).filter((r) => r && r.wx && ok.includes(r.wx.tod));
+}
+document.getElementById('topTodChips')?.addEventListener('click', (e) => {
+  const btn = e.target?.closest?.('.wx-chip');
+  if (!btn?.dataset?.tod) return;
+  topsTodFilter = ['all', 'day', 'evening'].includes(btn.dataset.tod) ? btn.dataset.tod : 'all';
+  document.querySelectorAll('#topTodChips .wx-chip').forEach((b) => b.classList.toggle('on', b.dataset.tod === topsTodFilter));
+  void renderTops();
+  try { void renderTopsBoard(); } catch (_) {}
+  try { topsActiveLine(); } catch (_) {}
+});
+
 function filterRowsByWeather(rows, wx) {
   if (!wx || wx === 'all') return rows || [];
   return (rows || []).filter((r) => r && r.weather === wx);
@@ -4175,6 +4192,7 @@ async function publishGps(v0100, v100200, v200300) {
       _topSubmitP = pSub.catch(() => null);
       const res = await pSub;
       valid = Array.isArray(res) || !!(res && res.ok);
+      { const w = wxFromRes(res); if (w) { rec.wx = w; showRunWx(w); } else showRunWx(null); } // v128
       const msg = topVerdict(res);
       run.topMsg = msg;
       if (run.summary) wifiSummaryVerdict();
@@ -4196,6 +4214,7 @@ async function publishGps(v0100, v100200, v200300) {
       avgAcc: tp.avgAcc,
       hz: tp.hz,
       paint: getStoredPaintHex() || undefined,
+      wx: rec.wx || undefined,
     });
     wifiShare(payload);
   }
@@ -5118,6 +5137,7 @@ async function completeLapRun(how, atTs, gsnap) {
       _topSubmitP = pLap.catch(() => null);
       const lapRes = await pLap;
       try { setLapMsg(topVerdict(lapRes)); } catch (_) {}
+      try { const w = wxFromRes(lapRes); if (w) { rec.wx = w; save(); updateShareWx(w); } } catch (_) {} // v128
       try { void pushCrewBestAfterLap(trackId, {
         trace: lapTrace, how,
         t: typeof tStr !== 'undefined' ? tStr : undefined,
@@ -5590,7 +5610,90 @@ function b64urlDecode(s) {
   }
 }
 
-function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, avgAcc, hz, weather, paint, trackId, sectors, ms, src, n }) {
+/* ——— v128: погода метеосервиса на старт заезда (сервер, Open-Meteo); не датчик асфальта ——— */
+const WX_WET_RU = { dry: 'сухо', damp: 'сыро', wet: 'мокро' };
+const WX_TOD_RU = { morning: 'утро', day: 'день', evening: 'вечер', night: 'ночь' };
+const WX_NOTE = 'по данным метеосервиса, не датчик асфальта';
+/** Только числа и метки из белого списка (данные с сервера или из ссылки шейра). */
+function cleanWx(w) {
+  if (!w || typeof w !== 'object') return null;
+  const o = {};
+  const n = (k, lo, hi) => { const v = Number(w[k]); if (w[k] != null && w[k] !== '' && Number.isFinite(v) && v >= lo && v <= hi) o[k] = v; };
+  n('t', -60, 60); n('rh', 0, 100); n('p', 300, 1100); n('pr', 0, 200); n('ws', 0, 80); n('wd', 0, 360); n('hw', -80, 80);
+  if (WX_WET_RU[w.wet]) o.wet = w.wet;
+  if (WX_TOD_RU[w.tod]) o.tod = w.tod;
+  return (o.t != null || o.ws != null) ? o : null;
+}
+function wxCompass(deg) { return ['С', 'СВ', 'В', 'ЮВ', 'Ю', 'ЮЗ', 'З', 'СЗ'][Math.round(((deg % 360) + 360) % 360 / 45) % 8]; }
+function wxTemp(t) { const r = Math.round(t); return (r > 0 ? '+' : r < 0 ? '−' : '') + Math.abs(r) + ' °C'; }
+/** Ветер: для разгона — встречный/попутный по курсу (hw), иначе — откуда дует. */
+function wxWind(w) {
+  if (w.ws == null) return '';
+  const v = w.ws < 0.5 ? 'штиль' : `ветер ${w.ws.toFixed(w.ws < 10 ? 1 : 0).replace('.', ',')} м/с`;
+  if (w.ws < 0.5) return v;
+  if (w.hw != null) {
+    if (w.hw >= 1) return `${v}, встречный`;
+    if (w.hw <= -1) return `${v}, попутный`;
+    return `${v}, боковой`;
+  }
+  return w.wd != null ? `${v}, ${wxCompass(w.wd)}` : v;
+}
+/** Полная строка для карточки заезда. */
+function wxLine(w0) {
+  const w = cleanWx(w0); if (!w) return '';
+  const bits = [];
+  if (w.t != null) bits.push(wxTemp(w.t));
+  const wind = wxWind(w); if (wind) bits.push(wind);
+  if (w.rh != null) bits.push(`влажность ${Math.round(w.rh)} %`);
+  if (w.p != null) bits.push(`${Math.round(w.p)} гПа`);
+  if (w.wet) bits.push(w.pr > 0 ? `${WX_WET_RU[w.wet]}, осадки ${String(w.pr).replace('.', ',')} мм/ч` : WX_WET_RU[w.wet]);
+  if (w.tod) bits.push(WX_TOD_RU[w.tod]);
+  return bits.join(' · ');
+}
+/** Одна короткая строка для шейр-карточки. */
+function wxShareLine(w0) {
+  const w = cleanWx(w0); if (!w) return '';
+  const bits = [];
+  if (w.t != null) bits.push(wxTemp(w.t));
+  const wind = wxWind(w); if (wind) bits.push(wind);
+  if (w.wet) bits.push(WX_WET_RU[w.wet]);
+  if (w.tod) bits.push(WX_TOD_RU[w.tod]);
+  return bits.join(' · ');
+}
+/** Погода из ответа сервера: { wx } у C/дуэлей, у A/B-списка — своя свежая строка. */
+function wxFromRes(res) {
+  if (!res) return null;
+  if (res.wx) return cleanWx(res.wx);
+  const rows = Array.isArray(res) ? res : (Array.isArray(res.rows) ? res.rows : []);
+  const mine = rows.filter((r) => r && r.wx && isMyPilotId(r.pilotId)).sort((a, b) => (b.at || 0) - (a.at || 0))[0];
+  return mine && Date.now() - (mine.at || 0) < 10 * 60e3 ? cleanWx(mine.wx) : null;
+}
+/** Карточка результата разгона + открытая шейр-карточка этого заезда. */
+function showRunWx(w) {
+  const el = document.getElementById('rdWx');
+  const line = wxLine(w);
+  if (el) {
+    el.hidden = !line;
+    const t = el.querySelector('.rd-wx-v'); if (t) t.textContent = line;
+  }
+  updateShareWx(w);
+}
+function updateShareWx(w) {
+  const cw = cleanWx(w); if (!cw) return;
+  try { if (typeof ghostRace !== 'undefined' && ghostRace?.pendingShare && !ghostRace.pendingShare.wx) ghostRace.pendingShare.wx = cw; } catch (_) {}
+  const wxEl = document.getElementById('shareWeather');
+  const card = document.getElementById('shareCard');
+  if (!_shareOwn || !wxEl || !card || card.classList.contains('hidden')) return;
+  const line = wxShareLine(cw);
+  if (!line) return;
+  wxEl.textContent = line;
+  wxEl.title = WX_NOTE;
+  wxEl.classList.remove('hidden');
+  wxEl.classList.add('share-wx-line');
+  if (_sharePayload) _sharePayload.wx = cw;
+}
+
+function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, avgAcc, hz, weather, paint, trackId, sectors, ms, src, n, wx }) {
   const u = currentUser();
   const c = currentCar();
   const payload = {
@@ -5613,6 +5716,7 @@ function buildSharePayload({ type, time, trackName, valid, car, nick, at, gpsQ, 
   if (n != null && Number.isFinite(Number(n))) payload.n = Math.round(Number(n));
   if (payload.src === 'sim') payload.valid = false;
   if (weather === 'dry' || weather === 'damp' || weather === 'wet') payload.weather = weather;
+  { const w = cleanWx(wx); if (w) { payload.wx = w; if (w.wet) payload.weather = w.wet; } } // v128
   const paintHex = paint || getStoredPaintHex();
   if (paintHex) payload.paint = paintHex;
   if (trackId) payload.trackId = trackId;
@@ -5851,7 +5955,16 @@ function openShareCard(payload) {
   }
 
   const wxEl = document.getElementById('shareWeather');
-  if (wxEl) {
+  const wxL = wxShareLine(payload.wx); // v128: одна строка погоды метеосервиса
+  if (wxEl && wxL) {
+    wxEl.textContent = wxL;
+    wxEl.title = WX_NOTE;
+    wxEl.classList.remove('hidden');
+    wxEl.classList.add('share-wx-line');
+    wxEl.dataset.wx = payload.weather || '';
+  } else if (wxEl) {
+    wxEl.classList.remove('share-wx-line');
+    wxEl.removeAttribute('title');
     const wl = weatherLabelRu(payload.weather);
     if (wl) {
       wxEl.textContent = wl;
@@ -11687,6 +11800,7 @@ function topsActiveLine() {
   if (document.getElementById('topValidOnly') && !document.getElementById('topValidOnly').checked) bits.push('все GPS');
   const wx = document.querySelector('#topWeatherChips .wx-chip.on'); if (wx && wx.dataset.wx !== 'all') bits.push(wx.textContent.toLowerCase());
   const pr = document.querySelector('#topPrepChips .wx-chip.on'); if (pr && pr.dataset.prep !== 'all') bits.push(pr.textContent);
+  if (topsTodFilter !== 'all') bits.push(topsTodFilter === 'day' ? 'днём' : 'вечером');
   const el = document.getElementById('topsActive'); if (el) el.textContent = bits.join(' · ');
 }
 document.getElementById('btnTopsMenu')?.addEventListener('click', () => {
@@ -11819,7 +11933,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v127';
+const APP_VERSION = 'v128';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12163,7 +12277,10 @@ function publishDragMark(disc, sec) {
       name: String(pulseWho() || 'пилот').slice(0, 24),
       weather: lapDrive.weather || undefined,
       trace: packTrace(pts),
-    })).then((res) => { if (res && !res.ok && res.code && res.code !== 'phone_source' && res.code !== 'phone_disc') setRunText('runStatus', disc + ': ' + rejectText(res)); }).catch(() => {});
+    })).then((res) => {
+      if (res && !res.ok && res.code && res.code !== 'phone_source' && res.code !== 'phone_disc') setRunText('runStatus', disc + ': ' + rejectText(res));
+      else { const w = wxFromRes(res); if (w && !document.getElementById('rdWx')?.textContent.trim()) showRunWx(w); } // v128
+    }).catch(() => {});
   } catch (err) { console.warn('publishDragMark', err); }
 }
 
@@ -14645,6 +14762,7 @@ async function renderTopsBoard() {
   else try { rows = filterTopRows(rows, { model }); } catch (_) {}
   if (cls === 'c' && model) rows = rows.filter((r) => String(r.car || '') === model);
   try { rows = rows.filter(topsClassPass); } catch (_) {}
+  rows = filterRowsByTod(rows); // v128
   rows.sort((a, b) => (sel.kind === 'lap' ? (a._ms ?? lapMs(a.t)) - (b._ms ?? lapMs(b.t)) : Number(a.t) - Number(b.t)));
   ol.replaceChildren();
   ol.removeAttribute('aria-busy');

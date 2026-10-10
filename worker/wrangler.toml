@@ -25,6 +25,9 @@ TELEGRAM_BOT_USERNAME = "pitlane_official_bot"
 FEEDBACK_CHAT_ID = "8591275999"
 # optional comma-separated extra origins (local dev only — never localhost in prod)
 # EXTRA_ORIGINS = "http://127.0.0.1:5174"
+# v128: погода заезда (Open-Meteo, src/wx.js). "1" — сервер запрашивает погоду при сохранении заезда.
+# Бесплатный API Open-Meteo — только некоммерческий; при запуске платного Pro — OPEN_METEO_KEY (secret) или "0".
+WX_ENABLED = "1"
 
 # v116: live stream PITLANE GPS (Wi-Fi) → Mini App. One SQLite-backed Durable Object per pilot (works on the Free plan).
 [[durable_objects.bindings]]

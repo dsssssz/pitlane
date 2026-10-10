@@ -666,6 +666,12 @@
               <button type="button" class="wx-chip" data-wx="wet">Мокро</button>
             </div>
             <p class="tiny muted tops-weather-cap" id="topWeatherCaption">Показаны круги: сухо.</p>
+            <div class="tops-weather" id="topTodChips" role="group" aria-label="Время суток">
+              <span class="tops-weather-label">время суток · метеосервис</span>
+              <button type="button" class="wx-chip on" data-tod="all">Любое</button>
+              <button type="button" class="wx-chip" data-tod="day">День</button>
+              <button type="button" class="wx-chip" data-tod="evening">Вечер</button>
+            </div>
             <div class="tops-weather" id="topPrepChips" role="group" aria-label="Класс подготовки">
               <span class="tops-weather-label">класс · со слов пилота</span>
               <button type="button" class="wx-chip on" data-prep="all">Все</button>
@@ -971,6 +977,7 @@
           <p class="rd-delta" id="rdHeroD" hidden></p>
           <p class="rd-delta" id="rdHeroS" hidden></p>
         </div>
+        <p class="rd-wx" id="rdWx" hidden><span class="rd-wx-v"></span><small class="rd-wx-note">по данным метеосервиса, не датчик асфальта</small></p>
         <div class="rd-chart-slot" id="rdChartSlotF"></div>
         <div class="rd-stats">
           <div><i>дистанция</i><b id="rdStDist">—</b></div>

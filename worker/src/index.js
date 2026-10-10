@@ -1,3 +1,4 @@
+import { runWeather, publicWx } from './wx.js';
 import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner, trackTitle } from './botcopy.js';
 import { seasonRoute, seasonRecord0100 } from './season.js';
 import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, loadPrefs, savePrefs, markStarted, setChatStop, chatState, deleteNotifyKeys, NOTIFY_TYPES, NOTIFY_LABELS, NOTIFY_DAILY_MAX, NOTIFY_BOT_TEXT } from './notify.js';
@@ -519,7 +520,7 @@ function sanitizeWeather(v) {
 }
 
 const PUBLIC_ROW_FIELDS = [
-  'car', 't', 'gps', 'valid', 'gpsQ', 'src', 'n', 'avgAcc', 'hz', 'weather', 'track',
+  'car', 't', 'gps', 'valid', 'gpsQ', 'src', 'n', 'avgAcc', 'hz', 'weather', 'wx', 'track',
   'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost', 'tyre',
   'prep', 'tyreT', 'cls', 'asC',
 ];
@@ -532,12 +533,22 @@ function publicTopRow(r) {
     if (r[k] !== undefined && r[k] !== null) out[k] = r[k];
   }
   if (typeof out.car === 'string' && containsPhone(out.car)) out.car = '';
+  if (out.wx) { const w = publicWx(out.wx); if (w) out.wx = w; else delete out.wx; }
   out.pilotId = pubId(r.pilotId);
   return out;
 }
 
 function publicRows(rows) {
   return (rows || []).map(publicTopRow).filter(Boolean);
+}
+
+/** v128: погода метеосервиса на старт заезда → row.wx; бакет «сухо/сыро/мокро» берём с сервера. Ошибка → без строки. */
+async function applyWeather(env, row, geo) {
+  const w = await runWeather(env, geo);
+  if (!w) return row;
+  row.wx = w;
+  if (w.wet) row.weather = w.wet;
+  return row;
 }
 
 /** v104: 0–100 (тот же зачёт, что /tops/drag/0-100). → { row } | { code } */
@@ -594,7 +605,7 @@ function sanitizeDrag(body, pilot, disc, opts = {}) {
   };
   const wx = sanitizeWeather(body?.weather);
   if (wx) row.weather = wx;
-  return { row };
+  return { row, geo: v.geo || null };
 }
 
 /**
@@ -718,7 +729,7 @@ function sanitizeLap(body, pilot, trackId) {
   const v = verifyLap(body, trackId, Date.now());
   if (!v.ok) return { code: v.code };
   if (v.tMs < trackMinLapMs(trackId) || v.tMs > LAP_MAX_MS) return { code: 'speed_flag' };
-  return { row: lapRowFrom(body, pilot, trackId, v) };
+  return { row: lapRowFrom(body, pilot, trackId, v), geo: v.geo || null };
 }
 
 /** v104: круг для комнаты (внутри экипажа): калиброванная трасса — строгий зачёт; иначе — автокруг с
@@ -1055,6 +1066,7 @@ function sanitizeSharePayload(p) {
   const acc = boundedNum(p.avgAcc, 0, 1000); if (acc != null) out.avgAcc = acc;
   const hz = boundedNum(p.hz, 0, 100); if (hz != null) out.hz = hz;
   const wx = sanitizeWeather(p.weather); if (wx) out.weather = wx;
+  { const w = publicWx(p.wx); if (w) out.wx = w; } // v128: строка погоды метеосервиса
   if (typeof p.paint === 'string' && /^#[0-9a-f]{3,8}$/i.test(p.paint)) out.paint = p.paint;
   if (slugOk(p.trackId)) out.trackId = String(p.trackId);
   if (Array.isArray(p.sectors)) {
@@ -3270,11 +3282,12 @@ export default {
         row.pilotId = pilot.id;
         row.carId = row.carId || carId;
         Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
+        await applyWeather(env, row, res.geo); // v128
         if (row.cls === 'c') {
           // v118: зачёт C — только своя доска dragc:0-100 (не в A/B-список машины, не в сезон и не в сток)
           const stored = await upsertDrag(env.PITLANE, '0-100', { ...row, disc: '0-100' }, (b, a, k) => defer(dragOvertake(env, '0-100', k, b, a, pilot.id)));
           const crow = (await readList(env.PITLANE, boardKey('drag', '0-100', 'c'))).filter(isClassCRow).sort((a, b) => a.t - b.t);
-          return json({ ok: true, cls: 'c', stored, rows: publicRows(crow.slice(0, 50)) }, 200, headers);
+          return json({ ok: true, cls: 'c', stored, wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(crow.slice(0, 50)) }, 200, headers);
         }
         const key = `straight:${carId}`;
         const rows = await readList(env.PITLANE, key);
@@ -3326,6 +3339,7 @@ export default {
         row.tyre = myCar.tyre;
         if (myCar.carId) row.carId = myCar.carId;
         Object.assign(row, carClassStamp(myCar, row)); // v113: класс со слов пилота
+        await applyWeather(env, row, res.geo); // v128
 
         row.pilotId = pilot.id;
         const av = row.avatar || null;
@@ -3339,7 +3353,7 @@ export default {
           crows.push(row);
           await writeList(env.PITLANE, ckey, crows);
           await defer(lapOvertake(env, trackId, 'c', cbefore, crows, pilot.id)); // v121
-          return json({ ok: true, cls: 'c', rows: publicRows(crows.filter(isClassCRow)) }, 200, headers);
+          return json({ ok: true, cls: 'c', wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(crows.filter(isClassCRow)) }, 200, headers);
         }
         const key = `lap:${trackId}`;
         const rows = await readList(env.PITLANE, key);
@@ -3387,11 +3401,12 @@ export default {
           row.pilotId = pilot.id;
           { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
           Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
+          await applyWeather(env, row, res.geo); // v128
           const stored = await upsertDrag(env.PITLANE, disc, row, (b, a, k) => defer(dragOvertake(env, disc, k, b, a, pilot.id)));
           const c = row.cls === 'c';
           if (disc === '0-100' && !c) await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114 (сезон — только A/B)
           const rows = (await readList(env.PITLANE, boardKey('drag', disc, c ? 'c' : 'ab'))).filter(c ? isClassCRow : isValidGpsRow).sort((a, b) => a.t - b.t);
-          return json({ ok: true, cls: c ? 'c' : 'ab', stored, valid: row.valid, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
+          return json({ ok: true, cls: c ? 'c' : 'ab', stored, valid: row.valid, wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
         }
       }
 
