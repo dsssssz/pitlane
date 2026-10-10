@@ -14,8 +14,8 @@
  */
 import { esc, code, RULE, webAppBtn, trackTitle } from './botcopy.js';
 
-export const NOTIFY_TYPES = ['challenge', 'overtake', 'duel', 'ending', 'team'];
-export const NOTIFY_LABELS = { challenge: 'Тебя вызвали', overtake: 'Тебя обогнали в топе', duel: 'Ответ и итог дуэли', ending: 'Дуэль заканчивается', team: 'Рекорд команды' };
+export const NOTIFY_TYPES = ['challenge', 'overtake', 'duel', 'ending', 'team', 'follow'];
+export const NOTIFY_LABELS = { challenge: 'Тебя вызвали', overtake: 'Тебя обогнали в топе', duel: 'Ответ и итог дуэли', ending: 'Дуэль заканчивается', team: 'Рекорд команды', follow: 'Подписки: улучшения' };
 export const NOTIFY_DAILY_MAX = 5;
 export const COALESCE_MS = 15 * 60 * 1000;
 export const OVERTAKE_TOP = 10;
@@ -57,7 +57,7 @@ export function msgDigest(lines) {
 }
 export const NOTIFY_BOT_TEXT = {
   stopped: '<b>Уведомления выключены</b>\nБольше ничего не пришлю сам. Включить снова: /start_notify или в профиле PITLANE.',
-  started: '<b>Уведомления включены</b>\nПишу только по делу: вызов, обгон в топе, ответ на дуэль, конец дуэли. Не больше ' + NOTIFY_DAILY_MAX + ' в сутки. Выключить: /stop_notify.',
+  started: '<b>Уведомления включены</b>\nПишу только по делу: вызов, обгон в топе, ответ на дуэль, конец дуэли, улучшения тех, на кого подписан. Не больше ' + NOTIFY_DAILY_MAX + ' в сутки. Выключить: /stop_notify.',
 };
 
 /* ——— KV ——— */

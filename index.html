@@ -910,6 +910,12 @@
             <p class="tiny muted">Только твои события, не больше 5 в сутки; несколько сразу — одной сводкой. В боте: /stop_notify.</p>
             <p class="tiny" id="accNotifyMsg" role="status"></p>
           </article>
+          <article class="card follow-card" id="accFollows" hidden>
+            <h3>Подписки</h3>
+            <p class="muted tiny">Бот напишет, когда пилот или команда улучшат зачтённый круг или разгон. Те же правила: не больше 5 в сутки, сводкой.</p>
+            <ul class="follow-list" id="accFollowList"></ul>
+            <p class="tiny muted" id="accFollowNote"></p>
+          </article>
           <p class="tiny" id="accTrialLeft"></p>
           <article class="card" id="imuCard">
             <h3>Датчики движения</h3>
@@ -1283,6 +1289,7 @@
         <div id="crewViewPane" class="race-sheet-body" hidden>
           <p class="crew-status" id="crewStatusLine">—</p>
           <p class="crew-meta" id="crewMetaLine">—</p>
+          <div class="crew-follow-row" id="crewFollowRow"></div>
           <div class="crew-badge-row" id="crewBadgeRow"></div>
           <ol class="crew-board race-list" id="crewBoardList"></ol>
           <div class="crew-actions">

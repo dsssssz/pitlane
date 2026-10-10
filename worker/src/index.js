@@ -1,4 +1,5 @@
 import { runWeather, publicWx } from './wx.js';
+import { listFollows, setFollow, followImproveNotify, deleteFollowKeys, FOLLOW_MAX } from './follow.js';
 import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner, trackTitle } from './botcopy.js';
 import { seasonRoute, seasonRecord0100 } from './season.js';
 import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, loadPrefs, savePrefs, markStarted, setChatStop, chatState, deleteNotifyKeys, NOTIFY_TYPES, NOTIFY_LABELS, NOTIFY_DAILY_MAX, NOTIFY_BOT_TEXT } from './notify.js';
@@ -2291,6 +2292,7 @@ async function deleteAccount(kv, pid, currentToken) {
   // v121: настройки/счётчики/копилка уведомлений и отметка «писал боту»
   try {
     await deleteNotifyKeys(kv, pid, NOTIFY_H);
+    await deleteFollowKeys(kv, pid, NOTIFY_H); // v131
     for (const p of rec?.providers || []) if (p.type === 'tg' && /^\d{1,20}$/.test(String(p.id))) await kv.delete('tgstart:' + p.id);
   } catch (_) {}
 
@@ -2744,7 +2746,11 @@ function dragOvertake(env, disc, cls, before, after, submitterId) {
   return overtakeNotify(env, NOTIFY_H, {
     boardKey: 'drag' + (cls === 'c' ? 'c' : '') + ':' + disc, boardTitle: 'Топ ' + (DISC_TITLE[disc] || disc) + ' · ' + clsTitle(cls),
     before: before.filter(ok), after: after.filter(ok), submitterId, timeOf: (r) => Number(r.t), fmt: (t) => t.toFixed(2) + ' с',
-  });
+  }).then(async (n) => n + await followImproveNotify(env, NOTIFY_H, { // v131: подписчикам — зачтённое улучшение
+    board: { kind: 'drag', ref: disc, cls: cls === 'c' ? 'c' : 'ab' }, title: DISC_TITLE[disc] || disc,
+    before: before.filter(ok), after: after.filter(ok), submitterId, timeOf: (r) => Number(r.t),
+    fmt: (t) => t.toFixed(2) + ' с', fmtDelta: (d) => d.toFixed(2),
+  }).catch(() => 0));
 }
 function lapOvertake(env, trackId, cls, before, after, submitterId) {
   const ok = cls === 'c' ? isClassCRow : isValidGpsRow;
@@ -2753,7 +2759,11 @@ function lapOvertake(env, trackId, cls, before, after, submitterId) {
   return overtakeNotify(env, NOTIFY_H, {
     boardKey: 'lap' + (cls === 'c' ? 'c' : '') + ':' + trackId, boardTitle: 'Круг · ' + trackTitle(trackId) + ' · ' + clsTitle(cls),
     before: before.filter(ok), after: after.filter(ok), submitterId, timeOf: tm, fmt,
-  });
+  }).then(async (n) => n + await followImproveNotify(env, NOTIFY_H, { // v131
+    board: { kind: 'lap', ref: trackId, cls: cls === 'c' ? 'c' : 'ab' },
+    before: before.filter(ok), after: after.filter(ok), submitterId, timeOf: tm,
+    fmt: (ms) => { const m = Math.floor(ms / 60000); return m + ':' + ((ms - m * 60000) / 1000).toFixed(1).padStart(4, '0'); }, fmtDelta: (d) => (d / 1000).toFixed(1),
+  }).catch(() => 0));
 }
 function honestRoomLap(l) { return !!l && l.valid && (l.gpsQ === 'A' || l.gpsQ === 'B') && Number(l.ms) > 0; }
 /** New room best on a track → tell the other members (inside the room, so private laps are fine here). */
@@ -3677,6 +3687,47 @@ export default {
           return new Response(bin, { status: 200, headers: { ...cache, 'Content-Type': mm[1].toLowerCase().replace('jpg', 'jpeg') } });
         }
         return new Response(null, { status: 302, headers: { ...cache, Location: av } });
+      }
+
+      // —— v131: подписки на пилота / команду ——
+      if (path === '/me/follows' && req.method === 'GET') {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const items = await listFollows(env.PITLANE, pilot.id, NOTIFY_H);
+        const out = [];
+        for (const x of items) {
+          let name = x.name;
+          if (x.kind === 'pilot') { const mt = await kvJson(env.PITLANE, 'pilotmeta:' + x.id); const rec = mt ? null : await loadPilot(env.PITLANE, x.id); if (!mt && !rec) continue; name = safeName(mt?.nick || rec?.nick || name, 'Пилот'); }
+          else { const c = await kvJson(env.PITLANE, 'crew:' + x.id); if (!c) continue; name = safeName(c.name, 'Команда'); }
+          out.push({ kind: x.kind, id: x.kind === 'pilot' ? pubId(x.id) : x.id, name, at: x.at || null });
+        }
+        return json({ ok: true, items: out, max: FOLLOW_MAX }, 200, headers);
+      }
+      if (path === '/follow' && req.method === 'POST') {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const lim = await limitOr429(env, headers, [['rl:follow:p:' + pilot.id, 60, 3600]]);
+        if (lim) return lim;
+        const body = await readJson(req, 2048);
+        const kind = body?.kind === 'team' ? 'team' : body?.kind === 'pilot' ? 'pilot' : null;
+        const id = String(body?.id || '').slice(0, 64);
+        if (!kind || !id) return json({ error: 'bad request', code: 'bad_target' }, 400, headers);
+        let name = '';
+        if (kind === 'pilot') {
+          if (!isPilotUuid(id)) return json({ error: 'not found', code: 'not_found' }, 404, headers);
+          if (id === pilot.id) return json({ error: 'self', code: 'self' }, 400, headers);
+          const mt = await kvJson(env.PITLANE, 'pilotmeta:' + id); const rec = mt ? null : await loadPilot(env.PITLANE, id);
+          if (!mt && !rec) return json({ error: 'not found', code: 'not_found' }, 404, headers);
+          name = safeName(mt?.nick || rec?.nick, 'Пилот');
+        } else {
+          if (!/^[\w-]{3,64}$/.test(id)) return json({ error: 'not found', code: 'not_found' }, 404, headers);
+          const c = await kvJson(env.PITLANE, 'crew:' + id);
+          if (!c) return json({ error: 'not found', code: 'not_found' }, 404, headers);
+          name = safeName(c.name, 'Команда');
+        }
+        const r = await setFollow(env.PITLANE, pilot.id, { kind, id, name, on: body?.on !== false }, NOTIFY_H);
+        if (r.code) return json({ error: r.code, code: r.code, max: FOLLOW_MAX }, 409, headers);
+        return json({ ok: true, following: body?.on !== false, count: r.items.length, max: FOLLOW_MAX }, 200, headers);
       }
 
       // —— v83: public pilot profile (public fields only) ——

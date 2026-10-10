@@ -1627,7 +1627,7 @@ function goToView(id, opts = {}) {
 
   // v83: Paddock feed renders on every entry (also ?view=pulse deep links, which used to show an empty feed)
   if (id === 'pulse') setTimeout(() => { try { void renderPulse(); } catch (_) {} }, 0);
-  if (id === 'account') setTimeout(() => { try { void renderNotifyCard(); } catch (_) {} }, 0); // v121
+  if (id === 'account') setTimeout(() => { try { void renderNotifyCard(); } catch (_) {} try { void renderFollowsCard(); } catch (_) {} }, 0); // v121, v131
   if (already) {
     try { onResize(); } catch (_) {}
     return;
@@ -9562,6 +9562,7 @@ async function openPilotProfile(pid) {
   }
   renderPilotProfile(res);
   try { appendChallengeButton(body, pid, res); } catch (_) {}
+  try { appendFollowButton(body, pid, res); } catch (_) {} // v131
   try { appendDisputeButton(body, pid); } catch (_) {}
   if (body) body.scrollTop = 0;
 }
@@ -9579,6 +9580,68 @@ function appendChallengeButton(body, pid, res) {
     openDuelSheet({ createOnly: true, to: { id: pid, name } });
   });
   body.appendChild(btn);
+}
+
+/* v131: «Следить» за пилотом / командой — бот пишет об их зачтённых улучшениях (правила уведомлений v121) */
+let _follows = null; let _followsAt = 0;
+async function loadFollows(force) {
+  if (!currentUser() || !isRemoteApi()) return null;
+  if (!force && _follows && Date.now() - _followsAt < 60e3) return _follows;
+  const r = await api.getFollows().catch(() => null);
+  if (r) { _follows = r; _followsAt = Date.now(); }
+  return _follows;
+}
+function isFollowing(kind, id) { return !!_follows?.items?.some((x) => x.kind === kind && x.id === id); }
+function followButton(kind, id, name) {
+  const btn = padEl('button', 'follow-btn', 'Следить');
+  btn.type = 'button';
+  const paint = () => { const on = isFollowing(kind, id); btn.classList.toggle('on', on); btn.textContent = on ? 'Ты следишь' : 'Следить'; btn.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+  paint();
+  void loadFollows().then(paint);
+  btn.addEventListener('click', async () => {
+    if (!currentUser()) { plFlash('Сначала войди через Telegram'); goToView('account'); return; }
+    const on = !isFollowing(kind, id);
+    btn.disabled = true;
+    const r = await api.setFollow(kind, id, on).catch(() => null);
+    btn.disabled = false;
+    if (r && r.ok) {
+      _follows = _follows || { items: [] };
+      if (on) _follows.items.push({ kind, id, name }); else _follows.items = _follows.items.filter((x) => !(x.kind === kind && x.id === id));
+      paint();
+      plFlash(on ? `Следишь: ${name}. Улучшения придут в бот` : 'Больше не следишь');
+    } else plFlash(r?.code === 'follow_limit' ? `Лимит подписок — ${r.max || 30}` : r?.code === 'self' ? 'Это ты' : 'Не получилось — проверь сеть');
+  });
+  return btn;
+}
+function appendFollowButton(body, pid, res) {
+  if (!body || !pid || isMyPilotId(pid) || !/^p_[0-9a-f-]{36}$/.test(String(pid))) return;
+  const name = String(res?.nick || res?.pilot?.nick || res?.name || 'пилот').slice(0, 40);
+  body.appendChild(followButton('pilot', pid, name));
+}
+async function renderFollowsCard() {
+  const card = document.getElementById('accFollows'); if (!card) return;
+  if (!currentUser() || !isRemoteApi()) { card.hidden = true; return; }
+  const r = await loadFollows(true);
+  if (!r) { card.hidden = true; return; }
+  card.hidden = false;
+  const list = document.getElementById('accFollowList'); list.replaceChildren();
+  for (const x of r.items || []) {
+    const li = padEl('li', 'follow-item');
+    li.appendChild(padAvatar(x.name, '', 34));
+    const t = padEl('div', 'follow-t'); t.append(padEl('b', '', x.name), padEl('span', '', x.kind === 'team' ? 'команда' : 'пилот'));
+    const off = padEl('button', 'follow-off', 'Не следить'); off.type = 'button';
+    off.addEventListener('click', async () => { off.disabled = true; const q = await api.setFollow(x.kind, x.id, false).catch(() => null); if (q && q.ok) { _follows.items = _follows.items.filter((y) => !(y.kind === x.kind && y.id === x.id)); li.remove(); renderFollowNote(); } else off.disabled = false; });
+    li.append(t, off);
+    if (x.kind === 'pilot') { t.classList.add('tp-link'); t.dataset.pilot = x.id; t.setAttribute('role', 'button'); t.tabIndex = 0; }
+    list.appendChild(li);
+  }
+  renderFollowNote();
+}
+document.getElementById('accFollowList')?.addEventListener('click', (e) => { const p = e.target.closest('[data-pilot]'); if (p) void openPilotProfile(p.dataset.pilot); });
+function renderFollowNote() {
+  const n = _follows?.items?.length || 0;
+  const el = document.getElementById('accFollowNote');
+  if (el) el.textContent = n ? `${n} из ${_follows.max || 30}` : 'Пока ни на кого. В профиле пилота или команды — «Следить».';
 }
 /* v121: профиль → «Уведомления в Telegram» (типы по отдельности; без входа карточки нет) */
 let _notifySeq = 0;
@@ -11267,7 +11330,8 @@ async function showCrewView(id) {
   const st = document.getElementById('crewStatusLine');
   if (st) st.textContent = crew.name;
   const meta = document.getElementById('crewMetaLine');
-  if (meta) meta.textContent = trackName + ' · ' + (crew.memberCount || crew.members?.length || 0) + '/10 · код ' + (crew.inviteCode || '—');
+  if (meta) meta.textContent = trackName + ' · ' + (crew.memberCount || crew.members?.length || 0) + '/10' + (crew.inviteCode ? ' · код ' + crew.inviteCode : '');
+  { const fr = document.getElementById('crewFollowRow'); if (fr) { fr.replaceChildren(); if (isRemoteApi()) fr.appendChild(followButton('team', crew.id, crew.name || 'Команда')); } } // v131
 
   const board = await api.getCrewBoard(id);
   const badge = document.getElementById('crewBadgeRow');
@@ -11952,7 +12016,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v130';
+const APP_VERSION = 'v131';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

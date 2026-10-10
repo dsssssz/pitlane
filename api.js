@@ -290,6 +290,16 @@ export const api = {
     const r = await remoteKeep('/tops/straight/' + encodeURIComponent(carId), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
     return r;
   },
+  /** v131: подписки на пилота / команду */
+  async getFollows() {
+    if (!apiBase() || !getSessionToken()) return null;
+    const r = await remote('/me/follows');
+    return r && r.ok ? r : null;
+  },
+  async setFollow(kind, id, on) {
+    if (!apiBase()) return { ok: false, code: 'offline' };
+    return remoteKeep('/follow', { method: 'POST', body: JSON.stringify({ kind, id, on: !!on }) });
+  },
   /** v129: история трассы своего пилота (место, срез машины, лучший сектор, свои круги) — только вошедшим */
   async trackHistory(trackId) {
     if (!apiBase() || !getSessionToken()) return null;
