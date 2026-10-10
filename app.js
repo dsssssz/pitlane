@@ -8818,7 +8818,7 @@ const I18N = {
     'run.title':'Замер','run.hint':'Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
-    'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Написать в Paddock…','pad.empty':'Пока тихо. Напиши первый пост после входа.',
+    'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Написать в Paddock…','pad.empty':'Пока тихо — напиши первым.',
     'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
@@ -9063,7 +9063,7 @@ async function renderPulse() {
   if (!rows || !rows.length) {
     const empty = padEl('div', 'pad-empty');
     empty.appendChild(padIcon('bubble', 'pad-empty-ico'));
-    empty.appendChild(padEl('p', '', 'Пока тихо. Напиши первый пост после входа.'));
+    empty.appendChild(padEl('p', '', 'Пока тихо — напиши первым.'));
     feed.appendChild(empty);
     return;
   }
@@ -9550,7 +9550,7 @@ pulseText?.addEventListener('input', () => {
 });
 document.getElementById('pulseSend')?.addEventListener('click', async () => {
   const msg = document.getElementById('pulseMsg');
-  if (needLogin('Чтобы писать в Пэддок, войди.')) return;
+  if (needLogin('Войди, чтобы писать в Paddock.')) return;
   const text = (pulseText?.value || '').trim();
   if (text.length < 2) { if (msg) msg.textContent = 'Напиши хотя бы пару слов'; return; }
   let img = null;
@@ -11469,7 +11469,7 @@ function renderAutodromeList() {
   ul.innerHTML = cult.map((t) => {
     const info = AUTODROME_INFO[t.id] || {};
     const short = (info.blurb || t.corners || '').slice(0, 48);
-    const meta = [t.km ? t.km + ' км' : '', isCalibrated(t.id) ? 'топ A/B' : 'только личная история'].filter(Boolean).join(' · ');
+    const meta = [t.km ? t.km + ' км' : '', isCalibrated(t.id) ? 'общий топ' : 'личные круги'].filter(Boolean).join(' · ');
     return `<li data-ad-id="${esc(t.id)}"><span class="dl-main">${esc(t.name)}</span><span class="dl-st">${esc(meta || short)}${(!meta && short.length >= 48) ? '…' : ''}</span></li>`;
   }).join('') || '<li><span class="dl-main">нет культовых треков</span></li>';
 }
@@ -11807,7 +11807,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v125';
+const APP_VERSION = 'v126';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13768,13 +13768,13 @@ async function renderHwTeam() {
   _hwTeamAt = Date.now();
   let rows = null; try { rows = isRemoteApi() && currentUser() ? await api.listMyCrews(crewPilotId()) : null; } catch (_) { rows = null; }
   const c = Array.isArray(rows) && rows.length ? rows[0] : null;
-  if (!c) { hwSet('hwTeamBody', hwEmpty('Нет команды', 'Собери экипаж — общий зачёт')); return; }
+  if (!c) { hwSet('hwTeamBody', hwEmpty('Нет команды', 'Собери экипаж')); return; }
   const n = Number(c.memberCount || c.members?.length || 0);
   hwSet('hwTeamBody', [padEl('b', 'hw-name', clipText(String(c.name || 'Экипаж'), 20)), padEl('span', 'hw-note', n ? n + ' из 10 пилотов' : 'экипаж')]);
 }
 function renderHwTop(remote) {
   const board = remote?.board || [];
-  if (!board.length) { hwSet('hwTopBody', hwEmpty('Топ пока пуст', 'Первое честное время займёт #1')); return; }
+  if (!board.length) { hwSet('hwTopBody', hwEmpty('Топ пока пуст', 'Стань первым в таблице')); return; }
   const lead = board[0];
   const nodes = [];
   const l = padEl('span', 'hw-top-lead');
