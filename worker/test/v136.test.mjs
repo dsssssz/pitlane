@@ -44,6 +44,6 @@ ok(/banner\.jpg\?v=3/.test(R('worker/src/index.js')), 'URL баннера бот
 ok(/podiumModel\?\.\(\) === x/.test(R('tools/car-thumbs.mjs')) && /DIRECT/.test(R('tools/car-thumbs.mjs')), 'car-thumbs ждёт нужную модель (765LT ≠ GT3 RS)');
 ok(/workers\\\.dev/.test(R('tools/car-thumbs.mjs')), 'car-thumbs не ходит в прод-API');
 const sw = R('sw.js'); const app = R('app.js');
-ok(/const CACHE = 'pitlane-v136'/.test(sw) && /APP_VERSION = 'v136'/.test(app), 'версии v136');
+ok(/const CACHE = 'pitlane-v1(3[6-9]|[4-9]\d)'/.test(sw) && /APP_VERSION = 'v1(3[6-9]|[4-9]\d)'/.test(app), 'версии ≥ v136');
 if (fails) { console.log(`\n✗ v136: ${fails}`); process.exit(1); }
 console.log('\nv136 OK');

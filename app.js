@@ -2448,7 +2448,7 @@ try {
 
 const DEEP_VIEWS = new Set(['home', 'garage', 'run', 'lap', 'tops', 'duels', 'pulse', 'account', 'cars']);
 /** v81: ?screen=duel|crew|feedback|autodromes — opens a sheet (used by the Telegram bot's web_app buttons). */
-const DEEP_SCREENS = { duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account', mycar: 'lap', rooms: 'tops', teams: 'tops' };
+const DEEP_SCREENS = { shop: 'home', duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account', mycar: 'lap', rooms: 'tops', teams: 'tops' };
 const SCREEN_PARAM = (() => {
   try {
     const s = String(new URLSearchParams(location.search).get('screen') || '').toLowerCase();
@@ -12259,7 +12259,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v136';
+const APP_VERSION = 'v137';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12369,6 +12369,20 @@ function fbDownscaleShot(file) {
     im.src = url;
   });
 }
+
+/* v137: магазин — модуль грузится при первом открытии (витрина/карточка/заявка/«принята»), см. shop-ui.js и shop-config.js */
+let _shopMod = null;
+async function openShopSheet(productId) {
+  const sheet = document.getElementById('shopSheet'); if (!sheet) return;
+  sheet.classList.remove('hidden'); sheet.setAttribute('aria-hidden', 'false');
+  try { _shopMod = _shopMod || await import('./shop-ui.js'); } catch (_) { const b = document.getElementById('shopBody'); if (b) b.textContent = 'Магазин не загрузился — проверьте интернет'; return; }
+  _shopMod.openShop({ api, currentUser, needLogin, hap, close: closeShopSheet }, productId);
+}
+function closeShopSheet() { const s = document.getElementById('shopSheet'); if (!s) return; s.classList.add('hidden'); s.setAttribute('aria-hidden', 'true'); }
+document.getElementById('shopClose')?.addEventListener('click', closeShopSheet);
+document.getElementById('shopSheet')?.addEventListener('click', (e) => { if (e.target?.id === 'shopSheet') closeShopSheet(); });
+document.getElementById('railShop')?.addEventListener('click', (e) => { e.preventDefault(); hap(6); void openShopSheet(); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.getElementById('shopSheet')?.classList.contains('hidden')) closeShopSheet(); });
 
 function openFeedbackSheet() {
   const sheet = document.getElementById('feedbackSheet');
@@ -12488,6 +12502,7 @@ if (SCREEN_PARAM) {
       else if (SCREEN_PARAM === 'teams') openTeamsList();
       else if (SCREEN_PARAM === 'autodromes') openAutodromeSheet();
       else if (SCREEN_PARAM === 'feedback') openFeedbackSheet();
+      else if (SCREEN_PARAM === 'shop') void openShopSheet();
     } catch (err) { console.warn('screen deep link', err); }
   }, 900);
 }
@@ -14511,6 +14526,7 @@ document.getElementById('plMenu')?.addEventListener('click', (e) => {
     else if (k === 'autodromes') { if (sheetNavOn()) openTgSheet('tracks'); else openAutodromeSheet(); }
     else if ((k === 'duels' || k === 'pulse') && sheetNavOn()) openTgSheet(k);
     else if (k === 'feedback') openFeedbackSheet();
+    else if (k === 'shop') void openShopSheet();
     else if (k === 'gps') { goToView('run'); setTimeout(() => { const g = document.querySelector('#view-run .ext-gps-src'); try { g?.scrollIntoView({ block: 'center', behavior: 'smooth' }); g?.classList.add('hl-pulse'); setTimeout(() => g?.classList.remove('hl-pulse'), 1600); } catch (_) {} }, 280); }
     else goToView(k);
   }, 120);

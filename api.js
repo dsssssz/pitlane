@@ -814,6 +814,9 @@ export const api = {
   async delMusic(id) { return await remoteKeep('/me/music/' + encodeURIComponent(id), { method: 'DELETE' }); },
   musicUrl(pid, tid, kind) { const b = apiBase(); return b ? b + '/music/' + encodeURIComponent(pid) + '/' + encodeURIComponent(tid) + '/' + (kind === 'cover' ? 'cover' : 'audio') : ''; },
   /** v116: PITLANE GPS по Wi-Fi — привязка чипа и live-сокет (сессия в subprotocol, не в URL). */
+  // v137: магазин — заявки (только вошедшие; повтор с тем же cid не создаёт вторую заявку)
+  async shopOrder(payload) { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), timeoutMs: 15000 }); },
+  async shopOrders() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/orders'); },
   async gpsPair() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/gps/pair', { method: 'POST', body: '{}' }); },
   async gpsDevices() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/gps/devices'); },
   async gpsRevoke(id) { return await remoteKeep('/gps/devices/' + encodeURIComponent(id), { method: 'DELETE' }); },

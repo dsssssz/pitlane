@@ -12,13 +12,14 @@ let fails = 0;
 const ok = (c, msg, extra) => { if (c) console.log('  ✓', msg); else { fails++; console.log('  ✗', msg, extra !== undefined ? JSON.stringify(extra).slice(0, 300) : ''); } };
 
 console.log('\n[legal-config]');
-ok(LEGAL_REVISION === '07.10.2026', 'revision 07.10.2026');
+const _rv = /^(\d\d)\.(\d\d)\.(\d{4})$/.exec(LEGAL_REVISION); // v137: редакция двигается вперёд (была 07.10.2026)
+ok(!!_rv && Date.UTC(+_rv[3], +_rv[2] - 1, +_rv[1]) >= Date.UTC(2026, 9, 7), 'revision ≥ 07.10.2026', LEGAL_REVISION);
 ok(legalReady({ operatorName: 'x', inn: '123', email: 'a@b.c' }) === false && legalReady({ operatorName: 'x', inn: '1234567890', email: 'a@b.c' }) === true, 'legalReady needs name + valid INN + email');
 const ROOT = new URL('../../', import.meta.url).pathname;
 for (const f of ['privacy.html', 'terms.html', 'offer.html', 'delete-account.html']) {
   const s = fs.readFileSync(ROOT + f, 'utf8');
   ok(!/mark class="ph"|\[(ФИО|ИНН|email|дата|цена)[^\]]*\]/.test(s), f + ': no bracket placeholders');
-  ok(s.includes('07.10.2026') && s.includes('legal.js'), f + ': revision date + legal.js');
+  ok(s.includes('<span data-legal-rev>' + LEGAL_REVISION + '</span>') && s.includes('legal.js'), f + ': revision date + legal.js');
 }
 const priv = fs.readFileSync(ROOT + 'privacy.html', 'utf8');
 ok(/GPS-данные замера/.test(priv) && /не записываются/.test(priv) && /180 дней/.test(priv) && /Удаление аккаунта стирает/.test(priv) && /Кто видит/.test(priv), 'privacy: what GPS data is stored, how long, who sees, what deletion erases');

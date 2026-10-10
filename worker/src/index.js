@@ -7,6 +7,7 @@ import { seasonRoute, seasonRecord0100 } from './season.js';
 import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, loadPrefs, savePrefs, markStarted, setChatStop, chatState, deleteNotifyKeys, NOTIFY_TYPES, NOTIFY_LABELS, NOTIFY_DAILY_MAX, NOTIFY_BOT_TEXT } from './notify.js';
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
 import { gpsRoute, deleteAccountGps, GpsLive } from './gpslive.js';
+import { shopRoute, deleteAccountShop } from './shop.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
@@ -2416,6 +2417,7 @@ async function deleteAccount(kv, pid, currentToken, env = { PITLANE: kv }) {
   }
   // v116: Wi-Fi GPS chips bound to the account (token hashes)
   Object.assign(rep, await deleteAccountGps(kv, pid, GPS_H));
+  Object.assign(rep, await deleteAccountShop(kv, pid, SHOP_H)); // v137: заявки магазина
   // v115: profile music (Telegram file ids only — the files stay in Telegram)
   Object.assign(rep, await deleteAccountMusic(kv, pid));
   // v114: monthly 0–100 season aggregates
@@ -2713,6 +2715,20 @@ async function tgChatOf(env, pid) {
   const id = String((rec?.providers || []).find((p) => p.type === 'tg')?.id || '');
   return /^\d{1,20}$/.test(id) ? Number(id) : null;
 }
+/** v137: username Telegram пилота (для кнопки «Написать покупателю»), null — нет. */
+async function tgUsernameOf(env, pid) {
+  if (!isPilotUuid(String(pid || ''))) return null;
+  const rec = await loadPilot(env.PITLANE, pid);
+  const u = String((rec?.providers || []).find((p) => p.type === 'tg')?.username || '').replace(/[^\w]/g, '');
+  return u.length >= 5 ? u.slice(0, 32) : null;
+}
+/** v137: helpers for ./shop.js */
+const SHOP_H = {
+  get json() { return json; }, get readJson() { return readJson; }, get limitOr429() { return limitOr429; }, get requireAuth() { return requireAuth; },
+  get kvJson() { return kvJson; }, get kvListAll() { return kvListAll; }, get cleanLabel() { return cleanLabel; }, get containsPhone() { return containsPhone; },
+  get randB36() { return randB36; }, get tgCall() { return tgCall; }, get tgEsc() { return tgEsc; }, get tgChatOf() { return tgChatOf; }, get tgUsernameOf() { return tgUsernameOf; },
+  get safeName() { return safeName; }, get moscowDateKey() { return moscowDateKey; }, get webAppBtn() { return webAppBtn; },
+};
 /** v121: helpers for ./notify.js */
 const NOTIFY_H = {
   get kvJson() { return kvJson; }, get tgCall() { return tgCall; }, get tgChatOf() { return tgChatOf; }, get telegramConfig() { return telegramConfig; },
@@ -4133,6 +4149,8 @@ export default {
       { const mr = await musicRoute({ req, env, path, url, headers, ip, pilot, h: MUSIC_H }); if (mr) return mr; }
       // —— v116: PITLANE GPS по Wi-Fi (привязка чипа + live через Durable Object) ——
       { const gr = await gpsRoute({ req, env, path, url, headers, ip, pilot, h: GPS_H }); if (gr) return gr; }
+      // —— v137: магазин (заявки, без онлайн-оплаты) ——
+      { const shr = await shopRoute({ req, env, path, headers, ip, pilot, h: SHOP_H }); if (shr) return shr; }
 
       // —— v97: «Это моя машина» + комнаты экипажей (+ Stars season) ——
       {

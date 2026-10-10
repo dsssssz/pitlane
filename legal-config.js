@@ -11,7 +11,7 @@ export const LEGAL_CONFIG = {
   email: '',        // e-mail для обращений
   taxStatus: '',    // например: 'плательщик налога на профессиональный доход (самозанятый)'
 };
-export const LEGAL_REVISION = '07.10.2026';
+export const LEGAL_REVISION = '11.10.2026'; // v137: + заявки магазина
 export const LEGAL_CONTACT_BOT = 'pitlane_official_bot';
 /** Можно продавать платное (Pro, сезон комнаты) только при заполненных реквизитах. */
 export function legalReady(c = LEGAL_CONFIG) {
