@@ -5676,14 +5676,92 @@ body.run-sum-on .run-drive-actions > * { flex: 1 1 calc(50% - 10px); }
 /* подсказки не перехватывают тапы: затемнение — только визуально */
 .cm-block { pointer-events: none !important; }
 /* главная кнопка «Сделать замер» + единственный шаг онбординга */
-.home-go { margin: 4px 0 14px; padding: 16px; border-radius: 22px; background: var(--h-card, #141414); border: 1px solid var(--h-line-2, rgba(255,255,255,.12)); }
-.home-go-step { margin: 0 0 10px; font: 700 12px/1.2 var(--h-num, system-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--h-acc, #39FF14); }
-.home-go-step::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 8px; border-radius: 50%; background: var(--h-acc, #39FF14); box-shadow: 0 0 10px rgba(57,255,20,.7); vertical-align: 1px; }
-.home-go-btn { width: 100%; min-height: 60px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 18px; background: var(--h-acc, #39FF14); color: #050505; font: 800 22px/1 var(--h-num, system-ui); letter-spacing: .04em; text-transform: uppercase; box-shadow: 0 10px 30px -10px rgba(57,255,20,.65); cursor: pointer; transition: transform .15s ease; }
-.home-go-btn:active { transform: scale(.98); }
-.home-go-ico { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid #050505; position: relative; }
-.home-go-ico::after { content: ''; position: absolute; left: 50%; top: 3px; width: 2.5px; height: 7px; margin-left: -1.25px; background: #050505; border-radius: 2px; transform-origin: 50% 100%; transform: rotate(35deg); }
-.home-go-sub { margin: 10px 2px 0; font-size: 13px; line-height: 1.35; color: var(--h-sub, #a3a3a3); }
+/* ——— v122: премиальный CTA «Замер» — графитовое стекло, тонкая неоновая кромка, шкала 0–100, живой статус GPS ——— */
+.home-go { --hg-acc: var(--h-acc, #39FF14); --hg-glow: rgba(57,255,20,.55); position: relative; margin: 4px 0 14px; padding: 14px; border-radius: 24px; isolation: isolate;
+  background: radial-gradient(120% 90% at 0% 0%, rgba(57,255,20,.07) 0%, rgba(57,255,20,0) 46%), linear-gradient(180deg, rgba(255,255,255,.055) 0%, rgba(255,255,255,.012) 100%), #0f1010;
+  border: 1px solid rgba(255,255,255,.08); box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 18px 40px -24px rgba(0,0,0,.9); }
+/* тонкая светящаяся кромка: только верхняя-левая дуга, маской по рамке */
+.home-go::before { content: ''; position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none; z-index: -1;
+  background: conic-gradient(from 200deg at 50% 50%, rgba(57,255,20,0) 0deg, rgba(57,255,20,.75) 60deg, rgba(201,255,184,.85) 78deg, rgba(57,255,20,0) 120deg, rgba(57,255,20,0) 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  opacity: .55; animation: hgBreath 5.5s ease-in-out infinite; }
+@keyframes hgBreath { 0%, 100% { opacity: .22; } 50% { opacity: .62; } }
+.hg-btn { position: relative; width: 100%; display: grid; align-items: center; gap: 14px; padding: 0; border: 0; background: none; color: var(--h-text, #f2f2f2); text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.hg-btn:focus-visible { outline: 2px solid rgba(57,255,20,.6); outline-offset: 6px; border-radius: 20px; }
+.hg-text { display: grid; gap: 5px; min-width: 0; }
+.hg-title { font: 600 24px/1 Manrope, system-ui, sans-serif; letter-spacing: -.015em; color: #f5f5f5; }
+.hg-sub { font: 500 13px/1.2 Manrope, system-ui, sans-serif; letter-spacing: .02em; color: var(--h-sub, #a3a3a3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hg-chev { width: 34px; height: 34px; border-radius: 50%; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.035); position: relative; justify-self: end; transition: border-color .3s, background .3s; }
+.hg-chev::after { content: ''; position: absolute; left: 12px; top: 12px; width: 8px; height: 8px; border-top: 1.5px solid #d9d9d9; border-right: 1.5px solid #d9d9d9; transform: rotate(45deg); }
+/* циферблат 0–100 */
+.hg-dial { position: relative; display: block; width: 96px; height: 96px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 50% 38%, #1d1f1e 0%, #0b0c0c 62%, #070707 100%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.09), inset 0 -10px 18px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.07), 0 10px 22px -10px rgba(0,0,0,.9);
+  transition: transform .18s var(--h-ease, ease), box-shadow .18s ease; }
+.hg-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.hg-track { fill: none; stroke: rgba(255,255,255,.08); stroke-width: 2.2; stroke-dasharray: 270 360; stroke-linecap: round; }
+.hg-arc { fill: none; stroke: url(#hgArcGrad); stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 270 360; filter: drop-shadow(0 0 3px var(--hg-glow)); opacity: .9; animation: hgArc 5.5s ease-in-out infinite; }
+@keyframes hgArc { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.hg-ticks line { stroke: rgba(255,255,255,.32); stroke-width: 1; stroke-linecap: round; }
+.hg-ticks line.mj { stroke: rgba(255,255,255,.62); stroke-width: 1.4; }
+.hg-num { font: 600 8.5px/1 "Barlow Condensed", Manrope, sans-serif; fill: rgba(255,255,255,.45); text-anchor: middle; letter-spacing: .04em; }
+.hg-needle { transform-origin: 60px 60px; transform: rotate(-135deg); transition: transform .9s cubic-bezier(.3,1.4,.4,1); }
+.hg-needle line { stroke: var(--hg-acc); stroke-width: 1.8; stroke-linecap: round; filter: drop-shadow(0 0 2px var(--hg-glow)); }
+.hg-hub { display: none; }
+.hg-core { position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; margin: -22px 0 0 -22px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 3px; pointer-events: none;
+  background: radial-gradient(circle at 50% 28%, #262827 0%, #141515 60%, #0e0f0f 100%); box-shadow: 0 0 0 1px rgba(255,255,255,.1), 0 2px 6px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.1); transition: box-shadow .18s ease; }
+.hg-btn:active .hg-core, .hg-btn.is-pressed .hg-core { box-shadow: 0 0 0 1px rgba(57,255,20,.55), 0 0 14px -2px var(--hg-glow), inset 0 2px 5px rgba(0,0,0,.8); }
+.hg-pwr { position: relative; width: 14px; height: 14px; border-radius: 50%; border: 1.6px solid var(--hg-acc); border-top-color: transparent; filter: drop-shadow(0 0 3px var(--hg-glow)); }
+.hg-pwr::after { content: ''; position: absolute; left: 50%; top: -4px; width: 1.6px; height: 8px; margin-left: -.8px; border-radius: 1px; background: var(--hg-acc); }
+.hg-core em { font: 700 7px/1 Manrope, sans-serif; font-style: normal; letter-spacing: .24em; text-transform: uppercase; color: rgba(255,255,255,.55); margin-right: -.24em; }
+.hg-scale { display: none; }
+/* мета: статус GPS + лучший 0–100 */
+.hg-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; padding-top: 11px; border-top: 1px solid rgba(255,255,255,.06); min-height: 18px; }
+.hg-gps { display: inline-flex; align-items: center; gap: 7px; font: 500 12px/1 Manrope, system-ui, sans-serif; color: var(--h-sub, #a3a3a3); letter-spacing: .01em; min-width: 0; }
+.hg-gps > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hg-gps i { width: 6px; height: 6px; border-radius: 50%; flex: none; background: #5d5d5d; }
+.hg-gps[data-q="good"] i { background: var(--hg-acc); box-shadow: 0 0 8px var(--hg-glow); animation: hgDot 2.8s ease-in-out infinite; }
+.hg-gps[data-q="mid"] i { background: #e8c547; box-shadow: 0 0 6px rgba(232,197,71,.5); }
+.hg-gps[data-q="bad"] i { background: #ff5a4f; }
+@keyframes hgDot { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+.hg-best { font: 500 12px/1 Manrope, system-ui, sans-serif; color: var(--h-mute, #7a7a7a); white-space: nowrap; }
+.hg-best b { font: 600 15px/1 "Barlow Condensed", Manrope, sans-serif; color: #e9e9e9; letter-spacing: .02em; margin-left: 4px; }
+/* нажатие: прогиб, стрелка проходит шкалу */
+.hg-btn:active .hg-dial, .hg-btn.is-pressed .hg-dial { transform: scale(.955); box-shadow: inset 0 3px 10px rgba(0,0,0,.85), inset 0 0 0 1px rgba(57,255,20,.35), 0 0 22px -4px var(--hg-glow); }
+.hg-btn:active .hg-needle, .hg-btn.is-pressed .hg-needle { transform: rotate(135deg); transition-duration: .55s; }
+.hg-btn:active .hg-chev, .hg-btn.is-pressed .hg-chev { border-color: rgba(57,255,20,.5); background: rgba(57,255,20,.08); }
+.home-go:has(.hg-btn:active)::before, .home-go.is-pressed::before { opacity: 1; animation: none; }
+
+/* A · Engine Start: циферблат слева, текст, стрелка */
+.hg-a .hg-btn { grid-template-columns: auto 1fr auto; }
+
+/* B · цифровая панель: текст слева, круглая кнопка справа, линейная шкала 0–100 снизу */
+.hg-b .hg-btn { grid-template-columns: 1fr auto; grid-template-areas: "t d" "s s"; row-gap: 14px; }
+.hg-b .hg-text { grid-area: t; }
+.hg-b .hg-dial { grid-area: d; width: 64px; height: 64px; }
+.hg-b .hg-svg .hg-num, .hg-b .hg-ticks { display: none; }
+.hg-b .hg-chev { display: none; }
+.hg-b .hg-scale { grid-area: s; display: flex; justify-content: space-between; position: relative; height: 22px; padding-top: 12px; font: 600 9px/1 "Barlow Condensed", Manrope, sans-serif; letter-spacing: .06em; color: rgba(255,255,255,.4); }
+.hg-b .hg-scale::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 8px; background: repeating-linear-gradient(90deg, rgba(255,255,255,.35) 0 1px, transparent 1px calc(10% - .1px)); -webkit-mask: linear-gradient(90deg, #000 0, #000 100%); }
+.hg-b .hg-scale::after { content: ''; position: absolute; left: 0; top: 9px; height: 1.5px; width: 34%; border-radius: 2px; background: linear-gradient(90deg, rgba(57,255,20,0), var(--hg-acc)); box-shadow: 0 0 8px var(--hg-glow); transition: width .7s cubic-bezier(.3,1.2,.4,1); animation: hgArc 5.5s ease-in-out infinite; }
+.hg-b .hg-btn:active .hg-scale::after, .hg-b .hg-btn.is-pressed .hg-scale::after { width: 100%; }
+
+/* C · безель часов: большая круглая кнопка по центру */
+.hg-c { text-align: center; }
+.hg-c .hg-btn { grid-template-columns: 1fr; justify-items: center; gap: 12px; text-align: center; }
+.hg-c .hg-dial { width: 148px; height: 148px; }
+.hg-c .hg-core { width: 64px; height: 64px; margin: -32px 0 0 -32px; }
+.hg-c .hg-pwr { width: 18px; height: 18px; }
+.hg-c .hg-text { justify-items: center; }
+.hg-c .hg-chev { display: none; }
+.hg-c .hg-meta { justify-content: center; gap: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .home-go::before, .hg-arc, .hg-gps[data-q="good"] i, .hg-b .hg-scale::after { animation: none; }
+  .home-go::before { opacity: .6; }
+  .hg-needle, .hg-dial, .hg-b .hg-scale::after { transition: none; }
+  .hg-btn:active .hg-needle, .hg-btn.is-pressed .hg-needle { transform: rotate(-135deg); }
+}
 /* шапка Топов: заголовок + одна кнопка «Фильтры» */
 #view-tops .tops-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .tops-menu-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--h-line-2, rgba(255,255,255,.12)); background: rgba(255,255,255,.05); color: var(--h-text, #f2f2f2); font: 600 13px/1 Manrope, system-ui, sans-serif; cursor: pointer; }

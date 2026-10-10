@@ -18,8 +18,8 @@ ok(navs.some((n) => n.view === 'garage') && navs.some((n) => n.view === 'pulse')
 for (const v of ['home', 'garage', 'run', 'lap', 'tops', 'duels', 'pulse', 'account', 'cars']) ok(html.includes(`id="view-${v}"`), `вид view-${v} на месте`);
 ok(/data-hq="garage"/.test(html) && /id="homeHeroGarage"/.test(html) && /id="btnGarageAcc"/.test(html), 'Бокс доступен: плитка на Главной, карточка «Моя машина», профиль');
 ok(/kind === 'garage'\) goToView\('garage'\)/.test(app), 'плитка «Бокс» ведёт на 3D-подиум');
-ok(/id="homeGoBtn"[^>]*data-hq="run"/.test(html) && />Сделать замер</.test(html), 'главная кнопка «Сделать замер»');
-ok(/id="homeFirstStep" hidden/.test(html) && /Шаг 1 · Сделай первый замер/.test(html), 'один неблокирующий шаг онбординга (встроен в Главную)');
+ok(/id="homeGoBtn"[^>]*data-hq="run"/.test(html), 'главная кнопка замера на Главной (v122: «Замер»)');
+ok(!/class="[^"]*\bcm-modal|data-tour-block/.test(html.slice(html.indexOf('id="homeGo"'), html.indexOf('id="homeGo"') + 3000)), 'онбординг на Главной без модалок (v122: шаг встроен в саму кнопку)');
 ok(/id="homeCarousel" hidden/.test(html) && /id="homeCarsSec" hidden/.test(html) && /id="homePostsSec" hidden/.test(html), 'баннеры/машины на подиуме/посты — скрыты на Главной');
 ok(/const AUTO_TIPS = false/.test(tips) && /if \(!AUTO_TIPS\) return;/.test(tips), 'тур и подсказки сами не всплывают');
 ok(/\.cm-block \{ pointer-events: none !important; \}/.test(fs.readFileSync(R + 'styles.css', 'utf8')), 'подсказка не перехватывает тапы (вкладки работают)');

@@ -145,10 +145,28 @@
         <!-- v84: Главная — карусель разделов, моя машина, топ постов за сутки -->
         <section id="view-home" class="view active">
           <!-- v120: баннеры скрыты (код остаётся); первым — главная кнопка замера -->
-          <section class="home-go" id="homeGo">
-            <p class="home-go-step" id="homeFirstStep" hidden>Шаг 1 · Сделай первый замер</p>
-            <button type="button" class="home-go-btn" id="homeGoBtn" data-hq="run"><span class="home-go-ico" aria-hidden="true"></span><b>Сделать замер</b></button>
-            <p class="home-go-sub" id="homeGoSub">0–100 и ¼ мили по GPS · телефона хватит</p>
+          <section class="home-go hg-a" id="homeGo">
+            <button type="button" class="hg-btn" id="homeGoBtn" data-hq="run" aria-label="Замер: 0–100, ¼ мили, круг">
+              <span class="hg-dial" aria-hidden="true">
+                <svg class="hg-svg" viewBox="0 0 120 120" focusable="false">
+                  <defs><linearGradient id="hgArcGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#39FF14" stop-opacity=".15"/><stop offset=".7" stop-color="#39FF14" stop-opacity=".9"/><stop offset="1" stop-color="#C9FFB8"/></linearGradient></defs>
+                  <circle class="hg-track" cx="60" cy="60" r="50" pathLength="360" transform="rotate(135 60 60)"/>
+                  <circle class="hg-arc" cx="60" cy="60" r="50" pathLength="360" transform="rotate(135 60 60)"/>
+                  <g class="hg-ticks" id="homeGoTicks"></g>
+                  <text class="hg-num" x="30" y="99">0</text><text class="hg-num" x="90" y="99">100</text>
+                  <g class="hg-needle"><line x1="60" y1="60" x2="60" y2="22"/></g>
+                  <circle class="hg-hub" cx="60" cy="60" r="3.2"/>
+                </svg>
+                <span class="hg-core"><i class="hg-pwr"></i><em>Start</em></span>
+              </span>
+              <span class="hg-text"><b class="hg-title">Замер</b><span class="hg-sub" id="homeGoSub">0–100 · ¼ мили · круг</span></span>
+              <span class="hg-scale" aria-hidden="true"><span>0</span><span>100</span></span>
+              <i class="hg-chev" aria-hidden="true"></i>
+            </button>
+            <div class="hg-meta">
+              <span class="hg-gps" id="homeGoGps" data-q="idle"><i></i><span id="homeGoGpsV">GPS</span></span>
+              <span class="hg-best" id="homeGoBest" hidden></span>
+            </div>
           </section>
           <div class="home-carousel v120-off" id="homeCarousel" hidden role="region" aria-roledescription="карусель" aria-label="Разделы Pitlane">
             <div class="hc-track" id="homeCarouselTrack">

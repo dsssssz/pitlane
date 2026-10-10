@@ -3385,6 +3385,7 @@ function topVerdict(res) {
 
 function onGpsPoint(pos) {
   const now = pos.timestamp || Date.now();
+  _homeLastFix = { acc: Number(pos?.coords?.accuracy), at: Date.now() };
   pushRawFix(pos, now);
   GpsFusion.tick(now);
   const v = kmhFromCoords(pos.coords, now);
@@ -11792,7 +11793,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v121';
+const APP_VERSION = 'v122';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13603,20 +13604,81 @@ function hasAnyRun() {
   const has = (o) => !!o && Object.values(o).some((x) => x && Object.keys(x).length);
   return has(state.dragBest) || has(state.dragBestC) || (Array.isArray(state.slips) && state.slips.length > 0);
 }
+/* v122: премиальный CTA «Замер» — шкала 0–100, живой статус GPS только из реальных данных (источник, точность последнего фикса, доступ) */
+let _homeLastFix = null; // { acc, at } — последний настоящий фикс (телефон / внешний GPS), ничего не выдумываем
+let _geoPerm = 'unknown';
+function homeGoBuildTicks() {
+  const g = document.getElementById('homeGoTicks');
+  if (!g || g.childNodes.length) return;
+  const NS = 'http://www.w3.org/2000/svg';
+  for (let i = 0; i <= 20; i++) {
+    const mj = i % 2 === 0;
+    const ang = (135 + i * 13.5) * Math.PI / 180;
+    const r1 = 44, r2 = mj ? 37.5 : 40.5;
+    const ln = document.createElementNS(NS, 'line');
+    ln.setAttribute('x1', (60 + r1 * Math.cos(ang)).toFixed(2)); ln.setAttribute('y1', (60 + r1 * Math.sin(ang)).toFixed(2));
+    ln.setAttribute('x2', (60 + r2 * Math.cos(ang)).toFixed(2)); ln.setAttribute('y2', (60 + r2 * Math.sin(ang)).toFixed(2));
+    if (mj) ln.setAttribute('class', 'mj');
+    g.appendChild(ln);
+  }
+}
+function homeGoGpsStatus() {
+  const st = (typeof extGps !== 'undefined' && extGps?.state?.()) || 'off';
+  const ext = st === 'wifi' || st === 'ble';
+  const src = st === 'wifi' ? 'Внешний GPS · Wi-Fi' : st === 'ble' ? 'Внешний GPS · Bluetooth' : st === 'sim' ? 'Симулятор' : 'Телефон';
+  const fix = _homeLastFix;
+  if (fix && Date.now() - fix.at < 15000 && Number.isFinite(fix.acc) && fix.acc > 0) {
+    const acc = fix.acc;
+    return { text: src + ' · ±' + (acc < 10 ? acc.toFixed(1).replace('.0', '') : Math.round(acc)) + ' м', q: acc <= 3 ? 'good' : acc <= 10 ? 'mid' : 'bad' };
+  }
+  if (ext) return { text: src + ' · на связи', q: 'mid' };
+  if (st === 'sim') return { text: src, q: 'mid' };
+  if (_geoPerm === 'denied') return { text: 'Телефон · нет доступа к геопозиции', q: 'bad' };
+  if (_geoPerm === 'granted') return { text: 'Телефон · GPS доступен', q: 'idle' };
+  return { text: 'Телефон · GPS включится на старте', q: 'idle' };
+}
+function renderHomeGoGps() {
+  const el = document.getElementById('homeGoGps'); const v = document.getElementById('homeGoGpsV');
+  if (!el || !v) return;
+  const s = homeGoGpsStatus();
+  if (v.textContent !== s.text) v.textContent = s.text;
+  if (el.dataset.q !== s.q) el.dataset.q = s.q;
+}
 function renderHomeGo() {
-  const step = document.getElementById('homeFirstStep');
-  const sub = document.getElementById('homeGoSub');
-  const fresh = !hasAnyRun();
-  if (step) step.hidden = !fresh;
-  if (!sub) return;
-  if (fresh) { sub.textContent = 'Телефона хватит: встань, дождись GPS и жми «Старт». Около минуты.'; return; }
+  homeGoBuildTicks();
+  renderHomeGoGps();
+  const bestEl = document.getElementById('homeGoBest');
+  if (!bestEl) return;
   let best = null; let cls = 'ab';
   try {
     const pick = (o, c) => { for (const m of Object.values(o || {})) { const r = m && m['0-100']; if (r && Number.isFinite(Number(r.t)) && (!best || Number(r.t) < Number(best.t))) { best = r; cls = c; } } };
     pick(state.dragBest, 'ab'); if (!best) pick(state.dragBestC, 'c');
   } catch (_) {}
-  sub.textContent = best ? ('Лучший 0–100: ' + Number(best.t).toFixed(2) + ' с' + (cls === 'c' ? ' · телефон · зачёт C' : ' · GPS ' + (best.gpsQ || 'A/B'))) : '0–100 и ¼ мили по GPS · телефона хватит';
+  bestEl.hidden = !best;
+  bestEl.replaceChildren();
+  if (best) {
+    bestEl.append(document.createTextNode('лучший 0–100'));
+    const b = document.createElement('b'); b.textContent = Number(best.t).toFixed(2) + ' с' + (cls === 'c' ? ' · C' : '');
+    bestEl.append(b);
+  }
 }
+try {
+  navigator.permissions?.query?.({ name: 'geolocation' }).then((p) => {
+    _geoPerm = p.state; renderHomeGoGps();
+    p.onchange = () => { _geoPerm = p.state; renderHomeGoGps(); };
+  }).catch(() => {});
+} catch (_) {}
+setInterval(() => {
+  if (document.hidden || !document.getElementById('view-home')?.classList.contains('active')) return;
+  renderHomeGoGps();
+}, 2000);
+(() => {
+  const btn = document.getElementById('homeGoBtn'); const box = document.getElementById('homeGo');
+  if (!btn) return;
+  const on = () => { btn.classList.add('is-pressed'); box?.classList.add('is-pressed'); };
+  const off = () => { btn.classList.remove('is-pressed'); box?.classList.remove('is-pressed'); };
+  btn.addEventListener('pointerdown', on); ['pointerup', 'pointercancel', 'pointerleave'].forEach((e) => btn.addEventListener(e, off));
+})();
 function markFirstRun() {
   try {
     if (localStorage.getItem(FIRST_RUN_KEY)) return;

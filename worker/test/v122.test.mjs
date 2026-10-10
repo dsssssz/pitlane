@@ -1,0 +1,24 @@
+// v122: премиальный CTA «Замер» на Главной — node test/v122.test.mjs
+import fs from 'fs';
+let fails = 0; const ok = (c, m) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m); } };
+const root = new URL('../../', import.meta.url).pathname;
+const html = fs.readFileSync(root + 'index.html', 'utf8'); const css = fs.readFileSync(root + 'styles.css', 'utf8');
+const app = fs.readFileSync(root + 'app.js', 'utf8'); const sw = fs.readFileSync(root + 'sw.js', 'utf8');
+const go = html.slice(html.indexOf('id="homeGo"'), html.indexOf('</section>', html.indexOf('id="homeGo"')));
+ok(/class="home-go hg-a"/.test(html), 'выкачен вариант A (Engine Start)');
+ok(/id="homeGoBtn"[^>]*data-hq="run"/.test(go) && /class="hg-title">Замер</.test(go) && /0–100 · ¼ мили · круг/.test(go), 'кнопка «Замер» + подпись «0–100 · ¼ мили · круг»');
+ok(!/Шаг 1|Телефона хватит|Около минуты|Сделать замер/.test(go), 'нет «Шаг 1», «Телефона хватит…», капса «СДЕЛАТЬ ЗАМЕР»');
+ok(/id="homeGoGps"/.test(go) && /id="homeGoBest" hidden/.test(go), 'статус GPS и «лучший 0–100» (скрыт без результатов)');
+ok(/aria-label="Замер: 0–100, ¼ мили, круг"/.test(go), 'доступное имя кнопки');
+const block = css.slice(css.indexOf('/* ——— v122'), css.indexOf('/* шапка Топов'));
+ok(!/text-transform:\s*uppercase[^}]*font:\s*\d+\s+2\dpx/.test(block) && !/\.hg-btn\s*\{[^}]*background:\s*var\(--h-acc/.test(block), 'без сплошной кислотной заливки и капса на всю ширину');
+ok(/@media \(prefers-reduced-motion: reduce\)[\s\S]*\.home-go::before[\s\S]*animation: none/.test(block), 'prefers-reduced-motion: дыхание и стрелка выключены');
+ok(/\.hg-btn:active \.hg-dial, \.hg-btn\.is-pressed \.hg-dial/.test(block), 'нажатие с прогибом');
+const fn = app.slice(app.indexOf('/* v122: премиальный CTA'), app.indexOf('function markFirstRun'));
+ok(!/vibrate|hap\(/.test(fn), 'без вибрации');
+ok(/_homeLastFix = \{ acc: Number\(pos\?\.coords\?\.accuracy\)/.test(app) && /Date\.now\(\) - fix\.at < 15000/.test(fn), 'точность — только из настоящего свежего фикса (≤15 с)');
+ok(!/getCurrentPosition|watchPosition/.test(fn) && /permissions\?\.query\?\.\(\{ name: 'geolocation' \}\)/.test(fn), 'на Главной GPS не запрашивается (только чтение разрешения)');
+ok(!/innerHTML/.test(fn), 'textContent / DOM, без innerHTML');
+ok(/<meta http-equiv="Content-Security-Policy"[^>]*script-src 'self'/.test(html), 'CSP не тронут');
+ok(/APP_VERSION = 'v122'/.test(app) && /pitlane-v122/.test(sw), 'APP_VERSION v122 / SW pitlane-v122');
+console.log(fails ? `✗ ${fails} failed` : '✓ v122 all passed'); process.exit(fails ? 1 : 0);
