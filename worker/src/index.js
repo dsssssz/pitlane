@@ -1,4 +1,5 @@
 import { runWeather, publicWx } from './wx.js';
+import { sanitizeCarPhoto, publicCarPhoto, carPhotoKey, PCAR_BODY, PCAR_MAX } from './carphoto.js';
 import { listFollows, setFollow, followImproveNotify, deleteFollowKeys, FOLLOW_MAX } from './follow.js';
 import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner, trackTitle } from './botcopy.js';
 import { seasonRoute, seasonRecord0100 } from './season.js';
@@ -1066,6 +1067,7 @@ async function buildPilotProfile(kv, pid, viewer) {
     nick: safeName(rec.nick || meta.nick, 'Пилот'),
     avatar: sanitizeAvatar(meta.avatar) || null,
     banner: publicBanner(rec),
+    carPhoto: publicCarPhoto(rec), // v132
     car,
     best: { zeroHundred: cars, laps, drag },
     postCount: mine.length,
@@ -2462,6 +2464,9 @@ async function deleteAccount(kv, pid, currentToken) {
   // v89: custom profile banner
   rep.banner = (await kv.get('pbanner:' + pid)) || rec?.banner ? 1 : 0;
   await del('pbanner:' + pid);
+  // v132: фото машины
+  rep.carPhoto = (await kv.get(carPhotoKey(pid))) ? 1 : 0;
+  await del(carPhotoKey(pid));
   // v97: rooms + active car
   Object.assign(rep, await deleteAccountRooms(kv, pid, ROOM_H));
   // per-account rate-limit counters (short-lived anyway; removed so nothing references the uuid)
@@ -3199,7 +3204,7 @@ export default {
             await savePilot(env.PITLANE, rec);
           }
         }
-        return json({ ok: true, pilotId: rec.id, nick: rec.nick, user: ownerUser(rec), banner: publicBanner(rec) }, 200, headers);
+        return json({ ok: true, pilotId: rec.id, nick: rec.nick, user: ownerUser(rec), banner: publicBanner(rec), carPhoto: publicCarPhoto(rec, true) }, 200, headers);
       }
 
       // —— Account deletion (Google Play / 152-ФЗ) ——
@@ -3817,6 +3822,47 @@ export default {
         }
         await savePilot(env.PITLANE, rec);
         return json({ ok: true, pilotId: rec.id, banner: publicBanner(rec) }, 200, headers);
+      }
+      // —— v132: фото своей машины ——
+      if (path === '/me/car-photo' && (req.method === 'PUT' || req.method === 'DELETE')) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const lim = await limitOr429(env, headers, [['rl:cph:ip:' + ip, 40, 3600], ['rl:cph:p:' + pilot.id, 20, 3600]]);
+        if (lim) return lim;
+        const rec = await loadPilot(env.PITLANE, pilot.id);
+        if (!rec) return json({ error: 'account not found' }, 404, headers);
+        if (req.method === 'DELETE') {
+          delete rec.carPhoto; delete rec.carPhotoShare;
+          await env.PITLANE.delete(carPhotoKey(pilot.id));
+        } else {
+          const body = await readJson(req, PCAR_BODY);
+          if (!body || typeof body !== 'object') return json({ error: 'image or share required', code: 'bad_request' }, 400, headers);
+          if (body.image != null) {
+            const img = sanitizeCarPhoto(body.image);
+            if (img.error) return json({ error: img.error, code: img.code, max: PCAR_MAX }, img.code === 'too_large' ? 413 : 400, headers);
+            const v = Date.now().toString(36);
+            await env.PITLANE.put(carPhotoKey(pilot.id), JSON.stringify({ mime: img.mime, b64: img.b64, v, at: Date.now() }));
+            rec.carPhoto = v;
+          } else if (typeof body.share !== 'boolean') return json({ error: 'image or share required', code: 'bad_request' }, 400, headers);
+          if (typeof body.share === 'boolean') {
+            if (!rec.carPhoto) return json({ error: 'no photo', code: 'no_photo' }, 409, headers);
+            rec.carPhotoShare = body.share;
+          }
+        }
+        await savePilot(env.PITLANE, rec);
+        return json({ ok: true, pilotId: rec.id, carPhoto: publicCarPhoto(rec, true) }, 200, headers);
+      }
+      m = path.match(/^\/car-photo\/([^/]+)$/);
+      if (req.method === 'GET' && m) {
+        if (await burstLimited(env, 'RL_GHOST', ip)) return json({ error: 'rate limit', retry: 60 }, 429, { ...headers, 'Retry-After': '60' });
+        const pid = safeDecode(m[1]);
+        if (!isPilotUuid(pid)) return json({ error: 'not found' }, 404, headers);
+        const b = await kvJson(env.PITLANE, carPhotoKey(pid));
+        if (!b || !b.b64 || !['image/webp', 'image/jpeg', 'image/avif'].includes(b.mime)) return json({ error: 'not found' }, 404, headers);
+        const bin = atob(b.b64);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Response(bytes, { status: 200, headers: { ...headers, 'Content-Type': b.mime, 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'", 'Cross-Origin-Resource-Policy': 'cross-origin', 'Cache-Control': 'public, max-age=604800, immutable' } });
       }
       m = path.match(/^\/banner\/([^/]+)$/);
       if (req.method === 'GET' && m) {

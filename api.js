@@ -460,6 +460,16 @@ export const api = {
     const path = kind === 'drag' ? '/ghosts/top/drag/' + encodeURIComponent(ref) : '/ghosts/top/' + encodeURIComponent(ref);
     return await remote(path);
   },
+  /* —— v132: фото своей машины —— */
+  async putCarPhoto(body) {
+    return await remoteKeep('/me/car-photo', { method: 'PUT', body: JSON.stringify(body || {}), timeoutMs: 25000 });
+  },
+  async deleteCarPhoto() { return await remoteKeep('/me/car-photo', { method: 'DELETE' }); },
+  carPhotoUrl(pilotId, v) {
+    const base = apiBase();
+    if (!base || !pilotId || !v) return '';
+    return base + '/car-photo/' + encodeURIComponent(pilotId) + '?v=' + encodeURIComponent(v);
+  },
   /* —— v89: profile banner —— */
   async setBanner(body) {
     return await remoteKeep('/me/banner', { method: 'PUT', body: JSON.stringify(body || {}), timeoutMs: 20000 });

@@ -910,6 +910,28 @@
             <p class="tiny muted">Только твои события, не больше 5 в сутки; несколько сразу — одной сводкой. В боте: /stop_notify.</p>
             <p class="tiny" id="accNotifyMsg" role="status"></p>
           </article>
+          <article class="card carphoto-card" id="accCarPhoto" hidden>
+            <h3>Фото машины</h3>
+            <p class="muted tiny">Твоя машина на главной и в профиле. Без фото — студийный рендер модели.</p>
+            <div class="cph-frame" id="cphFrame">
+              <img class="cph-img" id="cphImg" alt="" decoding="async">
+              <span class="cph-tag" id="cphTag"></span>
+              <canvas class="cph-crop" id="cphCrop" hidden aria-label="Кадрирование: двигай фото пальцем"></canvas>
+            </div>
+            <div class="cph-zoom" id="cphZoomRow" hidden>
+              <span aria-hidden="true">−</span><input type="range" id="cphZoom" min="1" max="3" step="0.01" value="1" aria-label="Масштаб"><span aria-hidden="true">+</span>
+            </div>
+            <div class="cph-actions" id="cphActions">
+              <label class="cph-btn" id="cphPick"><input type="file" id="cphFile" accept="image/*" hidden><span id="cphPickTxt">Загрузить фото</span></label>
+              <button type="button" class="cph-btn cph-ghost" id="cphDelete" hidden>Удалить</button>
+            </div>
+            <div class="cph-actions" id="cphCropActions" hidden>
+              <button type="button" class="cph-btn cph-save" id="cphSave">Сохранить</button>
+              <button type="button" class="cph-btn cph-ghost" id="cphCancel">Отмена</button>
+            </div>
+            <label class="notify-row cph-share" id="cphShareRow" hidden><input type="checkbox" id="cphShare"><span>Показывать на карточке заезда</span></label>
+            <p class="tiny muted" id="cphMsg" role="status"></p>
+          </article>
           <article class="card follow-card" id="accFollows" hidden>
             <h3>Подписки</h3>
             <p class="muted tiny">Бот напишет, когда пилот или команда улучшат зачтённый круг или разгон. Те же правила: не больше 5 в сутки, сводкой.</p>
@@ -1072,6 +1094,7 @@
         <button type="button" class="share-card-close" id="shareCardClose" aria-label="Закрыть">×</button>
         <p class="share-brand">PITLANE</p>
         <p class="share-badge" id="shareBadge"><span>VALID</span></p>
+        <div class="share-photo" id="sharePhoto" hidden><img id="sharePhotoImg" alt="" decoding="async"></div>
         <p class="share-honesty" id="shareHonesty" hidden></p>
         <div class="share-track-row" id="shareTrackRow" hidden>
           <svg class="share-track-svg" viewBox="0 0 64 36" aria-hidden="true">

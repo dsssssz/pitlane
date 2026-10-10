@@ -1627,7 +1627,7 @@ function goToView(id, opts = {}) {
 
   // v83: Paddock feed renders on every entry (also ?view=pulse deep links, which used to show an empty feed)
   if (id === 'pulse') setTimeout(() => { try { void renderPulse(); } catch (_) {} }, 0);
-  if (id === 'account') setTimeout(() => { try { void renderNotifyCard(); } catch (_) {} try { void renderFollowsCard(); } catch (_) {} }, 0); // v121, v131
+  if (id === 'account') setTimeout(() => { try { void renderNotifyCard(); } catch (_) {} try { void renderFollowsCard(); } catch (_) {} try { void renderCarPhotoCard(); } catch (_) {} }, 0); // v121, v131, v132
   if (already) {
     try { onResize(); } catch (_) {}
     return;
@@ -5963,6 +5963,7 @@ function openShareCard(payload) {
     }
   }
 
+  try { applySharePhoto(payload); } catch (_) {} // v132
   const wxEl = document.getElementById('shareWeather');
   const wxL = wxShareLine(payload.wx); // v128: одна строка погоды метеосервиса
   if (wxEl && wxL) {
@@ -9435,6 +9436,15 @@ function renderPilotProfile(pr) {
   if (isMyPilotId(pr.pilotId)) who.appendChild(padEl('span', 'pilot-you', 'это ты'));
   head.appendChild(who);
   body.appendChild(head);
+  if (pr.carPhoto && pr.carPhoto.v) { // v132: фото машины пилота (если загрузил)
+    const fig = padEl('figure', 'pilot-carphoto');
+    const im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.referrerPolicy = 'no-referrer';
+    im.addEventListener('error', () => fig.remove(), { once: true });
+    im.src = api.carPhotoUrl(pr.pilotId, pr.carPhoto.v);
+    fig.appendChild(im);
+    if (pr.car) fig.appendChild(padEl('figcaption', '', pr.car));
+    body.appendChild(fig);
+  }
 
   const stats = padEl('div', 'pilot-stats');
   const zh = (pr.best && pr.best.zeroHundred) || [];
@@ -9582,6 +9592,134 @@ function appendChallengeButton(body, pid, res) {
   body.appendChild(btn);
 }
 
+
+/* ═══ v132: фото своей машины — обрезка 16:10 на клиенте, пережатие canvas → WebP (JPEG, если WebP не кодируется),
+   EXIF/геометки не переживают перекодирование; сервер ещё раз проверяет. Без фото — студийный рендер. ═══ */
+const CPH_W = 1280, CPH_H = 800, CPH_MAX = 230 * 1024;
+let _myCarPhoto; // undefined — не знаем; null — нет; { v, share }
+function myCarPhotoState(remote) {
+  if (_myCarPhoto !== undefined) return _myCarPhoto;
+  let hc = null; try { hc = _homeCache; } catch (_) {}
+  const pr = remote?.prof || hc?.prof;
+  return pr ? (pr.carPhoto || null) : undefined;
+}
+function myCarPhotoUrl(remote) {
+  const st = myCarPhotoState(remote);
+  const pid = (() => { try { return accountPilotId(); } catch (_) { return null; } })();
+  return st && st.v && pid ? api.carPhotoUrl(pid, st.v) : '';
+}
+function setMyCarPhoto(st) {
+  _myCarPhoto = st || null;
+  try { if (_homeCache?.prof) _homeCache.prof.carPhoto = _myCarPhoto; renderHwCar(_homeCache); } catch (_) {}
+}
+let _cph = null; // { bmp, zoom, ox, oy }
+function cphDraw() {
+  const cv = document.getElementById('cphCrop'); if (!cv || !_cph) return;
+  const ctx = cv.getContext('2d'); const { bmp } = _cph;
+  const base = Math.max(cv.width / bmp.width, cv.height / bmp.height);
+  const sc = base * _cph.zoom; const w = bmp.width * sc; const h = bmp.height * sc;
+  _cph.ox = Math.min(0, Math.max(cv.width - w, _cph.ox)); _cph.oy = Math.min(0, Math.max(cv.height - h, _cph.oy));
+  ctx.fillStyle = '#0b0c0e'; ctx.fillRect(0, 0, cv.width, cv.height);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(bmp, _cph.ox, _cph.oy, w, h);
+}
+function cphMode(crop) {
+  const q = (id) => document.getElementById(id);
+  q('cphCrop').hidden = !crop; q('cphZoomRow').hidden = !crop; q('cphCropActions').hidden = !crop; q('cphActions').hidden = crop;
+  q('cphImg').hidden = crop; q('cphTag').hidden = crop;
+}
+async function cphOpenFile(file) {
+  const msg = document.getElementById('cphMsg');
+  if (!file || !/^image\//.test(file.type || 'image/')) { if (msg) msg.textContent = 'Нужен файл изображения'; return; }
+  if (file.size > 40 * 1024 * 1024) { if (msg) msg.textContent = 'Файл больше 40 МБ'; return; }
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: 'from-image' }); }
+  catch (_) {
+    try { const url = URL.createObjectURL(file); const im = new Image(); im.src = url; await im.decode(); bmp = im; setTimeout(() => URL.revokeObjectURL(url), 1000); }
+    catch (e) { if (msg) msg.textContent = 'Не получилось открыть фото — попробуй JPEG'; return; }
+  }
+  const cv = document.getElementById('cphCrop');
+  cv.width = CPH_W; cv.height = CPH_H;
+  _cph = { bmp, zoom: 1, ox: 0, oy: 0 };
+  const base = Math.max(CPH_W / bmp.width, CPH_H / bmp.height);
+  _cph.ox = (CPH_W - bmp.width * base) / 2; _cph.oy = (CPH_H - bmp.height * base) / 2;
+  document.getElementById('cphZoom').value = '1';
+  cphMode(true); cphDraw();
+  if (msg) msg.textContent = 'Подвинь фото пальцем, масштаб — ползунком';
+}
+function cphBlob(cv, type, q) { return new Promise((res) => cv.toBlob((b) => res(b), type, q)); }
+async function cphEncode() {
+  const cv = document.getElementById('cphCrop');
+  for (const q of [0.84, 0.76, 0.68, 0.6, 0.5]) {
+    let b = await cphBlob(cv, 'image/webp', q);
+    if (!b || b.type !== 'image/webp') b = await cphBlob(cv, 'image/jpeg', q); // Safari без WebP-кодера
+    if (b && b.size <= CPH_MAX) return b;
+  }
+  return null;
+}
+const cphDataUrl = (b) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.onerror = rej; fr.readAsDataURL(b); });
+async function renderCarPhotoCard() {
+  const card = document.getElementById('accCarPhoto'); if (!card) return;
+  if (!currentUser() || !isRemoteApi()) { card.hidden = true; return; }
+  card.hidden = false;
+  if (_cph) return; // идёт кадрирование
+  let st = myCarPhotoState();
+  if (st === undefined) { try { await homeRemote(); } catch (_) {} st = myCarPhotoState(); }
+  const img = document.getElementById('cphImg'); const tag = document.getElementById('cphTag');
+  const ph = myCarPhotoUrl();
+  const id = homeHeroCarId();
+  if (ph) { img.removeAttribute('srcset'); img.src = ph; tag.textContent = 'твоё фото'; }
+  else { img.src = STUDIO_IDS.has(id) ? `./img/cars/studio/${id}-1170.webp` : carThumbUrl(id); tag.textContent = 'студийный рендер'; }
+  document.getElementById('cphDelete').hidden = !ph;
+  document.getElementById('cphPickTxt').textContent = ph ? 'Заменить фото' : 'Загрузить фото';
+  document.getElementById('cphShareRow').hidden = !ph;
+  document.getElementById('cphShare').checked = !!(st && st.share !== false);
+  cphMode(false);
+}
+(() => {
+  const q = (id) => document.getElementById(id);
+  q('cphFile')?.addEventListener('change', (e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void cphOpenFile(f); });
+  q('cphZoom')?.addEventListener('input', (e) => {
+    if (!_cph) return; const cv = q('cphCrop'); const z0 = _cph.zoom; const z1 = Number(e.target.value) || 1;
+    const cx = cv.width / 2, cy = cv.height / 2; _cph.ox = cx - (cx - _cph.ox) * z1 / z0; _cph.oy = cy - (cy - _cph.oy) * z1 / z0; _cph.zoom = z1; cphDraw();
+  });
+  let drag = null;
+  q('cphCrop')?.addEventListener('pointerdown', (e) => { if (!_cph) return; const r = e.currentTarget.getBoundingClientRect(); drag = { x: e.clientX, y: e.clientY, k: e.currentTarget.width / r.width }; e.currentTarget.setPointerCapture(e.pointerId); });
+  q('cphCrop')?.addEventListener('pointermove', (e) => { if (!drag || !_cph) return; _cph.ox += (e.clientX - drag.x) * drag.k; _cph.oy += (e.clientY - drag.y) * drag.k; drag.x = e.clientX; drag.y = e.clientY; cphDraw(); });
+  const up = () => { drag = null; };
+  q('cphCrop')?.addEventListener('pointerup', up); q('cphCrop')?.addEventListener('pointercancel', up);
+  q('cphCancel')?.addEventListener('click', () => { _cph = null; q('cphMsg').textContent = ''; void renderCarPhotoCard(); });
+  q('cphSave')?.addEventListener('click', async () => {
+    const msg = q('cphMsg'); const btn = q('cphSave');
+    btn.disabled = true; msg.textContent = 'Сжимаем…';
+    const blob = await cphEncode();
+    if (!blob) { btn.disabled = false; msg.textContent = 'Слишком тяжёлое фото — попробуй другое'; return; }
+    msg.textContent = 'Загружаем…';
+    const r = await api.putCarPhoto({ image: await cphDataUrl(blob) }).catch(() => null);
+    btn.disabled = false;
+    if (r && r.ok) { _cph = null; setMyCarPhoto(r.carPhoto); msg.textContent = `Сохранено · ${Math.round(blob.size / 1024)} КБ`; void renderCarPhotoCard(); }
+    else msg.textContent = r?.code === 'too_large' ? 'Слишком большое фото' : r?.code === 'has_meta' ? 'В файле остались метаданные — попробуй ещё раз' : 'Не сохранилось — проверь сеть';
+  });
+  q('cphDelete')?.addEventListener('click', async () => {
+    const msg = q('cphMsg'); msg.textContent = 'Удаляем…';
+    const r = await api.deleteCarPhoto().catch(() => null);
+    if (r && r.ok) { setMyCarPhoto(null); msg.textContent = 'Фото удалено — снова студийный рендер'; void renderCarPhotoCard(); } else msg.textContent = 'Не получилось — проверь сеть';
+  });
+  q('cphShare')?.addEventListener('change', async (e) => {
+    const r = await api.putCarPhoto({ share: !!e.target.checked }).catch(() => null);
+    if (r && r.ok) setMyCarPhoto(r.carPhoto); else { e.target.checked = !e.target.checked; q('cphMsg').textContent = 'Не сохранилось — проверь сеть'; }
+  });
+})();
+/** Карточка заезда: своё фото, если включено «Показывать на карточке» (только свои заезды). */
+function applySharePhoto(payload) {
+  const box = document.getElementById('sharePhoto'); const im = document.getElementById('sharePhotoImg');
+  if (!box || !im) return;
+  const st = myCarPhotoState(); const url = myCarPhotoUrl();
+  let own = false; try { own = !!_shareOwn; } catch (_) {} // чужая карточка по ссылке — никогда не моё фото
+  const show = !!(url && st && st.share !== false && own);
+  box.hidden = !show;
+  if (show && im.getAttribute('src') !== url) { im.onerror = () => { box.hidden = true; }; im.src = url; }
+}
 /* v131: «Следить» за пилотом / командой — бот пишет об их зачтённых улучшениях (правила уведомлений v121) */
 let _follows = null; let _followsAt = 0;
 async function loadFollows(force) {
@@ -12016,7 +12154,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v131';
+const APP_VERSION = 'v132';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -14028,7 +14166,14 @@ function renderHwCar(remote) {
   const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
   if (!m) return;
   const img = document.getElementById('hwCarImg'); const av = document.getElementById('hwCarAvif');
-  if (img && img.dataset.car !== m.id) {
+  const ph = myCarPhotoUrl(remote); // v132: своё фото вместо рендера (рендер — запасной)
+  document.getElementById('hwCar')?.classList.toggle('has-photo', !!ph);
+  if (img && ph && img.dataset.car !== 'photo:' + ph) {
+    img.dataset.car = 'photo:' + ph;
+    av?.removeAttribute('srcset'); img.removeAttribute('srcset');
+    img.onerror = () => { img.onerror = null; img.dataset.car = ''; _myCarPhoto = null; document.getElementById('hwCar')?.classList.remove('has-photo'); renderHwCar(null); };
+    img.src = ph;
+  } else if (img && !ph && img.dataset.car !== m.id) {
     img.dataset.car = m.id;
     if (STUDIO_IDS.has(m.id)) {
       av?.setAttribute('srcset', studioSrcset(m.id, 'avif'));
