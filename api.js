@@ -290,6 +290,12 @@ export const api = {
     const r = await remoteKeep('/tops/straight/' + encodeURIComponent(carId), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
     return r;
   },
+  /** v129: история трассы своего пилота (место, срез машины, лучший сектор, свои круги) — только вошедшим */
+  async trackHistory(trackId) {
+    if (!apiBase() || !getSessionToken()) return null;
+    const r = await remote('/tops/lap/' + encodeURIComponent(trackId) + '/me');
+    return r && r.ok ? r : null;
+  },
   async addLap(trackId, row) {
     if (!apiBase()) return { ok: false, code: 'offline' };
     return remoteKeep('/tops/lap/' + encodeURIComponent(trackId), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });

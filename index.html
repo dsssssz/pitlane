@@ -602,6 +602,13 @@
               <p class="muted">Старт открывает HUD (карта, погода). Красная «Старт» внутри — вооружение. С/Ф на трассе стартует и финиширует честно. Ручной финиш не в топ.</p>
             </article>
           </div>
+          <article class="card track-hist" id="trackHistCard" aria-live="polite">
+            <div class="th-head"><h3>История трассы</h3><span class="th-track" id="thTrack"></span></div>
+            <p class="th-line" id="thLine"></p>
+            <div class="th-chart" id="thChart" aria-hidden="true"></div>
+            <ol class="th-list" id="thList"></ol>
+            <p class="th-note" id="thNote"></p>
+          </article>
           <article class="card" id="compareCard">
             <h3>Сравнение</h3>
             <div id="compareBody">
@@ -1034,6 +1041,7 @@
         </div>
         <div class="ghost-pick" id="lapGhostPick" data-scope="lap"></div>
         <div class="lap-drive-weather" id="lapDriveWeather">погода…</div>
+        <p class="lap-drive-hist" id="lapDriveHist" hidden></p>
         <p class="tiny lap-drive-warn" id="lapDriveWarn"></p>
         <p class="tiny" id="lapDriveMsg">GPS</p>
         <div class="lap-map-modes" role="group" aria-label="режим карты">

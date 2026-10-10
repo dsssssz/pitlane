@@ -5138,6 +5138,7 @@ async function completeLapRun(how, atTs, gsnap) {
       const lapRes = await pLap;
       try { setLapMsg(topVerdict(lapRes)); } catch (_) {}
       try { const w = wxFromRes(lapRes); if (w) { rec.wx = w; save(); updateShareWx(w); } } catch (_) {} // v128
+      try { if (lapRes && (Array.isArray(lapRes) || lapRes.ok)) void renderTrackHistory(trackId, { hud: true }); } catch (_) {} // v129
       try { void pushCrewBestAfterLap(trackId, {
         trace: lapTrace, how,
         t: typeof tStr !== 'undefined' ? tStr : undefined,
@@ -6237,10 +6238,19 @@ function renderCompare() {
   const trackId = document.getElementById('trackSelect')?.value || state.trackId;
   const best = bestLapDisplay(trackId);
   if (stats) {
-    stats.innerHTML = `
-      <div>0–100 сток <b>${fmt(c.v0100)}</b> · GPS <b>${fmt(rec.v0100)}</b></div>
-      <div>100–200 сток <b>${fmt(c.v100200)}</b> · GPS <b>${fmt(rec.v100200)}</b></div>
-      <div>ваш круг <b>${best}</b></div>`;
+    // v129: без «null» и прочерков — только то, что реально есть
+    const val = (v) => (v != null && v !== '' && Number.isFinite(Number(v)) ? fmt(v) : '');
+    const row = (k, stock, gps) => {
+      const d = padEl('div', 'cmp-row'); d.appendChild(padEl('span', 'cmp-k', k));
+      const v = padEl('span', 'cmp-v');
+      if (stock) v.append(padEl('i', '', 'сток '), padEl('b', '', stock));
+      if (stock && gps) v.append(padEl('i', '', ' · '));
+      v.append(padEl('i', '', 'GPS '), padEl('b', '', gps || 'нет замера'));
+      d.appendChild(v); return d;
+    };
+    stats.replaceChildren(row('0–100', val(c.v0100), val(rec.v0100)), row('100–200', val(c.v100200), val(rec.v100200)));
+    const lap = padEl('div', 'cmp-row'); lap.append(padEl('span', 'cmp-k', 'ваш круг'), padEl('b', 'cmp-v', best && best !== 'null' ? String(best) : 'нет круга'));
+    stats.appendChild(lap);
   }
 }
 
@@ -11933,7 +11943,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v128';
+const APP_VERSION = 'v129';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12284,6 +12294,98 @@ function publishDragMark(disc, sec) {
   } catch (err) { console.warn('publishDragMark', err); }
 }
 
+
+/* ——— v129: история трассы — место на сухом, срез своей машины, лучший сектор, свои круги, прогресс ——— */
+const TH_SECTOR_RU = ['первый', 'второй', 'третий'];
+let _thSeq = 0;
+function thSummary(h) {
+  if (!h || !h.overall) return '';
+  const bits = [`Ты здесь ${h.overall.pos}-й из ${h.overall.of} ${h.cond === 'dry' ? 'на сухом' : 'во всех условиях'}`];
+  if (h.car && h.car.of > 1) bits.push(`в срезе своей машины ${h.car.pos}-й из ${h.car.of}`);
+  else if (h.car) bits.push('на этой модели пока один');
+  if (h.sector && TH_SECTOR_RU[h.sector.idx - 1]) bits.push(`лучший сектор — ${TH_SECTOR_RU[h.sector.idx - 1]} (${h.sector.pos}-й из ${h.sector.of})`);
+  return bits.join(' · ');
+}
+function thFmtDate(at) {
+  if (!at) return '';
+  const d = new Date(at);
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) + ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+function thWxShort(l) {
+  const w = cleanWx(l.wx);
+  if (w) { const b = []; if (w.t != null) b.push(wxTemp(w.t)); if (w.wet) b.push(WX_WET_RU[w.wet]); if (w.tod) b.push(WX_TOD_RU[w.tod]); return b.join(' · '); }
+  return WX_WET_RU[l.weather] || '';
+}
+/** SVG: лучший-на-момент по времени (кумулятивный минимум); точки — новые личные рекорды. */
+function thChart(host, laps) {
+  host.replaceChildren();
+  const pts = laps.filter((l) => Number.isFinite(l.ms) && l.at);
+  if (pts.length < 2) { host.hidden = true; return; }
+  host.hidden = false;
+  const NS = 'http://www.w3.org/2000/svg';
+  const W = 320, H = 70, P = 6;
+  let best = Infinity; const series = pts.map((l) => { const pb = l.ms < best; best = Math.min(best, l.ms); return { at: l.at, v: best, pb }; });
+  const t0 = series[0].at, t1 = series[series.length - 1].at;
+  const vMax = series[0].v, vMin = series[series.length - 1].v;
+  const x = (at) => P + (t1 > t0 ? (at - t0) / (t1 - t0) : 1) * (W - 2 * P);
+  const y = (v) => (vMax > vMin ? P + ((v - vMin) / (vMax - vMin)) * (H - 2 * P) : H / 2); // быстрее — выше
+  const svg = document.createElementNS(NS, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('class', 'th-svg');
+  let d = ''; series.forEach((p, i) => { const X = x(p.at).toFixed(1), Y = y(p.v).toFixed(1); d += (i ? ` L${X} ${Y}` : `M${X} ${Y}`); if (i < series.length - 1) d += ` L${x(series[i + 1].at).toFixed(1)} ${Y}`; });
+  const base = document.createElementNS(NS, 'path'); base.setAttribute('d', `M${P} ${H - P} L${W - P} ${H - P}`); base.setAttribute('class', 'th-base'); svg.appendChild(base);
+  const line = document.createElementNS(NS, 'path'); line.setAttribute('d', d); line.setAttribute('class', 'th-line-path'); svg.appendChild(line);
+  series.forEach((p, i) => { if (!p.pb) return; const c = document.createElementNS(NS, 'circle'); c.setAttribute('cx', x(p.at).toFixed(1)); c.setAttribute('cy', y(p.v).toFixed(1)); c.setAttribute('r', i === series.length - 1 || p.v === vMin ? '3.2' : '2.2'); c.setAttribute('class', p.v === vMin ? 'th-pb now' : 'th-pb'); svg.appendChild(c); });
+  host.appendChild(svg);
+  const cap = padEl('div', 'th-cap');
+  cap.append(padEl('span', '', fmtLapTime(vMax)), padEl('span', '', 'прогресс лучшего'), padEl('b', '', fmtLapTime(vMin)));
+  host.appendChild(cap);
+}
+async function renderTrackHistory(trackId0, { hud } = {}) {
+  const card = document.getElementById('trackHistCard'); if (!card) return null;
+  const trackId = trackId0 || document.getElementById('trackSelect')?.value || currentCar()?.lap?.track;
+  const tr = TRACKS.find((t) => t.id === trackId);
+  { const el = document.getElementById('thTrack'); if (el) el.textContent = tr?.name || ''; }
+  const seq = ++_thSeq;
+  let h = null; let cls = 'ab';
+  try { const r = await api.trackHistory(trackId); if (r) { if (r.ab?.laps?.length) h = r.ab; else if (r.c?.laps?.length) { h = r.c; cls = 'c'; } else h = r.ab || null; } } catch (_) { h = null; }
+  if (seq !== _thSeq) return null;
+  const lineEl = document.getElementById('thLine'); const list = document.getElementById('thList'); const note = document.getElementById('thNote'); const chart = document.getElementById('thChart');
+  list.replaceChildren(); chart.replaceChildren(); chart.hidden = true;
+  let laps = h?.laps || [];
+  let local = false;
+  if (!laps.length && !h) {
+    // не вошёл / офлайн — только свои круги с устройства, без места в топе
+    laps = (state.laps?.[trackId] || []).filter((l) => Number.isFinite(l.ms)).map((l) => ({ t: l.t, ms: l.ms, at: l.at, weather: l.weather, wx: l.wx })).sort((a, b) => (a.at || 0) - (b.at || 0));
+    local = laps.length > 0;
+  }
+  const sum = h ? thSummary(h) : '';
+  lineEl.textContent = sum + (sum && cls === 'c' ? ' · зачёт C' : '');
+  lineEl.hidden = !sum;
+  if (!laps.length) {
+    note.textContent = h ? 'Здесь ещё нет твоих зачтённых кругов. Проедь круг по GPS — появятся место в топе, сектора и прогресс.' : 'Войди и проедь круг по GPS — здесь появятся место в топе, сектора и прогресс.';
+    card.classList.add('is-empty');
+    return h;
+  }
+  card.classList.remove('is-empty');
+  const best = Math.min(...laps.map((l) => l.ms));
+  laps.slice().reverse().slice(0, 12).forEach((l) => {
+    const li = padEl('li', 'th-row' + (l.ms === best ? ' is-pb' : ''));
+    const left = padEl('div', 'th-l');
+    left.append(padEl('b', 'th-t', fmtLapTime(l.ms)), padEl('span', 'th-d', [thFmtDate(l.at), thWxShort(l)].filter(Boolean).join(' · ')));
+    const dlt = l.ms === best ? 'лучший' : '+' + ((l.ms - best) / 1000).toFixed(2).replace('.', ',');
+    li.append(left, padEl('span', 'th-delta', dlt));
+    list.appendChild(li);
+  });
+  thChart(chart, laps);
+  note.textContent = local ? 'Круги с этого устройства. Место в топе и срез машины — после входа.' : (laps.length > 12 ? `Показаны последние 12 из ${laps.length}.` : '');
+  if (hud) {
+    const hl = document.getElementById('lapDriveHist');
+    if (hl && sum) { hl.textContent = sum; hl.hidden = false; }
+  }
+  return h;
+}
+document.getElementById('trackSelect')?.addEventListener('change', () => { void renderTrackHistory(); });
+
 /* ——— view enter hooks (called from goToView) ——— */
 let _garageSeen = false;
 function onViewEnter(id) {
@@ -12306,6 +12408,7 @@ function onViewEnter(id) {
           }
         });
       } else if (id === 'lap') {
+        void renderTrackHistory(); // v129
         // v119: карта (Leaflet) и chase Сочи (three.js) — подгружаем при входе на «Круг», чтобы HUD открылся как раньше
         void ensureLeaflet().catch(() => {});
         void ensureThree().then(() => { try { sochiChaseSync(); } catch (_) {} }).catch(() => {});

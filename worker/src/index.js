@@ -551,6 +551,49 @@ async function applyWeather(env, row, geo) {
   return row;
 }
 
+/**
+ * v129: история трассы для своего пилота (только чтение): место среди пилотов (лучший круг каждого) на сухом
+ * или во всех условиях, место в срезе своей модели, лучший из своих секторов, свои круги с датой/погодой.
+ */
+function lapMsOf(r) { const v = Number(r && r.ms); return Number.isFinite(v) && v > 0 ? v : parseLapMs(r && r.t); }
+function bestPerPilot(rows) {
+  const best = new Map();
+  for (const r of rows) {
+    const ms = lapMsOf(r); if (!r || !r.pilotId || ms == null) continue;
+    const p = best.get(r.pilotId); if (!p || ms < p._ms) best.set(r.pilotId, { ...r, _ms: ms });
+  }
+  return [...best.values()].sort((a, b) => a._ms - b._ms);
+}
+function rankOf(list, pid) { const i = list.findIndex((r) => r.pilotId === pid); return i < 0 ? null : { pos: i + 1, of: list.length }; }
+function trackHistory(rows, pid) {
+  const mine = rows.filter((r) => r && r.pilotId === pid && lapMsOf(r) != null);
+  if (!mine.length) return { laps: [], total: bestPerPilot(rows).length };
+  const dryRows = rows.filter((r) => r.weather === 'dry');
+  const useDry = dryRows.some((r) => r.pilotId === pid);
+  const pool = useDry ? dryRows : rows;
+  const overall = rankOf(bestPerPilot(pool), pid);
+  const myBest = bestPerPilot(pool.filter((r) => r.pilotId === pid))[0];
+  const carKey = (r) => String(r.carId || r.car || '');
+  const ck = carKey(myBest);
+  const car = ck ? rankOf(bestPerPilot(pool.filter((r) => carKey(r) === ck)), pid) : null;
+  let sector = null;
+  for (let si = 0; si < 3; si++) {
+    const bestS = new Map();
+    for (const r of pool) { const sp = sectorSplitsFromLap(r); if (!sp || !r.pilotId) continue; const v = sp[si]; const prev = bestS.get(r.pilotId); if (prev == null || v < prev) bestS.set(r.pilotId, v); }
+    if (!bestS.has(pid)) continue;
+    const sorted = [...bestS.entries()].sort((a, b) => a[1] - b[1]);
+    const pos = sorted.findIndex(([k]) => k === pid) + 1;
+    if (!sector || pos < sector.pos || (pos === sector.pos && sorted.length > sector.of)) sector = { idx: si + 1, pos, of: sorted.length, ms: bestS.get(pid) };
+  }
+  const laps = mine.sort((a, b) => (a.at || 0) - (b.at || 0)).slice(-60).map((r) => {
+    const o = { t: r.t, ms: lapMsOf(r), at: r.at || null, weather: r.weather || null, gpsQ: r.gpsQ || null };
+    const w = r.wx ? publicWx(r.wx) : null; if (w) o.wx = w;
+    const sp = sectorSplitsFromLap(r); if (sp) o.sp = sp;
+    return o;
+  });
+  return { cond: useDry ? 'dry' : 'all', overall, car, carName: myBest ? cleanLabel(myBest.car, 80) : '', sector, best: myBest ? myBest._ms : null, laps };
+}
+
 /** v104: 0–100 (тот же зачёт, что /tops/drag/0-100). → { row } | { code } */
 function sanitizeStraight(body, pilot) {
   return sanitizeDrag(body, pilot, '0-100');
@@ -3302,6 +3345,20 @@ export default {
       }
 
       // —— Tops lap ——
+      // —— v129: история трассы своего пилота (GET, только вошедшим) ——
+      m = path.match(/^\/tops\/lap\/([^/]+)\/me$/);
+      if (req.method === 'GET' && m) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const trackId = safeDecode(m[1]);
+        if (!slugOk(trackId)) return json({ error: 'bad track id' }, 400, headers);
+        const lim = await limitOr429(env, headers, [['rl:thist:p:' + pilot.id, 240, 3600]]);
+        if (lim) return lim;
+        const ab = (await readList(env.PITLANE, boardKey('lap', trackId, 'ab'))).filter(isValidGpsRow);
+        const c = (await readList(env.PITLANE, boardKey('lap', trackId, 'c'))).filter(isClassCRow);
+        return json({ ok: true, trackId, ab: trackHistory(ab, pilot.id), c: trackHistory(c, pilot.id) }, 200, headers);
+      }
+
       m = path.match(/^\/tops\/lap\/([^/]+)$/);
       if (req.method === 'GET' && m) {
         const trackId = safeDecode(m[1]);

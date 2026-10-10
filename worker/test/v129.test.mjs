@@ -1,0 +1,50 @@
+// v129: история трассы — GET /tops/lap/:track/me — node test/v129.test.mjs
+import rawWorker from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+import { MemKV } from './kvmock.mjs';
+import { lapBody } from './traces.mjs';
+import fs from 'fs';
+const worker = withAutoRefresh(rawWorker);
+let fails = 0; const ok = (c, m, x) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m, x !== undefined ? JSON.stringify(x).slice(0, 400) : ''); } };
+const kv = new MemKV(); const env = { PITLANE: kv, SMS_DEMO: '1' }; let ip = 1;
+const call = async (m, p, { body, token, dev } = {}) => { const h = { Origin: 'https://dsssssz.github.io', 'Content-Type': 'application/json', 'CF-Connecting-IP': '10.129.' + (ip >> 8) + '.' + (ip++ % 250) }; if (token) h.Authorization = 'Bearer ' + token; if (dev) h['X-Device'] = dev; const r = await worker.fetch(new Request('https://api.test' + p, { method: m, headers: h, body: body ? JSON.stringify(body) : undefined }), env); const t = await r.text(); let d; try { d = JSON.parse(t); } catch { d = t; } return { status: r.status, data: d }; };
+const login = async (ph, nick) => { const o = await call('POST', '/auth/otp', { body: { phone: ph } }); const v = await call('POST', '/auth/verify', { body: { phone: ph, code: o.data.demoCode, nick } }); return { token: v.data.token, id: v.data.pilotId, dev: 'dev129' + ph.slice(-6) }; };
+let seed = 900;
+const lap = async (P, t, weather = 'dry') => call('POST', '/tops/lap/sochi', { token: P.token, dev: P.dev, body: lapBody(t, { weather }, { seed: seed++ }) });
+const A = await login('79012900001', 'Мага'); const B = await login('79012900002', 'Артём'); const C = await login('79012900003', 'Лиза'); const D = await login('79012900004', 'Дима');
+for (const [P, car] of [[A, ['BMW M2', 'g87-m2']], [B, ['BMW M2', 'g87-m2']], [C, ['Porsche 911 GT3', 'gt3']], [D, ['BMW M2', 'g87-m2']]]) await call('PUT', '/me/car', { token: P.token, body: { model: car[0], carId: car[1], tyre: 'street' } });
+
+console.log('[пусто]');
+let r = await call('GET', '/tops/lap/sochi/me', { token: A.token });
+ok(r.status === 200 && r.data.ok && r.data.ab.laps.length === 0 && r.data.ab.total === 0, 'нет кругов — честное пустое', r.data);
+ok((await call('GET', '/tops/lap/sochi/me')).status === 401, 'без входа — 401');
+ok((await call('GET', '/tops/lap/..%2Fx/me', { token: A.token })).status === 400, 'кривой id трассы — 400');
+
+console.log('[место, срез машины, сектор]');
+const s1 = [await lap(A, '1:58.0'), await lap(A, '1:56.5'), await lap(A, '1:57.2'), await lap(B, '1:55.0'), await lap(C, '1:54.0'), await lap(D, '1:59.5'), await lap(D, '1:52.0', 'wet')];
+ok(s1.every((x) => x.status === 200), 'круги приняты', s1.map((x) => x.status + ':' + (x.data?.code || '')));
+r = await call('GET', '/tops/lap/sochi/me', { token: A.token });
+const h = r.data.ab;
+ok(h.cond === 'dry' && h.overall && h.overall.pos === 3 && h.overall.of === 4, 'на сухом 3-й из 4 (мокрый круг Димы не считается)', h.overall);
+ok(h.car && h.car.pos === 2 && h.car.of === 3, 'в срезе своей машины 2-й из 3', h.car);
+ok(h.sector && [1, 2, 3].includes(h.sector.idx) && h.sector.pos >= 1 && h.sector.of >= 1, 'лучший сектор с местом', h.sector);
+ok(h.laps.length === 3 && h.laps[0].at <= h.laps[2].at && h.laps.every((l) => l.ms > 0 && l.weather === 'dry' && Array.isArray(l.sp)), 'свои круги по времени, с погодой и секторами', h.laps);
+ok(h.best === Math.min(...h.laps.map((l) => l.ms)), 'лучший круг');
+ok(!JSON.stringify(r.data).includes(B.id) && !JSON.stringify(r.data).includes('Артём'), 'чужих имён/id нет — только свои круги и места');
+const rD = (await call('GET', '/tops/lap/sochi/me', { token: D.token })).data.ab;
+ok(rD.cond === 'dry' && rD.overall.pos === 4 && rD.laps.length === 2, 'у Димы: место на сухом, список — оба круга (и мокрый)', rD);
+const puts = kv.puts; await call('GET', '/tops/lap/sochi/me', { token: A.token });
+ok(kv.puts - puts <= 1, 'только чтение (KV: ≤1 запись — счётчик лимита)', kv.puts - puts);
+
+console.log('[клиент]');
+const root = new URL('../../', import.meta.url).pathname;
+const app = fs.readFileSync(root + 'app.js', 'utf8'); const html = fs.readFileSync(root + 'index.html', 'utf8'); const api = fs.readFileSync(root + 'api.js', 'utf8');
+ok(/id="trackHistCard"/.test(html) && /id="thList"/.test(html) && /id="lapDriveHist"/.test(html), 'карточка истории + строка в HUD круга');
+ok(/async trackHistory\(trackId\)/.test(api) && /\/me'\)/.test(api), 'api.trackHistory');
+ok(/Ты здесь \$\{h\.overall\.pos\}-й из \$\{h\.overall\.of\}/.test(app) && /в срезе своей машины/.test(app) && /лучший сектор — /.test(app), 'формулировка «Ты здесь N-й из M …»');
+ok(/function thChart\(host, laps\)/.test(app) && /createElementNS\(NS, 'svg'\)/.test(app), 'мини-график прогресса (SVG через DOM)');
+const blk = app.slice(app.indexOf('/* ——— v129'), app.indexOf('/* ——— view enter hooks'));
+ok(!/innerHTML/.test(blk), 'v129 — только textContent/DOM');
+ok(/Здесь ещё нет твоих зачтённых кругов/.test(blk) && /Войди и проедь круг/.test(blk), 'честные пустые состояния');
+ok(/const APP_VERSION = 'v1(29|[3-9]\d)'/.test(app), 'APP_VERSION ≥ v129');
+console.log(fails ? `\n${fails} FAIL` : '\nOK'); process.exit(fails ? 1 : 0);
