@@ -1410,7 +1410,7 @@ function syncTabPill(activeBtn) {
   const bar = document.getElementById('tabbar');
   if (!pill || !bar) return;
   // v120: вид без вкладки (Бокс, Paddock, профиль) — подсветку прячем
-  if (!activeBtn || !activeBtn.classList.contains('nav-btn') || activeBtn.hidden) { pill.style.opacity = '0'; return; }
+  if (!activeBtn || !activeBtn.classList.contains('nav-btn') || activeBtn.hidden || !activeBtn.getClientRects().length) { pill.style.opacity = '0'; return; }
   pill.style.opacity = '';
   const br = bar.getBoundingClientRect();
   const r = activeBtn.getBoundingClientRect();
@@ -1578,6 +1578,7 @@ function playEngineStart() {
 function goToView(id, opts = {}) {
   const next = document.getElementById('view-' + id);
   if (!next) return;
+  try { if (typeof TGS !== 'undefined' && TGS.open) closeTgSheet({ instant: true }); } catch (_) {}
   const prev = document.querySelector('.view.active');
   const already = !!(prev && prev.id === 'view-' + id);
 
@@ -6820,6 +6821,7 @@ if (isTMA) {
     ['autodromeSheet', 'autodromeSheetClose'], ['carPickerSheet', 'carPickerClose'],
     ['feedbackSheet', 'feedbackClose'], ['padCommentsSheet', 'padCommentsClose'], ['pilotSheet', 'pilotClose'],
     ['bannerSheet', 'bannerClose'], ['ghostResult', 'ghostResultClose'],
+    ['tgSheet', 'tgSheetClose'],
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
   const closeSheet = (id, btnId) => {
@@ -11793,7 +11795,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v123';
+const APP_VERSION = 'v124';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13595,6 +13597,7 @@ function renderHome() {
   if (on('homeLeadersSec')) void renderHomeLeaders();
   if (on('homeStatsSec')) renderHomeStats();
   void renderHomeWidgets();
+  void refreshSheetBadges();
   if (!document.getElementById('homeCarsSec')?.classList.contains('v120-off')) renderHomeCars();
   if (!document.getElementById('homePostsSec')?.classList.contains('v120-off')) void renderHomeTopPosts();
   renderHomeGo();
@@ -13716,6 +13719,7 @@ document.getElementById('homeWidgets')?.addEventListener('click', (e) => {
   if (k === 'garage') { openCarInGarage(w.dataset.car || homeHeroCarId()); return; }
   if (k === 'records') { goToView(w.dataset.empty === '1' ? 'run' : 'tops'); return; }
   if (k === 'team') { openCrewSheet(); return; }
+  if ((k === 'duels' || k === 'pulse') && sheetNavOn()) { openTgSheet(k); return; }
   goToView(k);
 });
 
@@ -13746,7 +13750,8 @@ document.getElementById('plMenu')?.addEventListener('click', (e) => {
   e.preventDefault(); hap(6); plMenuClose();
   setTimeout(() => {
     if (k === 'team') openCrewSheet();
-    else if (k === 'autodromes') openAutodromeSheet();
+    else if (k === 'autodromes') { if (sheetNavOn()) openTgSheet('tracks'); else openAutodromeSheet(); }
+    else if ((k === 'duels' || k === 'pulse') && sheetNavOn()) openTgSheet(k);
     else if (k === 'feedback') openFeedbackSheet();
     else if (k === 'gps') { goToView('run'); setTimeout(() => { const g = document.querySelector('#view-run .ext-gps-src'); try { g?.scrollIntoView({ block: 'center', behavior: 'smooth' }); g?.classList.add('hl-pulse'); setTimeout(() => g?.classList.remove('hl-pulse'), 1600); } catch (_) {} }, 280); }
     else goToView(k);
@@ -13771,6 +13776,124 @@ function syncHomeBtn() {
 }
 new MutationObserver(syncHomeBtn).observe(document.getElementById('viewHost') || document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
 syncHomeBtn();
+
+function sheetNavOn() { return document.documentElement.classList.contains('nav-widgets') && !!window.matchMedia?.('(max-width: 900px)').matches; }
+/* ——— v124: нижняя панель из трёх пунктов (Дуэли · Paddock · Трассы) → шторка в стиле Telegram ——— */
+const TGS = { open: null, homes: new Map(), closing: 0 };
+const tgsReduce = () => !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+function tgsPark(el, into) { if (!el) return; if (!TGS.homes.has(el)) TGS.homes.set(el, { parent: el.parentNode, next: el.nextSibling }); into.appendChild(el); }
+function tgsRestore() {
+  for (const [el, h] of TGS.homes) { try { el.classList.remove('in-sheet'); if (h.next && h.next.parentNode === h.parent) h.parent.insertBefore(el, h.next); else h.parent.appendChild(el); } catch (_) {} }
+  TGS.homes.clear();
+  const tr = document.getElementById('tgTracks'); if (tr) { tr.hidden = true; (document.getElementById('app') || document.body).appendChild(tr); }
+}
+function tgsFill(kind) {
+  const body = document.getElementById('tgSheetBody'); if (!body) return;
+  tgsRestore(); body.scrollTop = 0;
+  if (kind === 'duels' || kind === 'pulse') {
+    const v = document.getElementById('view-' + kind); if (!v) return;
+    tgsPark(v, body); v.classList.add('in-sheet');
+    if (kind === 'duels') void renderDuelsView();
+    else { void renderPulse(); try { localStorage.setItem(PULSE_SEEN_KEY, String(Date.now())); } catch (_) {} setBadge('sbBadgePulse', 0); }
+  } else if (kind === 'tracks') {
+    const tr = document.getElementById('tgTracks'); const slot = document.getElementById('tgTracksSlot');
+    tgsPark(document.getElementById('autodromeListPane'), slot); tgsPark(document.getElementById('autodromeDetailPane'), slot);
+    try { renderAutodromeList(); } catch (_) {}
+    document.getElementById('autodromeListPane')?.removeAttribute('hidden'); document.getElementById('autodromeDetailPane')?.setAttribute('hidden', '');
+    if (tr) { tr.hidden = false; body.appendChild(tr); }
+  }
+  document.getElementById('tgSheet')?.setAttribute('aria-label', kind === 'duels' ? 'Дуэли' : kind === 'pulse' ? 'Paddock' : 'Трассы');
+}
+function tgsSetTab(kind) {
+  const btn = kind ? document.querySelector(`.sheet-tab[data-sheet="${kind}"]`) : null;
+  document.querySelectorAll('.sheet-tab').forEach((b) => b.setAttribute('aria-expanded', b === btn ? 'true' : 'false'));
+  if (btn) activateNavBtn(btn); else { document.querySelectorAll('.nav-btn.sheet-tab').forEach((b) => b.classList.remove('active')); syncTabPill(null); }
+}
+function tgsBgOrigin() { const vh = document.getElementById('viewHost'); if (vh) vh.style.transformOrigin = `50% ${Math.round(window.scrollY + window.innerHeight * 0.35)}px`; }
+function openTgSheet(kind) {
+  const sh = document.getElementById('tgSheet'); const panel = document.getElementById('tgSheetPanel'); if (!sh || !panel) return;
+  if (TGS.open === kind) { closeTgSheet(); return; } // повторное нажатие на активный пункт — закрыть
+  try { plMenuClose(); } catch (_) {}
+  clearTimeout(TGS.closing);
+  const was = TGS.open;
+  TGS.open = kind;
+  tgsSetTab(kind);
+  if (was) { // переключение между пунктами: контент сменяется без повторного выезда
+    panel.classList.add('swap'); tgsFill(kind); requestAnimationFrame(() => requestAnimationFrame(() => panel.classList.remove('swap')));
+    return;
+  }
+  tgsFill(kind);
+  tgsBgOrigin();
+  sh.classList.remove('hidden'); sh.setAttribute('aria-hidden', 'false');
+  panel.style.transform = ''; panel.style.transition = '';
+  document.documentElement.classList.add('tgs-open');
+  requestAnimationFrame(() => requestAnimationFrame(() => sh.classList.add('on')));
+}
+function closeTgSheet(opts = {}) {
+  const sh = document.getElementById('tgSheet'); const panel = document.getElementById('tgSheetPanel');
+  if (!sh || sh.classList.contains('hidden')) return;
+  TGS.open = null; tgsSetTab(null);
+  sh.classList.remove('on'); sh.setAttribute('aria-hidden', 'true');
+  document.documentElement.classList.remove('tgs-open');
+  if (panel) { panel.style.transition = ''; panel.style.transform = ''; }
+  const done = () => { sh.classList.add('hidden'); tgsRestore(); };
+  if (opts.instant || tgsReduce()) done(); else TGS.closing = setTimeout(done, 340);
+}
+document.getElementById('tabbar')?.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('.sheet-tab'); if (!b) return;
+  e.preventDefault(); openTgSheet(b.dataset.sheet);
+});
+document.getElementById('tgSheetScrim')?.addEventListener('click', () => closeTgSheet());
+document.getElementById('tgSheetClose')?.addEventListener('click', () => closeTgSheet());
+document.getElementById('tgTracksLap')?.addEventListener('click', () => { closeTgSheet({ instant: true }); goToView('lap'); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && TGS.open) closeTgSheet(); });
+// свайп вниз: за шапку — всегда; по контенту — только когда он прокручен в самый верх и тянут вниз
+(() => {
+  const panel = document.getElementById('tgSheetPanel'); const body = document.getElementById('tgSheetBody'); if (!panel || !body) return;
+  let y0 = null, x0 = 0, t0 = 0, dy = 0, dragging = false, fromHead = false;
+  panel.addEventListener('touchstart', (e) => {
+    const t = e.touches[0]; y0 = t.clientY; x0 = t.clientX; t0 = performance.now(); dy = 0; dragging = false;
+    fromHead = !!e.target.closest('.tgs-head');
+  }, { passive: true });
+  panel.addEventListener('touchmove', (e) => {
+    if (y0 == null) return;
+    const t = e.touches[0]; const d = t.clientY - y0;
+    if (!dragging) {
+      if (Math.abs(t.clientX - x0) > Math.abs(d)) { y0 = null; return; } // горизонтальный жест (карусели и т.п.)
+      if (d > 6 && (fromHead || body.scrollTop <= 0) && !e.target.closest('input, textarea, select, .home-rail, [data-no-sheet-drag]')) { dragging = true; panel.style.transition = 'none'; }
+      else if (d < -4 || (!fromHead && body.scrollTop > 0)) { y0 = null; return; }
+    }
+    if (dragging) { dy = Math.max(0, d); e.preventDefault(); panel.style.transform = `translate3d(0, ${dy}px, 0)`; }
+  }, { passive: false });
+  const end = () => {
+    if (y0 == null) return; y0 = null;
+    if (!dragging) return;
+    dragging = false;
+    const v = dy / Math.max(1, performance.now() - t0);
+    panel.style.transition = '';
+    if (dy > 120 || (v > 0.55 && dy > 40)) closeTgSheet(); else panel.style.transform = '';
+  };
+  panel.addEventListener('touchend', end); panel.addEventListener('touchcancel', end);
+})();
+// любой переход на вид — шторка закрывается (раздел вернулся на место)
+
+/* бейджи — только реальные счётчики: вызовы в дуэлях; новые посты Paddock с последнего просмотра */
+const PULSE_SEEN_KEY = 'pitlane-pulse-seen-v1';
+function setBadge(id, n) { const b = document.getElementById(id); if (!b) return; b.hidden = !(n > 0); b.textContent = n > 9 ? '9+' : String(n || ''); }
+let _badgesAt = 0;
+async function refreshSheetBadges(force = false) {
+  if (!force && Date.now() - _badgesAt < 45000) return;
+  _badgesAt = Date.now();
+  try { const rows = await fetchMyDuels(); setBadge('sbBadgeDuels', rows.filter((d) => duelCategory(d) === 'inbox').length); } catch (_) {}
+  try {
+    let seen = Number(localStorage.getItem(PULSE_SEEN_KEY) || 0);
+    if (!seen) { seen = Date.now(); localStorage.setItem(PULSE_SEEN_KEY, String(seen)); } // первый запуск: «новое» — только то, что появится после
+    const rows = isRemoteApi() ? await api.listPulseTopDay() : [];
+    if (TGS.open !== 'pulse') setBadge('sbBadgePulse', (Array.isArray(rows) ? rows : []).filter((p) => p && Number(p.at) > seen).length);
+  } catch (_) {}
+}
+setInterval(() => { if (!document.hidden) void refreshSheetBadges(); }, 60000);
+setTimeout(() => { void refreshSheetBadges(true); }, 1500);
 /* v120: главная кнопка «Сделать замер» и единственный шаг онбординга (без модалок, ничего не блокирует) */
 const FIRST_RUN_KEY = 'pitlane-first-run-v1';
 function hasAnyRun() {

@@ -30,8 +30,9 @@ const blk = app.slice(app.indexOf('/* ——— v123: Главная из око
 ok(blk.length > 1000 && !/innerHTML/.test(blk), 'v123: только textContent/DOM, без innerHTML');
 ok(/hwEmpty\('Пока пусто'/.test(blk) && /hwEmpty\('Нет активных'/.test(blk) && /hwEmpty\('Сегодня тихо'/.test(blk) && /hwEmpty\('Нет команды'/.test(blk) && /hwEmpty\('Топ пока пуст'/.test(blk), 'честные пустые состояния, без фейковых цифр');
 console.log('[навигация]');
-ok(/document\.documentElement\.classList\.add\('nav-widgets'\)/.test(app) && /@media \(max-width: 900px\) \{\s*html\.nav-widgets \.rail \{ display: none; \}/.test(css), 'на телефоне без нижнего таббара (код и десктопный рейл остаются)');
+// v124: решение v123 «без таббара» заменено панелью из трёх шторок — старые 4 вкладки на телефоне по-прежнему скрыты
+ok(/document\.documentElement\.classList\.add\('nav-widgets'\)/.test(app) && /html\.nav-widgets \.rail nav\.tabbar > \.nav-btn:not\(\.sheet-tab\) \{ display: none !important; \}/.test(css), 'на телефоне старые 4 вкладки скрыты (код и десктопный рейл остаются)');
 ok(/id="btnHome"[^>]*aria-label="На главную"/.test(html) && /b\.hidden = onHome \|\| tg/.test(app), 'вне Telegram — ‹ «На главную» в шапке; в Telegram — системная «Назад»');
 ok(/<meta http-equiv="Content-Security-Policy"[^>]*script-src 'self'/.test(html), 'CSP не тронут');
-ok(/APP_VERSION = 'v123'/.test(app) && /pitlane-v123/.test(sw), 'APP_VERSION v123 / SW pitlane-v123');
+ok(/APP_VERSION = 'v1(2[3-9]|[3-9]\d)'/.test(app) && /pitlane-v1(2[3-9]|[3-9]\d)/.test(sw), 'APP_VERSION / SW ≥ v123');
 console.log(fails ? `✗ ${fails} failed` : '✓ v123 all passed'); process.exit(fails ? 1 : 0);
