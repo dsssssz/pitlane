@@ -55,6 +55,8 @@ ok(!/<a |<i>x|<\/b>,|<code><code>/.test(best) && best.includes('&lt;b&gt;Neon&lt
 const A = await login('79009900001', 'Мага', 7001);
 const B = await login('79009900002', 'Артём', 7002);
 for (const P of [A, B]) await call('PUT', '/me/car', { token: P.token, body: { model: 'BMW M2 G87', tyre: 'Michelin Cup 2' } });
+// v121: уведомления — только тем, кто сам писал боту
+for (const id of [7001, 7002]) await hook({ update_id: 100 + id, message: { message_id: 1, chat: { id, type: 'private' }, from: { id }, text: '/start' } });
 const room = (await call('POST', '/rooms', { token: A.token, body: { name: '<b>Neon</b> & Co' } })).data;
 await call('POST', '/rooms/join', { token: B.token, body: { code: room.invite } });
 
@@ -83,10 +85,18 @@ const d = (await call('POST', '/duel', { token: A.token, body: { type: 'lap', tr
 sent.length = 0;
 await call('POST', `/duel/${d.id}/run`, { token: B.token, body: { ...lap(122400), nick: 'Артём' } });
 let dm = sent.filter((x) => x.method === 'sendMessage');
-ok(dm.length === 1 && dm[0].body.chat_id === 7001 && /<b>Тебя вызвали<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('<code>2:02.400</code>'), 'creator: «Тебя вызвали» with rival time');
+ok(dm.length === 1 && dm[0].body.chat_id === 7001 && /<b>Ответили на твою дуэль<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('<code>2:02.400</code>'), 'creator: «Ответили на твою дуэль» with rival time');
 sent.length = 0;
 await call('POST', `/duel/${d.id}/run`, { token: A.token, body: { ...lap(121900), nick: 'Мага' } });
 dm = sent.filter((x) => x.method === 'sendMessage');
+// v121: Артёму меньше 15 мин назад пришёл «рекорд команды» → итог дуэли копится и уходит сводкой по cron
+ok(dm.length === 0 && kv.m.has('nq:' + B.id), 'v121: second event within 15 min → queued (no burst)');
+await kv.delete('nlast:' + B.id);
+const DUEL_RESULT_DIRECT = C.msgDuelResult({ duelId: d.id, won: false, myT: '2:02.400', rivalName: 'Мага', rivalT: '2:01.900', delta: 500, trackId: 'sochi' });
+await rawWorker.scheduled({}, env, null);
+dm = sent.filter((x) => x.method === 'sendMessage');
+ok(dm.length === 1 && dm[0].body.chat_id === 7002 && /пока тебя не было/.test(dm[0].body.text) && /дуэль закрыта: победа за Мага/.test(dm[0].body.text), 'v121: cron digest delivers the queued result');
+dm = [{ body: { chat_id: 7002, text: DUEL_RESULT_DIRECT.text, reply_markup: { inline_keyboard: DUEL_RESULT_DIRECT.keyboard } } }];
 ok(dm.length === 1 && dm[0].body.chat_id === 7002 && /<b>Дуэль проиграна<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('Разница  <code>0.500</code>') && dm[0].body.reply_markup.inline_keyboard[0][0].web_app.url.endsWith('startapp=duel_' + d.id), 'challenger: result with delta + duel button');
 
 console.log('\n[season payment message]');

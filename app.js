@@ -1606,6 +1606,7 @@ function goToView(id, opts = {}) {
 
   // v83: Paddock feed renders on every entry (also ?view=pulse deep links, which used to show an empty feed)
   if (id === 'pulse') setTimeout(() => { try { void renderPulse(); } catch (_) {} }, 0);
+  if (id === 'account') setTimeout(() => { try { void renderNotifyCard(); } catch (_) {} }, 0); // v121
   if (already) {
     try { onResize(); } catch (_) {}
     return;
@@ -9407,9 +9408,66 @@ async function openPilotProfile(pid) {
     return;
   }
   renderPilotProfile(res);
+  try { appendChallengeButton(body, pid, res); } catch (_) {}
   try { appendDisputeButton(body, pid); } catch (_) {}
   if (body) body.scrollTop = 0;
 }
+/* v121: «Вызвать на дуэль» из профиля пилота — адресная дуэль */
+function appendChallengeButton(body, pid, res) {
+  if (!body || !pid || isMyPilotId(pid) || !/^p_[0-9a-f-]{36}$/.test(String(pid))) return;
+  const name = String(res?.nick || res?.pilot?.nick || res?.name || 'пилот').slice(0, 48);
+  const btn = padEl('button', 'go-btn pilot-challenge-btn', 'Вызвать на дуэль');
+  btn.type = 'button';
+  btn.addEventListener('click', () => {
+    if (!currentUser()) { plFlash('Сначала войди через Telegram'); goToView('account'); return; }
+    hap(8);
+    try { padShow('pilotSheet', false); } catch (_) {}
+    goToView('duels');
+    openDuelSheet({ createOnly: true, to: { id: pid, name } });
+  });
+  body.appendChild(btn);
+}
+/* v121: профиль → «Уведомления в Telegram» (типы по отдельности; без входа карточки нет) */
+let _notifySeq = 0;
+async function renderNotifyCard() {
+  const card = document.getElementById('accNotify');
+  if (!card) return;
+  if (!currentUser() || !isRemoteApi()) { card.hidden = true; return; }
+  const seq = ++_notifySeq;
+  const r = await api.getNotify().catch(() => null);
+  if (seq !== _notifySeq) return;
+  if (!r || r.ok === false || !r.prefs) { card.hidden = true; return; }
+  card.hidden = false;
+  const st = document.getElementById('accNotifyState');
+  const bot = document.getElementById('accNotifyBot');
+  const name = r.bot || 'pitlane_official_bot';
+  if (bot) { bot.href = 'https://t.me/' + encodeURIComponent(name); bot.hidden = !!(r.linked && r.started) || !r.linked; }
+  if (st) {
+    st.textContent = !r.linked ? 'Аккаунт не привязан к Telegram — войди через Telegram, тогда бот сможет писать.'
+      : r.botStopped ? 'Выключено в боте командой /stop_notify. Включить — /start_notify в боте.'
+      : !r.started ? 'Напиши боту @' + name + ' (/start): Telegram не даёт боту писать первым.'
+      : 'Бот пишет только о твоих событиях.';
+  }
+  const list = document.getElementById('accNotifyList');
+  if (!list) return;
+  list.replaceChildren();
+  const row = (key, label, on) => {
+    const l = padEl('label', 'notify-row');
+    const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = !!on; cb.dataset.nk = key;
+    l.append(cb, padEl('span', '', label));
+    list.appendChild(l);
+  };
+  (r.types || []).forEach((t) => row(t, (r.labels && r.labels[t]) || t, r.prefs[t]));
+  row('stop', 'Не присылать ничего', r.prefs.stop);
+}
+document.getElementById('accNotifyList')?.addEventListener('change', async () => {
+  const body = {};
+  document.querySelectorAll('#accNotifyList [data-nk]').forEach((c) => { body[c.dataset.nk] = !!c.checked; });
+  const msg = document.getElementById('accNotifyMsg');
+  if (msg) msg.textContent = 'Сохраняем…';
+  const r = await api.putNotify(body).catch(() => null);
+  if (msg) msg.textContent = r && r.ok ? 'Сохранено' : 'Не сохранилось — проверь сеть';
+});
 /* v107: «Оспорить» — жалоба на результат топа / дуэли: уходит в KV и владельцу; сама ничего не удаляет */
 let _disputeCtx = null;
 document.getElementById('duelDisputeBtn')?.addEventListener('click', () => {
@@ -9673,9 +9731,14 @@ function setDuelType(type) {
   try { refreshDuelTrackMap(); } catch (_) {}
 }
 
+// v121: вызов конкретному пилоту (из его профиля) — ему придёт «Тебя вызвали», если он включил уведомления
+let _duelTo = null;
 function openDuelSheet(opts = {}) {
   const sheet = document.getElementById('duelSheet');
   if (!sheet) return;
+  _duelTo = opts.to && opts.to.id ? { id: String(opts.to.id), name: String(opts.to.name || 'пилот').slice(0, 48) } : null;
+  const toLine = document.getElementById('duelToLine');
+  if (toLine) { toLine.hidden = !_duelTo; toLine.textContent = _duelTo ? 'Вызов для: ' + _duelTo.name + '. Ссылка сработает только у него; если он включил уведомления — бот сообщит.' : ''; }
   const nick = document.getElementById('duelNick');
   if (nick && !nick.value) nick.value = duelPilotNick();
   fillDuelTrackSelect();
@@ -9869,7 +9932,9 @@ async function createDuelFromUi() {
     note: note || undefined,
     days: _duelDays,
     ghostId,
+    ...(_duelTo ? { to: _duelTo.id } : {}),
   });
+  if (duel?.id) _duelTo = null;
   if (!duel?.id) {
     const hint = document.getElementById('duelHint');
     if (hint) hint.textContent = 'Не удалось создать дуэль' + (duel?.error ? ': ' + String(duel.error).slice(0, 80) : '. Проверь сеть / Worker.');
@@ -11727,7 +11792,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v120';
+const APP_VERSION = 'v121';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

@@ -458,6 +458,7 @@ export const api = {
       name: payload?.name || payload?.createdBy || undefined,
       days: payload?.days || undefined,
       ghostId: payload?.ghostId || undefined,
+      to: payload?.to || undefined, // v121: вызов конкретному пилоту
     };
     const remoteRes = await remote('/duel', { method: 'POST', body: JSON.stringify(body) });
     if (remoteRes && remoteRes.id) {
@@ -695,6 +696,9 @@ export const api = {
   async getMyCar() { return await remoteKeep('/me/car'); },
   async putMyCar(car) { return await remoteKeep('/me/car', { method: 'PUT', body: JSON.stringify(car || {}) }); },
   async listRooms() { return await remoteKeep('/rooms'); },
+  // v121: уведомления бота
+  async getNotify() { return await remoteKeep('/me/notify'); },
+  async putNotify(prefs) { return await remoteKeep('/me/notify', { method: 'PUT', body: JSON.stringify(prefs || {}) }); },
   async createRoom(name) { return await remoteKeep('/rooms', { method: 'POST', body: JSON.stringify({ name }) }); },
   async getRoom(id) { return await remoteKeep('/rooms/' + encodeURIComponent(id)); },
   async roomInvitePreview(code) { return await remoteKeep('/rooms/invite/' + encodeURIComponent(code)); },

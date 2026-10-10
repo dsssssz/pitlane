@@ -5706,3 +5706,16 @@ body.run-sum-on .run-drive-actions > * { flex: 1 1 calc(50% - 10px); }
 .intro-logo { animation-duration: .45s !important; animation-delay: .5s !important; }
 .intro-tagline { animation-duration: .35s !important; animation-delay: .8s !important; }
 .intro-skip { animation-delay: .4s !important; }
+
+/* ——— v121: уведомления бота в профиле, вызов пилота ——— */
+.notify-card[hidden] { display: none; }
+.notify-list { display: grid; gap: 2px; margin: 8px 0; }
+.notify-row { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 4px 2px; border-bottom: 1px solid var(--h-line, rgba(255,255,255,.07)); font-size: 14px; color: var(--h-text, #f2f2f2); }
+.notify-row:last-child { border-bottom: 0; color: var(--h-sub, #a3a3a3); }
+.notify-row input { width: 20px; height: 20px; accent-color: var(--h-acc, #39FF14); flex: none; }
+.notify-bot-link { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 16px; margin: 4px 0; text-decoration: none; }
+.notify-bot-link[hidden] { display: none; }
+.pilot-challenge-btn { width: 100%; margin: 14px 0 4px; }
+#duelToLine { color: var(--h-acc, #39FF14); }
+#duelToLine[hidden] { display: none; }
+.duel-to-line { margin: 6px 0 2px; padding: 8px 12px; border-radius: 12px; background: rgba(57,255,20,.08); border: 1px solid rgba(57,255,20,.25); font-size: 13px; line-height: 1.35; text-align: center; }

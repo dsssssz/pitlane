@@ -821,6 +821,15 @@
             <button type="button" class="btn-secondary" id="btnGarageAcc">Бокс · 3D-подиум</button>
             <button type="button" class="btn-secondary" id="btnPulseAcc">Paddock</button>
           </div>
+          <!-- v121: уведомления бота — только по событиям, переключатели по типам -->
+          <article class="card notify-card" id="accNotify" hidden>
+            <h3>Уведомления в Telegram</h3>
+            <p class="muted tiny" id="accNotifyState"></p>
+            <a class="btn-secondary notify-bot-link" id="accNotifyBot" href="https://t.me/pitlane_official_bot" target="_blank" rel="noopener" hidden>Открыть бота</a>
+            <div class="notify-list" id="accNotifyList"></div>
+            <p class="tiny muted">Только твои события, не больше 5 в сутки; несколько сразу — одной сводкой. В боте: /stop_notify.</p>
+            <p class="tiny" id="accNotifyMsg" role="status"></p>
+          </article>
           <p class="tiny" id="accTrialLeft"></p>
           <article class="card" id="imuCard">
             <h3>Датчики движения</h3>
@@ -1022,6 +1031,7 @@
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title">Дуэль</h2>
           <p class="race-sheet-sub">Личный вызов · A/B или зачёт C (телефон)</p>
+          <p class="duel-to-line" id="duelToLine" hidden></p>
         </header>
         <div id="duelCreatePane" class="race-sheet-body">
           <div class="duel-type-row seg-control" role="group" aria-label="Тип дуэли">
@@ -1070,7 +1080,7 @@
             <button type="button" class="btn-secondary" id="duelSubmitRun">Прикрепить мой заезд</button>
             <button type="button" class="btn-ghost" id="duelRefresh">Обновить</button>
           </div>
-          <p class="tiny muted" id="duelHint">Только GPS A или B · C не принимается</p>
+          <p class="tiny muted" id="duelHint">Сравнение внутри класса: A/B (внешний GPS) или C (телефон)</p>
         </div>
         <div id="duelListPane" class="race-sheet-body">
           <h3 class="duel-list-title race-list-title">Мои дуэли</h3>

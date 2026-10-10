@@ -106,7 +106,7 @@ ok(sent.filter((x) => x.method === 'setMyCommands').some((x) => x.body.language_
 ok(sent.find((x) => x.method === 'setChatMenuButton').body.menu_button.text === 'PITLANE', 'menu button PITLANE');
 ok(!methods.includes('sendMessage') && !methods.includes('sendPhoto'), 'setup does not message anyone');
 ok(r.data.result.getWebhookInfo.urlMatches === true, 'verification reported');
-ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.length === 3 && BOT_COMMANDS.map((c) => c.command).join() === 'start,login,help', 'description lengths within limits');
+ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.length === 4 && BOT_COMMANDS.map((c) => c.command).join() === 'start,login,help,stop_notify', 'description lengths within limits');
 ok(!/\bpro\b|₽|руб\.|рубл|цена|стоимост|подписк/i.test(BOT_DESCRIPTION + BOT_SHORT_DESCRIPTION), 'no Pro/prices in descriptions');
 ok(tgRoute('/START').cmd === 'start', 'commands case-insensitive');
 

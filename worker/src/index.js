@@ -1,5 +1,6 @@
-import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner } from './botcopy.js';
+import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner, trackTitle } from './botcopy.js';
 import { seasonRoute, seasonRecord0100 } from './season.js';
+import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, loadPrefs, savePrefs, markStarted, setChatStop, chatState, deleteNotifyKeys, NOTIFY_TYPES, NOTIFY_LABELS, NOTIFY_DAILY_MAX, NOTIFY_BOT_TEXT } from './notify.js';
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
 import { gpsRoute, deleteAccountGps, GpsLive } from './gpslive.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
@@ -600,11 +601,12 @@ function sanitizeDrag(body, pilot, disc, opts = {}) {
  * Global per-discipline board `drag:<disc>`: only valid (GPS A/B) rows, one best row per pilot+car.
  * Returns true when the row became (or improved) the pilot's best for that car.
  */
-async function upsertDrag(kv, disc, row) {
+async function upsertDrag(kv, disc, row, onShift) {
   const c = row && row.cls === 'c';
   if (!row || !(c ? isClassCRow(row) : isValidGpsRow(row)) || !row.pilotId) return false;
   const key = boardKey('drag', disc, c ? 'c' : 'ab');
   const rows = await readList(kv, key);
+  const before = rows.slice();
   const same = (r) => r && r.pilotId === row.pilotId && String(r.carId || r.car || '') === String(row.carId || row.car || '');
   const prev = rows.find(same);
   if (prev && Number(prev.t) <= Number(row.t)) return false;
@@ -612,6 +614,7 @@ async function upsertDrag(kv, disc, row) {
   kept.push({ ...row, disc });
   kept.sort((a, b) => a.t - b.t);
   await writeList(kv, key, kept);
+  if (typeof onShift === 'function') { try { await onShift(before, kept, c ? 'c' : 'ab'); } catch (_) {} } // v121
   return true;
 }
 
@@ -1324,6 +1327,7 @@ function publicDuel(d) {
     ghostId: d.ghostId || null,
     disc: d.disc || null,
     cls: duelCls(d),
+    to: d.to ? publicWho(d.to) : null,
   };
 }
 /** v118: класс дуэли — задан при создании, иначе по первому заезду (старые заезды без cls = A/B). */
@@ -1823,6 +1827,18 @@ async function tgHandleMessage(env, msg) {
   if (msg?.chat?.type !== 'private' || !Number.isSafeInteger(chatId)) return null;
   // per-chat flood guard: 12 replies / minute, then silence (fixed window, no writes once over)
   if (await rateHit(env.PITLANE, 'rl:tgchat:' + chatId, 12, 60)) return { cmd: 'limited' };
+  // v121: человек сам написал боту → ему можно присылать уведомления о его событиях (если вошёл через Telegram)
+  await markStarted(env.PITLANE, chatId);
+  {
+    const tx = typeof msg.text === 'string' ? msg.text.trim() : '';
+    const nm = tx.match(/^\/(stop_notify|start_notify)(?:@[A-Za-z0-9_]{3,64})?$/i);
+    if (nm) {
+      const stop = nm[1].toLowerCase() === 'stop_notify';
+      await setChatStop(env.PITLANE, chatId, stop);
+      const r = await tgCall(env, 'sendMessage', { chat_id: chatId, text: stop ? NOTIFY_BOT_TEXT.stopped : NOTIFY_BOT_TEXT.started, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: [[webAppBtn('Настройки в профиле', { view: 'account', skipIntro: '1' })]] } });
+      return { cmd: nm[1].toLowerCase(), sent: !!r?.ok };
+    }
+  }
   // v115: аудио → музыка в профиле автора сообщения
   const mus = await musicFromBot(env, msg, MUSIC_H);
   if (mus) {
@@ -2205,6 +2221,11 @@ async function deleteAccount(kv, pid, currentToken) {
   if (!isPilotUuid(pid)) return rep;
   const rec = await loadPilot(kv, pid);
   const del = async (key) => { await kv.delete(key); };
+  // v121: настройки/счётчики/копилка уведомлений и отметка «писал боту»
+  try {
+    await deleteNotifyKeys(kv, pid, NOTIFY_H);
+    for (const p of rec?.providers || []) if (p.type === 'tg' && /^\d{1,20}$/.test(String(p.id))) await kv.delete('tgstart:' + p.id);
+  } catch (_) {}
 
   // providers → auth mappings (+ phone-keyed OTP / rate-limit leftovers, legacy user record)
   for (const p of rec?.providers || []) {
@@ -2638,15 +2659,34 @@ async function tgChatOf(env, pid) {
   const id = String((rec?.providers || []).find((p) => p.type === 'tg')?.id || '');
   return /^\d{1,20}$/.test(id) ? Number(id) : null;
 }
-async function tgNotify(env, pid, m) {
-  try {
-    if (!telegramConfig(env).enabled) return false;
-    const chat = await tgChatOf(env, pid);
-    if (!chat) return false;
-    if (await rateHit(env.PITLANE, 'rl:tgnote:p:' + pid, 20, 3600)) return false; // per-pilot cap
-    const r = await tgCall(env, 'sendMessage', { chat_id: chat, text: m.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: m.keyboard } });
-    return !!r?.ok;
-  } catch (_) { return false; }
+/** v121: helpers for ./notify.js */
+const NOTIFY_H = {
+  get kvJson() { return kvJson; }, get tgCall() { return tgCall; }, get tgChatOf() { return tgChatOf; }, get telegramConfig() { return telegramConfig; },
+  get moscowDateKey() { return moscowDateKey; }, get kvListAll() { return kvListAll; }, get safeName() { return safeName; },
+};
+/** v121: все уведомления — через notify.js (запустил бота + вошёл, настройки, ≤ N в сутки, склейка, без дублей). */
+async function tgNotify(env, pid, m, type = 'duel', key = '') {
+  const r = await notifyEvent(env, pid, { type, key, msg: m }, NOTIFY_H);
+  return r === 'sent' || r === 'queued';
+}
+const DISC_TITLE = { '0-100': '0–100', '100-200': '100–200', '200-300': '200–300', '0-200': '0–200', '80-120': '80–120', '0-60': '0–60', '0-50': '0–50', '60ft': '60 ft', '201m': '⅛ мили', '402m': '¼ мили' };
+function clsTitle(c) { return c === 'c' ? 'телефон (C)' : 'внешний GPS (A/B)'; }
+/** v121: «тебя обогнали» — сравниваем места до/после зачёта (только честные строки доски). */
+function dragOvertake(env, disc, cls, before, after, submitterId) {
+  const ok = cls === 'c' ? isClassCRow : isValidGpsRow;
+  return overtakeNotify(env, NOTIFY_H, {
+    boardKey: 'drag' + (cls === 'c' ? 'c' : '') + ':' + disc, boardTitle: 'Топ ' + (DISC_TITLE[disc] || disc) + ' · ' + clsTitle(cls),
+    before: before.filter(ok), after: after.filter(ok), submitterId, timeOf: (r) => Number(r.t), fmt: (t) => t.toFixed(2) + ' с',
+  });
+}
+function lapOvertake(env, trackId, cls, before, after, submitterId) {
+  const ok = cls === 'c' ? isClassCRow : isValidGpsRow;
+  const tm = (r) => { const v = parseLapMs(r.t); return v != null ? v : Number(r.ms); };
+  const fmt = (ms) => { const m = Math.floor(ms / 60000); const sec = (ms - m * 60000) / 1000; return m + ':' + sec.toFixed(3).padStart(6, '0'); };
+  return overtakeNotify(env, NOTIFY_H, {
+    boardKey: 'lap' + (cls === 'c' ? 'c' : '') + ':' + trackId, boardTitle: 'Круг · ' + trackTitle(trackId) + ' · ' + clsTitle(cls),
+    before: before.filter(ok), after: after.filter(ok), submitterId, timeOf: tm, fmt,
+  });
 }
 function honestRoomLap(l) { return !!l && l.valid && (l.gpsQ === 'A' || l.gpsQ === 'B') && Number(l.ms) > 0; }
 /** New room best on a track → tell the other members (inside the room, so private laps are fine here). */
@@ -2662,7 +2702,7 @@ async function notifyRoomBest(env, room, lap, laps) {
     model: lap.model, tyre: lap.tyre, prevNick: best.pilotId !== lap.pilotId ? safeName(best.nick) : null, delta: best.ms - lap.ms,
   });
   const to = (room.members || []).map((x) => x.pilotId).filter((pid) => pid !== lap.pilotId).slice(0, 30);
-  const res = await Promise.allSettled(to.map((pid) => tgNotify(env, pid, m)));
+  const res = await Promise.allSettled(to.map((pid) => tgNotify(env, pid, m, 'team', 'rb:' + room.id + ':' + lap.id)));
   return res.filter((x) => x.status === 'fulfilled' && x.value).length;
 }
 function duelTimeStr(type, run) {
@@ -2681,13 +2721,13 @@ async function notifyDuel(env, d, submitterId) {
   if (!me || !other?.who?.id || other.who.id === submitterId) return false;
   if (d.status === 'ready') {
     const a = runScoreMs(d.type, other.run); const b = runScoreMs(d.type, me.run);
-    return await tgNotify(env, other.who.id, msgDuelResult({
+    return await tgNotify(env, other.who.id, { line: 'дуэль закрыта: ' + (d.winner === 'tie' ? 'ничья' : d.winner === other.mine ? 'ты выиграл(а)' : 'победа за ' + safeName(me.who.name)), ...msgDuelResult({
       duelId: d.id, won: d.winner === other.mine, tie: d.winner === 'tie', myT: duelTimeStr(d.type, other.run),
       rivalName: safeName(me.who.name), rivalT: duelTimeStr(d.type, me.run), delta: a != null && b != null ? b - a : null, trackId: d.trackId,
-    }));
+    }) }, 'duel', 'res:' + d.id);
   }
   if (me.mine === 'challenger' && !d.creatorRun) {
-    return await tgNotify(env, other.who.id, msgDuelAccepted({ duelId: d.id, rivalName: safeName(me.who.name), t: duelTimeStr(d.type, me.run), trackId: d.trackId }));
+    return await tgNotify(env, other.who.id, { line: safeName(me.who.name) + ' ответил(а) на твою дуэль', ...msgDuelAccepted({ duelId: d.id, rivalName: safeName(me.who.name), t: duelTimeStr(d.type, me.run), trackId: d.trackId }) }, 'duel', 'acc:' + d.id);
   }
   return false;
 }
@@ -2720,6 +2760,11 @@ const ROOM_H = {
 };
 
 export default {
+  // v121: cron (wrangler.toml [triggers]) — сводки уведомлений и «дуэль заканчивается»; без событий ничего не шлёт
+  async scheduled(event, env, ectx) {
+    const job = notifyCron(env, NOTIFY_H).catch((e) => console.error('notify cron', e && e.stack ? e.stack : e));
+    if (ectx && typeof ectx.waitUntil === 'function') ectx.waitUntil(job); else await job;
+  },
   async fetch(req, env, ectx) {
     const headers = corsHeaders(req, env);
     // background work (bot notifications): waitUntil in production, awaited in tests
@@ -3215,7 +3260,7 @@ export default {
         Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
         if (row.cls === 'c') {
           // v118: зачёт C — только своя доска dragc:0-100 (не в A/B-список машины, не в сезон и не в сток)
-          const stored = await upsertDrag(env.PITLANE, '0-100', { ...row, disc: '0-100' });
+          const stored = await upsertDrag(env.PITLANE, '0-100', { ...row, disc: '0-100' }, (b, a, k) => defer(dragOvertake(env, '0-100', k, b, a, pilot.id)));
           const crow = (await readList(env.PITLANE, boardKey('drag', '0-100', 'c'))).filter(isClassCRow).sort((a, b) => a.t - b.t);
           return json({ ok: true, cls: 'c', stored, rows: publicRows(crow.slice(0, 50)) }, 200, headers);
         }
@@ -3226,7 +3271,7 @@ export default {
         await writeList(env.PITLANE, key, rows);
         await indexPilotTop(env.PITLANE, pilot.id, 's', carId);
         // v84: 0–100 also feeds the global per-discipline board (all cars)
-        await upsertDrag(env.PITLANE, '0-100', { ...row, carId, disc: '0-100' });
+        await upsertDrag(env.PITLANE, '0-100', { ...row, carId, disc: '0-100' }, (b, a, k) => defer(dragOvertake(env, '0-100', k, b, a, pilot.id)));
         await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114
         return json(publicRows(rows.filter(isValidGpsRow)), 200, headers);
       }
@@ -3278,14 +3323,18 @@ export default {
           // v118: зачёт C — своя доска lapc:<трасса>; A/B-доска, секторы, сезон и команды его не видят
           const ckey = boardKey('lap', trackId, 'c');
           const crows = await readList(env.PITLANE, ckey);
+          const cbefore = crows.slice();
           crows.push(row);
           await writeList(env.PITLANE, ckey, crows);
+          await defer(lapOvertake(env, trackId, 'c', cbefore, crows, pilot.id)); // v121
           return json({ ok: true, cls: 'c', rows: publicRows(crows.filter(isClassCRow)) }, 200, headers);
         }
         const key = `lap:${trackId}`;
         const rows = await readList(env.PITLANE, key);
+        const lbefore = rows.slice();
         rows.push(row);
         await writeList(env.PITLANE, key, rows);
+        await defer(lapOvertake(env, trackId, 'ab', lbefore, rows, pilot.id)); // v121
         await indexPilotTop(env.PITLANE, pilot.id, 'l', trackId);
         // remember nick/avatar for sector tops (A/B only; avatar optional)
         if (row.valid && (row.gpsQ === 'A' || row.gpsQ === 'B')) {
@@ -3326,7 +3375,7 @@ export default {
           row.pilotId = pilot.id;
           { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
           Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
-          const stored = await upsertDrag(env.PITLANE, disc, row);
+          const stored = await upsertDrag(env.PITLANE, disc, row, (b, a, k) => defer(dragOvertake(env, disc, k, b, a, pilot.id)));
           const c = row.cls === 'c';
           if (disc === '0-100' && !c) await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114 (сезон — только A/B)
           const rows = (await readList(env.PITLANE, boardKey('drag', disc, c ? 'c' : 'ab'))).filter(c ? isClassCRow : isValidGpsRow).sort((a, b) => a.t - b.t);
@@ -3671,6 +3720,17 @@ export default {
         };
         // v118: класс вызова: 'c' — телефон на телефон, 'ab' — только внешний GPS; не задан — по первому заезду
         if (body?.cls === 'c' || body?.cls === 'ab') duel.cls = body.cls;
+        // v121: вызов конкретному пилоту (из его профиля / топа) → ему «Тебя вызвали»; занять слот соперника может только он
+        let toRec = null;
+        if (body?.to != null && body.to !== '') {
+          const toId = String(body.to);
+          if (!isPilotUuid(toId) || toId === who.id) return json({ error: 'bad addressee' }, 400, headers);
+          toRec = await loadPilot(env.PITLANE, toId);
+          if (!toRec) return json({ error: 'pilot not found' }, 404, headers);
+          const limTo = await limitOr429(env, headers, [['rl:duelto:p:' + who.id, 10, 86400]]);
+          if (limTo) return limTo;
+          duel.to = { id: toId, name: safeName(toRec.nick) };
+        }
         // v89: "beat my lap / run" — attach the creator's ghost (frozen copy) and lock in the target time
         if (body?.ghostId != null) {
           if (!pilot.authed) return json({ error: 'auth required for ghost duel' }, 401, headers);
@@ -3705,6 +3765,15 @@ export default {
           duel.cls = duel.creatorRun.cls;
         }
         await env.PITLANE.put('duel:' + id, JSON.stringify(duel), { expirationTtl: days * 86400 + 86400 });
+        await indexDuelEnd(env.PITLANE, duel); // v121: «дуэль заканчивается» — только для новых дуэлей
+        if (duel.to) {
+          await defer(notifyEvent(env, duel.to.id, { type: 'challenge', key: 'ch:' + id, msg: msgChallenge({ duelId: id, fromName: safeName(who.name), type, disc: DISC_TITLE[duel.disc] || null, trackId, days, cls: duel.cls }) }, NOTIFY_H));
+          const tidx = 'duelidx:' + duel.to.id;
+          let ti = [];
+          try { ti = JSON.parse((await env.PITLANE.get(tidx)) || '[]'); if (!Array.isArray(ti)) ti = []; } catch { ti = []; }
+          ti = [...new Set([id, ...ti])].slice(0, 40);
+          await env.PITLANE.put(tidx, JSON.stringify(ti), { expirationTtl: DUEL_TTL + 86400 });
+        }
         // index for mine list
         const ikey = 'duelidx:' + who.id;
         let idx = [];
@@ -3816,6 +3885,7 @@ export default {
 
         const isCreator = !!(who.id && d.createdBy?.id && who.id === d.createdBy.id);
         const isChallenger = !!(who.id && d.challenger?.id && who.id === d.challenger.id);
+        if (d.to?.id && !isCreator && who.id !== d.to.id) return json({ error: 'duel is addressed to another pilot', code: 'addressed' }, 403, headers);
 
         async function indexMine(pid) {
           if (!pid) return;
@@ -3870,6 +3940,23 @@ export default {
         return json(publicDuel(d), 200, headers);
       }
 
+
+      // —— v121: настройки уведомлений бота ——
+      if (path === '/me/notify' && (req.method === 'GET' || req.method === 'PUT')) {
+        const deniedN = requireAuth(pilot, headers);
+        if (deniedN) return deniedN;
+        if (req.method === 'PUT') {
+          const limN = await limitOr429(env, headers, [['rl:npref:p:' + pilot.id, 30, 3600]]);
+          if (limN) return limN;
+          const body = await readJson(req, 2048);
+          if (!body || typeof body !== 'object' || Array.isArray(body)) return json({ error: 'invalid body' }, 400, headers);
+          await savePrefs(env.PITLANE, pilot.id, body);
+        }
+        const prefs = await loadPrefs(env.PITLANE, pilot.id, NOTIFY_H);
+        const chat = await tgChatOf(env, pilot.id);
+        const st = chat ? await chatState(env.PITLANE, chat) : null;
+        return json({ ok: true, prefs, types: NOTIFY_TYPES, labels: NOTIFY_LABELS, dailyMax: NOTIFY_DAILY_MAX, linked: !!chat, started: st === '1', botStopped: st === 'stop', bot: telegramConfig(env).username || null }, 200, headers);
+      }
 
       // —— v114: сезонный зачёт экипажей (публичный, read-only) ——
       { const sr = await seasonRoute({ req, env, path, url, headers, ip, h: ROOM_H }); if (sr) return sr; }

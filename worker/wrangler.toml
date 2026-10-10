@@ -6,6 +6,10 @@ compatibility_date = "2024-09-01"
 account_id = "dc344532c11330ddd28198123f1bf95f"
 workers_dev = true
 
+# v121: уведомления — сводки (склейка) и «дуэль заканчивается»; без событий ничего не шлёт
+[triggers]
+crons = ["*/15 * * * *"]
+
 [[kv_namespaces]]
 binding = "PITLANE"
 id = "fc7e076d77824da184e7314c2fb3ff1b"
