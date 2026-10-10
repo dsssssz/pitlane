@@ -58,7 +58,7 @@ function showWhen(id, on) { const e = typeof id === 'string' ? document.getEleme
 import { TRACK_OUTLINES } from './geo/outlines.js';
 import { analyzeSession, splitOutline, sectorTone } from './session-review.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
-import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
+import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 import { initTips, tipsOnView, resetTips, showMyCarHowTo, startTour } from './tips.js';
@@ -6872,6 +6872,8 @@ document.querySelector('[data-view="account"]')?.addEventListener('click', () =>
 /* -------- v77: Telegram Mini App — silent login, sharing, BackButton, closing guard, start_param -------- */
 
 /** Silent login from the signed initData (same account as the site's Telegram login: auth:tg:<id>). */
+// v134: 401 без возможности refresh → тихий повторный вход по initData (Mini App), затем запрос повторяется
+setReauthHandler(async () => (isTMA && tmaInitData && isRemoteApi() ? !!(await tmaAutoLogin('silent')) : false));
 async function tmaAutoLogin(manual) {
   if (!isTMA || !tmaInitData || !isRemoteApi()) return;
   const tgId = String(TG?.initDataUnsafe?.user?.id || '');
@@ -6879,9 +6881,12 @@ async function tmaAutoLogin(manual) {
   const tok = getSessionToken();
   const realSession = !!(u && tok && !String(tok).startsWith('local-'));
   // Keep an existing session unless it belongs to a different Telegram user (account switch in Telegram).
-  if (!manual && realSession && (!u.tgUserId || u.tgUserId === tgId)) { _tmaLogin = 'ok'; try { void syncMyCarAfterAuth(); } catch (_) {} return; }
+  // v134: сессия без refresh-токена (выдана до v104) через сутки-квартал умирает, а продлить её нечем —
+  // все записи (посты в Paddock, лайки, гараж) молча получали 401. Пока initData свежий — тихо меняем на полноценную.
+  const legacy = realSession && !getRefreshToken();
+  if (!manual && realSession && !legacy && (!u.tgUserId || u.tgUserId === tgId)) { _tmaLogin = 'ok'; try { void syncMyCarAfterAuth(); } catch (_) {} return true; }
   _tmaLogin = 'pending';
-  setAuthTopMsg('Входим через Telegram…');
+  if (!legacy && manual !== 'silent') setAuthTopMsg('Входим через Telegram…');
   const res = await api.tmaLogin(tmaInitData);
   if (res && res.ok && res.token && res.pilotId) {
     const nu = completeLogin({
@@ -6900,9 +6905,11 @@ async function tmaAutoLogin(manual) {
     refreshAccount();
     try { applyCarUI(); } catch (_) {}
     try { void syncMyCarAfterAuth(); } catch (_) {}
-    return;
+    return true;
   }
+  if (legacy && manual !== true) { _tmaLogin = 'ok'; return false; } // старая сессия ещё жива — не пугаем пилота
   _tmaLogin = res?.status === 503 ? 'unconfigured' : 'failed';
+  if (manual === 'silent') return false;
   if (res?.status === 503) setAuthTopMsg('');
   else if (res?.error === 'auth expired') setAuthTopMsg('Данные Telegram устарели — закройте и откройте мини-приложение заново.');
   else if (res?.status === 429) setAuthTopMsg('Слишком много попыток — подождите 15 минут.');
@@ -9203,9 +9210,20 @@ async function renderPulse() {
   const feed = document.getElementById('pulseFeed');
   if (!feed) return;
   void padChatData().then(renderPadLive).catch(() => {});
-  const rows = await api.listPulse();
+  renderPulseRows(await api.listPulse());
+}
+/** v134: лента + свои исходящие (отправляется / не отправлено) + свежеотправленные, которых ещё нет в снимке. */
+function renderPulseRows(rows0) {
+  const feed = document.getElementById('pulseFeed');
+  if (!feed) return;
+  let rows = Array.isArray(rows0) ? rows0.slice() : [];
+  const now = Date.now();
+  const has = (it) => rows.some((p) => p && ((it.post && p.id === it.post.id) || (p.cid && p.cid === it.cid)));
+  _padOut = _padOut.filter((it) => !(it.status === 'sent' && (has(it) || now - (it.sentAt || 0) > PAD_SENT_KEEP_MS)));
+  const late = _padOut.filter((it) => it.status === 'sent' && it.post).map((it) => it.post);
+  if (late.length) rows = [...late, ...rows];
   feed.replaceChildren();
-  if (!rows || !rows.length) {
+  if (!rows.length && !_padOut.some((x) => x.status !== 'sent')) {
     const empty = padEl('div', 'pad-empty');
     empty.appendChild(padIcon('bubble', 'pad-empty-ico'));
     empty.appendChild(padEl('p', '', 'Пока тихо — напиши первым.'));
@@ -9218,6 +9236,7 @@ async function renderPulse() {
     if (p.likeCount == null && Array.isArray(p.likes)) p.likeCount = p.likes.length;
     feed.appendChild(buildPostCard(p));
   }
+  padPaintOut();
 }
 
 async function padToggleLike(id, btn) {
@@ -9329,6 +9348,7 @@ async function openComments(postId) {
   const box = document.getElementById('padComList');
   if (box) { box.replaceChildren(padEl('p', 'pad-loading', 'Загрузка…')); }
   padShow('padCommentsSheet', true);
+  { const b = document.getElementById('padComSend'); const t = document.getElementById('padComText'); if (b) b.disabled = !(t?.value || '').trim(); }
   const res = await api.listComments(postId);
   if (_comPost !== postId) return;
   if (!res || res.ok === false) {
@@ -9352,7 +9372,7 @@ async function sendComment() {
   const postId = _comPost;
   if (btn) btn.disabled = true;
   const res = await api.addComment(postId, text);
-  if (btn) btn.disabled = false;
+  if (btn) btn.disabled = !ta.value.trim();
   if (!res || res.ok === false) {
     const code = res && res.status;
     if (msg) msg.textContent = code === 429 ? 'Слишком часто — подожди немного'
@@ -9362,7 +9382,7 @@ async function sendComment() {
       : code === 404 ? 'Пост удалён' : 'Не отправилось — нет связи';
     return;
   }
-  ta.value = '';
+  ta.value = ''; if (btn) btn.disabled = true;
   ta.style.height = '';
   const cnt = document.getElementById('padComCount');
   if (cnt) cnt.textContent = '0/500';
@@ -9374,8 +9394,11 @@ async function sendComment() {
   if (box) box.scrollTop = box.scrollHeight;
 }
 document.getElementById('padComSend')?.addEventListener('click', () => { void sendComment(); });
+// v134: тап по кнопке не схлопывает клавиатуру iOS; кнопка неактивна при пустом поле
+['pointerdown', 'mousedown'].forEach((ev) => document.getElementById('padComSend')?.addEventListener(ev, (e) => { if (document.activeElement?.id === 'padComText') e.preventDefault(); }));
 document.getElementById('padComText')?.addEventListener('input', (e) => {
   const ta = e.target;
+  { const b = document.getElementById('padComSend'); if (b) b.disabled = !ta.value.trim(); }
   const cnt = document.getElementById('padComCount');
   if (cnt) cnt.textContent = ta.value.length + '/500';
   ta.style.height = 'auto';
@@ -9888,40 +9911,135 @@ function compressPulseImg(file) {
   });
 }
 const pulseText = document.getElementById('pulseText');
+/* ——— v134: надёжная отправка в Paddock ———
+ * Как в Telegram: сообщение сразу появляется в ленте со статусом «Отправляется…», уходит с id (cid) —
+ * повтор после обрыва не создаёт дубль; при ошибке остаётся в ленте с понятной причиной и «Повторить»,
+ * текст хранится в localStorage до успешной отправки. Двойной тап не шлёт второй раз. */
+const PAD_OUT_KEY = 'pitlane-pad-out-v1';
+const PAD_SENT_KEEP_MS = 3 * 60e3; // свой отправленный пост держим, пока снимок ленты (KV) его не догонит
+let _padOut = [];
+try { const a = JSON.parse(localStorage.getItem(PAD_OUT_KEY) || '[]'); if (Array.isArray(a)) _padOut = a.filter((x) => x && x.cid && x.text).map((x) => (x.status === 'sending' ? { ...x, status: 'failed', kind: 'net' } : x)); } catch (_) {}
+function padOutSave() {
+  try { localStorage.setItem(PAD_OUT_KEY, JSON.stringify(_padOut.filter((x) => x.status !== 'sent').map(({ img, ...x }) => ({ ...x, hadImg: !!img })).slice(-20))); } catch (_) {}
+}
+function padNewCid() {
+  try { const b = new Uint8Array(9); crypto.getRandomValues(b); return 'c' + Array.from(b, (x) => x.toString(36).padStart(2, '0')).join('').slice(0, 17); } catch (_) { return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9); }
+}
+function padOutReason(it) {
+  const k = it.kind;
+  if (k === 'rate') return 'Слишком часто — подожди ' + (it.retryAfter && it.retryAfter <= 90 ? it.retryAfter + ' с' : 'немного');
+  if (k === 'auth') return isTMA ? 'Сессия истекла — закрой и открой мини-приложение' : 'Сессия истекла — войди заново';
+  if (k === 'big') return 'Фото слишком большое';
+  if (k === 'invalid') return 'Сообщение не принято';
+  if (k === 'server') return 'Сервер не ответил';
+  return (typeof navigator !== 'undefined' && navigator.onLine === false) ? 'Нет сети' : 'Нет связи с сервером';
+}
+function buildOutCard(it) {
+  const me = currentUser();
+  const card = padEl('article', 'pulse-card pad-out is-' + it.status);
+  card.dataset.cid = it.cid;
+  const head = padEl('header', 'pad-head');
+  head.appendChild(padAuthor({ name: pulseWho(), pilotId: accountPilotId(), avatar: padAvaUrl(accountPilotId(), ''), meta: [currentCar()?.name || '', 'сейчас'].filter(Boolean).join(' · ') }));
+  card.appendChild(head);
+  card.appendChild(padEl('p', 'pad-text', it.text));
+  if (it.img && PAD_IMG_RE.test(String(it.img))) { const im = document.createElement('img'); im.className = 'pad-img'; im.alt = ''; im.src = it.img; card.appendChild(im); }
+  const st = padEl('div', 'pad-out-st');
+  st.setAttribute('role', 'status');
+  if (it.status === 'sending') {
+    st.append(padEl('span', 'pad-out-spin'), padEl('span', '', 'Отправляется…'));
+  } else {
+    st.append(padEl('span', 'pad-out-bang', '!'), padEl('span', 'pad-out-why', 'Не отправлено · ' + padOutReason(it)));
+    const again = padEl('button', 'pad-out-btn', it.kind === 'auth' && !me ? 'Войти' : 'Повторить');
+    again.type = 'button'; again.dataset.retry = it.cid;
+    const drop = padEl('button', 'pad-out-btn ghost', 'Удалить');
+    drop.type = 'button'; drop.dataset.drop = it.cid;
+    st.append(again, drop);
+  }
+  card.appendChild(st);
+  return card;
+}
+/** Вставить/обновить исходящие карточки вверху ленты (без перерисовки всей ленты). */
+function padPaintOut() {
+  const feed = document.getElementById('pulseFeed');
+  if (!feed) return;
+  feed.querySelectorAll('.pad-out').forEach((c) => { if (!_padOut.some((x) => x.cid === c.dataset.cid && x.status !== 'sent')) c.remove(); });
+  const live = _padOut.filter((x) => x.status !== 'sent');
+  if (live.length) feed.querySelector('.pad-empty')?.remove();
+  for (const it of live.slice().reverse()) {
+    const old = feed.querySelector(`.pad-out[data-cid="${it.cid}"]`);
+    const card = buildOutCard(it);
+    if (old) old.replaceWith(card); else feed.prepend(card);
+  }
+}
+function padSyncSendBtn() {
+  const b = document.getElementById('pulseSend');
+  if (b) b.disabled = !(pulseText?.value || '').trim();
+}
+async function padDeliver(it) {
+  it.status = 'sending'; it.kind = ''; padOutSave(); padPaintOut();
+  const r = await api.sendPulse({ cid: it.cid, id: 'p' + it.at, who: pulseWho(), text: it.text, img: it.img || null, at: it.at, likes: [], car: it.car || '' });
+  if (r.ok) {
+    it.status = 'sent';
+    it.post = (r.rows || []).find((p) => p && (p.cid === it.cid || (r.id && p.id === r.id))) || null;
+    it.sentAt = Date.now();
+    padOutSave();
+    try { localStorage.setItem(PULSE_SEEN_KEY, String(Date.now())); } catch (_) {}
+    _padChatAt = 0; _hwPadAt = 0;
+    try { tmaHaptic('light'); } catch (_) {}
+    renderPulseRows(r.rows);
+    return true;
+  }
+  Object.assign(it, { status: 'failed', kind: r.kind, retryAfter: r.retryAfter || 0, err: r.error || '' });
+  padOutSave(); padPaintOut();
+  if (r.kind === 'auth') { try { refreshAccount(); } catch (_) {} }
+  return false;
+}
 pulseText?.addEventListener('input', () => {
   const n = pulseText.value.length;
   const el = document.getElementById('pulseCount');
   if (el) el.textContent = n + '/280';
+  padSyncSendBtn();
 });
-document.getElementById('pulseSend')?.addEventListener('click', async () => {
+let _padSendLock = 0;
+async function padSendFromComposer() {
   const msg = document.getElementById('pulseMsg');
   if (needLogin('Войди, чтобы писать в Paddock.')) return;
   const text = (pulseText?.value || '').trim();
-  if (text.length < 2) { if (msg) msg.textContent = 'Напиши хотя бы пару слов'; return; }
-  let img = null;
-  const f = document.getElementById('pulseImg')?.files?.[0];
-  if (f) img = await compressPulseImg(f);
-  await api.addPulse({
-    id: 'p' + Date.now(),
-    who: pulseWho(),
-    text: text.slice(0, 280),
-    img,
-    at: Date.now(),
-    likes: [],
-    car: currentCar()?.name || '',
-  });
-  if (pulseText) pulseText.value = '';
-  const cnt = document.getElementById('pulseCount');
-  if (cnt) cnt.textContent = '0/280';
+  if (!text) { padSyncSendBtn(); return; }
+  if (_padSendLock && Date.now() - _padSendLock < 600) return; // двойной тап
+  _padSendLock = Date.now();
   const inp = document.getElementById('pulseImg');
+  const f = inp?.files?.[0];
+  // поле очищаем сразу (как в Telegram) — повторный тап по пустому полю ничего не шлёт; текст живёт в карточке
+  if (pulseText) { pulseText.value = ''; pulseText.style.height = ''; }
+  const cnt = document.getElementById('pulseCount'); if (cnt) cnt.textContent = '0/280';
   if (inp) inp.value = '';
   if (msg) msg.textContent = '';
-  // v125: свой пост — не «новое»; превью чата и бейдж пересчитать
-  try { localStorage.setItem(PULSE_SEEN_KEY, String(Date.now())); } catch (_) {}
-  _padChatAt = 0; _hwPadAt = 0;
-  if (pulseText) pulseText.style.height = '';
-  void renderPulse();
-});
+  padSyncSendBtn();
+  const it = { cid: padNewCid(), text: text.slice(0, 280), img: null, at: Date.now(), car: currentCar()?.name || '', status: 'sending' };
+  _padOut.push(it); padOutSave(); padPaintOut();
+  document.getElementById('tgSheetBody')?.scrollTo?.({ top: 0, behavior: 'smooth' });
+  if (f) { it.img = await compressPulseImg(f); padPaintOut(); }
+  await padDeliver(it);
+}
+document.getElementById('pulseSend')?.addEventListener('click', () => { void padSendFromComposer(); });
+// v134: тап по кнопке не уводит фокус из поля — клавиатура iOS не схлопывается и кнопка не «уезжает» из-под пальца
+['pointerdown', 'mousedown'].forEach((ev) => document.getElementById('pulseSend')?.addEventListener(ev, (e) => { if (document.activeElement === pulseText) e.preventDefault(); }));
+document.getElementById('pulseFeed')?.addEventListener('click', (e) => {
+  const rb = e.target.closest?.('[data-retry]');
+  const db2 = e.target.closest?.('[data-drop]');
+  if (!rb && !db2) return;
+  e.stopPropagation();
+  const cid = (rb || db2).dataset.retry || (rb || db2).dataset.drop;
+  const it = _padOut.find((x) => x.cid === cid);
+  if (!it) return;
+  if (db2) { _padOut = _padOut.filter((x) => x !== it); padOutSave(); padPaintOut(); if (!(pulseText?.value || '').trim() && pulseText) { pulseText.value = it.text; pulseText.dispatchEvent(new Event('input')); } return; }
+  if (it.kind === 'auth' && !currentUser()) { padCloseSheets(); needLogin('Войди, чтобы отправить сообщение'); return; }
+  void padDeliver(it);
+}, true);
+// сеть вернулась → дослать то, что упало из-за связи
+window.addEventListener('online', () => { for (const it of _padOut) if (it.status === 'failed' && (it.kind === 'net' || it.kind === 'server')) void padDeliver(it); });
+padSyncSendBtn();
 // v125: поле «Написать в Paddock…» в шторке растёт по тексту (до ~4 строк)
 pulseText?.addEventListener('input', () => { if (!pulseText.closest('.pc-foot')) { pulseText.style.height = ''; return; } pulseText.style.height = 'auto'; pulseText.style.height = Math.min(pulseText.scrollHeight, 112) + 'px'; });
 document.getElementById('pulseFeed')?.addEventListener('click', (e) => { void padOnCardClick(e); });
@@ -12154,7 +12272,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v133';
+const APP_VERSION = 'v134';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12625,9 +12743,34 @@ function ssDrawMap(trackId, dirPt, row) {
     const cell = row?.cells?.[i];
     const tone = cell ? sectorTone(cell.d) : 'none';
     svg.appendChild(path(pts, 'ss-sec ' + tone));
+  });
+  // v134: подписи — вторым проходом, поверх всех линий (раньше следующий сектор перечёркивал подпись предыдущего)
+  // и в свободном месте: перебираем точки сектора × 8 направлений, берём место, где рамка текста дальше всего от линий
+  const scr = allPts.filter((_, k) => k % 2 === 0).map((p) => [+X(p), +Y(p)]);
+  const placed = [];
+  const boxDist = (x0, y0, w, h) => { let m = Infinity; for (const [px, py] of scr) { const dx = Math.max(x0 - px, 0, px - (x0 + w)); const dy = Math.max(y0 - py, 0, py - (y0 + h)); const d = Math.hypot(dx, dy); if (d < m) m = d; } for (const [bx, by, bw, bh] of placed) { const dx = Math.max(bx - (x0 + w), 0, x0 - (bx + bw)); const dy = Math.max(by - (y0 + h), 0, y0 - (by + bh)); if (dx === 0 && dy === 0) m -= 40; } return m; };
+  sp.sectors.forEach((pts, i) => {
+    const cell = row?.cells?.[i];
+    const label = 'S' + (i + 1) + (cell ? ' ' + (cell.d <= 0 ? 'лучший' : ssDelta(cell.d)) : '');
+    const w = label.length * 6.1 + 4, h = 13;
+    let best = null;
+    for (const f of [0.5, 0.35, 0.65, 0.25, 0.75]) {
+      const q = pts[Math.min(pts.length - 1, Math.floor(pts.length * f))]; const qx = +X(q), qy = +Y(q);
+      for (let k = 0; k < 8; k++) {
+        const ang = k * Math.PI / 4; const r = 13;
+        const cx = qx + Math.cos(ang) * r, cy = qy + Math.sin(ang) * r;
+        const x0 = Math.cos(ang) > 0.3 ? cx : Math.cos(ang) < -0.3 ? cx - w : cx - w / 2;
+        const y0 = Math.sin(ang) > 0.3 ? cy : Math.sin(ang) < -0.3 ? cy - h : cy - h / 2;
+        if (x0 < 3 || y0 < 3 || x0 + w > W - 3 || y0 + h > H - 3) continue;
+        const sc2 = boxDist(x0, y0, w, h) - (f === 0.5 ? 0 : 0.6) - Math.abs(f - 0.5);
+        if (!best || sc2 > best.sc) best = { sc: sc2, x0, y0 };
+      }
+    }
     const mid = pts[Math.floor(pts.length / 2)];
-    const t = document.createElementNS(NS, 'text'); t.setAttribute('x', X(mid)); t.setAttribute('y', Y(mid)); t.setAttribute('class', 'ss-lab'); t.setAttribute('dy', '-7');
-    t.textContent = 'S' + (i + 1) + (cell ? ' ' + (cell.d <= 0 ? 'лучший' : ssDelta(cell.d)) : '');
+    const t = document.createElementNS(NS, 'text'); t.setAttribute('class', 'ss-lab');
+    if (best) { t.setAttribute('x', (best.x0 + w / 2).toFixed(1)); t.setAttribute('y', (best.y0 + h - 3).toFixed(1)); placed.push([best.x0, best.y0, w, h]); }
+    else { t.setAttribute('x', X(mid)); t.setAttribute('y', Y(mid)); t.setAttribute('dy', '-7'); }
+    t.textContent = label;
     svg.appendChild(t);
   });
   const sf = document.createElementNS(NS, 'circle'); sf.setAttribute('cx', X(sp.sf)); sf.setAttribute('cy', Y(sp.sf)); sf.setAttribute('r', '4'); sf.setAttribute('class', 'ss-sf'); svg.appendChild(sf);
@@ -12653,6 +12796,9 @@ function openSessionReview(idx) {
   document.getElementById('ssIdeal').textContent = ssFmt(a.idealMs);
   document.getElementById('ssIdealS').textContent = a.gainMs > 0 ? `на ${ssSec(a.gainMs)} с быстрее лучшего круга ${ssFmt(a.bestLapMs)}` : `лучший круг ${ssFmt(a.bestLapMs)} уже идеальный`;
   document.getElementById('ssLoss').textContent = a.worst.avgMs > 0 ? `S${a.worst.idx} · +${ssSec(a.worst.avgMs)} с` : 'ровно';
+  // v134: где терял — красным, идеальный круг (быстрее лучшего) — зелёным
+  document.getElementById('ssLoss').classList.toggle('ss-bad', a.worst.avgMs > 0);
+  document.getElementById('ssIdeal').classList.toggle('ss-good', a.gainMs > 0);
   document.getElementById('ssLossS').textContent = a.worst.avgMs > 0 ? `в среднем за круг к лучшему S${a.worst.idx}, разброс ${ssSec(a.worst.spreadMs)} с` : 'сектора стабильны';
   const tb = document.querySelector('#ssTable tbody'); tb.replaceChildren();
   for (const l of a.laps) {
@@ -14402,6 +14548,32 @@ function syncHomeBtn() {
 new MutationObserver(syncHomeBtn).observe(document.getElementById('viewHost') || document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
 syncHomeBtn();
 
+/* v134: клавиатура iOS (WebView Telegram не сжимает окно — клавиатура ложится поверх). Поднимаем шторку
+ * на её высоту по visualViewport, иначе поле ввода и кнопка отправки оказываются под клавиатурой. */
+(function kbWatch() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const root = document.documentElement;
+  let last = -1;
+  const sync = () => {
+    const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    const v = kb > 80 ? kb : 0;
+    if (v === last) return;
+    last = v;
+    root.style.setProperty('--kb', v + 'px');
+    root.classList.toggle('kb-open', v > 0);
+  };
+  vv.addEventListener('resize', sync);
+  vv.addEventListener('scroll', sync);
+  document.addEventListener('focusin', (e) => {
+    const t = e.target;
+    if (!t || !t.matches?.('#pulseText, #padComText')) return;
+    // iOS прокручивает документ к полю внутри fixed-шторки — возвращаем, шторку поднимаем сами
+    setTimeout(() => { if (window.scrollY) window.scrollTo(0, 0); sync(); }, 60);
+    setTimeout(sync, 350);
+  });
+  document.addEventListener('focusout', () => setTimeout(sync, 120));
+})();
 function sheetNavOn() { return document.documentElement.classList.contains('nav-widgets') && !!window.matchMedia?.('(max-width: 900px)').matches; }
 /* ——— v124: нижняя панель из трёх пунктов (Дуэли · Paddock · Трассы) → шторка в стиле Telegram ——— */
 const TGS = { open: null, homes: new Map(), closing: 0 };

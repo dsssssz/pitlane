@@ -1,3 +1,4 @@
+import { PulseHub, pulseOp, PULSE_CID_RE } from './pulsehub.js';
 import { runWeather, publicWx } from './wx.js';
 import { sanitizeCarPhoto, publicCarPhoto, carPhotoKey, PCAR_BODY, PCAR_MAX } from './carphoto.js';
 import { listFollows, setFollow, followImproveNotify, deleteFollowKeys, FOLLOW_MAX } from './follow.js';
@@ -940,6 +941,8 @@ function sanitizePulse(body, pilot) {
     likes: [],
     cc: 0,
     pilotId: pilot.id || null,
+    // v134: клиентский id сообщения — для безопасного повтора (дубль не создаётся); виден только автору
+    ...(PULSE_CID_RE.test(String(body?.cid || '')) ? { cid: String(body.cid) } : {}),
   };
 }
 
@@ -963,6 +966,7 @@ function publicPulse(p, viewer = '') {
     commentCount: Math.max(0, Number(p.cc) || 0),
     pilotId: pubId(p.pilotId),
     ...(typeof p._ava === 'string' ? { ava: p._ava } : {}),
+    ...(viewer && p.cid && p.pilotId === viewer ? { cid: p.cid } : {}),
   };
 }
 
@@ -1082,18 +1086,6 @@ function shareId() {
 }
 
 /** Pulse list is one KV value: keep it ≤ ~3 MB (images!) so reads stay cheap and writes never hit the 25 MB cap. */
-const PULSE_MAX_BYTES = 3_000_000;
-async function writePulse(kv, rows) {
-  let list = rows.slice(0, 200);
-  let ser = JSON.stringify(list);
-  while (ser.length > PULSE_MAX_BYTES && list.length > 1) {
-    list = list.slice(0, Math.max(1, Math.floor(list.length * 0.8)));
-    ser = JSON.stringify(list);
-  }
-  await kv.put('pulse', ser);
-  return list;
-}
-
 /* ———————————————————— Share card payload (whitelist) ———————————————————— */
 function sanitizeSharePayload(p) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
@@ -2282,7 +2274,7 @@ async function kvPutKeep(kv, key, value, expiration) {
  * Pulse: their posts deleted, their likes removed from others' posts.
  * Share cards (`share:<id>`) are anonymous snapshots without a pilot link and expire in 30 days.
  */
-async function deleteAccount(kv, pid, currentToken) {
+async function deleteAccount(kv, pid, currentToken, env = { PITLANE: kv }) {
   const rep = {
     account: 0, providers: 0, sessions: 0, meta: 0, garage: 0,
     straightRows: 0, lapRows: 0, dragRows: 0, pulsePosts: 0, pulseLikes: 0,
@@ -2338,19 +2330,11 @@ async function deleteAccount(kv, pid, currentToken) {
   }
   // pulse
   {
+    // v134: через PulseHub (единая точка записи ленты)
     const rows = await readList(kv, 'pulse');
-    let changed = false;
-    const kept = [];
-    for (const r of rows) {
-      if (r && r.pilotId === pid) { rep.pulsePosts++; changed = true; continue; }
-      if (r && Array.isArray(r.likes) && r.likes.includes(pid)) {
-        r.likes = r.likes.filter((x) => x !== pid);
-        rep.pulseLikes++;
-        changed = true;
-      }
-      kept.push(r);
-    }
-    if (changed) await writeList(kv, 'pulse', kept);
+    const pr = await pulseOp(env, { t: 'purge', pid });
+    rep.pulsePosts += pr.res.posts || 0;
+    rep.pulseLikes += pr.res.likes || 0;
     // v83: comments — threads under their posts go, their comments under others' posts go
     const theirPosts = new Set(rows.filter((r) => r && r.pilotId === pid).map((r) => String(r.id)));
     rep.comments = 0;
@@ -2367,11 +2351,7 @@ async function deleteAccount(kv, pid, currentToken) {
         counts.set(postId, keep.length);
       }
     }
-    if (counts.size) {
-      const cur = await readList(kv, 'pulse');
-      for (const r of cur) if (r && counts.has(String(r.id))) r.cc = counts.get(String(r.id));
-      await writeList(kv, 'pulse', cur);
-    }
+    if (counts.size) await pulseOp(env, { t: 'cc', map: Object.fromEntries(counts) });
     await del('ptops:' + pid);
   }
   // crews
@@ -2472,7 +2452,7 @@ async function deleteAccount(kv, pid, currentToken) {
   // per-account rate-limit counters (short-lived anyway; removed so nothing references the uuid)
   for (const b of ROOM_RL_BUCKETS) await del('rl:' + b + ':p:' + pid);
   for (const b of [...TEAM_RL_BUCKETS, 'tgnote']) await del('rl:' + b + ':p:' + pid);
-  for (const b of ['top', 'pulse', 'pulsed', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx', 'drag', 'ghost', 'ghostd', 'ban']) await del('rl:' + b + ':p:' + pid);
+  for (const b of ['top', 'pulse', 'pulsed', 'pulseb', 'like', 'gar', 'me', 'del', 'fb', 'duel', 'crew', 'comb', 'com', 'comd', 'comx', 'drag', 'ghost', 'ghostd', 'ban']) await del('rl:' + b + ':p:' + pid);
   // finally the account record itself
   if (rec) rep.account = 1;
   await del('pilot:' + pid);
@@ -2487,7 +2467,7 @@ async function deleteAccount(kv, pid, currentToken) {
  * (creating `pilot:<uuid>` + `auth:phone:<phone>` when missing) and rewrites the data in place.
  * Re-running finds nothing left to change.
  */
-async function migratePilots(kv, { dry = false } = {}) {
+async function migratePilots(kv, { dry = false, env = { PITLANE: kv } } = {}) {
   const rep = {
     phonesFound: 0, accountsCreated: 0, sessionsUpgraded: 0, legacyUsersFolded: 0,
     straightRows: 0, lapRows: 0, pulsePosts: 0, pulseLikes: 0, crews: 0, duels: 0,
@@ -2673,7 +2653,7 @@ async function migratePilots(kv, { dry = false } = {}) {
         changed = true;
       }
     }
-    if (changed) await W(() => writeList(kv, 'pulse', pulse));
+    if (changed) await W(() => pulseOp(env, { t: 'replace', rows: pulse })); // v134: через PulseHub
   }
   // 7) crews
   for (const [k, c] of crews) {
@@ -3214,7 +3194,7 @@ export default {
         // full-KV scan per call → strictly limited
         const lim = await limitOr429(env, headers, [['rl:del:p:' + pilot.id, 3, 3600], ['rl:del:ip:' + ip, 5, 3600]]);
         if (lim) return lim;
-        const report = await deleteAccount(env.PITLANE, pilot.id, pilot.token);
+        const report = await deleteAccount(env.PITLANE, pilot.id, pilot.token, env);
         return json({ ok: true, deleted: report }, 200, headers);
       }
 
@@ -3226,7 +3206,7 @@ export default {
         if (await rateHit(env.PITLANE, 'rl:adm:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
         if (!timingSafeEqualStr(adm, got)) return json({ error: 'not found' }, 404, headers);
         const dry = url.searchParams.get('dry') === '1';
-        const report = await migratePilots(env.PITLANE, { dry });
+        const report = await migratePilots(env.PITLANE, { dry, env });
         return json({ ok: true, dry, report }, 200, headers);
       }
 
@@ -3547,15 +3527,15 @@ export default {
         if (req.method === 'POST') {
           const denied = requireAuth(pilot, headers);
           if (denied) return denied;
-          const lim = await limitOr429(env, headers, [['rl:pulse:p:' + pilot.id, 10, 3600], ['rl:pulsed:p:' + pilot.id, 40, 86400]]);
+          // v134: лимит под чат (было 10/ч — в живом чате упирались за минуты, а клиент молча терял пост)
+          const lim = await limitOr429(env, headers, [['rl:pulseb:p:' + pilot.id, 15, 60], ['rl:pulse:p:' + pilot.id, 60, 3600], ['rl:pulsed:p:' + pilot.id, 300, 86400]]);
           if (lim) return lim;
           const body = await readJson(req, BODY_LIMITS.pulse);
           const row = sanitizePulse(body, pilot);
           if (!row) return json({ error: 'invalid pulse' }, 400, headers);
-          const rows = await readList(env.PITLANE, 'pulse');
-          rows.unshift(row);
-          const kept = await writePulse(env.PITLANE, rows);
-          return json(publicPulseList(kept, viewer), 200, headers);
+          const { res, rows } = await pulseOp(env, { t: 'add', row });
+          const h2 = { ...headers, 'X-Pulse-Id': String(res.id || ''), ...(res.dup ? { 'X-Pulse-Dup': '1' } : {}) };
+          return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30), viewer), 200, h2);
         }
       }
 
@@ -3568,19 +3548,11 @@ export default {
         const lim = await limitOr429(env, headers, [['rl:like:p:' + pilot.id, 120, 3600]]);
         if (lim) return lim;
         // Likes are keyed by the opaque account id (never a phone / nick); one per account (toggle).
-        const who = pilot.id;
-        const rows = await readList(env.PITLANE, 'pulse');
-        const p = rows.find((x) => x && x.id === id);
-        if (!p) return json({ error: 'not found' }, 404, headers);
-        p.likes = Array.isArray(p.likes) ? [...new Set(p.likes)].slice(0, 5000) : [];
-        const i = p.likes.indexOf(who);
-        let want = i < 0;
+        // v134: через PulseHub — лайк больше не перезаписывает ленту устаревшей копией
         const body = await readJson(req, 1024).catch(() => null);
-        if (body && typeof body.liked === 'boolean') want = body.liked; // idempotent explicit state
-        if (want && i < 0) p.likes.push(who);
-        if (!want && i >= 0) p.likes.splice(i, 1);
-        await writePulse(env.PITLANE, rows);
-        return json({ ok: true, id: p.id, likeCount: p.likes.length, liked: p.likes.includes(who) }, 200, headers);
+        const { res } = await pulseOp(env, { t: 'like', id, who: pilot.id, want: body && typeof body.liked === 'boolean' ? body.liked : undefined });
+        if (!res.ok) return json({ error: 'not found' }, 404, headers);
+        return json({ ok: true, id: res.id, likeCount: res.likeCount, liked: res.liked }, 200, headers);
       }
 
       // v83: comments under a post
@@ -3629,8 +3601,7 @@ export default {
           };
           list.push(c);
           await env.PITLANE.put(ckey, JSON.stringify(list));
-          post.cc = list.length;
-          await writePulse(env.PITLANE, rows);
+          await pulseOp(env, { t: 'cc', map: { [postId]: list.length } });
           return json({ ok: true, postId, count: list.length, comment: publicComment(c, viewer) }, 200, headers);
         }
       }
@@ -3655,7 +3626,7 @@ export default {
         else await env.PITLANE.delete(ckey);
         const rows = await readList(env.PITLANE, 'pulse');
         const post = rows.find((x) => x && x.id === postId);
-        if (post) { post.cc = list.length; await writePulse(env.PITLANE, rows); }
+        if (post) await pulseOp(env, { t: 'cc', map: { [postId]: list.length } });
         return json({ ok: true, postId, count: list.length }, 200, headers);
       }
 
@@ -3665,14 +3636,8 @@ export default {
         if (denied) return denied;
         const id = safeDecode(m[1]).slice(0, 64);
         // Only the author (by account id) can delete a post.
-        let rows = await readList(env.PITLANE, 'pulse');
-        const before = rows.length;
-        rows = rows.filter((x) => !(x.id === id && x.pilotId && x.pilotId === pilot.id));
-        if (rows.length !== before) {
-          await writePulse(env.PITLANE, rows);
-          if (POST_ID_RE.test(id)) await env.PITLANE.delete('pcom:' + id);
-        }
-        rows.sort((a, b) => (b.at || 0) - (a.at || 0));
+        const { res, rows } = await pulseOp(env, { t: 'del', id, pid: pilot.id });
+        if (res.deleted && POST_ID_RE.test(id)) await env.PITLANE.delete('pcom:' + id);
         return json(publicPulseList(rows.slice(0, 200), viewer), 200, headers);
       }
 
@@ -4484,5 +4449,5 @@ export default {
   },
 };
 
-export { GpsLive };
+export { GpsLive, PulseHub };
 export { tgRoute, tgWebhookPath, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, ROOM_SEASON_DAYS, ROOM_SEASON_STARS };

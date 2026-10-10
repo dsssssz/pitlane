@@ -6169,7 +6169,7 @@ body.run-sum-on #runDriveStop { background: var(--c-surface-2) !important; color
 .ss-sec.best { stroke: var(--c-acc); }
 .ss-sec.near { stroke: #d6d6d6; }
 .ss-sec.loss { stroke: var(--c-bad); }
-.ss-lab { fill: var(--c-text); font: 600 10.5px var(--font-num); text-anchor: middle; paint-order: stroke; stroke: #0f1010; stroke-width: 3px; }
+.ss-lab { fill: var(--c-text); font: 600 10.5px var(--font-num); text-anchor: middle; paint-order: stroke; stroke: #0f1010; stroke-width: 4px; stroke-linejoin: round; }
 .ss-sf { fill: #0f1010; stroke: #f2f2f2; stroke-width: 2; }
 .ss-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 8px 2px 0; font: 500 11.5px/1.2 var(--font-ui); color: var(--c-mute); }
 .ss-legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-left: 6px; }
@@ -6245,3 +6245,56 @@ body.run-sum-on #runDriveStop { background: var(--c-surface-2) !important; color
 .share-photo[hidden] { display: none; }
 .share-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
 @media (prefers-reduced-motion: reduce) { .cph-btn { transition: none; } }
+
+/* ——— v134: кнопка отправки — ровная стрелка вверх в круге (SVG), одна для шторки Paddock и комментариев ——— */
+.pc-foot, .pulse-compose.pc-foot { grid-template-columns: 40px 1fr 40px; }
+.pc-foot #pulseSend, .pad-com-send.send-btn { width: 40px; height: 40px; min-width: 40px; min-height: 40px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; font-size: 0; line-height: 0; background: var(--c-fill); color: var(--c-on-fill, #0b0c0c); box-shadow: none; flex-shrink: 0; transition: background-color .15s ease, color .15s ease, transform .1s ease; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.pad-com-send.send-btn { width: 44px; height: 44px; min-width: 44px; min-height: 44px; }
+.pc-foot #pulseSend::before, .pc-foot #pulseSend::after { content: none !important; display: none !important; }
+.send-btn .send-ico { display: block; width: 22px; height: 22px; flex: none; }
+.pc-foot #pulseSend .send-lbl { display: none; }
+.pulse-compose:not(.pc-foot) #pulseSend .send-ico { display: none; }
+.pc-foot #pulseSend:disabled, .pad-com-send.send-btn:disabled { background: rgba(255,255,255,.08) !important; color: rgba(255,255,255,.34) !important; opacity: 1 !important; cursor: default; }
+.pc-foot #pulseSend:not(:disabled):active, .pad-com-send.send-btn:not(:disabled):active { transform: scale(.92); }
+
+/* ——— v134: исходящее сообщение (как в Telegram): «Отправляется…» / «Не отправлено · Повторить» ——— */
+.pulse-card.pad-out.is-sending { opacity: .78; }
+.pulse-card.pad-out.is-failed { border-color: rgba(212,154,154,.35) !important; }
+.pad-out-st { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: 12.5px; color: var(--c-muted, #9a9ea3); }
+.pad-out-spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid rgba(255,255,255,.18); border-top-color: rgba(255,255,255,.7); animation: padOutSpin .8s linear infinite; flex: none; }
+@keyframes padOutSpin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .pad-out-spin { animation: none; border-top-color: rgba(255,255,255,.18); } }
+.pad-out-bang { width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; background: #d49a9a; color: #160c0c; font: 800 11px/1 Manrope, sans-serif; flex: none; }
+.pad-out-why { color: #e2b3b3; flex: 1 1 calc(100% - 30px); min-width: 0; }
+.pad-out-st .pad-out-btn:first-of-type { margin-left: 24px; }
+.pad-out-btn { min-height: 32px; padding: 0 14px; border-radius: 999px; border: 0; background: var(--c-fill); color: var(--c-on-fill, #0b0c0c); font: 700 12.5px/1 Manrope, sans-serif; }
+.pad-out-btn.ghost { background: rgba(255,255,255,.08); color: var(--c-text, #e8e9ea); }
+
+/* ——— v134: клавиатура iOS не перекрывает поле ввода (шторка Paddock, комментарии) ——— */
+html.kb-open .tgs-panel { bottom: var(--kb, 0px); }
+html.kb-open .pulse-compose.pc-foot { padding-bottom: 8px !important; margin-bottom: 0 !important; } /* нижняя панель всё равно под клавиатурой */
+html.kb-open .crew-sheet.pad-sheet { padding-bottom: calc(var(--kb, 0px) + 8px); }
+html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding-bottom: 12px !important; }
+
+/* ——— v134: разбор сессии — чёткие зелёный (лучше) и красный (хуже), как до v133, но без свечения.
+ * Цвета живут только внутри #sessionSheet (тест-страж v133/v134 пускает их только сюда). ——— */
+#sessionSheet { --ss-good: #30d158; --ss-bad: #ff453a; --ss-bad-txt: #ff6961; }
+#sessionSheet .ss-sec { stroke-width: 5; }
+#sessionSheet .ss-sec.best { stroke: var(--ss-good); }
+#sessionSheet .ss-sec.loss { stroke: var(--ss-bad); }
+#sessionSheet .ss-legend i.best { background: var(--ss-good); }
+#sessionSheet .ss-legend i.loss { background: var(--ss-bad); }
+#sessionSheet .ss-c.best { color: var(--ss-good); font-weight: 700; }
+#sessionSheet .ss-c.loss { color: var(--c-text); }
+#sessionSheet .ss-c.loss small { color: var(--ss-bad-txt); font-weight: 600; }
+#sessionSheet .ss-c.near small { color: var(--c-sub); }
+#sessionSheet .ss-v.ss-good { color: var(--ss-good); }
+#sessionSheet .ss-v.ss-bad { color: var(--ss-bad-txt); }
+
+/* ——— v134: мелкие правки по проходу Mini App ——— */
+/* стопка аватаров «N пилотов в чате»: перекрытие было 6 px + кольцо 2 px — следующий аватар съедал инициалы («МА» → «М/») */
+.pc-stack .pad-ava { margin-left: -3px; }
+.pc-stack { padding-left: 3px; }
+/* бейдж «честный» кликабелен (объяснение), но зона касания была 54×14 — расширяем невидимо, вид прежний */
+.tops-gps { position: relative; }
+.tops-gps::after { content: ''; position: absolute; left: -6px; right: -6px; top: -14px; bottom: -14px; }

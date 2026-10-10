@@ -34,9 +34,18 @@ WX_ENABLED = "1"
 name = "GPS_LIVE"
 class_name = "GpsLive"
 
+# v134: Paddock — единая точка записи ленты (строгая согласованность вместо гонок read-modify-write в KV).
+[[durable_objects.bindings]]
+name = "PULSE_HUB"
+class_name = "PulseHub"
+
 [[migrations]]
 tag = "v116-gpslive"
 new_sqlite_classes = ["GpsLive"]
+
+[[migrations]]
+tag = "v134-pulsehub"
+new_sqlite_classes = ["PulseHub"]
 
 # Per-IP burst limits (Workers Rate Limiting API; in-memory per colo, no KV cost). period: 10 or 60 s.
 [[unsafe.bindings]]

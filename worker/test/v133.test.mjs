@@ -11,9 +11,19 @@ const neon = (s) => { const [h, l, sat] = hls(...rgbOf(s)); return h >= 75 && h 
 const noComments = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '');
 const greensIn = (t) => (noComments(t).match(COL) || []).filter(neon);
 
-console.log('\n[CSS: ни одного неонового зелёного]');
-for (const f of ['styles.css', 'legal.css']) ok(greensIn(R(f)).length === 0, `${f}: нет ярко-зелёных цветов (вкл. 8-значный hex и %23 в SVG-иконках)`, greensIn(R(f)).slice(0, 8));
-const css = noComments(R('styles.css'));
+// v134: исключение — разбор сессии. Насыщенные зелёный/красный (лучше/хуже) разрешены ТОЛЬКО в правилах,
+// где каждый селектор начинается с #sessionSheet, и только через токены --ss-good / --ss-bad (без свечения).
+const SS_RULE = /(^|})\s*((?:#sessionSheet\b[^{},]*)(?:,\s*#sessionSheet\b[^{},]*)*)\{([^}]*)\}/g;
+const stripSession = (t) => t.replace(SS_RULE, '$1');
+const ssRules = []; noComments(R('styles.css')).replace(SS_RULE, (_, a, sel, body) => { ssRules.push([sel.trim(), body]); return _; });
+console.log('\n[CSS: ни одного неонового зелёного (кроме разбора сессии)]');
+for (const f of ['styles.css', 'legal.css']) ok(greensIn(stripSession(noComments(R(f)))).length === 0, `${f}: нет ярко-зелёных цветов (вкл. 8-значный hex и %23 в SVG-иконках)`, greensIn(R(f)).slice(0, 8));
+const css = stripSession(noComments(R('styles.css')));
+{
+  const greenDecl = ssRules.flatMap(([sel, body]) => body.split(';').filter((d) => (d.match(COL) || []).some(neon)).map((d) => sel + ' {' + d.trim() + '}'));
+  ok(greenDecl.length === 1 && /^#sessionSheet \{--ss-good:/.test(greenDecl[0]), 'зелёный в разборе сессии — один токен --ss-good на #sessionSheet', greenDecl);
+  ok(ssRules.every(([, b]) => !/shadow|filter/.test(b)), 'разбор сессии: без свечения (ни shadow, ни filter)', ssRules.filter(([, b]) => /shadow|filter/.test(b)));
+}
 const tok = css.match(/--acc-rgb:\s*(\d+),\s*(\d+),\s*(\d+)/);
 ok(!!tok && hls(+tok[1], +tok[2], +tok[3])[2] < .45, 'токен --acc-rgb — приглушённый (насыщенность < 45%)', tok?.slice(1));
 ok(/--c-acc:\s*rgb\(var\(--acc-rgb\)\)/.test(css) && /--c-fill:\s*#e8e9ea/.test(css) && /--c-bad:\s*#d49a9a/.test(css) && /--c-good:/.test(css), 'токены: --c-acc из --acc-rgb, --c-fill, --c-good, --c-bad');
@@ -30,7 +40,7 @@ const radialAcc = (css.match(/radial-gradient\([^;]*acc-rgb[^;]*/g) || []);
 ok(radialAcc.length === 0, 'нет «зелёного света» радиальными градиентами на карточках', radialAcc.slice(0, 3));
 ok(!/background(?:-color)?\s*:\s*var\(--(?:accent|gold|h-acc)\)/.test(css), 'главные кнопки не заливаются акцентом (только --c-fill)');
 ok(/\.rd-hero-v\s*\{[^}]*color:\s*var\(--h-text\)/.test(css), 'крупное время итога — белое, не акцент');
-ok(/\.ss-sec\.loss\s*\{\s*stroke:\s*var\(--c-bad\)/.test(css) && /\.ss-sec\.best\s*\{\s*stroke:\s*var\(--c-acc\)/.test(css), 'разбор сессии: сектора приглушённые (мятный / приглушённый красный)');
+ok(/\.ss-sec\.loss\s*\{\s*stroke:\s*var\(--c-bad\)/.test(css) && /\.ss-sec\.best\s*\{\s*stroke:\s*var\(--c-acc\)/.test(css), 'базовые .ss-* — приглушённые; насыщенные только в #sessionSheet (v134)');
 
 console.log('\n[JS / HTML]');
 const allow = (line) => /data-hex="#39FF14"|id="paintCustom"/.test(line) || /^\s*\{ id: '[\w-]+', name: '[^']+', cls: .*color: 0x/.test(line); // краска машины (данные пользователя), не интерфейс

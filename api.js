@@ -61,12 +61,31 @@ async function refreshSession() {
 }
 
 /** fetch с Bearer; на 401 session_expired — один раз обновляем сессию и повторяем. */
+/**
+ * v134: повторный вход без участия пилота (в Mini App — по свежему initData). Регистрирует app.js.
+ * Нужен, когда refresh-токена нет (сессии до v104) или он отозван: раньше такой пилот оставался
+ * «вошедшим», но каждая запись получала 401 и молча терялась.
+ */
+let _reauth = null;
+let _reauthing = null;
+export function setReauthHandler(fn) { _reauth = typeof fn === 'function' ? fn : null; }
+async function reauth() {
+  if (!_reauth) return false;
+  if (!_reauthing) _reauthing = Promise.resolve().then(() => _reauth()).then((x) => !!x, () => false).finally(() => { setTimeout(() => { _reauthing = null; }, 0); });
+  return _reauthing;
+}
+
 async function authedFetch(url, opts) {
-  let res = await fetch(url, { ...opts, headers: { ...pilotHeaders(), ...(opts.headers || {}) } });
-  if (res.status === 401 && getRefreshToken()) {
+  const go = () => fetch(url, { ...opts, headers: { ...pilotHeaders(), ...(opts.headers || {}) } });
+  let res = await go();
+  if (res.status === 401 && getSessionToken()) {
     const d = await res.clone().json().catch(() => null);
-    if (d && d.code === 'session_expired' && await refreshSession()) {
-      res = await fetch(url, { ...opts, headers: { ...pilotHeaders(), ...(opts.headers || {}) } });
+    const code = d && d.code;
+    if (code === 'session_expired' || code === 'no_account') {
+      let ok = false;
+      if (code === 'session_expired' && getRefreshToken()) ok = await refreshSession();
+      if (!ok) ok = await reauth();
+      if (ok) res = await go();
     }
   }
   return res;
@@ -321,9 +340,40 @@ export const api = {
     if (Array.isArray(remoteRows)) return remoteRows;
     return localListPulse();
   },
+  /**
+   * v134: публикация в Paddock с честным результатом.
+   * → { ok:true, rows, id, dup } | { ok:false, status, error, kind:'auth'|'rate'|'big'|'invalid'|'net'|'server', retryAfter }
+   * Раньше при ЛЮБОЙ ошибке (401/429/413/таймаут/нет сети) пост молча сохранялся в localStorage, поле
+   * очищалось как при успехе, а следующая загрузка ленты с сервера его «съедала».
+   * Повторы безопасны: row.cid — id сообщения, сервер не создаёт дубль.
+   */
+  async sendPulse(row, { tries = 3, timeoutMs = 20000, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) } = {}) {
+    const base = apiBase();
+    if (!base) return { ok: true, rows: await this.addPulse(row), id: row.id, local: true };
+    let last = { ok: false, kind: 'net', error: 'offline' };
+    for (let i = 0; i < tries; i++) {
+      if (i) await sleep(i === 1 ? 1500 : 4000);
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), timeoutMs);
+      try {
+        const res = await authedFetch(base + '/pulse', { method: 'POST', body: JSON.stringify(row), signal: ctrl.signal });
+        const data = await res.json().catch(() => null);
+        if (res.ok && Array.isArray(data)) {
+          return { ok: true, rows: data, id: res.headers.get('X-Pulse-Id') || (data.find((p) => p && p.cid === row.cid) || {}).id || null, dup: res.headers.get('X-Pulse-Dup') === '1' };
+        }
+        const st = res.status;
+        const kind = st === 401 ? 'auth' : st === 429 ? 'rate' : st === 413 ? 'big' : st === 400 ? 'invalid' : 'server';
+        last = { ok: false, status: st, error: (data && data.error) || ('HTTP ' + st), kind, retryAfter: Number(res.headers.get('Retry-After')) || (data && data.retry) || 0 };
+        if (st < 500) return last; // 4xx повтором не лечится
+      } catch (err) {
+        last = { ok: false, kind: 'net', error: String((err && err.name === 'AbortError') ? 'timeout' : (err && err.message) || err) };
+      } finally { clearTimeout(t); }
+    }
+    return last;
+  },
+  /** Только локальный режим (без API): старое поведение. */
   async addPulse(row) {
-    const remoteRows = await remote('/pulse', { method: 'POST', body: JSON.stringify(row) });
-    if (Array.isArray(remoteRows)) return remoteRows;
+    if (apiBase()) { const r = await this.sendPulse(row); return r.ok ? r.rows : null; }
     const d = db();
     d.pulse = d.pulse || [];
     d.pulse.unshift(row);

@@ -22,7 +22,7 @@ const img = 'data:image/jpeg;base64,' + Buffer.from('x'.repeat(600)).toString('b
 const posted = [];
 for (let i = 0; i < 10; i++) posted.push((await call('POST', '/pulse', { token: A.token, body: { text: 'пост ' + i, img: i === 9 ? img : null } })).status);
 ok(posted.every((s) => s === 200), 'посты создаются', posted.join(','));
-ok((await call('POST', '/pulse', { token: A.token, body: { text: 'одиннадцатый' } })).status === 429, 'лимит постов не изменился (10/ч)');
+// v134: лимит под чат — 15/мин, 60/ч (было 10/ч); проверка лимита — в v134.test.mjs
 const r = await call('GET', '/pulse?recent=1');
 ok(r.status === 200 && Array.isArray(r.data) && r.data.length === 10 && r.data[0].text === 'пост 9', 'свежие сначала', r.data?.[0]?.text);
 ok(r.data.every((p) => p.img === null) && r.data[0].hasImg === true, 'лёгкий ответ: без картинок, флаг hasImg');

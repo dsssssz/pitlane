@@ -811,7 +811,7 @@
             <div class="pulse-compose-bar">
               <label class="file-btn pill" aria-label="Добавить фото">фото<input id="pulseImg" type="file" accept="image/*" hidden></label>
               <span id="pulseCount">0/280</span>
-              <button type="button" id="pulseSend" data-i18n="pad.send" aria-label="Отправить в Paddock">Опубликовать</button>
+              <button type="button" id="pulseSend" class="send-btn" aria-label="Отправить в Paddock" disabled><svg class="send-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 19.1V5.6M5.9 11.5 12 5.4l6.1 6.1" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="send-lbl" data-i18n="pad.send">Опубликовать</span></button>
             </div>
             <p class="tiny" id="pulseMsg"></p>
           </article>
@@ -1478,9 +1478,7 @@
         <div class="pad-com-list" id="padComList" aria-live="polite"></div>
         <div class="pad-com-compose" id="padComCompose">
           <textarea id="padComText" maxlength="500" rows="1" placeholder="Написать комментарий…" aria-label="Комментарий"></textarea>
-          <button type="button" class="pad-com-send" id="padComSend" aria-label="Отправить">
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor"/></svg>
-          </button>
+          <button type="button" class="pad-com-send send-btn" id="padComSend" aria-label="Отправить" disabled><svg class="send-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 19.1V5.6M5.9 11.5 12 5.4l6.1 6.1" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
         </div>
         <div class="pad-com-meta"><span class="tiny" id="padComMsg"></span><span class="tiny" id="padComCount">0/500</span></div>
         <button type="button" class="go-btn race-cta hidden" id="padComLogin">Войти, чтобы комментировать</button>
