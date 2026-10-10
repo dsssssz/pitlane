@@ -65,6 +65,7 @@ import { initTips, tipsOnView, resetTips, showMyCarHowTo, startTour } from './ti
 import { musicList, renderMyMusic, initMusic, stopMusic } from './music-ui.js';
 import { createChaseTracker } from './chase-match.js';
 import { dragSplits as coreDragSplits } from './gps-core.js';
+import { brandOf, fillCarNameRow, carNameRow, flagUrl, COUNTRIES } from './car-brands.js';
 import { GRID as RM_GRID, LABEL as RM_LABEL, DIST_KEYS as RM_DIST, createRunMarks, stepRunMarks, speedSeries, elevation as rmElevation, shareCurve, shareSplits, cleanCurve, cleanSplits, drawSpeedChart, chartTags } from './run-marks.js';
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ, withSpeed as coreWithSpeed, launchTime as coreLaunchTime, speedCross as coreSpeedCross, distCross as coreDistCross } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
@@ -864,6 +865,16 @@ function brandKeyFromName(name) {
   return null;
 }
 
+/** v135: флаг страны марки справа от названия в Боксе (только флаг; логотипов марок не добавляем). */
+function applyBoxFlag(name) {
+  const f = document.getElementById('boxFlag'); if (!f) return;
+  const b = brandOf(name);
+  f.hidden = !b;
+  if (!b) return;
+  const c = COUNTRIES[b.cc] || ''; f.title = c; f.setAttribute('aria-label', c);
+  const im = f.querySelector('img'); if (im && im.getAttribute('src') !== flagUrl(b)) im.src = flagUrl(b);
+}
+
 function applyBrandMark(name) {
   const img = document.getElementById('brandMark');
   if (!img) return;
@@ -910,6 +921,7 @@ function applyPassportUI() {
   const gps = getPassportGps(id);
   const setTxt = (elId, val) => { const el = document.getElementById(elId); if (el) el.textContent = val; };
   setTxt('boxName', p.name);
+  applyBoxFlag(p.name);
   setTxt('boxTrim', p.trim || '');
   applyBrandMark(p.name);
 
@@ -7822,7 +7834,7 @@ function renderCarPicker() {
     const on = m.id === cur;
     return `<button type="button" class="cp-card${on ? ' on' : ''}" role="option" aria-selected="${on}" data-car-id="${esc(m.id)}">`
       + `<img src="${carThumbUrl(m.id)}" alt="" width="128" height="128" loading="lazy" decoding="async" />`
-      + `<span class="cp-name">${esc(m.name)}</span>${m.year ? `<span class="cp-year">${esc(m.year)}</span>` : ''}</button>`;
+      + `<span class="cp-name cb-row"><span class="cb-name">${esc(m.name)}</span>${(() => { const b = brandOf(m.name); return b ? `<span class="cb-flag" role="img" title="${esc(COUNTRIES[b.cc] || '')}" aria-label="${esc(COUNTRIES[b.cc] || '')}"><img src="${flagUrl(b)}" alt="" decoding="async" /></span>` : ''; })()}</span>${m.year ? `<span class="cp-year">${esc(m.year)}</span>` : ''}</button>`;
   }).join('');
 }
 function openCarPicker() {
@@ -9455,7 +9467,7 @@ function renderPilotProfile(pr) {
   head.appendChild(padAvatar(pr.nick, pr.avatar, 84));
   const who = padEl('div', 'pilot-who');
   who.appendChild(padEl('h2', 'pilot-nick', pr.nick || 'Пилот'));
-  who.appendChild(padEl('p', 'pilot-car', pr.car || 'Машина не указана'));
+  who.appendChild(pr.car && brandOf(pr.car) ? carNameRow(pr.car, { rowTag: 'p', cls: 'pilot-car' }) : padEl('p', 'pilot-car', pr.car || 'Машина не указана')); // v135: флаг страны марки
   if (isMyPilotId(pr.pilotId)) who.appendChild(padEl('span', 'pilot-you', 'это ты'));
   head.appendChild(who);
   body.appendChild(head);
@@ -12272,7 +12284,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v134';
+const APP_VERSION = 'v135';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -14327,7 +14339,7 @@ function renderHwCar(remote) {
       img.src = `./img/cars/studio/${m.id}-1170.webp`;
     } else { av?.removeAttribute('srcset'); img.removeAttribute('srcset'); img.src = carThumbUrl(m.id); }
   }
-  const nm = document.getElementById('hwCarName'); if (nm) nm.textContent = m.name;
+  const row = document.getElementById('hwCarRow'); if (row) fillCarNameRow(row, m.name, { tag: 'b', id: 'hwCarName' }); // v135: + флаг страны марки
   let cls = ''; try { cls = (CARS.find((c) => c.id === m.id)?.cls) || ''; } catch (_) {}
   const sub = document.getElementById('hwCarSub'); if (sub) sub.textContent = [m.year, cls].filter(Boolean).join(' · ');
   const chip = document.getElementById('hwCarBest');
