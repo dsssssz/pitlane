@@ -9,15 +9,20 @@
  * Существующие «i»-подсказки не трогаем (свои классы cm-*).
  */
 const KEY = 'pitlane-tips-v2';
+/* v120: ни тура, ни модальных подсказок сами по себе — только по запросу (профиль → «Показать подсказки»,
+ * «Как привязать машину»). Затемнение не перехватывает тапы: тап мимо пузыря закрывает подсказку и проходит дальше
+ * (вкладки работают всегда). Первый шаг новичка — встроенная карточка «Сделай первый замер» на Главной (app.js). */
+const AUTO_TIPS = false;
 
 /** Each step: target (selector list, first visible wins), title, text, tap: 'end' | 'next' | 'stay', before(): prepare UI. */
 const nav = (v) => `.nav-btn[data-view="${v}"]`;
 export const SCENARIOS = {
   tour: [
-    { target: nav('garage'), title: 'Бокс', text: 'Твои машины. Отметь ту, на которой едешь, — круги запишутся на неё.' },
+    { target: '#homeGoBtn', title: 'Замер', text: 'Главная кнопка: 0–100 и ¼ мили по GPS. Телефона хватит.' },
     { target: nav('run'), title: 'Заезд', text: 'Замер 0–100 и круг по GPS. Старт и финиш ловятся сами.' },
-    { target: nav('duels'), title: 'Дуэли', text: 'Вызов по ссылке. Побеждает лучший GPS-заезд за срок.' },
-    { target: nav('tops'), title: 'Топ', text: 'Честные рекорды трасс. Здесь же — команды.' },
+    { target: nav('duels'), title: 'Дуэли', text: 'Вызов по ссылке. Сравнение внутри класса: A/B или телефон (C).' },
+    { target: nav('tops'), title: 'Топ', text: 'Честные рекорды. Фильтры и «Команда» — в меню «Фильтры».' },
+    { target: '#homeHero', title: 'Бокс', text: 'Твоя машина на 3D-подиуме — тап по карточке.' },
   ],
   home: [{ target: '#homeHero', title: 'Главная', text: 'Твоя машина и главное за день. Тап по машине — в Бокс.' }],
   garage: [
@@ -32,7 +37,7 @@ export const SCENARIOS = {
   ],
   tops: [
     { target: '#topsChips', title: 'Топ', text: 'Выбери трассу или замер — увидишь лучшие честные заезды.' },
-    { target: '#btnRoomsOpen', title: 'Команды', text: 'Свой топ и дуэли — только для своих.' },
+    { target: '#btnTopsMenu', title: 'Фильтры', text: 'Класс зачёта, погода, модель и «Команда» — здесь.' },
   ],
   duels: [{ target: '#btnDuelOpen', title: 'Дуэли', text: 'Брось вызов по ссылке. Побеждает лучший GPS-заезд за срок.' }],
   pulse: [{ target: '#pulseText', title: 'Paddock', text: 'Лента сообщества. Поделись заездом или фото.' }],
@@ -139,9 +144,10 @@ function build() {
 }
 
 function onDocClick(e) {
-  if (!cur || !cur.target) return;
-  if (cur.root.contains(e.target)) return;
-  if (!cur.target.contains(e.target)) return;
+  if (!cur) return;
+  if (cur.bubble.contains(e.target)) return;
+  // v120: тап мимо пузыря и мимо цели — подсказка закрывается, тап уходит по назначению (вкладка и т.п.)
+  if (!cur.target || !cur.target.contains(e.target)) { finish(true, true); return; }
   // the real element handles the tap (navigation etc.); the coach-mark follows
   const step = cur.steps[cur.i];
   const how = step.tap || 'end';
@@ -354,6 +360,7 @@ function finish(markSeen, silent) {
 /* ——————————————— public API ——————————————— */
 /** Called on every view / section entry (and when a sheet opens: 'teams', 'mycar'). */
 export function tipsOnView(id) {
+  if (!AUTO_TIPS) return;
   if (!SCENARIOS[id] || id === 'tour' || id === 'mycarHow') return;
   if (!state.tour) { if (id === 'home') queueTour(); return; } // the tour comes first
   if (state.seen[id] || cur) return;

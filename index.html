@@ -78,7 +78,7 @@
             </span>
             <i data-i18n="nav.home">Главная</i>
           </button>
-          <button class="nav-btn" data-view="garage" title="Гараж">
+          <button class="nav-btn nav-off" data-view="garage" title="Гараж" hidden aria-hidden="true" tabindex="-1">
             <span class="nav-ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" class="ico ico-box"><path class="ico-body" d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5z"/><path class="ico-door" d="M10 20v-6h4v6"/></svg>
             </span>
@@ -102,7 +102,7 @@
             </span>
             <i data-i18n="nav.top">Топ</i>
           </button>
-          <button class="nav-btn" data-view="pulse" title="Paddock">
+          <button class="nav-btn nav-off" data-view="pulse" title="Paddock" hidden aria-hidden="true" tabindex="-1">
             <span class="nav-ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" class="ico ico-pad"><circle class="ico-ring" cx="12" cy="12" r="7"/><circle class="ico-core" cx="12" cy="12" r="2.4"/></svg>
             </span>
@@ -144,7 +144,13 @@
         <div class="view-host" id="viewHost">
         <!-- v84: Главная — карусель разделов, моя машина, топ постов за сутки -->
         <section id="view-home" class="view active">
-          <div class="home-carousel" id="homeCarousel" role="region" aria-roledescription="карусель" aria-label="Разделы Pitlane">
+          <!-- v120: баннеры скрыты (код остаётся); первым — главная кнопка замера -->
+          <section class="home-go" id="homeGo">
+            <p class="home-go-step" id="homeFirstStep" hidden>Шаг 1 · Сделай первый замер</p>
+            <button type="button" class="home-go-btn" id="homeGoBtn" data-hq="run"><span class="home-go-ico" aria-hidden="true"></span><b>Сделать замер</b></button>
+            <p class="home-go-sub" id="homeGoSub">0–100 и ¼ мили по GPS · телефона хватит</p>
+          </section>
+          <div class="home-carousel v120-off" id="homeCarousel" hidden role="region" aria-roledescription="карусель" aria-label="Разделы Pitlane">
             <div class="hc-track" id="homeCarouselTrack">
               <button type="button" class="hc-slide hc-duel" data-go="duels" aria-label="Дуэли — вызови любого пилота 1 на 1">
                 <span class="hc-art" aria-hidden="true"><img class="hc-bg" src="./img/banners/duels-800.webp" srcset="./img/banners/duels-800.webp 800w, ./img/banners/duels-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 640px" width="1280" height="720" alt="" fetchpriority="high" decoding="async"></span>
@@ -192,7 +198,7 @@
               <h2 id="homeHeroName" class="hh-name">—</h2>
               <div id="homeHeroStats" class="hh-stats"></div>
               <div class="hh-actions">
-                <button type="button" class="hh-btn" id="homeHeroGarage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 20v-5h6v5"/></svg>В гараж</button>
+                <button type="button" class="hh-btn" id="homeHeroGarage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 20v-5h6v5"/></svg>Бокс · 3D</button>
                 <button type="button" class="hh-btn hh-btn-go" id="homeHeroRun"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V10M10 3h4"/></svg>Замер</button>
               </div>
             </div>
@@ -200,14 +206,15 @@
 
           <!-- v86: быстрые действия — иконки-плитки -->
           <div class="home-quick h-rv" id="homeQuick">
-            <button type="button" class="hq-btn" data-hq="run"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M10 2.8h4M18.4 6.6l1.3-1.3"/></svg></span><b>Замер</b></button>
+            
             <button type="button" class="hq-btn" data-hq="lap"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 3.8v3.6h-3.6"/><circle cx="12" cy="12" r="1.6"/></svg></span><b>Круг</b></button>
             <button type="button" class="hq-btn" data-hq="duel"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 7l5.5 5-5.5 5M20.5 7L15 12l5.5 5M12 7.5v9"/></svg></span><b>Дуэль</b></button>
-            <button type="button" class="hq-btn" data-hq="post"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20h4.2L19 9.2a2.8 2.8 0 0 0-4-4L4.2 16z"/><path d="M13.6 6.6l3.8 3.8"/></svg></span><b>Пост</b></button>
+            <button type="button" class="hq-btn" data-hq="garage"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 20v-5h6v5"/></svg></span><b>Бокс</b></button>
+            <button type="button" class="hq-btn" data-hq="team"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5M14.5 15c2.6-.4 4.9.8 5.5 4"/></svg></span><b>Команда</b></button>
           </div>
 
           <!-- v86: мои дуэли -->
-          <section class="home-sec h-rv" id="homeDuelsSec">
+          <section class="home-sec h-rv" id="homeDuelsSec" hidden>
             <div class="home-sec-head">
               <h3>Мои дуэли</h3>
               <span class="hsh-lead" aria-hidden="true"></span>
@@ -217,7 +224,7 @@
           </section>
 
           <!-- v86: трасса дня -->
-          <section class="home-sec h-rv">
+          <section class="home-sec h-rv" id="homeTrackSec" hidden>
             <div class="home-sec-head">
               <h3>Трасса дня</h3>
               <span class="hsh-lead" aria-hidden="true"></span>
@@ -236,7 +243,7 @@
           </section>
 
           <!-- v86: лидеры 0–100 -->
-          <section class="home-sec h-rv">
+          <section class="home-sec h-rv" id="homeLeadersSec" hidden>
             <div class="home-sec-head">
               <h3>Лидеры 0–100</h3>
               <span class="hsh-lead" aria-hidden="true"></span>
@@ -252,7 +259,7 @@
           </section>
 
           <!-- v86: машины на подиуме -->
-          <section class="home-sec h-rv">
+          <section class="home-sec h-rv v120-off" id="homeCarsSec" hidden>
             <div class="home-sec-head">
               <h3>Машины на подиуме</h3>
               <span class="hsh-lead" aria-hidden="true"></span>
@@ -261,7 +268,7 @@
             <div id="homeCars" class="home-rail home-cars"></div>
           </section>
 
-          <section class="home-sec h-rv">
+          <section class="home-sec h-rv v120-off" id="homePostsSec" hidden>
             <div class="home-sec-head">
               <h3>Топ постов за сутки</h3>
               <span class="hsh-lead" aria-hidden="true"></span>
@@ -568,43 +575,19 @@
         <section id="view-tops" class="view">
           <div class="tops-head">
             <h2 data-i18n="top.title">Топы</h2>
-            <a class="method-link" href="./method.html" id="topsMethodLink">Методика</a>
-            <div class="tops-head-actions race-toolbar">
-              <button type="button" class="crew-btn" id="btnCrewOpen">Экипаж</button>
-              <button type="button" class="crew-btn room-open-btn" id="btnRoomsOpen">Команды</button>
-              <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen">Секторы</button>
-              <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
-            </div>
+            <button type="button" class="tops-menu-btn" id="btnTopsMenu" aria-expanded="false" aria-controls="topsMenu">Фильтры<i aria-hidden="true"></i></button>
           </div>
           <div class="tops-chips" id="topsChips" role="tablist" aria-label="Трасса или замер"></div>
-          <div class="seg-control tops-cls" id="topsCls" role="tablist" aria-label="Класс зачёта">
+          <p class="tiny muted tops-active" id="topsActive"></p>
+          <!-- v120: всё второстепенное шапки Топов — в одном меню (элементы и id прежние) -->
+          <div class="tops-menu card" id="topsMenu" hidden>
+            <p class="tops-weather-label">класс зачёта</p>
+            <div class="seg-control tops-cls" id="topsCls" role="tablist" aria-label="Класс зачёта">
             <button type="button" class="seg-btn on" data-cls="ab" role="tab" aria-selected="true">A/B · внешний GPS</button>
             <button type="button" class="seg-btn" data-cls="c" role="tab" aria-selected="false">C · телефон</button>
           </div>
-          <article class="card tops-board-card">
-            <div class="tops-board-head">
-              <h3 id="topsBoardTitle">0–100 км/ч</h3>
-              <span class="tiny muted" id="topsBoardSub">все машины · GPS A/B</span>
-            </div>
-            <div class="tops-board-map track-map hidden" id="topsBoardMap" aria-hidden="true"></div>
-            <ol id="topsBoard" class="tops-board" aria-live="polite"></ol>
-          </article>
-
-          <article class="card session-day-card" id="sessionDayCard">
-            <div class="session-day-head">
-              <button type="button" class="session-day-info pit-info-btn" id="btnSessionTrackInfo" data-help="session" title="Справка" aria-label="Справка: сессия дня">i</button>
-              <span class="session-day-badge">сессия дня</span>
-            </div>
-            <h3 id="sessionDayTitle">—</h3>
-            <p class="tiny muted session-day-sub" id="sessionDayDate">—</p>
-            <ol id="sessionDayTops" class="laps tops-pilot-list"></ol>
-            <div class="session-day-actions">
-              <button type="button" class="go-btn" id="btnSessionGoTrack">Открыть трек</button>
-              <button type="button" class="btn-secondary" id="btnSessionCheckin">Я на месте</button>
-            </div>
-            <p class="tiny muted" id="sessionDayAtt">—</p>
-          </article>
-          <div class="tops-filters card">
+            <div class="tops-menu-filters" id="topsMenuFilters">
+          <div class="tops-filters">
             <label class="tops-check"><input type="checkbox" id="topValidOnly" checked /> только валидные GPS</label>
             <label class="tops-model">модель
               <select id="topModelFilter"><option value="">все модели</option></select>
@@ -628,7 +611,39 @@
             </div>
             <label class="tops-check"><input type="checkbox" id="topMyCarOnly" /> только моя машина (та же модель)</label>
           </div>
-          <article class="card sector-tops-card" id="sectorTopsCard">
+            </div>
+            <div class="tops-menu-links race-toolbar">
+              <button type="button" class="crew-btn" id="btnCrewOpen">Команда</button>
+              <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen" hidden>Секторы</button>
+              <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
+              <button type="button" class="crew-btn room-open-btn" id="btnRoomsOpen" hidden>Мои комнаты</button>
+              <a class="method-link" href="./method.html" id="topsMethodLink">Методика</a>
+            </div>
+          </div>
+          <article class="card tops-board-card">
+            <div class="tops-board-head">
+              <h3 id="topsBoardTitle">0–100 км/ч</h3>
+              <span class="tiny muted" id="topsBoardSub">все машины · GPS A/B</span>
+            </div>
+            <div class="tops-board-map track-map hidden" id="topsBoardMap" aria-hidden="true"></div>
+            <ol id="topsBoard" class="tops-board" aria-live="polite"></ol>
+          </article>
+
+          <article class="card session-day-card" id="sessionDayCard" hidden>
+            <div class="session-day-head">
+              <button type="button" class="session-day-info pit-info-btn" id="btnSessionTrackInfo" data-help="session" title="Справка" aria-label="Справка: сессия дня">i</button>
+              <span class="session-day-badge">сессия дня</span>
+            </div>
+            <h3 id="sessionDayTitle">—</h3>
+            <p class="tiny muted session-day-sub" id="sessionDayDate">—</p>
+            <ol id="sessionDayTops" class="laps tops-pilot-list"></ol>
+            <div class="session-day-actions">
+              <button type="button" class="go-btn" id="btnSessionGoTrack">Открыть трек</button>
+              <button type="button" class="btn-secondary" id="btnSessionCheckin">Я на месте</button>
+            </div>
+            <p class="tiny muted" id="sessionDayAtt">—</p>
+          </article>
+          <article class="card sector-tops-card" id="sectorTopsCard" hidden>
             <div class="sector-tops-head">
               <div class="card-head-row">
                 <button type="button" class="pit-info-btn" data-help="sectorTops" title="Справка" aria-label="Справка: топ секторов">i</button>
@@ -687,9 +702,9 @@
           <div id="duelsList" class="duels-list" aria-live="polite"></div>
           <button type="button" class="duel-linkish duels-paste" id="duelsPaste">Открыть по ссылке / id…</button>
           <!-- v114: сезонный зачёт экипажей (календарный месяц, МСК) -->
-          <article class="card season-card" id="seasonCard">
+          <article class="card season-card" id="seasonCard" hidden>
             <div class="season-head">
-              <h3>Сезон экипажей</h3>
+              <h3>Сезон команд</h3>
               <span class="season-month" id="seasonMonth">—</span>
             </div>
             <p class="tiny muted">Календарный месяц по МСК. Круг: сумма лучших кругов трёх лучших пилотов экипажа — только зачтённые A/B. Только публичные команды.</p>
@@ -801,7 +816,10 @@
           <p class="tiny" id="accPlan"></p>
           <div class="acc-crew-row">
             <button type="button" class="btn-secondary" id="btnMyCarAcc">Это моя машина</button>
-            <button type="button" class="btn-secondary" id="btnRoomsAcc">Команды</button>
+            <button type="button" class="btn-secondary" id="btnCrewAcc">Команда</button>
+            <button type="button" class="btn-secondary" id="btnRoomsAcc" hidden>Мои комнаты</button>
+            <button type="button" class="btn-secondary" id="btnGarageAcc">Бокс · 3D-подиум</button>
+            <button type="button" class="btn-secondary" id="btnPulseAcc">Paddock</button>
           </div>
           <p class="tiny" id="accTrialLeft"></p>
           <article class="card" id="imuCard">
@@ -814,7 +832,7 @@
           <p class="tiny acc-method"><a class="method-link" href="./method.html">Методика измерений и топов</a></p>
           <button type="button" id="btnLogout">Выйти</button>
           <button type="button" id="btnFeedback" class="btn-secondary acc-feedback-btn" aria-haspopup="dialog" aria-controls="feedbackSheet">Обратная связь</button>
-          <button type="button" id="btnTipsReset" class="btn-secondary acc-tips-btn">Показать подсказки снова</button>
+          <button type="button" id="btnTipsReset" class="btn-secondary acc-tips-btn">Показать подсказки</button>
           <button type="button" id="btnHowCar" class="btn-secondary acc-tips-btn">Как привязать машину</button>
           <nav class="acc-legal" aria-label="Документы">
             <a href="./privacy.html">Политика конфиденциальности</a>
@@ -1097,13 +1115,13 @@
         <div class="race-sheet-body" id="roomBody"></div>
       </div>
     </div>
-    <div id="crewSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Экипаж">
+    <div id="crewSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Команда">
       <div class="crew-sheet-inner race-sheet-inner">
         <button type="button" class="pit-info-btn sheet-info" data-help="crew" title="Справка" aria-label="Справка: экипаж">i</button>
         <button type="button" class="share-card-close" id="crewSheetClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
-          <h2 class="race-sheet-title crew-title">Экипаж</h2>
+          <h2 class="race-sheet-title crew-title">Команда</h2>
           <p class="race-sheet-sub crew-lead">Команда 3–10 · месячный борд A/B на треке сезона</p>
         </header>
 

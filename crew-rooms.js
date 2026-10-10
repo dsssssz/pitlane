@@ -467,12 +467,8 @@ async function showInvite(code) {
 function paywallCard(pw, room) {
   const q = pw?.quota || room?.quota || {};
   // v108: продажа сезона выключена, пока нет реквизитов продавца — кнопку оплаты не показываем
-  if (q.sales === false) {
-    const c = el('section', 'room-paywall');
-    c.appendChild(el('h3', '', 'Пока без оплаты'));
-    c.appendChild(el('p', '', 'Оплата сезона сейчас не принимается — комната работает без лимитов.'));
-    return c;
-  }
+  // v120: продажи нет — и блок про оплату не показываем вовсе (инвойсы скрыты, пока не включены продажи)
+  if (q.sales === false) return document.createComment('no-sales');
   const price = q.price || { stars: 0, days: 90 };
   const card = el('section', 'room-paywall');
   card.appendChild(el('div', 'room-paywall-ico', '⭐'));

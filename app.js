@@ -52,12 +52,15 @@ function ensureThree() {
   return _threeP;
 }
 import { createExtGps } from './ext-gps.js';
+/* v120: блок показывается, только когда в нём есть хотя бы N записей (пустая таблица хуже отсутствующей) */
+const SHOW_MIN = { leaders: 3, track: 1, sessionDay: 1, sectors: 3, season: 2 };
+function showWhen(id, on) { const e = typeof id === 'string' ? document.getElementById(id) : id; if (e) e.hidden = !on; }
 import { TRACK_OUTLINES } from './geo/outlines.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
-import { initTips, tipsOnView, resetTips, showMyCarHowTo } from './tips.js';
+import { initTips, tipsOnView, resetTips, showMyCarHowTo, startTour } from './tips.js';
 import { musicList, renderMyMusic, initMusic, stopMusic } from './music-ui.js';
 import { createChaseTracker } from './chase-match.js';
 import { dragSplits as coreDragSplits } from './gps-core.js';
@@ -1405,7 +1408,10 @@ async function renderTops() {
 function syncTabPill(activeBtn) {
   const pill = document.getElementById('tabPill');
   const bar = document.getElementById('tabbar');
-  if (!pill || !bar || !activeBtn || !activeBtn.classList.contains('nav-btn')) return;
+  if (!pill || !bar) return;
+  // v120: вид без вкладки (Бокс, Paddock, профиль) — подсветку прячем
+  if (!activeBtn || !activeBtn.classList.contains('nav-btn') || activeBtn.hidden) { pill.style.opacity = '0'; return; }
+  pill.style.opacity = '';
   const br = bar.getBoundingClientRect();
   const r = activeBtn.getBoundingClientRect();
   const left = r.left - br.left;
@@ -1578,7 +1584,7 @@ function goToView(id, opts = {}) {
   // v84: «Заезд» tab covers both run + lap (data-alias); segment buttons inside the views stay in sync
   const nav = (opts.navBtn && opts.navBtn.classList.contains('nav-btn'))
     ? opts.navBtn
-    : (document.querySelector(`.nav-btn[data-view="${id}"]`) || document.querySelector(`.nav-btn[data-alias~="${id}"]`));
+    : (document.querySelector(`.nav-btn:not(.nav-off)[data-view="${id}"]`) || document.querySelector(`.nav-btn:not(.nav-off)[data-alias~="${id}"]`));
   if (id === 'run' || id === 'lap') {
     document.querySelectorAll('.ride-seg [data-view]').forEach((b) => {
       const on = b.dataset.view === id;
@@ -1592,8 +1598,10 @@ function goToView(id, opts = {}) {
   // v99: first-visit tip / first-launch tour
   try { tipsOnView(id); } catch (_) {}
   if (nav) activateNavBtn(nav);
-  else if (id === 'account') {
+  else {
+    // v120: Бокс / Paddock / профиль — без вкладки в таббаре
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
+    syncTabPill(null);
   }
 
   // v83: Paddock feed renders on every entry (also ?view=pulse deep links, which used to show an empty feed)
@@ -2504,7 +2512,10 @@ function clearDeepLinkUrl() {
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') finish();
   });
-  setTimeout(finish, reduce ? 900 : 4000);
+  // v120: заставка короче — 1,7 с (повторный визит 0,7 с), тап — сразу
+  let ever = false;
+  try { ever = localStorage.getItem('pitlane-intro-ever') === '1'; localStorage.setItem('pitlane-intro-ever', '1'); } catch (_) {}
+  setTimeout(finish, reduce ? 600 : (ever ? 700 : 1700));
 })();
 
 renderTracks();
@@ -4037,6 +4048,7 @@ function armRun(opts = {}) {
   startWatch();
   void keepAwake(true); // re-acquire each arm (the watch may already be running from a previous run)
   run.armed = true;
+  try { markFirstRun(); } catch (_) {}
   run.launched = false;
   run.samples = [];
   run.rawSeq0 = rawSeq; // v104: сырой трек замера — с этой точки
@@ -4463,6 +4475,9 @@ async function renderSectorTops() {
     if (res && Array.isArray(res.rows)) rows = res.rows;
     else if (res && Array.isArray(res.sectors) && res.sectors[sector]) rows = res.sectors[sector];
   } catch (_) { rows = []; }
+  // v120: секторы — только когда набралось SHOW_MIN.sectors заездов
+  showWhen('sectorTopsCard', rows.length >= SHOW_MIN.sectors);
+  showWhen('btnSectorTopsOpen', rows.length >= SHOW_MIN.sectors);
   if (!rows.length) {
     listEl.innerHTML = '';
     if (hint) hint.textContent = 'пока нет валидных заездов — проедьте круг A/B с секторами';
@@ -11292,6 +11307,7 @@ async function renderSessionOfDay() {
   }
 
   const atts = Array.isArray(data.attendees) ? data.attendees : [];
+  showWhen('sessionDayCard', tops.length + atts.length >= SHOW_MIN.sessionDay); // v120
   if (attEl) {
     attEl.textContent = atts.length
       ? 'на месте: ' + atts.slice(0, 8).map((a) => a.nick).filter(Boolean).join(', ') + (atts.length > 8 ? '…' : '')
@@ -11544,12 +11560,53 @@ initTeams({
 initMusic(() => { const t = String(getSessionToken() || ''); return t && !t.startsWith('local-') ? accountPilotId() : ''; }); // v115
 initTips({ goToView: (v) => goToView(v), openMyCar: () => openMyCarSheet({ preselect: currentCar()?.name }) });
 document.getElementById('btnTipsReset')?.addEventListener('click', () => {
+  // v120: подсказки — только по запросу; тур не блокирует вкладки (тап мимо пузыря закрывает)
   resetTips();
-  plFlash('Подсказки снова включены');
   goToView('home');
+  setTimeout(() => { try { startTour(); } catch (_) {} }, 450);
 });
 document.getElementById('btnRoomsOpen')?.addEventListener('click', () => void openTeamsList());
 document.getElementById('btnRoomsAcc')?.addEventListener('click', () => void openTeamsList());
+// v120: одна «Команда» (экипаж) в интерфейсе; комнаты/команды-страницы видны только тем, у кого они уже есть
+document.getElementById('btnCrewAcc')?.addEventListener('click', () => openCrewSheet());
+document.getElementById('btnGarageAcc')?.addEventListener('click', () => goToView('garage'));
+document.getElementById('btnPulseAcc')?.addEventListener('click', () => goToView('pulse'));
+const LEGACY_ROOMS_KEY = 'pitlane-legacy-rooms-v1';
+function applyLegacyRooms(on) {
+  ['btnRoomsOpen', 'btnRoomsAcc'].forEach((id) => showWhen(id, !!on));
+}
+async function checkLegacyRooms() {
+  let on = false;
+  try { on = localStorage.getItem(LEGACY_ROOMS_KEY) === '1' || !!localStorage.getItem('pitlane-room-active-v1'); } catch (_) {}
+  applyLegacyRooms(on);
+  if (on || !getSessionToken() || !isRemoteApi()) return;
+  try {
+    const my = await api.listRooms(); // GET, только чтение
+    if (Array.isArray(my) && my.length) { try { localStorage.setItem(LEGACY_ROOMS_KEY, '1'); } catch (_) {} applyLegacyRooms(true); }
+  } catch (_) {}
+}
+setTimeout(() => { void checkLegacyRooms(); }, 2500);
+/* v120: шапка Топов — одно меню «Фильтры» */
+function topsActiveLine() {
+  const bits = [];
+  try { bits.push(_topsCls === 'c' ? 'C · телефон' : 'A/B · внешний GPS'); } catch (_) {}
+  const m = document.getElementById('topModelFilter'); if (m && m.value) bits.push(m.selectedOptions?.[0]?.textContent || m.value);
+  if (document.getElementById('topMyCarOnly')?.checked) bits.push('моя машина');
+  if (document.getElementById('topValidOnly') && !document.getElementById('topValidOnly').checked) bits.push('все GPS');
+  const wx = document.querySelector('#topWeatherChips .wx-chip.on'); if (wx && wx.dataset.wx !== 'all') bits.push(wx.textContent.toLowerCase());
+  const pr = document.querySelector('#topPrepChips .wx-chip.on'); if (pr && pr.dataset.prep !== 'all') bits.push(pr.textContent);
+  const el = document.getElementById('topsActive'); if (el) el.textContent = bits.join(' · ');
+}
+document.getElementById('btnTopsMenu')?.addEventListener('click', () => {
+  const menu = document.getElementById('topsMenu'); const b = document.getElementById('btnTopsMenu');
+  if (!menu || !b) return;
+  menu.hidden = !menu.hidden;
+  b.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+  b.classList.toggle('on', !menu.hidden);
+});
+document.getElementById('topsMenu')?.addEventListener('click', (e) => { if (e.target.closest?.('.tops-menu-links button')) { const m = document.getElementById('topsMenu'); if (m) m.hidden = true; document.getElementById('btnTopsMenu')?.setAttribute('aria-expanded', 'false'); document.getElementById('btnTopsMenu')?.classList.remove('on'); } setTimeout(topsActiveLine, 0); });
+document.getElementById('topsMenu')?.addEventListener('change', () => setTimeout(topsActiveLine, 0));
+setTimeout(topsActiveLine, 0);
 document.getElementById('btnMyCarAcc')?.addEventListener('click', () => openMyCarSheet());
 document.getElementById('btnMyCarLap')?.addEventListener('click', () => openMyCarSheet({ preselect: currentCar()?.name }));
 document.getElementById('btnMyCarGarage')?.addEventListener('click', () => openMyCarSheet({ preselect: currentCar()?.name }));
@@ -11670,7 +11727,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v119';
+const APP_VERSION = 'v120';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12336,7 +12393,7 @@ async function renderHomeHero() {
       box.appendChild(row);
       const cta = padEl('p', 'hh-cta');
       cta.appendChild(padEl('b', '', 'Сделай первый замер.'));
-      cta.appendChild(document.createTextNode(' Здесь появятся твои рекорды — только честный GPS A/B.'));
+      cta.appendChild(document.createTextNode(' Здесь появятся твои рекорды: внешний GPS — зачёт A/B, телефон — зачёт C.'));
       box.appendChild(cta);
       document.getElementById('homeHero')?.classList.add('empty');
       return;
@@ -12373,6 +12430,7 @@ async function renderHomeDuels() {
   rows = rows.filter((d) => duelCategory(d) !== 'done' || (Date.now() - (d.createdAt || 0)) < 3 * 86400000)
     .sort((a, b) => order[duelCategory(a)] - order[duelCategory(b)] || (b.createdAt || 0) - (a.createdAt || 0));
   box.replaceChildren();
+  showWhen('homeDuelsSec', rows.length > 0); // v120: пустую «Мои дуэли» не показываем (вызов — плитка «Дуэль»)
   if (!rows.length) {
     const e = padEl('button', 'home-duel-empty');
     e.type = 'button';
@@ -13221,6 +13279,7 @@ async function renderHomeTrack() {
     rows = [...best.values()].sort((a, b) => a._ms - b._ms).slice(0, 3);
   } catch (_) { rows = []; }
   ol.replaceChildren();
+  showWhen('homeTrackSec', rows.length >= SHOW_MIN.track);
   if (!rows.length) {
     const li = padEl('li', 'ht-empty');
     li.appendChild(padEl('b', '', 'Трасса свободна'));
@@ -13245,6 +13304,7 @@ async function renderHomeLeaders() {
   try { board = (await homeRemote()).board || []; } catch (_) { board = []; }
   try { board = filterTopRows(board, { model: '' }); } catch (_) {}
   board = board.slice().sort((a, b) => Number(a.t) - Number(b.t));
+  showWhen('homeLeadersSec', board.length >= SHOW_MIN.leaders);
   box.replaceChildren();
   const slots = [1, 0, 2]; // 2nd · 1st · 3rd
   slots.forEach((i) => {
@@ -13427,6 +13487,8 @@ function homeQuick(kind) {
   if (kind === 'run') goToView('run');
   else if (kind === 'lap') goToView('lap');
   else if (kind === 'duel') { goToView('duels'); openDuelSheet({ createOnly: true }); }
+  else if (kind === 'garage') goToView('garage');
+  else if (kind === 'team') openCrewSheet();
   else if (kind === 'post') {
     goToView('pulse');
     setTimeout(() => { const t = document.getElementById('pulseText'); try { t?.focus({ preventScroll: false }); t?.scrollIntoView({ block: 'center' }); } catch (_) {} }, 250);
@@ -13465,8 +13527,38 @@ function renderHome() {
   void renderHomeTrack();
   void renderHomeLeaders();
   renderHomeStats();
-  renderHomeCars();
-  void renderHomeTopPosts();
+  if (!document.getElementById('homeCarsSec')?.classList.contains('v120-off')) renderHomeCars();
+  if (!document.getElementById('homePostsSec')?.classList.contains('v120-off')) void renderHomeTopPosts();
+  renderHomeGo();
+}
+/* v120: главная кнопка «Сделать замер» и единственный шаг онбординга (без модалок, ничего не блокирует) */
+const FIRST_RUN_KEY = 'pitlane-first-run-v1';
+function hasAnyRun() {
+  try { if (localStorage.getItem(FIRST_RUN_KEY)) return true; } catch (_) {}
+  const has = (o) => !!o && Object.values(o).some((x) => x && Object.keys(x).length);
+  return has(state.dragBest) || has(state.dragBestC) || (Array.isArray(state.slips) && state.slips.length > 0);
+}
+function renderHomeGo() {
+  const step = document.getElementById('homeFirstStep');
+  const sub = document.getElementById('homeGoSub');
+  const fresh = !hasAnyRun();
+  if (step) step.hidden = !fresh;
+  if (!sub) return;
+  if (fresh) { sub.textContent = 'Телефона хватит: встань, дождись GPS и жми «Старт». Около минуты.'; return; }
+  let best = null; let cls = 'ab';
+  try {
+    const pick = (o, c) => { for (const m of Object.values(o || {})) { const r = m && m['0-100']; if (r && Number.isFinite(Number(r.t)) && (!best || Number(r.t) < Number(best.t))) { best = r; cls = c; } } };
+    pick(state.dragBest, 'ab'); if (!best) pick(state.dragBestC, 'c');
+  } catch (_) {}
+  sub.textContent = best ? ('Лучший 0–100: ' + Number(best.t).toFixed(2) + ' с' + (cls === 'c' ? ' · телефон · зачёт C' : ' · GPS ' + (best.gpsQ || 'A/B'))) : '0–100 и ¼ мили по GPS · телефона хватит';
+}
+function markFirstRun() {
+  try {
+    if (localStorage.getItem(FIRST_RUN_KEY)) return;
+    // метрика v120 (только локально, никуда не отправляется): мс от открытия до первого «Старт»
+    localStorage.setItem(FIRST_RUN_KEY, JSON.stringify({ at: Date.now(), msFromOpen: Math.round(performance.now()) }));
+  } catch (_) {}
+  try { renderHomeGo(); } catch (_) {}
 }
 document.getElementById('view-home')?.addEventListener('click', (e) => {
   const t = e.target;
@@ -13612,6 +13704,8 @@ async function renderCrewSeason() {
   if (seq !== _seasonSeq) return;
   lapOl?.removeAttribute('aria-busy');
   _season = r && r.ok ? r : null;
+  // v120: сезон — только когда есть хотя бы SHOW_MIN.season зачтённых строк
+  showWhen(card, !!_season && ((_season.lap || []).filter((x) => !x.need).length + (_season.drag || []).length) >= SHOW_MIN.season);
   const mEl = document.getElementById('seasonMonth');
   if (mEl) mEl.textContent = _season ? _season.label : '—';
   const empty = (ol, b, sub) => { const li = padEl('li', 'tb-empty'); li.appendChild(padEl('b', '', b)); if (sub) li.appendChild(padEl('span', '', sub)); ol.appendChild(li); };
@@ -13932,7 +14026,15 @@ document.getElementById('topMyCarOnly')?.addEventListener('change', () => { void
 let _topsBoardSeq = 0;
 /* v118: класс зачёта в топах — A/B (внешний GPS) или C (телефон). Доски разные, строки не смешиваются. */
 const TOPS_CLS_KEY = 'pitlane-tops-cls-v1';
-let _topsCls = (() => { try { return localStorage.getItem(TOPS_CLS_KEY) === 'c' ? 'c' : 'ab'; } catch (_) { return 'ab'; } })();
+// v120: переключатель класса теперь в меню «Фильтры» — без явного выбора открываем класс, в котором пилот ездит (нет A/B-результатов → C · телефон)
+let _topsCls = (() => {
+  try {
+    const v = localStorage.getItem(TOPS_CLS_KEY);
+    if (v === 'c' || v === 'ab') return v;
+    const hasAb = !!state.dragBest && Object.values(state.dragBest).some((x) => x && Object.keys(x).length);
+    return hasAb ? 'ab' : 'c';
+  } catch (_) { return 'ab'; }
+})();
 function syncTopsCls() {
   document.querySelectorAll('#topsCls [data-cls]').forEach((b) => {
     const on = b.dataset.cls === _topsCls;

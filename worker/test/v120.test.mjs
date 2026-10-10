@@ -1,0 +1,43 @@
+// v120: упрощение интерфейса — 4 вкладки, Бокс доступен, одна «Команда», скрытие до данных, онбординг без модалок,
+// короче заставка, шапка Топов — одно меню. Скрываем, а не удаляем: все виды/id/данные на месте — node test/v120.test.mjs
+import fs from 'fs';
+const R = new URL('../../', import.meta.url).pathname;
+const app = fs.readFileSync(R + 'app.js', 'utf8');
+const html = fs.readFileSync(R + 'index.html', 'utf8');
+const tips = fs.readFileSync(R + 'tips.js', 'utf8');
+const rooms = fs.readFileSync(R + 'crew-rooms.js', 'utf8');
+const sw = fs.readFileSync(R + 'sw.js', 'utf8');
+let fails = 0;
+const ok = (c, m, x) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m, x ?? ''); } };
+
+const navs = [...html.matchAll(/<button class="nav-btn([^"]*)" data-view="([a-z]+)"([^>]*)>/g)].map((m) => ({ cls: m[1], view: m[2], attrs: m[3] }));
+const shown = navs.filter((n) => !/nav-off/.test(n.cls) && !/\bhidden\b/.test(n.attrs));
+ok(shown.length === 4, 'таббар: 4 видимые вкладки', shown.map((n) => n.view).join(','));
+ok(['home', 'run', 'duels', 'tops'].every((v) => shown.some((n) => n.view === v)), 'Главная / Заезд / Дуэли / Топ');
+ok(navs.some((n) => n.view === 'garage') && navs.some((n) => n.view === 'pulse'), 'кнопки Бокс/Paddock скрыты, а не удалены');
+for (const v of ['home', 'garage', 'run', 'lap', 'tops', 'duels', 'pulse', 'account', 'cars']) ok(html.includes(`id="view-${v}"`), `вид view-${v} на месте`);
+ok(/data-hq="garage"/.test(html) && /id="homeHeroGarage"/.test(html) && /id="btnGarageAcc"/.test(html), 'Бокс доступен: плитка на Главной, карточка «Моя машина», профиль');
+ok(/kind === 'garage'\) goToView\('garage'\)/.test(app), 'плитка «Бокс» ведёт на 3D-подиум');
+ok(/id="homeGoBtn"[^>]*data-hq="run"/.test(html) && />Сделать замер</.test(html), 'главная кнопка «Сделать замер»');
+ok(/id="homeFirstStep" hidden/.test(html) && /Шаг 1 · Сделай первый замер/.test(html), 'один неблокирующий шаг онбординга (встроен в Главную)');
+ok(/id="homeCarousel" hidden/.test(html) && /id="homeCarsSec" hidden/.test(html) && /id="homePostsSec" hidden/.test(html), 'баннеры/машины на подиуме/посты — скрыты на Главной');
+ok(/const AUTO_TIPS = false/.test(tips) && /if \(!AUTO_TIPS\) return;/.test(tips), 'тур и подсказки сами не всплывают');
+ok(/\.cm-block \{ pointer-events: none !important; \}/.test(fs.readFileSync(R + 'styles.css', 'utf8')), 'подсказка не перехватывает тапы (вкладки работают)');
+ok(/finish\(true, true\); return; \}/.test(tips), 'тап мимо пузыря закрывает подсказку');
+ok(/setTimeout\(finish, reduce \? 600 : \(ever \? 700 : 1700\)\)/.test(app), 'заставка 1,7 с (повтор 0,7 с) вместо 4 с');
+ok(/<h2 class="race-sheet-title crew-title">Команда<\/h2>/.test(html) && /id="btnCrewOpen">Команда</.test(html), 'одна «Команда» (экипаж)');
+ok(/id="btnRoomsOpen" hidden/.test(html) && /id="btnRoomsAcc" hidden/.test(html), 'комнаты/команды скрыты по умолчанию');
+ok(/api\.listRooms\(\); \/\/ GET/.test(app) && /pitlane-room-active-v1/.test(app), 'у кого уже есть комната — кнопка «Мои комнаты» возвращается (GET /rooms)');
+ok(/const SHOW_MIN = \{[^}]*sectors: 3[^}]*season: 2/.test(app), 'правило «показывать от N записей»');
+for (const id of ['seasonCard', 'sectorTopsCard', 'sessionDayCard', 'btnSectorTopsOpen']) ok(new RegExp(`id="${id}"[^>]*hidden`).test(html), `${id} скрыт до данных`);
+ok(/showWhen\(card, !!_season/.test(app) && /showWhen\('sectorTopsCard', rows\.length >= SHOW_MIN\.sectors\)/.test(app) && /showWhen\('sessionDayCard'/.test(app), 'сезон/секторы/сессия дня появляются по данным');
+ok(/if \(q\.sales === false\) return document\.createComment/.test(rooms), 'инвойсы комнат: без продаж блок оплаты не показывается');
+const headActions = (html.match(/<div class="tops-head">([\s\S]*?)<\/div>/) || [])[1] || '';
+ok((headActions.match(/<button/g) || []).length === 1 && /id="btnTopsMenu"/.test(headActions), 'шапка Топов: одна кнопка «Фильтры»');
+ok(/id="topsMenu"[\s\S]*id="topsCls"[\s\S]*id="topValidOnly"[\s\S]*id="topPrepChips"[\s\S]*id="btnAutodromesOpen"/.test(html), 'класс, фильтры и разделы — в меню (id прежние)');
+ok(/id="accMusic"/.test(html) && /id="sfxToggle"/.test(html) && /id="accBanner"/.test(html), 'музыка/звук/баннер — в профиле');
+ok(/msFromOpen/.test(app) && !/fetch\([^)]*first-run/.test(app), 'метрика первого замера — только локально');
+const ver = (app.match(/APP_VERSION = '(v\d+)'/) || [])[1];
+ok(ver && ver >= 'v120' && sw.includes(`pitlane-${ver}`), 'APP_VERSION = SW CACHE', ver);
+console.log(fails ? `\n✗ ${fails} failed` : '\n✓ v120 all passed');
+process.exit(fails ? 1 : 0);
