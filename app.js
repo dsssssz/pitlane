@@ -56,6 +56,7 @@ import { createExtGps } from './ext-gps.js';
 const SHOW_MIN = { leaders: 3, track: 1, sessionDay: 1, sectors: 3, season: 2 };
 function showWhen(id, on) { const e = typeof id === 'string' ? document.getElementById(id) : id; if (e) e.hidden = !on || e.classList.contains('v123-off'); } // v123: скрытые блоки старой Главной не всплывают
 import { TRACK_OUTLINES } from './geo/outlines.js';
+import { analyzeSession, splitOutline, sectorTone } from './session-review.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
@@ -4951,6 +4952,7 @@ function armLapRun() {
   lapSession.trackId = trackId;
   lapSession.startedAt = Date.now();
   lapSession.laps = [];
+  lapSession.dirPt = null;
   lapSession.bestMs = null;
   lapSession.bestValid = false;
   if (!lapDrive.open) openLapDrive();
@@ -4976,6 +4978,7 @@ function endLapSession(reason) {
       validN,
       bestMs: lapSession.bestMs,
       laps: lapSession.laps.slice(),
+      dirPt: lapSession.dirPt || null,
     });
     state.trackDays = state.trackDays.slice(0, 30);
     save();
@@ -4993,6 +4996,8 @@ function endLapSession(reason) {
   renderLaps();
   renderTrackDays();
   setTimeout(() => closeLapDrive(), n ? 2200 : 400);
+  // v130: несколько кругов с секторами → «стенд после сессии»
+  if (n >= 2) { try { if (analyzeSession(state.trackDays[0].laps).ok) setTimeout(() => openSessionReview(0), 2600); } catch (_) {} }
 }
 
 function abortLapRun(reason) {
@@ -5291,6 +5296,8 @@ function onLapGps(pos, vKmh) {
       const stepV = ((vKmh || 0) / 3.6) * dt;
       const step = useFus ? (0.68 * stepV + 0.32 * jump) : jump;
       lapRun.dist += Math.max(0, step);
+      // v130: одна точка ~150 м после старта — только направление езды для карты разбора (локально)
+      if (lapRun.phase === 'running' && !lapSession.dirPt && lapRun.dist > 120 && lapRun.dist < 450) lapSession.dirPt = [Math.round(pt.lon * 1e4) / 1e4, Math.round(pt.lat * 1e4) / 1e4];
       if (jump > 2.5 && vKmh > 25) {
         const course = bearingDeg(lapRun.last, pt);
         let slip = null;
@@ -5446,9 +5453,10 @@ function renderTrackDays() {
         const tr = TRACKS.find((t) => t.id === s.trackId);
         const best = s.bestMs != null ? formatMs(s.bestMs) : '—';
         const when = new Date(s.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-        return `<li><span>${esc(tr?.name || s.trackId)} · ${Number(s.n) || 0} кр.</span><strong>${best}</strong><em class="tiny">${when} · чистых ${s.validN || 0}</em></li>`;
+        let can = false; try { can = analyzeSession(s.laps).ok; } catch (_) {}
+        return `<li${can ? ` class="td-review" data-sess="${rows.indexOf(s)}" role="button" tabindex="0"` : ''}><span>${esc(tr?.name || s.trackId)} · ${Number(s.n) || 0} кр.</span><strong>${best}</strong><em class="tiny">${when} · чистых ${s.validN || 0}${can ? ' · разбор' : ''}</em></li>`;
       }).join('')
-    : '<li><span>сессий пока нет</span><strong>—</strong></li>';
+    : '<li><span>сессий пока нет</span><strong></strong></li>';
 }
 
 // v101: no active car → «Это моя машина» first (lap starts right after saving) or «Ехать без зачёта»
@@ -6946,6 +6954,7 @@ if (isTMA) {
     ['autodromeSheet', 'autodromeSheetClose'], ['carPickerSheet', 'carPickerClose'],
     ['feedbackSheet', 'feedbackClose'], ['padCommentsSheet', 'padCommentsClose'], ['pilotSheet', 'pilotClose'],
     ['bannerSheet', 'bannerClose'], ['ghostResult', 'ghostResultClose'],
+    ['sessionSheet', 'sessionSheetClose'],
     ['tgSheet', 'tgSheetClose'],
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
@@ -11943,7 +11952,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v129';
+const APP_VERSION = 'v130';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12385,6 +12394,94 @@ async function renderTrackHistory(trackId0, { hud } = {}) {
   return h;
 }
 document.getElementById('trackSelect')?.addEventListener('change', () => { void renderTrackHistory(); });
+
+
+/* ——— v130: разбор сессии — карта секторов, круги × сектора, идеальный круг, где терял ——— */
+let _ssState = null;
+function ssFmt(ms) { return Number.isFinite(ms) ? fmtLapTime(ms) : ''; }
+function ssSec(ms) { return Number.isFinite(ms) ? (ms / 1000).toFixed(2).replace('.', ',') : ''; }
+function ssDelta(ms) { return (ms <= 0 ? '' : '+') + (ms / 1000).toFixed(2).replace('.', ','); }
+function ssDrawMap(trackId, dirPt, row) {
+  const host = document.getElementById('ssMap'); if (!host) return;
+  host.replaceChildren();
+  const o = TRACK_OUTLINES?.[trackId];
+  const sp = o ? splitOutline(o.coords, o.sf, dirPt) : null;
+  if (!sp) { host.hidden = true; document.getElementById('ssLegend').hidden = true; return; }
+  host.hidden = false; document.getElementById('ssLegend').hidden = false;
+  const NS = 'http://www.w3.org/2000/svg'; const W = 340, H = 210, P = 16;
+  const allPts = sp.sectors.flat();
+  const lat0 = allPts.reduce((a, p) => a + p[1], 0) / allPts.length; const kx = Math.cos(lat0 * Math.PI / 180);
+  const xs = allPts.map((p) => p[0] * kx), ys = allPts.map((p) => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const sc = Math.min((W - 2 * P) / Math.max(1e-9, maxX - minX), (H - 2 * P) / Math.max(1e-9, maxY - minY));
+  const ox = (W - (maxX - minX) * sc) / 2, oy = (H - (maxY - minY) * sc) / 2;
+  const X = (p) => (ox + (p[0] * kx - minX) * sc).toFixed(1); const Y = (p) => (oy + (maxY - p[1]) * sc).toFixed(1);
+  const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('class', 'ss-svg'); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Карта трассы по секторам');
+  const path = (pts, cls) => { const e = document.createElementNS(NS, 'path'); e.setAttribute('d', pts.map((p, i) => (i ? 'L' : 'M') + X(p) + ' ' + Y(p)).join(' ')); e.setAttribute('class', cls); return e; };
+  svg.appendChild(path(sp.sectors.flat(), 'ss-under'));
+  sp.sectors.forEach((pts, i) => {
+    const cell = row?.cells?.[i];
+    const tone = cell ? sectorTone(cell.d) : 'none';
+    svg.appendChild(path(pts, 'ss-sec ' + tone));
+    const mid = pts[Math.floor(pts.length / 2)];
+    const t = document.createElementNS(NS, 'text'); t.setAttribute('x', X(mid)); t.setAttribute('y', Y(mid)); t.setAttribute('class', 'ss-lab'); t.setAttribute('dy', '-7');
+    t.textContent = 'S' + (i + 1) + (cell ? ' ' + (cell.d <= 0 ? 'лучший' : ssDelta(cell.d)) : '');
+    svg.appendChild(t);
+  });
+  const sf = document.createElementNS(NS, 'circle'); sf.setAttribute('cx', X(sp.sf)); sf.setAttribute('cy', Y(sp.sf)); sf.setAttribute('r', '4'); sf.setAttribute('class', 'ss-sf'); svg.appendChild(sf);
+  host.appendChild(svg);
+}
+function ssSelect(n) {
+  if (!_ssState) return;
+  const { a, s } = _ssState;
+  const row = a.laps.find((l) => l.n === n && l.cells) || null;
+  _ssState.sel = row ? row.n : null;
+  document.querySelectorAll('#ssTable tbody tr').forEach((tr) => tr.classList.toggle('sel', Number(tr.dataset.n) === _ssState.sel));
+  ssDrawMap(s.trackId, s.dirPt, row);
+}
+function openSessionReview(idx) {
+  const s = (state.trackDays || [])[idx]; if (!s) return;
+  let pb = null; try { pb = personalBestSectors(s.trackId, null); } catch (_) {}
+  const a = analyzeSession(s.laps, { pbSectors: pb });
+  if (!a.ok) return;
+  _ssState = { a, s };
+  const tr = TRACKS.find((t) => t.id === s.trackId);
+  const when = s.at ? new Date(s.at).toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+  document.getElementById('ssSub').textContent = [tr?.name || s.trackId, when, `${a.laps.length} ${padRu(a.laps.length, 'круг', 'круга', 'кругов')}`].filter(Boolean).join(' · ');
+  document.getElementById('ssIdeal').textContent = ssFmt(a.idealMs);
+  document.getElementById('ssIdealS').textContent = a.gainMs > 0 ? `на ${ssSec(a.gainMs)} с быстрее лучшего круга ${ssFmt(a.bestLapMs)}` : `лучший круг ${ssFmt(a.bestLapMs)} уже идеальный`;
+  document.getElementById('ssLoss').textContent = a.worst.avgMs > 0 ? `S${a.worst.idx} · +${ssSec(a.worst.avgMs)} с` : 'ровно';
+  document.getElementById('ssLossS').textContent = a.worst.avgMs > 0 ? `в среднем за круг к лучшему S${a.worst.idx}, разброс ${ssSec(a.worst.spreadMs)} с` : 'сектора стабильны';
+  const tb = document.querySelector('#ssTable tbody'); tb.replaceChildren();
+  for (const l of a.laps) {
+    const trEl = document.createElement('tr'); trEl.dataset.n = String(l.n);
+    if (l.best) trEl.classList.add('best'); if (!l.inPool) trEl.classList.add('off');
+    trEl.appendChild(padEl('td', 'ss-n', String(l.n)));
+    for (let i = 0; i < 3; i++) {
+      const c = l.cells?.[i];
+      const td = padEl('td', c ? 'ss-c ' + sectorTone(c.d) : 'ss-c none', c ? ssSec(c.ms) : '');
+      if (c && c.d > 0) td.appendChild(padEl('small', '', ssDelta(c.d)));
+      trEl.appendChild(td);
+    }
+    trEl.appendChild(padEl('td', 'ss-t', ssFmt(l.ms) + (l.valid ? '' : ' *')));
+    if (l.cells) { trEl.tabIndex = 0; trEl.addEventListener('click', () => ssSelect(l.n)); trEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') ssSelect(l.n); }); }
+    tb.appendChild(trEl);
+  }
+  const ideal = document.createElement('tr'); ideal.className = 'ideal';
+  ideal.appendChild(padEl('td', 'ss-n', 'идеал'));
+  a.bestSec.forEach((v) => ideal.appendChild(padEl('td', 'ss-c', ssSec(v))));
+  ideal.appendChild(padEl('td', 'ss-t', ssFmt(a.idealMs)));
+  tb.appendChild(ideal);
+  const last = [...a.laps].reverse().find((l) => l.cells && l.inPool);
+  ssSelect(last ? last.n : a.bestLapN);
+  const sh = document.getElementById('sessionSheet'); sh.classList.remove('hidden'); sh.setAttribute('aria-hidden', 'false');
+}
+function closeSessionReview() { const sh = document.getElementById('sessionSheet'); sh?.classList.add('hidden'); sh?.setAttribute('aria-hidden', 'true'); }
+document.getElementById('sessionSheetClose')?.addEventListener('click', closeSessionReview);
+document.getElementById('sessionSheet')?.addEventListener('click', (e) => { if (e.target?.id === 'sessionSheet') closeSessionReview(); });
+document.getElementById('trackDayList')?.addEventListener('click', (e) => { const li = e.target?.closest?.('.td-review'); if (li) openSessionReview(Number(li.dataset.sess)); });
+document.getElementById('trackDayList')?.addEventListener('keydown', (e) => { const li = e.target?.closest?.('.td-review'); if (li && e.key === 'Enter') openSessionReview(Number(li.dataset.sess)); });
+window.__plSession = { open: (i) => openSessionReview(i || 0) };
 
 /* ——— view enter hooks (called from goToView) ——— */
 let _garageSeen = false;

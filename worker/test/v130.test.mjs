@@ -1,0 +1,41 @@
+// v130: разбор сессии (клиент) — node test/v130.test.mjs
+import { analyzeSession, splitOutline, sectorTone, splitsOf } from '../../session-review.js';
+import { TRACK_OUTLINES } from '../../geo/outlines.js';
+import fs from 'fs';
+let fails = 0; const ok = (c, m, x) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m, x !== undefined ? JSON.stringify(x).slice(0, 300) : ''); } };
+const lap = (s1, s2, s3, valid = true) => ({ ms: s1 + s2 + s3, sectors: [s1, s1 + s2, s1 + s2 + s3], valid, at: Date.now() });
+console.log('[анализ]');
+ok(JSON.stringify(splitsOf(lap(40000, 38000, 37000))) === '[40000,38000,37000]', 'кумулятивные → сплиты');
+ok(splitsOf({ sectors: [40000, 30000], ms: 90000 }) === null && splitsOf({}) === null, 'битые сектора → null');
+ok(!analyzeSession([lap(40000, 38000, 37000)]).ok && !analyzeSession([{ ms: 1 }, { ms: 2 }]).ok, 'меньше двух кругов с секторами — разбора нет');
+const laps = [lap(40500, 38200, 37400), lap(40100, 38900, 37100), lap(40800, 38100, 38000), lap(39000, 37000, 36000, false)];
+const a = analyzeSession(laps);
+ok(a.ok && a.n === 3, 'эталон — зачётные круги (невалидный не в пуле)', a.n);
+ok(JSON.stringify(a.bestSec) === '[40100,38100,37100]', 'лучшие сектора сессии', a.bestSec);
+ok(a.idealMs === 115300 && a.bestLapMs === 116100 && a.gainMs === 800, 'идеальный круг и запас к лучшему', [a.idealMs, a.bestLapMs, a.gainMs]);
+ok(a.worst.idx === 3 && a.worst.avgMs === 400, '«где терял» — сектор с наибольшей средней потерей', a.worst);
+ok(a.laps[0].cells[0].d === 400 && a.laps[1].cells[0].best && a.laps[3].inPool === false, 'ячейки: дельта, лучший, вне пула');
+ok(sectorTone(0) === 'best' && sectorTone(120) === 'near' && sectorTone(400) === 'loss', 'тона карты');
+console.log('[карта секторов]');
+for (const id of ['sochi', 'moscow', 'igora']) {
+  const o = TRACK_OUTLINES[id]; const sp = splitOutline(o.coords, o.sf);
+  const len = (pts) => pts.reduce((acc, p, i) => i ? acc + Math.hypot((p[0] - pts[i - 1][0]) * Math.cos(p[1] * Math.PI / 180), p[1] - pts[i - 1][1]) : 0, 0);
+  const L = sp.sectors.map(len); const tot = L[0] + L[1] + L[2];
+  ok(sp && L.every((x) => Math.abs(x / tot - 1 / 3) < 0.02), `${id}: три сектора по трети длины от С/Ф`, L.map((x) => (x / tot).toFixed(3)));
+  ok(sp.sectors[0][0][0] === o.sf[0] && sp.sectors[2].at(-1)[0] === o.sf[0], `${id}: начинается и кончается на С/Ф`);
+}
+const o = TRACK_OUTLINES.sochi; const fwd = splitOutline(o.coords, o.sf);
+const pAhead = fwd.sectors[0][4]; const pBehind = fwd.sectors[2][fwd.sectors[2].length - 5];
+ok(splitOutline(o.coords, o.sf, pAhead).sectors[0][4][0] === pAhead[0], 'точка по ходу контура — порядок сохраняется');
+ok(splitOutline(o.coords, o.sf, pBehind).sectors[0].slice(0, 8).some((p) => Math.abs(p[0] - pBehind[0]) < 1e-9 && Math.abs(p[1] - pBehind[1]) < 1e-9), 'точка против хода — контур разворачивается');
+console.log('[клиент]');
+const root = new URL('../../', import.meta.url).pathname;
+const app = fs.readFileSync(root + 'app.js', 'utf8'); const html = fs.readFileSync(root + 'index.html', 'utf8'); const sw = fs.readFileSync(root + 'sw.js', 'utf8');
+ok(/id="sessionSheet"/.test(html) && /id="ssMap"/.test(html) && /id="ssTable"/.test(html) && /Идеальный круг/.test(html) && /Где терял/.test(html), 'шторка разбора: карта, таблица, идеальный круг, где терял');
+const blk = app.slice(app.indexOf('/* ——— v130'), app.indexOf('/* ——— view enter hooks'));
+ok(blk.length > 1000 && !/innerHTML/.test(blk) && !/L\.map|ensureLeaflet/.test(blk), 'только DOM/SVG, без Leaflet');
+ok(/analyzeSession\(state\.trackDays\[0\]\.laps\)\.ok\) setTimeout\(\(\) => openSessionReview\(0\)/.test(app), 'открывается после сессии из ≥2 кругов');
+ok(/td-review/.test(app) && /\['sessionSheet', 'sessionSheetClose'\]/.test(app), 'вход из списка track-day + BackButton');
+ok(!/fetch\(|api\./.test(blk), 'никаких сетевых запросов — данные сессии на клиенте');
+ok(/'\.\/session-review\.js'/.test(sw) && /const APP_VERSION = 'v1(3\d)'/.test(app), 'модуль в precache SW, APP_VERSION ≥ v130');
+console.log(fails ? `\n${fails} FAIL` : '\nOK'); process.exit(fails ? 1 : 0);

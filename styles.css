@@ -6160,3 +6160,47 @@ body.run-sum-on #runDriveStop { background: var(--c-surface-2) !important; color
 .compare-stats .cmp-row:first-child { border-top: 0; }
 .compare-stats .cmp-v i { font-style: normal; color: var(--c-mute); }
 .compare-stats .cmp-v b, .compare-stats b.cmp-v { color: var(--c-text) !important; font-family: var(--font-num); font-weight: 600; }
+
+/* ═══════════ v130: разбор сессии ═══════════ */
+.ss-inner { max-height: min(92vh, 860px); overflow-y: auto; overscroll-behavior: contain; }
+.ss-map { margin: 6px 0 0; border-radius: var(--r-lg); border: 1px solid var(--c-line); background: radial-gradient(120% 120% at 50% 0%, rgba(255,255,255,.05), transparent 60%), #0f1010; }
+.ss-map[hidden], .ss-legend[hidden] { display: none; }
+.ss-svg { display: block; width: 100%; height: auto; }
+.ss-under { fill: none; stroke: rgba(255,255,255,.06); stroke-width: 12; stroke-linejoin: round; stroke-linecap: round; }
+.ss-sec { fill: none; stroke-width: 4.5; stroke-linejoin: round; stroke-linecap: round; stroke: #6d6d6d; }
+.ss-sec.best { stroke: var(--c-acc); }
+.ss-sec.near { stroke: #d6d6d6; }
+.ss-sec.loss { stroke: #ff4d4f; }
+.ss-lab { fill: var(--c-text); font: 600 10.5px var(--font-num); text-anchor: middle; paint-order: stroke; stroke: #0f1010; stroke-width: 3px; }
+.ss-sf { fill: #0f1010; stroke: #f2f2f2; stroke-width: 2; }
+.ss-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 8px 2px 0; font: 500 11.5px/1.2 var(--font-ui); color: var(--c-mute); }
+.ss-legend i { display: inline-block; width: 14px; height: 4px; border-radius: 2px; margin-left: 6px; }
+.ss-legend i:first-child { margin-left: 0; }
+.ss-legend i.best { background: var(--c-acc); } .ss-legend i.near { background: #d6d6d6; } .ss-legend i.loss { background: #ff4d4f; }
+.ss-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 0; }
+.ss-card { display: grid; gap: 3px; padding: 12px; border-radius: var(--r-md); border: 1px solid var(--c-line); background: var(--c-surface); min-width: 0; }
+.ss-k { font: 600 12px/1.2 var(--font-ui); color: var(--c-sub); }
+.ss-v { font: 600 20px/1.15 var(--font-num); color: var(--c-text); letter-spacing: -.01em; }
+.ss-card small { font: 500 11.5px/1.3 var(--font-ui); color: var(--c-mute); }
+.ss-table-wrap { margin: 12px 0 0; border-radius: var(--r-md); border: 1px solid var(--c-line); overflow: hidden; }
+.ss-table { width: 100%; border-collapse: collapse; font: 500 13px/1.2 var(--font-num); }
+.ss-table th { padding: 8px 6px; text-align: right; font: 600 11.5px/1 var(--font-ui); color: var(--c-mute); background: rgba(255,255,255,.03); }
+.ss-table th:first-child, .ss-table td:first-child { text-align: left; padding-left: 12px; }
+.ss-table td { padding: 8px 6px; text-align: right; border-top: 1px solid var(--c-line); color: var(--c-sub); vertical-align: top; }
+.ss-table td:last-child, .ss-table th:last-child { padding-right: 12px; }
+.ss-table td small { display: block; margin-top: 2px; font-size: 10.5px; color: var(--c-mute); }
+.ss-c.best { color: var(--c-acc); font-weight: 600; }
+.ss-c.near { color: var(--c-text); }
+.ss-c.loss small { color: #ff7a7c; }
+.ss-t { color: var(--c-text) !important; font-weight: 600; }
+.ss-table tr.best .ss-t::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%; background: var(--c-text); vertical-align: 2px; }
+.ss-table tbody tr[tabindex] { cursor: pointer; }
+.ss-table tbody tr.sel td { background: rgba(255,255,255,.05); }
+.ss-table tr.off td { opacity: .55; }
+.ss-table tr.ideal td { color: var(--c-text); background: rgba(255,255,255,.025); font-weight: 600; }
+.ss-note { margin: 10px 2px 4px; font: 500 11.5px/1.4 var(--font-ui); color: var(--c-mute); }
+#trackDayList li.td-review { cursor: pointer; }
+#trackDayList li.td-review em::after { content: ' ›'; color: var(--c-sub); }
+.ss-inner > * { flex-shrink: 0 !important; }
+.ss-table-wrap { overflow: visible !important; height: auto !important; max-height: none !important; flex: none !important; }
+.ss-table thead th:first-child { border-top-left-radius: var(--r-md); } .ss-table thead th:last-child { border-top-right-radius: var(--r-md); }

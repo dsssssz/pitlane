@@ -1482,6 +1482,24 @@
     </div>
 
     <!-- v83: public pilot profile -->
+    <div id="sessionSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Разбор сессии">
+      <div class="crew-sheet-inner race-sheet-inner ss-inner">
+        <button type="button" class="share-card-close" id="sessionSheetClose" aria-label="Закрыть">×</button>
+        <header class="race-sheet-head">
+          <div class="race-sheet-handle" aria-hidden="true"></div>
+          <h2 class="race-sheet-title">Разбор сессии</h2>
+          <p class="race-sheet-sub" id="ssSub"></p>
+        </header>
+        <div class="ss-map" id="ssMap"></div>
+        <p class="ss-legend" id="ssLegend"><i class="best"></i>свой лучший сектор<i class="near"></i>до 0,15 с<i class="loss"></i>потеря</p>
+        <div class="ss-cards">
+          <div class="ss-card"><span class="ss-k">Идеальный круг</span><b class="ss-v" id="ssIdeal"></b><small id="ssIdealS"></small></div>
+          <div class="ss-card"><span class="ss-k">Где терял</span><b class="ss-v" id="ssLoss"></b><small id="ssLossS"></small></div>
+        </div>
+        <div class="ss-table-wrap"><table class="ss-table" id="ssTable"><thead><tr><th>Круг</th><th>S1</th><th>S2</th><th>S3</th><th>Время</th></tr></thead><tbody></tbody></table></div>
+        <p class="ss-note">Тапни круг — карта покажет его сектора. Сравнение — с лучшим сектором этой сессии; сектора — трети дистанции круга. Сырые треки не сохраняются.</p>
+      </div>
+    </div>
     <div id="pilotSheet" class="crew-sheet race-sheet pad-sheet hidden" aria-hidden="true" role="dialog" aria-label="Профиль пилота">
       <div class="crew-sheet-inner race-sheet-inner pad-sheet-inner pilot-sheet-inner">
         <button type="button" class="share-card-close pad-close" id="pilotClose" aria-label="Закрыть">×</button>
