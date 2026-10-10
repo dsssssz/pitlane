@@ -7,8 +7,9 @@
 #include "ubx.h"
 #include "lights.h"
 #include "netlink.h"
+#include <Preferences.h>
 
-#define FW_VERSION "2.0.0"
+#define FW_VERSION "2.1.0"
 
 #ifndef GPS_RX_PIN
 #define GPS_RX_PIN 20
@@ -31,7 +32,12 @@
 #ifndef BAT_DIVIDER
 #define BAT_DIVIDER 2.0f
 #endif
-#define DEFAULT_RATE_HZ 10
+#ifndef DEFAULT_RATE_HZ
+#define DEFAULT_RATE_HZ 10   // комплект «USB от машины» собирается с 25 (кнопки снаружи нет)
+#endif
+#ifndef PL_TRIPLE_POWER_PORTAL
+#define PL_TRIPLE_POWER_PORTAL 0   // 1 (только комплект C): 3 включения подряд (каждое < 6 с) → настройка Wi-Fi на 10 мин
+#endif
 
 static UbxGps gps(Serial1);
 static NimBLEServer* server = nullptr;
@@ -182,6 +188,15 @@ void setup() {
   setupBle();
   Serial.printf("[pitlane-gps] BLE: %s · прошивка %s\n", devName, FW_VERSION);
   netlink::begin(devName, FW_VERSION);
+#if PL_TRIPLE_POWER_PORTAL
+  // корпус закрыт и BOOT не достать: выдернуть и вставить USB 3 раза подряд (каждый раз < 6 с после включения)
+  {
+    Preferences bp; bp.begin("plboot", false);
+    uint8_t n = bp.getUChar("n", 0) + 1;
+    if (n >= 3) { n = 0; Serial.println("[pitlane-gps] 3 включения подряд → настройка Wi-Fi"); netlink::startPortal(10); }
+    bp.putUChar("n", n); bp.end();
+  }
+#endif
 }
 
 void loop() {
@@ -241,6 +256,10 @@ void loop() {
     if (silentSec >= 5) { silentSec = 0; gps.begin(GPS_RX_PIN, GPS_TX_PIN, gps.rate()); }
   }
   ledTask(now);
+#if PL_TRIPLE_POWER_PORTAL
+  static bool bootCleared = false;
+  if (!bootCleared && now > 6000) { bootCleared = true; Preferences bp; bp.begin("plboot", false); bp.putUChar("n", 0); bp.end(); }
+#endif
 
   // подсветка: авто-«замер» — BLE подключён, фикс и скорость ≥ 5 км/ч; сброс после 3 с при < 2 км/ч
   bool alive = now - lastPvtMs < 2000;

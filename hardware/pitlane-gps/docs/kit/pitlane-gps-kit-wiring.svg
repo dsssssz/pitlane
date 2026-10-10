@@ -1,0 +1,181 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1060" viewBox="0 0 1700 1060">
+<style>text{font-family:Inter, 'Inter Display', 'DejaVu Sans', Arial, sans-serif;}</style>
+<rect width="1700" height="1060" fill="#ffffff"/>
+<text x="40" y="58" font-size="32" font-weight="700" fill="#1d1f24" text-anchor="start" >PITLANE GPS · комплект C · схема подключения</text>
+<text x="40" y="92" font-size="18" font-weight="400" fill="#4a4f59" text-anchor="start" >Вид сверху, как платы лежат в корпусе. Прошивка 2.1.0, env esp32c3kit. Пайка проводами прямо в пятаки, без штырей.</text>
+<rect x="160" y="260" width="400" height="320" rx="14" fill="#1b1c20" stroke="#000" stroke-width="2"/>
+<rect x="122" y="378" width="62" height="84" rx="10" fill="#c4c8ce" stroke="#6b6f78" stroke-width="2"/>
+<text x="153" y="425" font-size="13" font-weight="700" fill="#2a2c31" text-anchor="middle" >USB-C</text>
+<rect x="300" y="370" width="100" height="100" rx="6" fill="#2b2c31" stroke="#45474e" stroke-width="2"/>
+<text x="350" y="415" font-size="15" font-weight="600" fill="#cfd2d8" text-anchor="middle" >ESP32-C3</text>
+<text x="350" y="437" font-size="13" font-weight="400" fill="#9aa0aa" text-anchor="middle" >SuperMini</text>
+<rect x="470" y="372" width="70" height="96" rx="4" fill="none" stroke="#6b6f78" stroke-width="2" stroke-dasharray="5 4"/>
+<text x="505" y="492" font-size="13" font-weight="400" fill="#9aa0aa" text-anchor="middle" >антенна</text>
+<text x="205" y="395" font-size="12" font-weight="600" fill="#9aa0aa" text-anchor="start" >BOOT</text>
+<text x="205" y="455" font-size="12" font-weight="600" fill="#9aa0aa" text-anchor="start" >RST</text>
+<circle cx="202.0" cy="290" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="202.0" cy="290" r="3.2" fill="#3a2f12"/>
+<text x="202.0" y="320" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >5</text>
+<circle cx="247.1" cy="290" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="247.1" cy="290" r="3.2" fill="#3a2f12"/>
+<text x="247.1" y="320" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >6</text>
+<circle cx="292.2" cy="290" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="292.2" cy="290" r="3.2" fill="#3a2f12"/>
+<text x="292.2" y="320" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >7</text>
+<circle cx="337.3" cy="290" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="337.3" cy="290" r="3.2" fill="#3a2f12"/>
+<text x="337.3" y="320" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >8</text>
+<circle cx="382.4" cy="290" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="382.4" cy="290" r="3.2" fill="#3a2f12"/>
+<text x="382.4" y="320" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >9</text>
+<circle cx="427.5" cy="290" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="427.5" cy="290" r="3.2" fill="#3a2f12"/>
+<text x="427.5" y="320" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >10</text>
+<circle cx="472.6" cy="290" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="472.6" cy="290" r="3.2" fill="#3a2f12"/>
+<text x="472.6" y="320" font-size="14" font-weight="600" fill="#f4f5f7" text-anchor="middle" >20</text>
+<circle cx="517.7" cy="290" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="517.7" cy="290" r="3.2" fill="#3a2f12"/>
+<text x="517.7" y="320" font-size="14" font-weight="600" fill="#f4f5f7" text-anchor="middle" >21</text>
+<circle cx="202.0" cy="550" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="202.0" cy="550" r="3.2" fill="#3a2f12"/>
+<text x="202.0" y="532" font-size="14" font-weight="600" fill="#f4f5f7" text-anchor="middle" >5V</text>
+<circle cx="247.1" cy="550" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="247.1" cy="550" r="3.2" fill="#3a2f12"/>
+<text x="247.1" y="532" font-size="14" font-weight="600" fill="#f4f5f7" text-anchor="middle" >GND</text>
+<circle cx="292.2" cy="550" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="292.2" cy="550" r="3.2" fill="#3a2f12"/>
+<text x="292.2" y="532" font-size="14" font-weight="600" fill="#f4f5f7" text-anchor="middle" >3V3</text>
+<circle cx="337.3" cy="550" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="337.3" cy="550" r="3.2" fill="#3a2f12"/>
+<text x="337.3" y="532" font-size="14" font-weight="600" fill="#f4f5f7" text-anchor="middle" >4</text>
+<circle cx="382.4" cy="550" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="382.4" cy="550" r="3.2" fill="#3a2f12"/>
+<text x="382.4" y="532" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >3</text>
+<circle cx="427.5" cy="550" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="427.5" cy="550" r="3.2" fill="#3a2f12"/>
+<text x="427.5" y="532" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >2</text>
+<circle cx="472.6" cy="550" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="472.6" cy="550" r="3.2" fill="#3a2f12"/>
+<text x="472.6" y="532" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >1</text>
+<circle cx="517.7" cy="550" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="517.7" cy="550" r="3.2" fill="#3a2f12"/>
+<text x="517.7" y="532" font-size="14" font-weight="600" fill="#aab0ba" text-anchor="middle" >0</text>
+<text x="160" y="222" font-size="15" font-weight="700" fill="#1d1f24" text-anchor="start" >ESP32-C3 SuperMini · детали вверх</text>
+<text x="160" y="244" font-size="13" font-weight="400" fill="#4a4f59" text-anchor="start" >номера пинов подписаны на обороте платы</text>
+<rect x="900" y="200" width="640" height="444" rx="12" fill="#1c3f86" stroke="#0f2457" stroke-width="2"/>
+<rect x="1096" y="200" width="444" height="444" rx="8" fill="#cdbf98" stroke="#8d7f58" stroke-width="2"/>
+<rect x="1236" y="340" width="164" height="164" rx="8" fill="#d8ccab" stroke="#8d7f58" stroke-width="2"/>
+<circle cx="1318" cy="422" r="10" fill="#c4c8ce" stroke="#6b6f78" stroke-width="2"/>
+<text x="1318" y="290" font-size="20" font-weight="700" fill="#3d3523" text-anchor="middle" >патч-антенна 25×25</text>
+<text x="1318" y="316" font-size="16" font-weight="600" fill="#3d3523" text-anchor="middle" >ВВЕРХ · над ней ничего металлического</text>
+<text x="1318" y="560" font-size="18" font-weight="700" fill="#3d3523" text-anchor="middle" >GY-GPSV3-M9N · u-blox NEO-M9N</text>
+<text x="1318" y="586" font-size="14" font-weight="500" fill="#5d5440" text-anchor="middle" >модуль NEO-M9N и батарейка — снизу платы</text>
+<circle cx="935" cy="300" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="935" cy="300" r="3.2" fill="#3a2f12"/>
+<text x="957" y="306" font-size="16" font-weight="600" fill="#f4f5f7" text-anchor="start" >TX</text>
+<circle cx="935" cy="350" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="935" cy="350" r="3.2" fill="#3a2f12"/>
+<text x="957" y="356" font-size="16" font-weight="600" fill="#f4f5f7" text-anchor="start" >RX</text>
+<circle cx="935" cy="450" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="935" cy="450" r="3.2" fill="#3a2f12"/>
+<text x="957" y="456" font-size="16" font-weight="600" fill="#f4f5f7" text-anchor="start" >VCC</text>
+<circle cx="935" cy="500" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="935" cy="500" r="3.2" fill="#3a2f12"/>
+<text x="957" y="506" font-size="16" font-weight="600" fill="#f4f5f7" text-anchor="start" >GND</text>
+<circle cx="935" cy="570" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="935" cy="570" r="3.2" fill="#3a2f12"/>
+<text x="957" y="576" font-size="16" font-weight="600" fill="#aab0ba" text-anchor="start" >PPS</text>
+<text x="957" y="596" font-size="13" font-weight="500" fill="#aab0ba" text-anchor="start" >не подключать</text>
+<path d="M472.6,290 L472.6,230 L730,230 L730,300 L935,300" fill="none" stroke="#e3c22c" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<circle cx="640" cy="230" r="15" fill="#e3c22c" stroke="#1d1f24" stroke-width="2"/>
+<text x="640" y="236" font-size="16" font-weight="700" fill="#111" text-anchor="middle" >3</text>
+<path d="M517.7,290 L517.7,248 L700,248 L700,350 L935,350" fill="none" stroke="#2f62c9" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<circle cx="820" cy="350" r="15" fill="#2f62c9" stroke="#1d1f24" stroke-width="2"/>
+<text x="820" y="356" font-size="16" font-weight="700" fill="#fff" text-anchor="middle" >4</text>
+<path d="M292.2,550 L292.2,690 L800,690 L800,450 L935,450" fill="none" stroke="#d23a2e" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<circle cx="640" cy="690" r="15" fill="#d23a2e" stroke="#1d1f24" stroke-width="2"/>
+<text x="640" y="696" font-size="16" font-weight="700" fill="#fff" text-anchor="middle" >1</text>
+<path d="M247.1,550 L247.1,730 L840,730 L840,500 L935,500" fill="none" stroke="#151515" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<circle cx="640" cy="730" r="15" fill="#151515" stroke="#1d1f24" stroke-width="2"/>
+<text x="640" y="736" font-size="16" font-weight="700" fill="#fff" text-anchor="middle" >2</text>
+<circle cx="247.1" cy="730" r="7" fill="#151515"/>
+<rect x="170" y="860" width="200" height="120" rx="60" fill="#f2f2f2" stroke="#8a8f99" stroke-width="2"/>
+<rect x="248" y="898" width="44" height="44" rx="4" fill="#ffffff" stroke="#8a8f99" stroke-width="2"/>
+<text x="270" y="972" font-size="12" font-weight="500" fill="#1d1f24" text-anchor="start" ></text>
+<circle cx="202.0" cy="880" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="202.0" cy="880" r="3.2" fill="#3a2f12"/>
+<circle cx="247.1" cy="880" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="247.1" cy="880" r="3.2" fill="#3a2f12"/>
+<circle cx="292.2" cy="880" r="9" fill="#c9ccd2" stroke="#5b4a1f" stroke-width="2"/><circle cx="292.2" cy="880" r="3.2" fill="#3a2f12"/>
+<circle cx="337.3" cy="880" r="9" fill="#d9a441" stroke="#5b4a1f" stroke-width="2"/><circle cx="337.3" cy="880" r="3.2" fill="#3a2f12"/>
+<text x="202.0" y="912" font-size="13" font-weight="700" fill="#1d1f24" text-anchor="middle" >+5V</text>
+<text x="247.1" y="912" font-size="13" font-weight="700" fill="#1d1f24" text-anchor="middle" >GND</text>
+<text x="292.2" y="912" font-size="13" font-weight="700" fill="#9aa0aa" text-anchor="middle" >DOUT</text>
+<text x="337.3" y="912" font-size="13" font-weight="700" fill="#1d1f24" text-anchor="middle" >DIN</text>
+<text x="270" y="1012" font-size="15" font-weight="700" fill="#1d1f24" text-anchor="middle" >LED WS2812B 5050 (круглая плата Ø10)</text>
+<text x="270" y="1034" font-size="14" font-weight="400" fill="#4a4f59" text-anchor="middle" >в гнезде крышки под световодом, диодом вверх</text>
+<path d="M202.0,550 L202.0,880" fill="none" stroke="#6b6f78" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M202.0,550 L202.0,880" fill="none" stroke="#efefef" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<circle cx="170.0" cy="655" r="15" fill="#efefef" stroke="#1d1f24" stroke-width="2"/>
+<text x="170.0" y="661" font-size="16" font-weight="700" fill="#111" text-anchor="middle" >5</text>
+<path d="M247.1,730 L247.1,880" fill="none" stroke="#151515" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<circle cx="277.1" cy="800" r="15" fill="#151515" stroke="#1d1f24" stroke-width="2"/>
+<text x="277.1" y="806" font-size="16" font-weight="700" fill="#fff" text-anchor="middle" >6</text>
+<path d="M337.3,550 L337.3,681 A9,9 0 0 1 337.3,699 L337.3,721 A9,9 0 0 1 337.3,739 L337.3,880" fill="none" stroke="#2f9d55" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" />
+<circle cx="367.3" cy="655" r="15" fill="#2f9d55" stroke="#1d1f24" stroke-width="2"/>
+<text x="367.3" y="661" font-size="16" font-weight="700" fill="#fff" text-anchor="middle" >7</text>
+<rect x="189.0" y="754" width="26" height="52" rx="5" fill="#e9b25a" stroke="#6b4b14" stroke-width="2"/><rect x="189.0" y="792" width="26" height="8" fill="#1d1f24"/>
+<text x="180.0" y="778" font-size="14" font-weight="700" fill="#1d1f24" text-anchor="end" >1N4148</text>
+<text x="180.0" y="798" font-size="13" font-weight="500" fill="#4a4f59" text-anchor="end" >полоска → LED</text>
+<rect x="326.3" y="774" width="22" height="52" rx="6" fill="#d9c7a3" stroke="#6b5a35" stroke-width="2"/><rect x="326.3" y="786" width="22" height="5" fill="#f08a24"/><rect x="326.3" y="796" width="22" height="5" fill="#f08a24"/><rect x="326.3" y="806" width="22" height="5" fill="#7a4a1d"/>
+<text x="357.3" y="806" font-size="14" font-weight="700" fill="#1d1f24" text-anchor="start" >330 Ом</text>
+<path d="M40,420 L112,420" stroke="#1d1f24" stroke-width="4" marker-end="url(#ar)"/>
+<defs><marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#1d1f24"/></marker></defs>
+<text x="40" y="160" font-size="17" font-weight="700" fill="#1d1f24" text-anchor="start" >Питание 5 В — только через USB-C платы ESP32:</text>
+<text x="40" y="184" font-size="16" font-weight="400" fill="#4a4f59" text-anchor="start" >ЗУ в прикуриватель (порт USB-A) → кабель USB-A → USB-C</text>
+<text x="40" y="360" font-size="14" font-weight="600" fill="#4a4f59" text-anchor="start" >к ЗУ</text>
+<rect x="900" y="690" width="760" height="278" rx="10" fill="#f5f6f8" stroke="#d5d8de"/>
+<text x="918" y="718" font-size="15" font-weight="700" fill="#4a4f59" text-anchor="start" >№</text>
+<text x="960" y="718" font-size="15" font-weight="700" fill="#4a4f59" text-anchor="start" >откуда</text>
+<text x="1110" y="718" font-size="15" font-weight="700" fill="#4a4f59" text-anchor="start" >куда</text>
+<text x="1260" y="718" font-size="15" font-weight="700" fill="#4a4f59" text-anchor="start" >провод</text>
+<text x="1370" y="718" font-size="15" font-weight="700" fill="#4a4f59" text-anchor="start" >в разрыв</text>
+<text x="1550" y="718" font-size="15" font-weight="700" fill="#4a4f59" text-anchor="start" >длина</text>
+<circle cx="926" cy="747" r="10" fill="#d23a2e" stroke="#1d1f24" stroke-width="1.5"/>
+<text x="926" y="752" font-size="12" font-weight="700" fill="#fff" text-anchor="middle" >1</text>
+<text x="960" y="752" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >ESP32 3V3</text>
+<text x="1110" y="752" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >GPS VCC</text>
+<text x="1260" y="752" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >красный</text>
+<text x="1370" y="752" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >—</text>
+<text x="1550" y="752" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >~70 мм</text>
+<circle cx="926" cy="781" r="10" fill="#151515" stroke="#1d1f24" stroke-width="1.5"/>
+<text x="926" y="786" font-size="12" font-weight="700" fill="#fff" text-anchor="middle" >2</text>
+<text x="960" y="786" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >ESP32 GND</text>
+<text x="1110" y="786" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >GPS GND</text>
+<text x="1260" y="786" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >чёрный</text>
+<text x="1370" y="786" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >—</text>
+<text x="1550" y="786" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >~70 мм</text>
+<circle cx="926" cy="815" r="10" fill="#e3c22c" stroke="#1d1f24" stroke-width="1.5"/>
+<text x="926" y="820" font-size="12" font-weight="700" fill="#111" text-anchor="middle" >3</text>
+<text x="960" y="820" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >GPS TX</text>
+<text x="1110" y="820" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >ESP32 GPIO20</text>
+<text x="1260" y="820" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >жёлтый</text>
+<text x="1370" y="820" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >—</text>
+<text x="1550" y="820" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >~60 мм</text>
+<circle cx="926" cy="849" r="10" fill="#2f62c9" stroke="#1d1f24" stroke-width="1.5"/>
+<text x="926" y="854" font-size="12" font-weight="700" fill="#fff" text-anchor="middle" >4</text>
+<text x="960" y="854" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >GPS RX</text>
+<text x="1110" y="854" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >ESP32 GPIO21</text>
+<text x="1260" y="854" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >синий</text>
+<text x="1370" y="854" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >—</text>
+<text x="1550" y="854" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >~60 мм</text>
+<circle cx="926" cy="883" r="10" fill="#efefef" stroke="#1d1f24" stroke-width="1.5"/>
+<text x="926" y="888" font-size="12" font-weight="700" fill="#111" text-anchor="middle" >5</text>
+<text x="960" y="888" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >ESP32 5V</text>
+<text x="1110" y="888" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >LED +5V</text>
+<text x="1260" y="888" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >белый</text>
+<text x="1370" y="888" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >диод 1N4148</text>
+<text x="1550" y="888" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >~40 мм</text>
+<circle cx="926" cy="917" r="10" fill="#151515" stroke="#1d1f24" stroke-width="1.5"/>
+<text x="926" y="922" font-size="12" font-weight="700" fill="#fff" text-anchor="middle" >6</text>
+<text x="960" y="922" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >ESP32 GND</text>
+<text x="1110" y="922" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >LED GND</text>
+<text x="1260" y="922" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >чёрный</text>
+<text x="1370" y="922" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >—</text>
+<text x="1550" y="922" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >~40 мм</text>
+<circle cx="926" cy="951" r="10" fill="#2f9d55" stroke="#1d1f24" stroke-width="1.5"/>
+<text x="926" y="956" font-size="12" font-weight="700" fill="#fff" text-anchor="middle" >7</text>
+<text x="960" y="956" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >ESP32 GPIO4</text>
+<text x="1110" y="956" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >LED DIN</text>
+<text x="1260" y="956" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >зелёный</text>
+<text x="1370" y="956" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >резистор 330 Ом</text>
+<text x="1550" y="956" font-size="15" font-weight="500" fill="#1d1f24" text-anchor="start" >~40 мм</text>
+<rect x="440" y="826" width="440" height="190" rx="10" fill="#fff7e8" stroke="#e7c27a"/>
+<text x="460" y="852" font-size="17" font-weight="700" fill="#7a4b00" text-anchor="start" >Важно</text>
+<text x="460" y="882" font-size="14" font-weight="500" fill="#3d2a00" text-anchor="start" >• TX и RX — накрест: TX GPS → GPIO20 (RX ESP),</text>
+<text x="460" y="899" font-size="14" font-weight="500" fill="#3d2a00" text-anchor="start" >  RX GPS ← GPIO21.</text>
+<text x="460" y="918" font-size="14" font-weight="500" fill="#3d2a00" text-anchor="start" >• GPS — от 3V3, LED — от 5V через диод. 5V на</text>
+<text x="460" y="935" font-size="14" font-weight="500" fill="#3d2a00" text-anchor="start" >  GPS не подавать.</text>
+<text x="460" y="954" font-size="14" font-weight="500" fill="#3d2a00" text-anchor="start" >• Батарейку бэкапа на плате GPS не трогать — она</text>
+<text x="460" y="971" font-size="14" font-weight="500" fill="#3d2a00" text-anchor="start" >  своя и заряжается.</text>
+<text x="460" y="990" font-size="14" font-weight="500" fill="#3d2a00" text-anchor="start" >• PPS, SDA/SCL, DOUT не подключать. Над патчем</text>
+<text x="460" y="1007" font-size="14" font-weight="500" fill="#3d2a00" text-anchor="start" >  проводов нет.</text>
+</svg>

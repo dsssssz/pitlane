@@ -19,6 +19,14 @@
 #ifndef LEDS_STATUS_BRIGHT
 #define LEDS_STATUS_BRIGHT 24
 #endif
+// v3 (комплект «USB от машины», корпус C): один адресный LED (WS2812B 5050 на круглой плате) под световодом.
+// Все состояния — в одном цвете/ритме, спокойная палитра без неона: см. README «Индикатор (один LED)».
+#ifndef LEDS_SINGLE
+#define LEDS_SINGLE 0
+#endif
+#ifndef LEDS_SINGLE_BRIGHT
+#define LEDS_SINGLE_BRIGHT 48
+#endif
 
 namespace lights {
 

@@ -1,0 +1,238 @@
+{
+ "clearance_mm": 0.3,
+ "parts": {
+  "body": {
+   "watertight": true,
+   "winding_consistent": true,
+   "euler": -60,
+   "volume_cm3": 14.51,
+   "bbox_mm": [
+    76.0,
+    46.0,
+    13.0
+   ],
+   "manifold3d_status": "Error.NoError",
+   "ok": true,
+   "thickness_p01_mm": 0.8,
+   "thickness_p05_mm": 0.8,
+   "thickness_median_mm": 3.0
+  },
+  "lid": {
+   "watertight": true,
+   "winding_consistent": true,
+   "euler": 0,
+   "volume_cm3": 8.9,
+   "bbox_mm": [
+    76.0,
+    46.0,
+    12.2
+   ],
+   "manifold3d_status": "Error.NoError",
+   "ok": true,
+   "thickness_p01_mm": 1.0,
+   "thickness_p05_mm": 1.2,
+   "thickness_median_mm": 2.2
+  },
+  "pipe": {
+   "watertight": true,
+   "winding_consistent": true,
+   "euler": 2,
+   "volume_cm3": 0.06,
+   "bbox_mm": [
+    4.6,
+    10.0,
+    2.18
+   ],
+   "manifold3d_status": "Error.NoError",
+   "ok": true
+  }
+ },
+ "part_x_part": [
+  {
+   "a": "body",
+   "b": "lid",
+   "overlap_mm3": -0.0
+  },
+  {
+   "a": "body",
+   "b": "pipe",
+   "overlap_mm3": 0.0
+  },
+  {
+   "a": "lid",
+   "b": "pipe",
+   "overlap_mm3": 0.0
+  }
+ ],
+ "dummy_x_part": [
+  {
+   "dummy": "d_gps_pcb",
+   "part": "body",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_pcb",
+   "part": "lid",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_pcb",
+   "part": "pipe",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_under",
+   "part": "body",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_under",
+   "part": "lid",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_under",
+   "part": "pipe",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_patch",
+   "part": "body",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_patch",
+   "part": "lid",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_patch",
+   "part": "pipe",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_pads",
+   "part": "body",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_pads",
+   "part": "lid",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_gps_pads",
+   "part": "pipe",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_pcb",
+   "part": "body",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_pcb",
+   "part": "lid",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_pcb",
+   "part": "pipe",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_usb",
+   "part": "body",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_usb",
+   "part": "lid",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_usb",
+   "part": "pipe",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_top",
+   "part": "body",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_top",
+   "part": "lid",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_top",
+   "part": "pipe",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_wires",
+   "part": "body",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_wires",
+   "part": "lid",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_esp_wires",
+   "part": "pipe",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_led",
+   "part": "body",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_led",
+   "part": "lid",
+   "overlap_mm3": 0.0
+  },
+  {
+   "dummy": "d_led",
+   "part": "pipe",
+   "overlap_mm3": -0.0
+  }
+ ],
+ "dummy_x_dummy": [],
+ "skipped": {
+  "d_magnets": "посадка в натяг (Ø10 в Ø10,3) — не проверяется на 0,3",
+  "d_plug": "штекер снаружи; проверяется отдельно: литьё проходит в окно",
+  "d_esp_tape": "скотч лежит на дне по определению"
+ },
+ "ok": true,
+ "plug_x_body_mm3": 0.0,
+ "print": {
+  "body": {
+   "downfacing_area_mm2": 486.66,
+   "max_bridge_span_mm": 10.3,
+   "n_overhang_islands": 75,
+   "first_layer_area_mm2": 2792.9,
+   "ok": true,
+   "mass_g_ASA_100pct": 15.5
+  },
+  "lid": {
+   "downfacing_area_mm2": 38.88,
+   "max_bridge_span_mm": 3.78,
+   "n_overhang_islands": 7,
+   "first_layer_area_mm2": 3115.0,
+   "ok": true,
+   "mass_g_ASA_100pct": 9.5
+  },
+  "pipe": {
+   "downfacing_area_mm2": 0.0,
+   "max_bridge_span_mm": 0.0,
+   "n_overhang_islands": 0,
+   "first_layer_area_mm2": 41.4,
+   "ok": true,
+   "mass_g_ASA_100pct": 0.1
+  }
+ }
+}

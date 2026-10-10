@@ -18,12 +18,20 @@
     <li>Подключите плату ESP32-C3/ESP32-S3 кабелем USB-C (кабель с данными, не только зарядный).</li>
     <li>Нажмите кнопку ниже, выберите порт (обычно «USB JTAG/serial debug unit»), подтвердите.</li>
   </ol>
+  <h2 style="font-size:17px">Комплект «USB от машины» (корпус C, один световод)</h2>
+  <esp-web-install-button manifest="manifest-kit.json">
+    <button slot="activate">Прошить комплект PITLANE GPS (ESP32-C3)</button>
+    <span slot="unsupported">Этот браузер не поддерживает Web Serial — нужен Chrome/Edge на компьютере.</span>
+    <span slot="not-allowed">Нужна страница по HTTPS.</span>
+  </esp-web-install-button>
+  <p class="muted">Без аккумулятора, один статусный LED, 25 Гц. Настройка Wi-Fi повторно — выдернуть и вставить USB 3 раза подряд.</p>
+  <h2 style="font-size:17px">Версия с аккумулятором и подсветкой (корпус B) / ESP32-S3</h2>
   <esp-web-install-button manifest="manifest.json">
     <button slot="activate">Прошить PITLANE GPS</button>
     <span slot="unsupported">Этот браузер не поддерживает Web Serial — нужен Chrome/Edge на компьютере.</span>
     <span slot="not-allowed">Нужна страница по HTTPS.</span>
   </esp-web-install-button>
-  <p><b>Прошивка 2.0.0 (Wi-Fi):</b> при первой прошивке отметьте «стереть устройство» — изменилась таблица разделов.
+  <p><b>Прошивка 2.1.0 (Wi-Fi):</b> при первой прошивке отметьте «стереть устройство» — изменилась таблица разделов.
   После перезапуска чип сам включит сеть <code>PITLANE-GPS-XXXX</code> (пароль <code>pitlanegps</code>) для настройки
   хотспота и привязки к аккаунту — с iPhone тоже. Пошагово — в README чипа, раздел «Wi-Fi и iPhone».</p>
   <p class="muted">Прошить с iPhone нельзя (в iOS нет Web Serial) — нужен один раз компьютер; дальше всё настраивается с телефона.</p>

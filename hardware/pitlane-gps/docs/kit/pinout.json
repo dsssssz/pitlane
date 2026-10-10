@@ -1,0 +1,124 @@
+{
+  "_": "Единый источник распиновки комплекта v3 (корпус C, env esp32c3kit). Из него строятся схема, таблицы PDF; test/kit.test.mjs сверяет с platformio.ini.",
+  "env": "esp32c3kit",
+  "wires": [
+    {
+      "n": 1,
+      "from": "ESP32 3V3",
+      "to": "GPS VCC",
+      "color": "красный",
+      "hex": "#d23a2e",
+      "len_mm": 70,
+      "via": "",
+      "flag": "",
+      "note": "питание GPS 3,3 В от стабилизатора ESP32 (плата GPS принимает 3,3–5 В)"
+    },
+    {
+      "n": 2,
+      "from": "ESP32 GND",
+      "to": "GPS GND",
+      "color": "чёрный",
+      "hex": "#151515",
+      "len_mm": 70,
+      "via": "",
+      "flag": "",
+      "note": "общая земля"
+    },
+    {
+      "n": 3,
+      "from": "GPS TX",
+      "to": "ESP32 GPIO20",
+      "color": "жёлтый",
+      "hex": "#e3c22c",
+      "len_mm": 60,
+      "via": "",
+      "flag": "GPS_RX_PIN=20",
+      "note": "данные GPS → ESP32 (TX в RX — накрест)"
+    },
+    {
+      "n": 4,
+      "from": "GPS RX",
+      "to": "ESP32 GPIO21",
+      "color": "синий",
+      "hex": "#2f62c9",
+      "len_mm": 60,
+      "via": "",
+      "flag": "GPS_TX_PIN=21",
+      "note": "настройка GPS ← ESP32 (RX в TX — накрест)"
+    },
+    {
+      "n": 5,
+      "from": "ESP32 5V",
+      "to": "LED +5V",
+      "color": "белый",
+      "hex": "#efefef",
+      "len_mm": 40,
+      "via": "диод 1N4148 (полоска к LED)",
+      "flag": "",
+      "note": "5 В из USB минус ~0,7 В на диоде ≈ 4,3 В: тогда LED уверенно понимает 3,3-вольтовый сигнал"
+    },
+    {
+      "n": 6,
+      "from": "ESP32 GND",
+      "to": "LED GND",
+      "color": "чёрный",
+      "hex": "#151515",
+      "len_mm": 40,
+      "via": "",
+      "flag": "",
+      "note": "второй чёрный провод на тот же пятак GND"
+    },
+    {
+      "n": 7,
+      "from": "ESP32 GPIO4",
+      "to": "LED DIN",
+      "color": "зелёный",
+      "hex": "#2f9d55",
+      "len_mm": 40,
+      "via": "резистор 330 Ом",
+      "flag": "LEDS_PIN=4",
+      "note": "сигнал на светодиод; DOUT не подключать"
+    }
+  ],
+  "not_connected": [
+    "GPS PPS",
+    "GPS SDA/SCL (если есть)",
+    "LED DOUT",
+    "ESP32 BAT/остальные GPIO"
+  ],
+  "esp_rows": {
+    "_": "вид сверху (детали вверх), USB-C сверху; номера пинов подписаны на обороте платы — сверяйтесь",
+    "left": [
+      "5V",
+      "GND",
+      "3V3",
+      "GPIO4",
+      "GPIO3",
+      "GPIO2",
+      "GPIO1",
+      "GPIO0"
+    ],
+    "right": [
+      "GPIO5",
+      "GPIO6",
+      "GPIO7",
+      "GPIO8",
+      "GPIO9",
+      "GPIO10",
+      "GPIO20",
+      "GPIO21"
+    ]
+  },
+  "build_flags": {
+    "GPS_RX_PIN": 20,
+    "GPS_TX_PIN": 21,
+    "LEDS_PIN": 4,
+    "LEDS_SINGLE": 1,
+    "BAT_ADC_PIN": -1,
+    "DEFAULT_RATE_HZ": 25,
+    "BTN_PIN": 9,
+    "LED_PIN": 8,
+    "PL_TRIPLE_POWER_PORTAL": 1,
+    "PL_WIFI_TX_QDBM": 34
+  }
+}

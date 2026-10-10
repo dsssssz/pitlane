@@ -145,11 +145,19 @@ static void buildScan() {
   WiFi.scanDelete();
 }
 
+// v3: мощность передатчика Wi-Fi (единицы 0,25 дБм, wifi_power_t). Комплект C ставит 34 = 8,5 дБм: у части плат
+// ESP32-C3 SuperMini на полной мощности Wi-Fi не подключается (известная болячка платы), а телефон в машине в метре.
+static void txPower() {
+#ifdef PL_WIFI_TX_QDBM
+  WiFi.setTxPower((wifi_power_t)PL_WIFI_TX_QDBM);
+#endif
+}
+
 void startPortal(uint32_t minutes) {
   if (portalOn) { portalUntil = minutes ? millis() + minutes * 60000UL : 0; return; }
   if (wsStarted) { ws.disconnect(); wsStarted = false; wsOpen = false; gotHello = false; buf.rewind(); }
   WiFi.disconnect(false, false);
-  WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(WIFI_AP_STA); txPower();
   WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
   WiFi.softAP(devName, PL_AP_PASS);
   WiFi.scanNetworks(true);
@@ -174,7 +182,7 @@ static void stopPortal() {
   http->stop(); dns->stop();
   WiFi.softAPdisconnect(true);
   portalOn = false;
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_STA); txPower();
   if (ssid.length()) WiFi.begin(ssid.c_str(), pass.c_str());
   Serial.println("[pitlane-gps] настройка Wi-Fi закрыта");
 }
@@ -265,7 +273,7 @@ void begin(const char* name, const char* fw) {
   WiFi.persistent(false);
   WiFi.setHostname(devName);
   if (!ssid.length()) { startPortal(0); return; }   // первый запуск: сразу режим настройки
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_STA); txPower();
   WiFi.setAutoReconnect(true);
   WiFi.begin(ssid.c_str(), pass.c_str());
   Serial.printf("[pitlane-gps] Wi-Fi: ищем «%s»\n", ssid.c_str());

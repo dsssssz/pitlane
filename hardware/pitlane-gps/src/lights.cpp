@@ -4,7 +4,7 @@
 
 #if LEDS_PIN >= 0
 #include <Adafruit_NeoPixel.h>
-static Adafruit_NeoPixel strip(LEDS_COUNT, LEDS_PIN, NEO_GRB + NEO_KHZ800);
+static Adafruit_NeoPixel strip(LEDS_SINGLE ? 1 : LEDS_COUNT, LEDS_PIN, NEO_GRB + NEO_KHZ800);
 #endif
 
 namespace lights {
@@ -39,6 +39,11 @@ static void setRing(int i, uint32_t c) { strip.setPixelColor(RING0 + ((i % RING_
 static void fillRing(uint32_t c) { for (int i = 0; i < RING_N; i++) setRing(i, c); }
 #endif
 
+static Mode pick(const State& s);
+#if LEDS_PIN >= 0 && LEDS_SINGLE
+uint32_t singleColor(uint32_t now, const State& s, Mode m);
+#endif
+
 static Mode pick(const State& s) {
   if (s.battmV) {
     critLatch = critLatch ? s.battmV < 3600 : s.battmV < 3500;
@@ -51,6 +56,28 @@ static Mode pick(const State& s) {
   if (!s.fix) return MODE_SEARCH;
   return MODE_FIX;
 }
+
+#if LEDS_PIN >= 0 && LEDS_SINGLE
+// Один LED: приоритет как у pick(), плюс сеть. Белый = всё в порядке; янтарь = ищем спутники;
+// фиолетовый = настройка Wi-Fi; красный = неисправность / нужна привязка. Без неона.
+static const uint32_t WHITE = 0xFFF1E0;   // тёплый белый
+uint32_t singleColor(uint32_t now, const State& s, Mode m) {
+  const uint8_t B = LEDS_SINGLE_BRIGHT;
+  const bool link = s.ble || s.net == 4;
+  if (s.net == 1) return scale(VIOLET, B, pulse(now, 1600, 0.1f));                                   // настройка
+  if (s.net == 5) return (blink(now, 1500, 90) || (now % 1500 >= 220 && now % 1500 < 310)) ? scale(RED, B, 1) : 0;  // привязка
+  if (m == MODE_BATT_CRIT) return blink(now, 3000, 120) ? scale(RED, B, 1) : 0;
+  if (m == MODE_BATT_LOW) return scale(RED, B, pulse(now, 3000, 0.05f));
+  if (m == MODE_NO_GPS) return blink(now, 250, 125) ? scale(RED, B, 1) : 0;                            // нет GPS-модуля
+  if (m == MODE_SEARCH) return scale(AMBER, B, pulse(now, 2000));                                      // ищем спутники
+  // есть фикс
+  if (m == MODE_MEASURE) return scale(WHITE, B, 1);                                                    // замер: ярко
+  if (link) return scale(WHITE, B, 0.55f);                                                             // всё готово
+  if (s.net == 3) return blink(now, 1000, 500) ? scale(WHITE, B, 0.55f) : 0;                           // Wi-Fi без сервера
+  if (s.net == 2) return blink(now, 1000, 70) ? scale(WHITE, B, 0.8f) : 0;                             // ищем хотспот
+  return blink(now, 2000, 60) ? scale(WHITE, B, 0.8f) : 0;                                             // Wi-Fi не настроен
+}
+#endif
 
 void begin() {
 #if LEDS_PIN >= 0
@@ -82,6 +109,11 @@ void update(uint32_t now, const State& s) {
 #if LEDS_PIN >= 0
   if (now - lastShow < 20) return;   // 50 Гц
   lastShow = now;
+#if LEDS_SINGLE
+  strip.setPixelColor(0, singleColor(now, s, cur));
+  strip.show();
+  return;
+#endif
   const uint8_t B = LEDS_BRIGHT;
 
   // ---- кольцо ----

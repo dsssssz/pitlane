@@ -1,0 +1,16 @@
+{
+  "name": "PITLANE GPS — комплект USB (корпус C)",
+  "version": "2.1.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        {
+          "path": "pitlane-gps-esp32c3kit.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}
