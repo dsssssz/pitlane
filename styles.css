@@ -2003,23 +2003,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   font: 800 clamp(22px, 6vw, 32px)/1.1 var(--font-num), sans-serif;
   letter-spacing: .04em;
 }
-.brand-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  object-fit: contain;
-  background: transparent;
-  box-shadow: none;
-}
-.brand-mark.hidden { display: none; }
-.brand-disclaimer {
-  margin: 6px 0 0;
-  opacity: .35;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  font-size: 10px;
-}
 
 
 
@@ -4626,10 +4609,8 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px s
 #view-garage .podium-wrap { border-radius: 26px; border: 1px solid var(--h-line); overflow: hidden; }
 #view-garage .hero-title h1, #boxName { font: 700 24px/1.1 Manrope, sans-serif; letter-spacing: -.025em; text-transform: none; color: var(--h-text); }
 #view-garage .hero-chip { border: 1px solid var(--h-line-2); background: rgba(255,255,255,.03); color: var(--h-sub); font: 600 11px/1 Manrope, sans-serif; letter-spacing: .08em; padding: 7px 12px; }
-#view-garage .brand-disclaimer { color: #5a5a5a; font-size: 10.5px; }
 #view-garage .hero-nav, #view-garage .hero-grid-btn { width: 38px; height: 38px; min-height: 38px; border-radius: 50%; border: 1px solid var(--h-line-2); background: rgba(255,255,255,.04); color: #d6d6d6; box-shadow: none; }
 #view-garage .hero-grid-btn { border-radius: 12px !important; width: 32px !important; height: 32px !important; min-height: 32px !important; }
-#view-garage .brand-mark { filter: grayscale(.2); }
 #app .paint-finish { background: rgba(255,255,255,.03); border: 1px solid var(--h-line); border-radius: 999px; padding: 3px; gap: 2px; box-shadow: none; }
 #app .paint-finish button { border: 0 !important; min-height: 34px; }
 #app .paint-finish button.on { background: rgba(255,255,255,.12) !important; color: var(--h-text) !important; }

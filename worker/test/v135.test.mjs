@@ -31,9 +31,11 @@ ok(fs.existsSync(U('img/flags/LICENSE.txt')) && /MIT/.test(R('img/flags/LICENSE.
 console.log('никаких логотипов марок (v135: только флаг)');
 ok(!/logo|simple-?icons|img\/brands/i.test(mod), 'car-brands.js не знает о логотипах');
 ok(!/cb-logo/.test(app + css + html), 'нет класса логотипа в UI');
-const brandFiles = fs.readdirSync(U('img/brands')).sort();
-ok(JSON.stringify(brandFiles) === JSON.stringify(['bmw.png', 'bmw.svg']), 'новых файлов эмблем нет (только прежние bmw с v-ранних версий)', brandFiles);
-ok(/эмблемы марок — только для превью/.test(html), 'честная пометка «превью» в Боксе сохранена');
+// v136: эмблем нет вообще — ни папки img/brands, ни кода показа, ни пометки «превью» (больше нечего помечать)
+ok(!fs.existsSync(U('img/brands')), 'папки img/brands с эмблемами нет');
+ok(!/brandMark|BRAND_MARKS|applyBrandMark|brandKeyFromName|brand-mark|img\/brands/.test(app + css + html + sw), 'кода/стилей/кэша эмблем нет');
+ok(!/brandDisclaimer|эмблемы марок/.test(html + css), 'пометки про эмблемы нет');
+ok(!/<img[^>]+(emblem|logo|brand)[^>]*>/i.test(html), 'в разметке нет картинок-эмблем');
 ok(!/[\u{1F1E6}-\u{1F1FF}]{2}/u.test(app + html + mod), 'флаги не эмодзи');
 
 console.log('разметка и стили');
@@ -48,7 +50,7 @@ const v135css = css.slice(css.indexOf('v135: флаг страны марки'))
 ok(!/text-shadow|drop-shadow|0 0 ([2-9]|\d{2,})px|#0f0|#39ff|lime/i.test(v135css), 'без неона/свечения');
 ok(!/hw-top|top-row|tops-/.test(v135css), 'таблицы топа не трогаем');
 ok(/'\.\/car-brands\.js'/.test(sw) && /img\/flags\/gb\.svg/.test(sw), 'SW: модуль и флаги в precache');
-ok(/const CACHE = 'pitlane-v135'/.test(sw) && /APP_VERSION = 'v135'/.test(app), 'версии подняты');
+ok(/const CACHE = 'pitlane-v1(3[5-9]|[4-9]\d)'/.test(sw), 'версия SW не ниже v135');
 
 if (fails) { console.log(`\n✗ v135: ${fails}`); process.exit(1); }
 console.log('\nv135 OK');

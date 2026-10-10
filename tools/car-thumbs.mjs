@@ -2,7 +2,9 @@
 // Usage (from repo root, needs Chrome + `npm i puppeteer-core` somewhere on NODE_PATH):
 //   ROOT=$PWD node tools/car-thumbs.mjs            → img/cars/<id>.webp for every MODEL_CATALOG car
 //   ONLY=g63,m4 ROOT=$PWD node tools/car-thumbs.mjs → just those
+//   DIRECT=1 ONLY=mclaren-765lt … → load each model directly (reliable for heavy GLBs)
 // Renders on the real podium (high tier, SwiftShader is fine), 3/4 view, centre square → 512 → 256 px WebP q0.82.
+// v136: перерендер на приглушённом подиуме v133 (без зелёного неонового кольца).
 import puppeteer from 'puppeteer-core'; import fs from 'fs'; import http from 'http'; import path from 'path';
 const types = { '.html':'text/html', '.js':'text/javascript', '.glb':'model/gltf-binary', '.png':'image/png', '.webp':'image/webp', '.json':'application/json', '.css':'text/css', '.svg':'image/svg+xml', '.mp3':'audio/mpeg' };
 const HOOK = "controls.target.set(0, 0.55, 0);";
@@ -15,6 +17,10 @@ const PORT = 9731; const ROOT = process.env.ROOT; const srv = serve(ROOT, PORT);
 const NAMES = { 'BMW G87 M2 Widebody': 'g87-m2', 'Porsche 911 GT3 RS': 'gt3rs', 'McLaren 765LT': 'mclaren-765lt', 'Mercedes-AMG G 63': 'g63', 'BMW M4': 'm4', 'BMW M3 Competition': 'm3', 'BMW X6 xDrive40i': 'x6', 'Lexus IS-F': 'isf', 'Mercedes-AMG C 63 Edition 507': 'c63-ed507', 'Chevrolet Spark GT': 'spark' };
 const browser = await puppeteer.launch({ executablePath: '/usr/bin/google-chrome', headless: 'new', protocolTimeout: 900000, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage(); const errs = [];
+// v136: офлайн-рендер не ходит в прод-API (только локальные файлы)
+await page.setRequestInterception(true); page.on('request', (rq) => { if (/workers\.dev|open-meteo|arcgisonline|openstreetmap/.test(rq.url())) rq.abort(); else rq.continue(); });
+const meshCount = () => page.evaluate(() => { let n = 0; window.__pl.scene.traverse((o) => { if (o.isMesh) n++; }); return n; });
+let lastCount = -1;
 page.on('pageerror', (e) => errs.push('pageerror ' + e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/CORS|Failed to load resource/.test(m.text())) errs.push(m.text()); });
 await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
 await page.goto(`http://localhost:${PORT}/index.html?view=garage&quality=high`);
@@ -22,13 +28,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 await page.waitForFunction(() => document.getElementById('boxName')?.textContent?.length > 0 && window.__pl, { timeout: 120000 });
 await sleep(5000);
 const done = new Set(); const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : Object.values(NAMES);
+// v136: DIRECT=1 — грузим каждую модель напрямую (loadModel) вместо листания ▶: при листании тяжёлая 765LT
+// в SwiftShader иногда не успевала смениться и в миниатюру попадал GT3 RS.
+const DIRECT = process.env.DIRECT === '1'; const queue = DIRECT ? ONLY.slice() : null;
 for (let i = 0; i < 14 && done.size < ONLY.length; i++) {
+  if (DIRECT) { const nx = queue.shift(); if (!nx) break; lastCount = await meshCount(); await page.evaluate((x) => window.__pitlane3d.loadModel(x), nx); await sleep(1500); }
   const name = await page.evaluate(() => document.getElementById('boxName').textContent.trim());
-  const id = NAMES[name];
+  const id = DIRECT ? (await page.evaluate(() => window.__pitlane3d.podiumModel())) : NAMES[name];
   if (id && !done.has(id) && ONLY.includes(id)) {
+    // v136: ждём, пока на подиуме именно эта модель (иначе в миниатюру попадала предыдущая: 765LT ← GT3 RS)
+    for (let k = 0; k < 120; k++) { if (await page.evaluate((x) => window.__pitlane3d?.podiumModel?.() === x, id)) break; await sleep(1000); }
+    // id меняется раньше, чем тяжёлый GLB заменит меш: ждём, пока число мешей станет другим, чем у предыдущей модели
+    if (lastCount > 0) for (let k = 0; k < 120; k++) { if ((await meshCount()) !== lastCount) break; await sleep(1000); }
     // wait until this model's GLB is on the podium (mesh count stable)
     let prev = -1;
     for (let k = 0; k < 120; k++) { const n = await page.evaluate(() => { let n = 0; window.__pl.scene.traverse((o) => { if (o.isMesh) n++; }); return n; }); if (n === prev && n > 20) break; prev = n; await sleep(1500); }
+    lastCount = await meshCount();
     await page.evaluate(() => { window.__pitlane3d.driveInSeek?.(99999); window.__pl.controls.autoRotate = false; });
     await sleep(2500);
     const d = await page.evaluate((env) => { const process = { env };
@@ -44,7 +59,7 @@ for (let i = 0; i < 14 && done.size < ONLY.length; i++) {
     fs.writeFileSync(`${OUT}/${id}.webp`, Buffer.from(d.split(',')[1], 'base64'));
     done.add(id); console.log('thumb', id, Math.round(d.length * 0.75 / 1024) + ' KB');
   }
-  await page.click('#btnCarNext'); await sleep(1200);
+  if (!DIRECT) { await page.click('#btnCarNext'); await sleep(1200); }
 }
 console.log('done', done.size, 'errors', JSON.stringify(errs));
 await browser.close(); srv.close();

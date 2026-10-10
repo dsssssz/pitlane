@@ -855,17 +855,7 @@ function fmtPassShort(v) {
 }
 
 
-const BRAND_MARKS = {
-  bmw: './img/brands/bmw.png',
-};
-
-function brandKeyFromName(name) {
-  const n = String(name || '').toLowerCase();
-  if (n.includes('bmw')) return 'bmw';
-  return null;
-}
-
-/** v135: флаг страны марки справа от названия в Боксе (только флаг; логотипов марок не добавляем). */
+/** v135: флаг страны марки справа от названия в Боксе (только флаг; логотипов/эмблем марок нет). */
 function applyBoxFlag(name) {
   const f = document.getElementById('boxFlag'); if (!f) return;
   const b = brandOf(name);
@@ -873,20 +863,6 @@ function applyBoxFlag(name) {
   if (!b) return;
   const c = COUNTRIES[b.cc] || ''; f.title = c; f.setAttribute('aria-label', c);
   const im = f.querySelector('img'); if (im && im.getAttribute('src') !== flagUrl(b)) im.src = flagUrl(b);
-}
-
-function applyBrandMark(name) {
-  const img = document.getElementById('brandMark');
-  if (!img) return;
-  const key = brandKeyFromName(name);
-  if (!key || !BRAND_MARKS[key]) {
-    img.classList.add('hidden');
-    img.removeAttribute('src');
-    return;
-  }
-  img.src = BRAND_MARKS[key];
-  img.classList.remove('hidden');
-  img.alt = key.toUpperCase();
 }
 
 function renderDynoMarkRow(elId, stockVal, factObj, manualVal) {
@@ -923,7 +899,6 @@ function applyPassportUI() {
   setTxt('boxName', p.name);
   applyBoxFlag(p.name);
   setTxt('boxTrim', p.trim || '');
-  applyBrandMark(p.name);
 
   const anyFact = PASSPORT_GPS_MARKS.some((m) => (gps[m]?.n || 0) > 0);
   const anyManual = PASSPORT_GPS_MARKS.some((m) => {
@@ -12284,7 +12259,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v135';
+const APP_VERSION = 'v136';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

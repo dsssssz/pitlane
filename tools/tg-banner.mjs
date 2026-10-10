@@ -33,32 +33,32 @@ const html = `<!doctype html><html><head><meta charset="utf-8">
 <style>
 html,body{margin:0;width:1280px;height:640px;overflow:hidden;background:#1a1a1a}
 .b{position:relative;width:1280px;height:640px;background:
- radial-gradient(900px 520px at 78% 38%, rgba(57,255,20,.10), transparent 60%),
- radial-gradient(700px 400px at 10% 100%, rgba(57,255,20,.05), transparent 70%),
+ radial-gradient(900px 520px at 78% 38%, rgba(158,205,176,.10), transparent 60%),
+ radial-gradient(700px 400px at 10% 100%, rgba(158,205,176,.05), transparent 70%),
  repeating-linear-gradient(115deg, rgba(255,255,255,.018) 0 2px, transparent 2px 22px), #1a1a1a}
 svg{position:absolute;inset:0}
 .txt{position:absolute;left:84px;top:150px}
-.wm{font:italic 800 176px/0.9 "Barlow Condensed",sans-serif;letter-spacing:.035em;color:#39FF14;
- text-shadow:0 0 18px rgba(57,255,20,.55),0 0 60px rgba(57,255,20,.25)}
+.wm{font:italic 800 176px/0.9 "Barlow Condensed",sans-serif;letter-spacing:.035em;color:#9ECDB0;
+ text-shadow:0 0 18px rgba(158,205,176,.55),0 0 60px rgba(158,205,176,.25)}
 .sub{margin-top:22px;font:700 27px/1.25 Manrope,sans-serif;letter-spacing:.14em;color:#e2e2e2;text-transform:uppercase}
 .chips{margin-top:34px;display:flex;gap:12px}
-.chip{font:600 24px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#39FF14;border:1.5px solid rgba(57,255,20,.55);
- background:rgba(57,255,20,.07);border-radius:999px;padding:10px 18px}
-.bar{position:absolute;left:84px;top:118px;width:120px;height:6px;background:#39FF14;box-shadow:0 0 14px rgba(57,255,20,.7);transform:skewX(-20deg)}
+.chip{font:600 24px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#9ECDB0;border:1.5px solid rgba(158,205,176,.55);
+ background:rgba(158,205,176,.07);border-radius:999px;padding:10px 18px}
+.bar{position:absolute;left:84px;top:118px;width:120px;height:6px;background:#9ECDB0;box-shadow:0 0 14px rgba(158,205,176,.7);transform:skewX(-20deg)}
 </style></head><body><div class="b">
 <svg width="1280" height="640" viewBox="0 0 1280 640">
  <defs><filter id="gl" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
- <path d="${tr.d}" fill="none" stroke="#39FF14" stroke-opacity=".12" stroke-width="16" stroke-linejoin="round"/>
- <path d="${tr.d}" fill="none" stroke="#39FF14" stroke-opacity=".6" stroke-width="3" stroke-linejoin="round" filter="url(#gl)"/>
- <circle cx="${tr.start[0].toFixed(1)}" cy="${tr.start[1].toFixed(1)}" r="9" fill="#39FF14" filter="url(#gl)"/>
+ <path d="${tr.d}" fill="none" stroke="#9ECDB0" stroke-opacity=".12" stroke-width="16" stroke-linejoin="round"/>
+ <path d="${tr.d}" fill="none" stroke="#9ECDB0" stroke-opacity=".6" stroke-width="3" stroke-linejoin="round" filter="url(#gl)"/>
+ <circle cx="${tr.start[0].toFixed(1)}" cy="${tr.start[1].toFixed(1)}" r="9" fill="#9ECDB0" filter="url(#gl)"/>
  <g transform="translate(772 420) scale(0.62)" opacity=".95">
-  <ellipse cx="400" cy="296" rx="300" ry="14" fill="#39FF14" opacity=".10"/>
-  <path d="${body}" fill="#141614" stroke="#39FF14" stroke-width="3.5" stroke-linejoin="round" filter="url(#gl)"/>
-  <path d="${glass}" fill="#0b0d0b" stroke="#39FF14" stroke-opacity=".6" stroke-width="2"/>
-  <circle cx="180" cy="255" r="34" fill="#0d0d0d" stroke="#39FF14" stroke-width="3"/><circle cx="180" cy="255" r="12" fill="#39FF14" opacity=".5"/>
-  <circle cx="580" cy="255" r="34" fill="#0d0d0d" stroke="#39FF14" stroke-width="3"/><circle cx="580" cy="255" r="12" fill="#39FF14" opacity=".5"/>
+  <ellipse cx="400" cy="296" rx="300" ry="14" fill="#9ECDB0" opacity=".10"/>
+  <path d="${body}" fill="#141614" stroke="#9ECDB0" stroke-width="3.5" stroke-linejoin="round" filter="url(#gl)"/>
+  <path d="${glass}" fill="#0b0d0b" stroke="#9ECDB0" stroke-opacity=".6" stroke-width="2"/>
+  <circle cx="180" cy="255" r="34" fill="#0d0d0d" stroke="#9ECDB0" stroke-width="3"/><circle cx="180" cy="255" r="12" fill="#9ECDB0" opacity=".5"/>
+  <circle cx="580" cy="255" r="34" fill="#0d0d0d" stroke="#9ECDB0" stroke-width="3"/><circle cx="580" cy="255" r="12" fill="#9ECDB0" opacity=".5"/>
  </g>
- <path d="M0 612 H1280" stroke="#39FF14" stroke-opacity=".18" stroke-width="2"/>
+ <path d="M0 612 H1280" stroke="#9ECDB0" stroke-opacity=".18" stroke-width="2"/>
 </svg>
 <div class="bar"></div>
 <div class="txt"><div class="wm">PITLANE</div>
