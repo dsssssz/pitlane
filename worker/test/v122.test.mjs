@@ -20,5 +20,5 @@ ok(/_homeLastFix = \{ acc: Number\(pos\?\.coords\?\.accuracy\)/.test(app) && /Da
 ok(!/getCurrentPosition|watchPosition/.test(fn) && /permissions\?\.query\?\.\(\{ name: 'geolocation' \}\)/.test(fn), 'на Главной GPS не запрашивается (только чтение разрешения)');
 ok(!/innerHTML/.test(fn), 'textContent / DOM, без innerHTML');
 ok(/<meta http-equiv="Content-Security-Policy"[^>]*script-src 'self'/.test(html), 'CSP не тронут');
-ok(/APP_VERSION = 'v122'/.test(app) && /pitlane-v122/.test(sw), 'APP_VERSION v122 / SW pitlane-v122');
+ok(Number((app.match(/APP_VERSION = 'v(\d+)'/) || [])[1]) >= 122 && Number((sw.match(/pitlane-v(\d+)/) || [])[1]) >= 122, 'APP_VERSION / SW ≥ v122');
 console.log(fails ? `✗ ${fails} failed` : '✓ v122 all passed'); process.exit(fails ? 1 : 0);

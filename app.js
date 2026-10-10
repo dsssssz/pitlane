@@ -54,7 +54,7 @@ function ensureThree() {
 import { createExtGps } from './ext-gps.js';
 /* v120: блок показывается, только когда в нём есть хотя бы N записей (пустая таблица хуже отсутствующей) */
 const SHOW_MIN = { leaders: 3, track: 1, sessionDay: 1, sectors: 3, season: 2 };
-function showWhen(id, on) { const e = typeof id === 'string' ? document.getElementById(id) : id; if (e) e.hidden = !on; }
+function showWhen(id, on) { const e = typeof id === 'string' ? document.getElementById(id) : id; if (e) e.hidden = !on || e.classList.contains('v123-off'); } // v123: скрытые блоки старой Главной не всплывают
 import { TRACK_OUTLINES } from './geo/outlines.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
@@ -6815,7 +6815,7 @@ if (isTMA) {
 
   // BackButton: close the top-most sheet / overlay, otherwise go back to the garage.
   const SHEETS = [
-    ['safetySheet', 'safetyCancel'], ['deleteSheet', 'deleteClose'], ['pitHelpSheet', 'pitHelpClose'],
+    ['plMenu', 'plMenuClose'], ['safetySheet', 'safetyCancel'], ['deleteSheet', 'deleteClose'], ['pitHelpSheet', 'pitHelpClose'],
     ['shareCard', 'shareCardClose'], ['duelSheet', 'duelSheetClose'], ['crewSheet', 'crewSheetClose'],
     ['autodromeSheet', 'autodromeSheetClose'], ['carPickerSheet', 'carPickerClose'],
     ['feedbackSheet', 'feedbackClose'], ['padCommentsSheet', 'padCommentsClose'], ['pilotSheet', 'pilotClose'],
@@ -11793,7 +11793,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v122';
+const APP_VERSION = 'v123';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13588,15 +13588,189 @@ function renderHome() {
   try { homeReveal(); } catch (_) { document.querySelectorAll('#view-home .h-rv').forEach((e) => e.classList.add('in')); }
   setupHomeCarousel();
   try { hcGoPos(_hcPos, false); } catch (_) {}
-  void renderHomeHero();
-  void renderHomeDuels();
-  void renderHomeTrack();
-  void renderHomeLeaders();
-  renderHomeStats();
+  const on = (id) => !document.getElementById(id)?.classList.contains('v123-off');
+  if (on('homeHero')) void renderHomeHero();
+  if (on('homeDuelsSec')) void renderHomeDuels();
+  if (on('homeTrackSec')) void renderHomeTrack();
+  if (on('homeLeadersSec')) void renderHomeLeaders();
+  if (on('homeStatsSec')) renderHomeStats();
+  void renderHomeWidgets();
   if (!document.getElementById('homeCarsSec')?.classList.contains('v120-off')) renderHomeCars();
   if (!document.getElementById('homePostsSec')?.classList.contains('v120-off')) void renderHomeTopPosts();
   renderHomeGo();
 }
+
+/* ——— v123: Главная из окошек-виджетов + меню ☰ + навигация без нижнего таббара (на телефоне) ——— */
+const STUDIO_IDS = new Set(['g87-m2', 'gt3rs', 'mclaren-765lt', 'g63', 'm4', 'm3', 'x6', 'isf', 'c63-ed507', 'spark']);
+function studioSrcset(id, ext) { return [780, 1170, 1560].map((w) => `./img/cars/studio/${id}-${w}.${ext} ${w}w`).join(', '); }
+function hwSet(id, nodes) { const b = document.getElementById(id); if (!b) return; b.replaceChildren(...nodes); }
+function hwBig(v, unit) { const b = padEl('b', 'hw-big', v); if (unit) b.appendChild(padEl('small', '', unit)); return b; }
+function hwLine(k, v, cls = '') { const r = padEl('span', 'hw-line ' + cls); r.appendChild(padEl('span', 'hw-lk', k)); r.appendChild(padEl('b', 'hw-lv', v)); return r; }
+function hwEmpty(title, sub) { return [padEl('span', 'hw-empty-t', title), padEl('span', 'hw-empty-s', sub)]; }
+function homeBest0100(carId, remote) {
+  const drag = remote?.prof?.best?.drag || {};
+  const srv = (disc) => (drag[disc] && (!drag[disc].carId || drag[disc].carId === carId)) ? Number(drag[disc].t) : null;
+  const ab = minDefined(passportBest(carId, 'v0100'), localDragBest(carId, '0-100')?.t, srv('0-100'));
+  if (ab != null) return { t: ab, cls: 'ab' };
+  const c = Number(state.dragBestC?.[carId]?.['0-100']?.t);
+  return c > 0 ? { t: c, cls: 'c' } : null;
+}
+function renderHwCar(remote) {
+  const id = homeHeroCarId();
+  const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
+  if (!m) return;
+  const img = document.getElementById('hwCarImg'); const av = document.getElementById('hwCarAvif');
+  if (img && img.dataset.car !== m.id) {
+    img.dataset.car = m.id;
+    if (STUDIO_IDS.has(m.id)) {
+      av?.setAttribute('srcset', studioSrcset(m.id, 'avif'));
+      img.setAttribute('srcset', studioSrcset(m.id, 'webp'));
+      img.src = `./img/cars/studio/${m.id}-1170.webp`;
+    } else { av?.removeAttribute('srcset'); img.removeAttribute('srcset'); img.src = carThumbUrl(m.id); }
+  }
+  const nm = document.getElementById('hwCarName'); if (nm) nm.textContent = m.name;
+  let cls = ''; try { cls = (CARS.find((c) => c.id === m.id)?.cls) || ''; } catch (_) {}
+  const sub = document.getElementById('hwCarSub'); if (sub) sub.textContent = [m.year, cls].filter(Boolean).join(' · ');
+  const chip = document.getElementById('hwCarBest');
+  const best = null; // v123: без дубля 0–100 на фото (см. «Мои рекорды» / «Замер»)
+  if (chip) {
+    chip.hidden = !best; chip.replaceChildren();
+    if (best) { chip.appendChild(padEl('span', '', '0–100')); chip.appendChild(padEl('b', '', best.t.toFixed(2) + ' с')); if (best.cls === 'c') chip.appendChild(padEl('i', '', 'C')); }
+  }
+  document.getElementById('hwCar')?.setAttribute('data-car', m.id);
+}
+function renderHwRecords(remote) {
+  const id = homeHeroCarId();
+  const best = homeBest0100(id, remote);
+  const drag = remote?.prof?.best?.drag || {};
+  const q = minDefined(localDragBest(id, '402m')?.t, drag['402m'] && (!drag['402m'].carId || drag['402m'].carId === id) ? Number(drag['402m'].t) : null);
+  const lap = localBestLap();
+  const rows = [];
+  if (best) rows.push(hwLine('0–100', best.t.toFixed(2) + ' с' + (best.cls === 'c' ? ' · C' : '')));
+  if (q != null) rows.push(hwLine('¼ мили', q.toFixed(2) + ' с'));
+  if (lap) rows.push(hwLine('Круг', fmtLapTime(lap.ms)));
+  const btn = document.getElementById('hwRec'); if (btn) btn.dataset.empty = rows.length ? '0' : '1';
+  hwSet('hwRecBody', rows.length ? rows : hwEmpty('Пока пусто', 'Первый замер появится здесь'));
+}
+let _hwDuelsAt = 0;
+async function renderHwDuels() {
+  if (Date.now() - _hwDuelsAt < 30000 && document.getElementById('hwDuelsBody')?.childElementCount) return;
+  _hwDuelsAt = Date.now();
+  let rows = []; try { rows = await fetchMyDuels(); } catch (_) { rows = []; }
+  const inbox = rows.filter((d) => duelCategory(d) === 'inbox').length;
+  const active = rows.filter((d) => duelCategory(d) === 'active').length;
+  if (!inbox && !active) { hwSet('hwDuelsBody', hwEmpty('Нет активных', 'Вызови пилота 1 на 1')); return; }
+  const n = inbox + active;
+  const nodes = [hwBig(String(n), n === 1 ? 'дуэль' : n < 5 ? 'дуэли' : 'дуэлей')];
+  if (inbox) nodes.push(padEl('span', 'hw-note hw-acc', inbox === 1 ? 'тебя вызвали' : 'вызовов: ' + inbox));
+  else nodes.push(padEl('span', 'hw-note', 'ждут заезда'));
+  hwSet('hwDuelsBody', nodes);
+}
+let _hwPadAt = 0;
+async function renderHwPaddock() {
+  if (Date.now() - _hwPadAt < 60000 && document.getElementById('hwPadBody')?.childElementCount) return;
+  _hwPadAt = Date.now();
+  let rows = []; try { rows = isRemoteApi() ? await api.listPulseTopDay() : []; } catch (_) { rows = []; }
+  const p = Array.isArray(rows) ? rows.find((x) => x && (x.text || x.title)) : null;
+  if (!p) { hwSet('hwPadBody', hwEmpty('Сегодня тихо', 'Поделись заездом первым')); return; }
+  const who = padEl('span', 'hw-who', clipText(String(p.who || 'пилот'), 18));
+  const txt = padEl('span', 'hw-quote', String(p.text || p.title || '').replace(/\s+/g, ' ').slice(0, 90));
+  hwSet('hwPadBody', [who, txt]);
+}
+let _hwTeamAt = 0;
+async function renderHwTeam() {
+  if (Date.now() - _hwTeamAt < 60000 && document.getElementById('hwTeamBody')?.childElementCount) return;
+  _hwTeamAt = Date.now();
+  let rows = null; try { rows = isRemoteApi() && currentUser() ? await api.listMyCrews(crewPilotId()) : null; } catch (_) { rows = null; }
+  const c = Array.isArray(rows) && rows.length ? rows[0] : null;
+  if (!c) { hwSet('hwTeamBody', hwEmpty('Нет команды', 'Собери экипаж — общий зачёт')); return; }
+  const n = Number(c.memberCount || c.members?.length || 0);
+  hwSet('hwTeamBody', [padEl('b', 'hw-name', clipText(String(c.name || 'Экипаж'), 20)), padEl('span', 'hw-note', n ? n + ' из 10 пилотов' : 'экипаж')]);
+}
+function renderHwTop(remote) {
+  const board = remote?.board || [];
+  if (!board.length) { hwSet('hwTopBody', hwEmpty('Топ пока пуст', 'Первое честное время займёт #1')); return; }
+  const lead = board[0];
+  const nodes = [];
+  const l = padEl('span', 'hw-top-lead');
+  l.appendChild(padEl('i', 'hw-pos', '1'));
+  l.appendChild(padEl('span', 'hw-top-name', clipText(String(lead.name || 'пилот'), 16)));
+  l.appendChild(padEl('b', 'hw-top-t', Number(lead.t).toFixed(2) + ' с'));
+  nodes.push(l);
+  const i = remote?.pid ? board.findIndex((r) => r.pilotId === remote.pid) : -1;
+  nodes.push(padEl('span', 'hw-top-me' + (i >= 0 ? ' on' : ''), i >= 0 ? 'ты #' + (i + 1) + ' из ' + board.length : board.length + ' в зачёте'));
+  hwSet('hwTopBody', nodes);
+}
+async function renderHomeWidgets() {
+  if (!document.getElementById('homeWidgets')) return;
+  renderHwCar(null); renderHwRecords(null); renderHwTop(null);
+  void renderHwDuels(); void renderHwPaddock(); void renderHwTeam();
+  let remote = null; try { remote = await homeRemote(); } catch (_) { remote = null; }
+  renderHwCar(remote); renderHwRecords(remote); renderHwTop(remote);
+  try { renderHomeGo(); } catch (_) {}
+}
+document.getElementById('homeWidgets')?.addEventListener('click', (e) => {
+  const w = e.target?.closest?.('[data-hw]'); if (!w) return;
+  e.stopPropagation(); hap(8);
+  const k = w.dataset.hw;
+  if (k === 'garage') { openCarInGarage(w.dataset.car || homeHeroCarId()); return; }
+  if (k === 'records') { goToView(w.dataset.empty === '1' ? 'run' : 'tops'); return; }
+  if (k === 'team') { openCrewSheet(); return; }
+  goToView(k);
+});
+
+/* меню ☰ */
+function plMenuOpen() {
+  const m = document.getElementById('plMenu'); if (!m) return;
+  m.classList.remove('hidden'); m.setAttribute('aria-hidden', 'false');
+  document.getElementById('btnMenu')?.setAttribute('aria-expanded', 'true');
+  requestAnimationFrame(() => m.classList.add('on'));
+  setTimeout(() => { try { document.getElementById('plMenuClose')?.focus({ preventScroll: true }); } catch (_) {} }, 50);
+}
+function plMenuClose() {
+  const m = document.getElementById('plMenu'); if (!m || m.classList.contains('hidden')) return;
+  m.classList.remove('on'); m.setAttribute('aria-hidden', 'true');
+  document.getElementById('btnMenu')?.setAttribute('aria-expanded', 'false');
+  const panel = document.getElementById('plMenuPanel'); if (panel) panel.style.transform = '';
+  const done = () => m.classList.add('hidden');
+  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) done(); else setTimeout(done, 260);
+}
+document.getElementById('btnMenu')?.addEventListener('click', () => { hap(6); plMenuOpen(); });
+document.getElementById('plMenuClose')?.addEventListener('click', plMenuClose);
+document.getElementById('plMenuScrim')?.addEventListener('click', plMenuClose);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') plMenuClose(); });
+document.getElementById('plMenu')?.addEventListener('click', (e) => {
+  const it = e.target?.closest?.('[data-plm]'); if (!it) return;
+  const k = it.dataset.plm;
+  if (k === 'method') { plMenuClose(); return; } // обычная ссылка
+  e.preventDefault(); hap(6); plMenuClose();
+  setTimeout(() => {
+    if (k === 'team') openCrewSheet();
+    else if (k === 'autodromes') openAutodromeSheet();
+    else if (k === 'feedback') openFeedbackSheet();
+    else if (k === 'gps') { goToView('run'); setTimeout(() => { const g = document.querySelector('#view-run .ext-gps-src'); try { g?.scrollIntoView({ block: 'center', behavior: 'smooth' }); g?.classList.add('hl-pulse'); setTimeout(() => g?.classList.remove('hl-pulse'), 1600); } catch (_) {} }, 280); }
+    else goToView(k);
+  }, 120);
+});
+// свайп вправо по панели — закрыть
+(() => {
+  const panel = document.getElementById('plMenuPanel'); if (!panel) return;
+  let x0 = null, y0 = 0, dx = 0;
+  panel.addEventListener('touchstart', (e) => { const t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; dx = 0; }, { passive: true });
+  panel.addEventListener('touchmove', (e) => { if (x0 == null) return; const t = e.touches[0]; dx = t.clientX - x0; if (Math.abs(t.clientY - y0) > Math.abs(dx)) { x0 = null; panel.style.transform = ''; return; } if (dx > 0) panel.style.transform = `translateX(${dx}px)`; }, { passive: true });
+  panel.addEventListener('touchend', () => { if (x0 == null) return; x0 = null; if (dx > 70) plMenuClose(); else panel.style.transform = ''; });
+})();
+/* навигация «окошки»: на телефоне без нижнего таббара; домой — Telegram BackButton или ‹ в шапке */
+document.documentElement.classList.add('nav-widgets');
+document.getElementById('btnHome')?.addEventListener('click', () => { hap(6); goToView('home'); });
+function syncHomeBtn() {
+  const b = document.getElementById('btnHome'); if (!b) return;
+  const onHome = !!document.getElementById('view-home')?.classList.contains('active');
+  const tg = !!(window.Telegram?.WebApp?.initData);
+  b.hidden = onHome || tg; // в Telegram «назад» — системная кнопка
+}
+new MutationObserver(syncHomeBtn).observe(document.getElementById('viewHost') || document.body, { subtree: true, attributes: true, attributeFilter: ['class'] });
+syncHomeBtn();
 /* v120: главная кнопка «Сделать замер» и единственный шаг онбординга (без модалок, ничего не блокирует) */
 const FIRST_RUN_KEY = 'pitlane-first-run-v1';
 function hasAnyRun() {
@@ -13649,16 +13823,14 @@ function renderHomeGo() {
   renderHomeGoGps();
   const bestEl = document.getElementById('homeGoBest');
   if (!bestEl) return;
-  let best = null; let cls = 'ab';
-  try {
-    const pick = (o, c) => { for (const m of Object.values(o || {})) { const r = m && m['0-100']; if (r && Number.isFinite(Number(r.t)) && (!best || Number(r.t) < Number(best.t))) { best = r; cls = c; } } };
-    pick(state.dragBest, 'ab'); if (!best) pick(state.dragBestC, 'c');
-  } catch (_) {}
+  // v123: одна правда с виджетами — лучший 0–100 текущей машины (локально + сервер), C только если нет A/B
+  let best = null;
+  try { best = homeBest0100(homeHeroCarId(), _homeCache?.at && Date.now() - _homeCache.at < 120000 ? _homeCache : null); } catch (_) { best = null; }
   bestEl.hidden = !best;
   bestEl.replaceChildren();
   if (best) {
     bestEl.append(document.createTextNode('лучший 0–100'));
-    const b = document.createElement('b'); b.textContent = Number(best.t).toFixed(2) + ' с' + (cls === 'c' ? ' · C' : '');
+    const b = document.createElement('b'); b.textContent = best.t.toFixed(2) + ' с' + (best.cls === 'c' ? ' · C' : '');
     bestEl.append(b);
   }
 }

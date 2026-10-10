@@ -115,13 +115,21 @@
 
       <main>
         <div class="brand-bar">
-          <b>PITLANE</b>
-          <button type="button" class="profile-btn" data-view="account" id="btnProfile" title="Профиль" aria-label="Профиль">
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
-              <circle cx="12" cy="8" r="3.2"/>
-              <path d="M5.8 19.2c.8-3.1 3.1-4.7 6.2-4.7s5.4 1.6 6.2 4.7"/>
-            </svg>
+          <button type="button" class="bb-home" id="btnHome" aria-label="На главную" hidden>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 6l-6 6 6 6"/></svg>
           </button>
+          <b>PITLANE</b>
+          <div class="bb-actions">
+            <button type="button" class="profile-btn bb-menu-btn" id="btnMenu" title="Меню" aria-label="Меню" aria-haspopup="dialog" aria-controls="plMenu" aria-expanded="false">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 8h14M5 12h14M9 16h10"/></svg>
+            </button>
+            <button type="button" class="profile-btn" data-view="account" id="btnProfile" title="Профиль" aria-label="Профиль">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
+                <circle cx="12" cy="8" r="3.2"/>
+                <path d="M5.8 19.2c.8-3.1 3.1-4.7 6.2-4.7s5.4 1.6 6.2 4.7"/>
+              </svg>
+            </button>
+          </div>
         </div>
         <header class="top">
           <div>
@@ -168,6 +176,25 @@
               <span class="hg-best" id="homeGoBest" hidden></span>
             </div>
           </section>
+          <!-- v123: Главная из окошек-виджетов (графитовое стекло); тап — раздел. Только реальные данные -->
+          <div class="hw-grid" id="homeWidgets">
+            <button type="button" class="hw hw-car hw-wide" id="hwCar" data-hw="garage" aria-label="Моя машина — открыть Бокс">
+              <span class="hw-car-art">
+                <picture>
+                  <source id="hwCarAvif" type="image/avif" sizes="(max-width: 540px) calc(100vw - 32px), 508px">
+                  <img id="hwCarImg" class="hw-car-img" alt="" width="1560" height="975" decoding="async" fetchpriority="high" sizes="(max-width: 540px) calc(100vw - 32px), 508px">
+                </picture>
+              </span>
+              <span class="hw-k hw-car-k">Моя машина</span>
+              <span class="hw-car-txt"><b id="hwCarName">—</b><span id="hwCarSub"></span></span>
+              <span class="hw-car-chip" id="hwCarBest" hidden></span>
+            </button>
+            <button type="button" class="hw" id="hwRec" data-hw="records"><span class="hw-k">Мои рекорды</span><span class="hw-body" id="hwRecBody"></span></button>
+            <button type="button" class="hw" id="hwDuels" data-hw="duels"><span class="hw-k">Дуэли</span><span class="hw-body" id="hwDuelsBody"></span></button>
+            <button type="button" class="hw" id="hwPad" data-hw="pulse"><span class="hw-k">Paddock</span><span class="hw-body" id="hwPadBody"></span></button>
+            <button type="button" class="hw" id="hwTeam" data-hw="team"><span class="hw-k">Команда</span><span class="hw-body" id="hwTeamBody"></span></button>
+            <button type="button" class="hw hw-wide hw-slim" id="hwTop" data-hw="tops"><span class="hw-k">Топ 0–100</span><span class="hw-body" id="hwTopBody"></span></button>
+          </div>
           <div class="home-carousel v120-off" id="homeCarousel" hidden role="region" aria-roledescription="карусель" aria-label="Разделы Pitlane">
             <div class="hc-track" id="homeCarouselTrack">
               <button type="button" class="hc-slide hc-duel" data-go="duels" aria-label="Дуэли — вызови любого пилота 1 на 1">
@@ -205,9 +232,9 @@
           </div>
 
           <!-- v86: hero «Моя машина» — премиальная карточка -->
-          <article class="home-hero h-rv" id="homeHero">
+          <article class="home-hero h-rv v123-off" id="homeHero" hidden>
             <button type="button" class="hh-stage" id="homeHeroStage" aria-label="Открыть машину в гараже">
-              <img id="homeHeroImg" class="hh-img" src="./img/cars/hero/g87-m2.webp" alt="" decoding="async" fetchpriority="high">
+              <img id="homeHeroImg" class="hh-img" alt="" decoding="async" loading="lazy">
               <span class="hh-kicker"><i class="h-dot" aria-hidden="true"></i>Моя машина</span>
               <span class="hh-open" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 16L16 8M9 8h7v7"/></svg></span>
             </button>
@@ -223,7 +250,7 @@
           </article>
 
           <!-- v86: быстрые действия — иконки-плитки -->
-          <div class="home-quick h-rv" id="homeQuick">
+          <div class="home-quick h-rv v123-off" id="homeQuick" hidden>
             
             <button type="button" class="hq-btn" data-hq="lap"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 3.8v3.6h-3.6"/><circle cx="12" cy="12" r="1.6"/></svg></span><b>Круг</b></button>
             <button type="button" class="hq-btn" data-hq="duel"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3.5 7l5.5 5-5.5 5M20.5 7L15 12l5.5 5M12 7.5v9"/></svg></span><b>Дуэль</b></button>
@@ -232,7 +259,7 @@
           </div>
 
           <!-- v86: мои дуэли -->
-          <section class="home-sec h-rv" id="homeDuelsSec" hidden>
+          <section class="home-sec h-rv v123-off" id="homeDuelsSec" hidden>
             <div class="home-sec-head">
               <h3>Мои дуэли</h3>
               <span class="hsh-lead" aria-hidden="true"></span>
@@ -242,7 +269,7 @@
           </section>
 
           <!-- v86: трасса дня -->
-          <section class="home-sec h-rv" id="homeTrackSec" hidden>
+          <section class="home-sec h-rv v123-off" id="homeTrackSec" hidden>
             <div class="home-sec-head">
               <h3>Трасса дня</h3>
               <span class="hsh-lead" aria-hidden="true"></span>
@@ -261,7 +288,7 @@
           </section>
 
           <!-- v86: лидеры 0–100 -->
-          <section class="home-sec h-rv" id="homeLeadersSec" hidden>
+          <section class="home-sec h-rv v123-off" id="homeLeadersSec" hidden>
             <div class="home-sec-head">
               <h3>Лидеры 0–100</h3>
               <span class="hsh-lead" aria-hidden="true"></span>
@@ -271,7 +298,7 @@
           </section>
 
           <!-- v86: мой прогресс -->
-          <section class="home-sec h-rv">
+          <section class="home-sec h-rv v123-off" id="homeStatsSec" hidden>
             <div class="home-sec-head"><h3>Мой прогресс</h3></div>
             <div id="homeStats" class="home-stats"></div>
           </section>
@@ -1108,6 +1135,35 @@
       </div>
     </div>
 
+    <!-- v123: меню ☰ — выезжающая панель справа (закрытие: фон, кнопка, свайп вправо, Esc, Telegram BackButton) -->
+    <div class="pl-menu hidden" id="plMenu" role="dialog" aria-modal="true" aria-label="Меню" aria-hidden="true">
+      <div class="plm-scrim" id="plMenuScrim"></div>
+      <aside class="plm-panel" id="plMenuPanel">
+        <div class="plm-head">
+          <b class="plm-brand">PITLANE</b>
+          <button type="button" class="plm-close" id="plMenuClose" aria-label="Закрыть меню"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <nav class="plm-quick" aria-label="Разделы">
+          <button type="button" data-plm="home"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg><span>Главная</span></button>
+          <button type="button" data-plm="run"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l3.2-3.2M10 3h4"/></svg><span>Заезд</span></button>
+          <button type="button" data-plm="duels"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7l5.5 5-5.5 5M20.5 7L15 12l5.5 5"/></svg><span>Дуэли</span></button>
+          <button type="button" data-plm="tops"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19v-7h3v7zM10.5 19V6h3v13zM16 19v-4h3v4z"/></svg><span>Топ</span></button>
+        </nav>
+        <ul class="plm-list">
+          <li><button type="button" data-plm="team"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5M14.5 15c2.6-.4 4.9.8 5.5 4"/></svg><span>Команда<small>экипаж и общий зачёт</small></span></button></li>
+          <li><button type="button" data-plm="pulse"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="2.4"/></svg><span>Paddock<small>посты и заезды пилотов</small></span></button></li>
+          <li><button type="button" data-plm="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 20v-5h6v5"/></svg><span>Бокс · 3D<small>машина на подиуме</small></span></button></li>
+          <li><button type="button" data-plm="autodromes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17c0-5 3-6 6-6s4-1 4-4 2-3 4-2M5 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/><path d="M15 17h4"/></svg><span>Автодромы и трассы<small>справочник, круг по GPS</small></span></button></li>
+          <li><button type="button" data-plm="gps"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="7"/></svg><span>Источник GPS · чип<small>телефон, Bluetooth, Wi-Fi</small></span></button></li>
+          <li><a href="./method.html" data-plm="method"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg><span>Методика<small>как считаем время и класс</small></span></a></li>
+          <li><button type="button" data-plm="feedback"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v10H9l-5 4z"/></svg><span>Обратная связь<small>идея или ошибка — напиши</small></span></button></li>
+        </ul>
+        <nav class="plm-legal" aria-label="Правовая информация">
+          <a href="./privacy.html">Конфиденциальность</a>
+          <a href="./terms.html">Соглашение</a>
+        </nav>
+      </aside>
+    </div>
     <script type="importmap">
       {
         "imports": {
