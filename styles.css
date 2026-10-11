@@ -1147,8 +1147,7 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
 .nav-btn.active .ico-top .ico-bar2 { animation: barGrow .45s ease; transform-origin: center bottom; }
 .nav-btn.active .ico-top .ico-flag { animation: flagWave .5s ease; transform-origin: 12px 6px; }
 .nav-btn.active .ico-pad { animation: icoPop .45s cubic-bezier(.2,.9,.3,1.4); }
-.nav-btn.active .ico-home, .nav-btn.active .ico-shop { animation: icoPop .45s cubic-bezier(.2,.9,.3,1.4); } /* v138 */
-.ico-home { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.nav-btn.active .ico-shop { animation: icoPop .45s cubic-bezier(.2,.9,.3,1.4); } /* v138 */
 .nav-btn.active .ico-pad .ico-ring { animation: ringPing .55s ease; transform-origin: 12px 12px; }
 .nav-btn.active .ico-pad .ico-core { animation: coreBeat .55s ease; transform-origin: 12px 12px; }
 

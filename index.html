@@ -110,12 +110,13 @@
             </span>
             <i data-i18n="nav.paddock">Paddock</i>
           </button>
-                  <!-- v138: нижняя панель на телефоне — Главная / Paddock / Трассы / Магазин (Дуэли — в меню ☰ и виджете Главной) -->
-          <button type="button" class="nav-btn sheet-tab" data-sheet="home" title="Главная">
+                  <!-- v139: нижняя панель на телефоне — Дуэли / Paddock / Трассы / Магазин -->
+          <button type="button" class="nav-btn sheet-tab" data-sheet="duels" title="Дуэли" aria-haspopup="dialog" aria-controls="tgSheet">
             <span class="nav-ico" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="ico ico-home"><path d="M4 10.5L12 4l8 6.5"/><path d="M6 9.2V19a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9.2"/><path d="M10 20v-5h4v5"/></svg>
+              <svg viewBox="0 0 24 24" class="ico ico-duel"><path class="ico-dl" d="M3 7l6 5-6 5"/><path class="ico-dr" d="M21 7l-6 5 6 5"/><path class="ico-spark" d="M12 8v8"/></svg>
             </span>
-            <i>Главная</i>
+            <i>Дуэли</i>
+            <span class="nav-badge" id="sbBadgeDuels" hidden></span>
           </button>
           <button type="button" class="nav-btn sheet-tab" data-sheet="pulse" title="Paddock" aria-haspopup="dialog" aria-controls="tgSheet">
             <span class="nav-ico" aria-hidden="true">

@@ -7,7 +7,7 @@ const app = fs.readFileSync(root + 'app.js', 'utf8'); const sw = fs.readFileSync
 console.log('[панель]');
 const bar = html.slice(html.indexOf('<nav class="tabbar" id="tabbar">'), html.indexOf('</nav>', html.indexOf('id="tabbar"')));
 const tabs = [...bar.matchAll(/class="nav-btn sheet-tab" data-sheet="([a-z]+)"/g)].map((m) => m[1]);
-ok(tabs.join(',') === 'home,pulse,tracks,shop', 'v138: четыре пункта: Главная, Paddock, Трассы, Магазин');
+ok(tabs.join(',') === 'duels,pulse,tracks,shop', 'v139: четыре пункта: Дуэли, Paddock, Трассы, Магазин');
 ok(/data-plm="duels"/.test(html) && /id="hwDuels"/.test(html), 'v138: Дуэли — в меню ☰ и виджете Главной');
 ok(/id="tabPill"/.test(bar) && /\.tab-pill \{[\s\S]{0,400}transition: transform \.38s cubic-bezier/.test(css), 'та же «пилюля» с пружинным переездом');
 ok(/\.nav-btn:active \{ transform: scale\(\.92\); \}/.test(css) && /\.nav-btn\.active \.ico-lap \{ animation: icoPop/.test(css), 'сжатие при нажатии и анимация иконки как у старых вкладок');

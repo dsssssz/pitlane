@@ -1611,7 +1611,6 @@ function goToView(id, opts = {}) {
     document.querySelectorAll('.nav-btn').forEach((b) => b.classList.remove('active'));
     syncTabPill(null);
   }
-  try { syncHomeTab(id === 'home'); } catch (_) {} // v138
 
   // v83: Paddock feed renders on every entry (also ?view=pulse deep links, which used to show an empty feed)
   if (id === 'pulse') setTimeout(() => { try { void renderPulse(); } catch (_) {} }, 0);
@@ -12260,7 +12259,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v138';
+const APP_VERSION = 'v139';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -14615,23 +14614,7 @@ function tgsFill(kind) {
 function tgsSetTab(kind) {
   const btn = kind ? document.querySelector(`.sheet-tab[data-sheet="${kind}"]`) : null;
   document.querySelectorAll('.sheet-tab').forEach((b) => b.setAttribute('aria-expanded', b === btn ? 'true' : 'false'));
-  if (btn) activateNavBtn(btn); else { document.querySelectorAll('.nav-btn.sheet-tab').forEach((b) => b.classList.remove('active')); syncTabPill(null); syncHomeTab(document.querySelector('.view.active')?.id === 'view-home'); }
-}
-/* v138: «Главная» в нижней панели — активна на стартовом экране, когда шторки закрыты */
-function syncHomeTab(onHome) {
-  const hb = document.querySelector('.sheet-tab[data-sheet="home"]'); if (!hb || !hb.getClientRects().length) return;
-  if (onHome && !TGS.open && document.getElementById('shopSheet')?.classList.contains('hidden') !== false) activateNavBtn(hb);
-}
-setTimeout(() => { try { syncHomeTab(document.querySelector('.view.active')?.id === 'view-home'); } catch (_) {} }, 600); // v138: активна при входе
-function goHomeTab() {
-  try { closeTgSheet({ instant: true }); } catch (_) {}
-  try { closeShopSheet(); } catch (_) {}
-  try { plMenuClose(); } catch (_) {}
-  try { padCloseSheets(); } catch (_) {}
-  document.querySelectorAll('.crew-sheet:not(.hidden)').forEach((s) => { s.classList.add('hidden'); s.setAttribute('aria-hidden', 'true'); });
-  goToView('home', { sfx: false });
-  syncHomeTab(true);
-  try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch (_) { window.scrollTo(0, 0); }
+  if (btn) activateNavBtn(btn); else { document.querySelectorAll('.nav-btn.sheet-tab').forEach((b) => b.classList.remove('active')); syncTabPill(null); }
 }
 function tgsBgOrigin() { const vh = document.getElementById('viewHost'); if (vh) vh.style.transformOrigin = `50% ${Math.round(window.scrollY + window.innerHeight * 0.35)}px`; }
 function openTgSheet(kind) {
@@ -14666,7 +14649,6 @@ function closeTgSheet(opts = {}) {
 document.getElementById('tabbar')?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('.sheet-tab'); if (!b) return;
   e.preventDefault();
-  if (b.dataset.sheet === 'home') { hap(6); goHomeTab(); return; } // v138
   if (b.dataset.sheet === 'shop') { hap(6); closeTgSheet({ instant: true }); void openShopSheet(); activateNavBtn(b); return; }
   openTgSheet(b.dataset.sheet);
 });
