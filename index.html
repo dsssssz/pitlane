@@ -110,13 +110,12 @@
             </span>
             <i data-i18n="nav.paddock">Paddock</i>
           </button>
-                  <!-- v124: нижняя панель на телефоне — ровно три пункта, каждый открывает шторку (Telegram) -->
-          <button type="button" class="nav-btn sheet-tab" data-sheet="duels" title="Дуэли" aria-haspopup="dialog" aria-controls="tgSheet">
+                  <!-- v138: нижняя панель на телефоне — Главная / Paddock / Трассы / Магазин (Дуэли — в меню ☰ и виджете Главной) -->
+          <button type="button" class="nav-btn sheet-tab" data-sheet="home" title="Главная">
             <span class="nav-ico" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="ico ico-duel"><path class="ico-dl" d="M3 7l6 5-6 5"/><path class="ico-dr" d="M21 7l-6 5 6 5"/><path class="ico-spark" d="M12 8v8"/></svg>
+              <svg viewBox="0 0 24 24" class="ico ico-home"><path d="M4 10.5L12 4l8 6.5"/><path d="M6 9.2V19a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9.2"/><path d="M10 20v-5h4v5"/></svg>
             </span>
-            <i>Дуэли</i>
-            <span class="nav-badge" id="sbBadgeDuels" hidden></span>
+            <i>Главная</i>
           </button>
           <button type="button" class="nav-btn sheet-tab" data-sheet="pulse" title="Paddock" aria-haspopup="dialog" aria-controls="tgSheet">
             <span class="nav-ico" aria-hidden="true">
@@ -130,6 +129,12 @@
               <svg viewBox="0 0 24 24" class="ico ico-lap"><path class="ico-track" d="M7 7c4-3 10-2 12 3s-1 10-6 11-10-3-9-8 4-7 8-7"/><circle class="ico-car" cx="17" cy="9" r="1.6"/></svg>
             </span>
             <i>Трассы</i>
+          </button>
+          <button type="button" class="nav-btn sheet-tab" data-sheet="shop" title="Магазин" aria-haspopup="dialog" aria-controls="shopSheet">
+            <span class="nav-ico" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="ico ico-shop"><path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/></svg>
+            </span>
+            <i>Магазин</i>
           </button>
 </nav>
         

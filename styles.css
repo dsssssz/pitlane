@@ -1147,6 +1147,8 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
 .nav-btn.active .ico-top .ico-bar2 { animation: barGrow .45s ease; transform-origin: center bottom; }
 .nav-btn.active .ico-top .ico-flag { animation: flagWave .5s ease; transform-origin: 12px 6px; }
 .nav-btn.active .ico-pad { animation: icoPop .45s cubic-bezier(.2,.9,.3,1.4); }
+.nav-btn.active .ico-home, .nav-btn.active .ico-shop { animation: icoPop .45s cubic-bezier(.2,.9,.3,1.4); } /* v138 */
+.ico-home { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .nav-btn.active .ico-pad .ico-ring { animation: ringPing .55s ease; transform-origin: 12px 12px; }
 .nav-btn.active .ico-pad .ico-core { animation: coreBeat .55s ease; transform-origin: 12px 12px; }
 
@@ -5828,7 +5830,7 @@ body.run-sum-on .run-drive-actions > * { flex: 1 1 calc(50% - 10px); }
   html.nav-widgets main { padding-bottom: calc(96px + var(--sab, 0px)); }
   html.nav-widgets .rail nav.tabbar > .nav-btn:not(.sheet-tab) { display: none !important; }
   html.nav-widgets .rail nav.tabbar > .nav-btn.sheet-tab { display: flex; }
-  html.nav-widgets .rail { left: 50%; right: auto; width: min(340px, calc(100vw - 32px)); transform: translateX(-50%); }
+  html.nav-widgets .rail { left: 50%; right: auto; width: min(372px, calc(100vw - 24px)); transform: translateX(-50%); }
 }
 
 /* виджеты Главной */
@@ -5912,6 +5914,8 @@ html.tgs-open #viewHost { transform: scale(.94); border-radius: 18px; opacity: .
 html.tgs-open main > .brand-bar { transform: scale(.94) translateY(6px); opacity: .6; }
 /* панель — поверх шторки, чтобы переключать пункты */
 @media (max-width: 900px) { html.tgs-open.nav-widgets .rail { z-index: 66; } }
+/* v138: «Магазин» — пункт панели: панель поверх шторки магазина, шторка над панелью */
+@media (max-width: 900px) { html.shop-open.nav-widgets .rail { z-index: 12001; } html.shop-open.nav-widgets .shop-sheet { padding-bottom: calc(96px + var(--sab, 0px)); } html.shop-open.nav-widgets .shop-sheet-inner.race-sheet-inner { max-height: calc(100vh - 140px - var(--sab, 0px)); } }
 /* Трассы */
 .tgs-tracks { padding: 0 16px; }
 .tgs-title { margin: 2px 0 4px; font: 700 26px/1.1 Manrope, system-ui, sans-serif; letter-spacing: -.02em; color: #f4f4f4; }
