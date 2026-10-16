@@ -6305,7 +6305,7 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .shop-head { display: flex; align-items: center; gap: 10px; padding-right: 36px; min-height: 40px; }
 .shop-head-t { min-width: 0; }
 .shop-title { margin: 0; font: 600 22px/1.15 Manrope, system-ui, sans-serif; letter-spacing: -.015em; color: #f4f4f4; text-transform: none; }
-.shop-sub { margin: 4px 0 0; font: 500 13px/1.35 Manrope, sans-serif; color: var(--h-sub, #a3a3a3); }
+.shop-plan { margin: 4px 0 0; font: 500 13px/1.35 Manrope, sans-serif; color: var(--h-sub, #a3a3a3); }
 .shop-back { flex: none; width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.04); color: #eaeaea; display: grid; place-items: center; padding: 0; cursor: pointer; }
 .shop-back svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .shop-card { display: flex; flex-direction: column; text-align: left; padding: 0; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); background: #171818; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform .12s ease; }
@@ -6509,3 +6509,10 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .vt-out { display: flex; gap: 10px; }
 .vt-out:empty { display: none; }
 .vt-dl, .vt-share { flex: 1; text-align: center; padding: 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,.1); background: transparent; color: #e8e9ea; font: 600 13.5px Manrope, sans-serif; text-decoration: none; }
+
+/* ===== v144: подписки «скоро» ===== */
+.shop-subs { margin-top: 28px; display: flex; flex-direction: column; gap: 12px; }
+.shop-plan { padding: 18px 20px; border-radius: 22px; border: 1px solid rgba(255,255,255,.06); background: rgba(255,255,255,.02); }
+.shop-plan-t { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.shop-plan-t b { font: 600 15px Manrope, sans-serif; color: #ececec; }
+.shop-plan p { margin: 8px 0 0; font: 400 13px/1.5 Manrope, sans-serif; }

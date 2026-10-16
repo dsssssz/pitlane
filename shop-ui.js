@@ -1,6 +1,6 @@
 /* v137: магазин PITLANE — шторка: витрина → карточка товара → заявка → «Заявка принята», плюс «Мои заявки».
  * Всё строится через DOM + textContent (без вставки HTML-строк). Оплаты онлайн нет (SHOP_CONFIG.payments=false). */
-import { SHOP_CONFIG, ORDER_STATUS, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal } from './shop-config.js';
+import { SHOP_SUBS, SHOP_CONFIG, ORDER_STATUS, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal } from './shop-config.js';
 
 let D = null; // deps from app.js: { api, currentUser, needLogin, hap, close }
 const st = { stack: [], orders: null, tg: undefined, busy: false, draft: {} };
@@ -39,6 +39,11 @@ function viewList() {
     c.appendChild(t);
     c.addEventListener('click', () => { D.hap?.(6); push({ k: 'product', id: p.id }); });
     f.appendChild(c);
+  }
+  if (SHOP_SUBS.length) {
+    const sec = el('section', 'shop-subs'); sec.appendChild(el('h3', 'shop-h3', 'Подписки'));
+    for (const s of SHOP_SUBS) { const c = el('div', 'shop-plan'); const t = el('div', 'shop-plan-t'); t.appendChild(el('b', '', s.title)); t.appendChild(el('span', 'shop-badge', 'Скоро')); c.appendChild(t); c.appendChild(el('p', 'shop-muted', s.subtitle)); sec.appendChild(c); }
+    f.appendChild(sec);
   }
   f.appendChild(ordersBlock());
   f.appendChild(el('p', 'shop-foot', 'Онлайн-оплаты пока нет: оформляете заявку — мы пишем вам в Telegram и договариваемся об оплате и доставке.'));
@@ -92,7 +97,7 @@ function viewProduct(v) {
   buy.appendChild(cta); f.appendChild(buy);
   if (!SHOP_CONFIG.payments) f.appendChild(el('p', 'shop-muted shop-pay-note', 'Без предоплаты в приложении: после заявки напишем в Telegram, договоримся об оплате и доставке.'));
   const sp = el('section', 'shop-sec'); sp.appendChild(el('h3', 'shop-h3', 'Характеристики'));
-  const dl = el('dl', 'shop-specs'); for (const [k, val] of p.specs) { dl.appendChild(el('dt', '', k)); dl.appendChild(el('dd', '', val)); } sp.appendChild(dl); f.appendChild(sp);
+  const dl = el('dl', 'shop-specs'); for (const [k, val] of (p.specs || [])) { dl.appendChild(el('dt', '', k)); dl.appendChild(el('dd', '', val)); } sp.appendChild(dl); f.appendChild(sp);
   if (p.inBox?.length) { const s = el('section', 'shop-sec'); s.appendChild(el('h3', 'shop-h3', 'В комплекте')); const ul = el('ul', 'shop-list'); p.inBox.forEach((x) => ul.appendChild(el('li', '', x))); s.appendChild(ul); f.appendChild(s); }
   if (p.notes?.length) { const s = el('section', 'shop-sec'); s.appendChild(el('h3', 'shop-h3', 'Важно')); const ul = el('ul', 'shop-list shop-notes'); p.notes.forEach((x) => ul.appendChild(el('li', '', x))); s.appendChild(ul); f.appendChild(s); }
   return f;

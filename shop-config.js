@@ -71,9 +71,40 @@ export const SHOP_PRODUCTS = [
       'Первый холодный старт под открытым небом — до минуты.',
     ],
   },
+  // v144: аксессуары — заявка как у чипа. Цена null → «Цена по запросу» (Мага выставит после расчёта себестоимости).
+  {
+    id: 'pitlane-gps-case',
+    title: 'Корпус PITLANE GPS',
+    subtitle: 'Запасной корпус, ASA графит, без электроники',
+    price: null,
+    status: 'preorder',
+    maxQty: 5,
+    gallery: [{ ...IMG('gps-top'), alt: 'Корпус PITLANE GPS, вид сверху' }],
+    specs: [['Материал', 'ASA, графит — не ведёт на солнце'], ['Размер', '76 × 46 × 15 мм'], ['Состав', 'корпус, крышка, световод'], ['Для', 'PITLANE GPS или своей сборки по комплекту']],
+    inBox: ['Корпус', 'Крышка', 'Световод', 'Винты M2'],
+    notes: ['Электроники в комплекте нет.'],
+  },
+  {
+    id: 'pitlane-mount',
+    title: 'Магнитный держатель',
+    subtitle: 'Пластина на 3M + магниты для торпеды',
+    price: null,
+    status: 'preorder',
+    maxQty: 5,
+    gallery: [{ ...IMG('gps-car'), alt: 'PITLANE GPS на торпеде' }],
+    specs: [['Крепление', 'неодимовые магниты + стальная пластина'], ['Клей', '3M VHB'], ['Совместимость', 'корпус PITLANE GPS']],
+    inBox: ['Стальная пластина на 3M — 2 шт.', 'Магниты — 4 шт.'],
+    notes: ['Клеить на чистую обезжиренную поверхность, дать 24 ч на схватывание.'],
+  },
   // Пример будущих товаров (раскомментировать и добавить картинки в img/shop/):
   // { id: 'pitlane-gps-case', title: 'Корпус PITLANE GPS', subtitle: 'ASA графит, без электроники', price: null, status: 'soon', maxQty: 5, gallery: [], specs: [], inBox: [], notes: [] },
   // { id: 'usb-cable-90', title: 'Кабель USB-A → USB-C 90°', subtitle: '1 м, с передачей данных', price: null, status: 'soon', maxQty: 5, gallery: [], specs: [], inBox: [], notes: [] },
+];
+
+/** v144: подписки — только витрина «Скоро», без оплаты и без заявки. */
+export const SHOP_SUBS = [
+  { id: 'sub-analytics', title: 'Расширенная аналитика', subtitle: 'Разбор каждого круга, сравнение с топом трассы, история сессий без ограничений', status: 'soon' },
+  { id: 'sub-tracks', title: 'Дополнительные трассы', subtitle: 'Новые откалиброванные трассы и конфигурации, секторы от команды', status: 'soon' },
 ];
 
 export const productById = (id) => SHOP_PRODUCTS.find((p) => p.id === id) || null;
