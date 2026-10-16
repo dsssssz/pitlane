@@ -57,6 +57,7 @@ const SHOW_MIN = { leaders: 3, track: 1, sessionDay: 1, sectors: 3, season: 2 };
 function showWhen(id, on) { const e = typeof id === 'string' ? document.getElementById(id) : id; if (e) e.hidden = !on || e.classList.contains('v123-off'); } // v123: скрытые блоки старой Главной не всплывают
 import { TRACK_OUTLINES } from './geo/outlines.js';
 import { analyzeSession, splitOutline, sectorTone } from './session-review.js';
+import * as LB from './lap-battle.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
@@ -84,6 +85,7 @@ import {
   setLapSatMapMode,
   updateLapSatMapGps, updateLapSatMapGhost,
   trackOutlineQuality,
+  paintSatSector, resetSatSectors,
 } from './track-sat-map.js';
 
 function hap(ms = 12) {
@@ -4907,7 +4909,28 @@ function updateSessionHud() {
   }
 }
 
+/* v141: sector battle — сплит сектора vs лучший (сессия + история трассы), цвет на карте и в чипе */
+function lapBattleRef(trackId) {
+  const hist = ((state.laps && state.laps[trackId]) || []).filter((l) => Array.isArray(l.sectors));
+  const sess = lapSession.trackId === trackId ? lapSession.laps : [];
+  return LB.bestSplits([...hist, ...sess]);
+}
+function lapBattleSector(i, label) {
+  const split = LB.splitsOf(lapRun.sectorMs)[i];
+  const ref = lapBattleRef(lapRun.trackId)[i];
+  const d = LB.sectorDelta(split, ref);
+  LB.paintChip(document.getElementById(label), i, split, d);
+  LB.paintSector(document.getElementById('lapTrackSvg'), i, LB.toneOf(d));
+  try { const tn = LB.toneOf(d); paintSatSector(i, tn, tn === 'better' ? LB.SECTOR_BETTER : tn === 'worse' ? LB.SECTOR_WORSE : null); } catch (_) {}
+}
+function lapBattleReset() {
+  ['lapDriveS1', 'lapDriveS2', 'lapDriveS3'].forEach((id, i) => LB.paintChip(document.getElementById(id), i, null, null));
+  const svg = document.getElementById('lapTrackSvg'); LB.resetSectors(svg); LB.setGhostDot(svg, null);
+  try { resetSatSectors(); } catch (_) {}
+}
+
 function resetLapCounters() {
+  try { lapBattleReset(); } catch (_) {}
   lapRun.dist = 0;
   lapRun.leftGate = false;
   lapRun.flags = [];
@@ -5349,7 +5372,7 @@ function onLapGps(pos, vKmh) {
         lapRun.sectorHit[i] = true;
         lapRun.sectorMs[i] = elapsed;
         const label = i === 0 ? 'lapDriveS1' : i === 1 ? 'lapDriveS2' : 'lapDriveS3';
-        setLapHud(label, `S${i + 1} ${fmtLapClock(elapsed)}`);
+        lapBattleSector(i, label);
       }
     }
   }
@@ -8961,7 +8984,7 @@ const I18N = {
   ru: {
     'nav.home':'Главная','nav.duels':'Дуэли','nav.ride':'Заезд','nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Paddock','nav.park':'Парк',
     'garage.empty':'Гараж пуст','garage.hint':'Добавь свой автомобиль — марка, кузов, год, мотор.','garage.add':'Добавить автомобиль','garage.reset':'сброс',
-    'run.title':'Замер','run.hint':'Нажми старт, почти остановись, разгоняйся. Когда скорость упадёт — замер сохранится.','run.start':'Старт',
+    'run.title':'Замер','run.hint':'Старт, остановка, газ. Времена появятся по ходу.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Написать в Paddock…','pad.empty':'Пока тихо — напиши первым.',
@@ -8970,7 +8993,7 @@ const I18N = {
   en: {
     'nav.home':'Home','nav.duels':'Duels','nav.ride':'Drive','nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock','nav.park':'Park',
     'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car','garage.reset':'reset',
-    'run.title':'Run','run.hint':'Tap start, almost stop, then accelerate. When speed drops the run is saved.','run.start':'Start',
+    'run.title':'Run','run.hint':'Start, stop, launch. Times appear as you go.','run.start':'Start',
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
     'lap.title':'Lap','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start lap','lap.finish':'Finish lap',
     'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'Write to Paddock…','pad.empty':'Quiet for now. Sign in and write the first post.',
@@ -10840,6 +10863,10 @@ function ghostLapTick() {
   const dtx = Math.min(1.5, Math.max(0, (wall - live.wall) / 1000));
   const x = live.d + (live.v / 3.6) * dtx;
   ghostDeltaUi('lap', deltaAt(tr, 'd', x, elapsed));
+  if (lapDrive.open && !isLapSatMapActive() && elapsed <= tr.tMs + 4000) {
+    // v141: призрак на SVG-карте — прогресс по времени призрака (оценка)
+    try { const d = TRACK_SVG[lapRun.trackId] || TRACK_SVG.sochi; LB.setGhostDot(document.getElementById('lapTrackSvg'), pointOnTrack(d, Math.min(0.999, elapsed / Math.max(1, tr.tMs)))); } catch (_) {}
+  }
   if (lapDrive.open && isLapSatMapActive() && elapsed <= tr.tMs + 4000) {
     const p = tr.posAt(Math.min(elapsed, tr.t[tr.n - 1]));
     updateLapSatMapGhost(p);
@@ -12276,7 +12303,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v140';
+const APP_VERSION = 'v141';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12395,6 +12422,13 @@ async function openShopSheet(productId) {
   try { _shopMod = _shopMod || await import('./shop-ui.js'); } catch (_) { const b = document.getElementById('shopBody'); if (b) b.textContent = 'Магазин не загрузился — проверьте интернет'; return; }
   _shopMod.openShop({ api, currentUser, needLogin, hap, close: closeShopSheet }, productId);
 }
+/* v141: «Предложить трассу» */
+document.querySelector('#trackSuggestCard details')?.addEventListener('toggle', (e) => {
+  if (!e.target.open) return;
+  LB.mountSuggest(document.getElementById('trackSuggestHost'), { api, needLogin, currentUser, hap,
+    getPos: () => new Promise((res, rej) => { if (!navigator.geolocation) { rej(new Error('no geo')); return; } navigator.geolocation.getCurrentPosition((p) => res({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }), rej, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }); }) });
+});
+window.__lb = LB; window.__lbOpenHud = () => openLapDrive(); window.__lbSat = paintSatSector; // для скриншотов/отладки
 function closeShopSheet() { const s = document.getElementById('shopSheet'); if (!s) return; s.classList.add('hidden'); s.setAttribute('aria-hidden', 'true'); document.documentElement.classList.remove('shop-open'); try { tgsSetTab(null); } catch (_) {} }
 document.getElementById('shopClose')?.addEventListener('click', closeShopSheet);
 document.getElementById('shopSheet')?.addEventListener('click', (e) => { if (e.target?.id === 'shopSheet') closeShopSheet(); });

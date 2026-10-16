@@ -640,6 +640,11 @@
               <p>История track-day — пока бесплатно</p>
             </div>
           </article>
+          <article class="card ts-card" id="trackSuggestCard">
+            <h3>Нет вашей трассы?</h3>
+            <p class="tiny muted">Откалибруйте её по GPS — старт/финиш и сектора. После проверки она появится в списке.</p>
+            <details class="ts-det"><summary>Предложить трассу</summary><div id="trackSuggestHost"></div></details>
+          </article>
           <article class="card" id="sectorBattleCard">
             <div class="card-head-row">
               <button type="button" class="pit-info-btn" data-help="sectorBattle" title="Справка" aria-label="Справка: Sector Battle">i</button>
@@ -1081,7 +1086,7 @@
           <span id="lapDriveDist">0 м</span>
           <span id="lapDriveSlip">слип ~—°</span>
         </div>
-        <div class="lap-drive-sectors">
+        <div class="lap-drive-sectors lb-chips" aria-live="polite">
           <span id="lapDriveS1">S1 —</span>
           <span id="lapDriveS2">S2 —</span>
           <span id="lapDriveS3">S3 —</span>

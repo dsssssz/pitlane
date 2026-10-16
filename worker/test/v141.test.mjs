@@ -1,0 +1,42 @@
+// v141: sector battle (чистые функции), POST /tracks/suggest на моках, фронт-разметка.
+import rawWorker from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+import { MemKV } from './kvmock.mjs';
+import fs from 'fs';
+const LB = await import('../../lap-battle.js');
+const worker = withAutoRefresh(rawWorker);
+let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c ? '' : JSON.stringify(x ?? '').slice(0, 300)); if (!c) fails++; };
+ok(JSON.stringify(LB.splitsOf([30000, 65000, 100000])) === '[30000,35000,35000]', 'splitsOf');
+ok(JSON.stringify(LB.bestSplits([{ sectors: [30000, 65000, 100000] }, { sectors: [31000, 64000, 98000] }, { sectors: [1, 2, 3], valid: false }])) === '[30000,33000,34000]', 'bestSplits без невалидных');
+ok(LB.toneOf(-10) === 'better' && LB.toneOf(5) === 'worse' && LB.toneOf(null) === 'none', 'toneOf');
+ok(LB.fmtDelta(-210) === '−0.21' && LB.fmtDelta(1500) === '+1.50', 'fmtDelta');
+const kv = new MemKV(); const sent = [];
+const env = { PITLANE: kv, SMS_DEMO: '1', TELEGRAM_BOT_TOKEN: '123456:' + 'A'.repeat(30), TELEGRAM_BOT_USERNAME: 'pitlane_official_bot', FEEDBACK_CHAT_ID: '8591275999', SHOP_CHAT_ID: '8591275999',
+  __fetch: async (u, o) => { sent.push({ m: String(u).split('/').pop(), b: JSON.parse(o?.body || '{}') }); return new Response(JSON.stringify({ ok: true, result: { message_id: 1 } })); } };
+let ip = 1;
+async function call(method, path, { body, token } = {}) { const h = { Origin: 'https://dsssssz.github.io', 'Content-Type': 'application/json', 'CF-Connecting-IP': '10.141.0.' + (ip++ % 250) }; if (token) h.Authorization = 'Bearer ' + token;
+  const r = await worker.fetch(new Request('https://api.test' + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined }), env); const t = await r.text(); let d; try { d = JSON.parse(t); } catch { d = t; } return { status: r.status, data: d }; }
+const o = await call('POST', '/auth/otp', { body: { phone: '79001410001' } });
+const v = await call('POST', '/auth/verify', { body: { phone: '79001410001', code: o.data.demoCode, nick: 'Мага' } });
+const T = v.data.token;
+const good = { name: 'Картодром Ставрополь', city: 'Ставрополь', sf: { lat: 45.05, lon: 41.97, acc: 6 }, sectors: [{ lat: 45.051, lon: 41.972, acc: 8 }], note: 'новая', cid: 'abcdefgh1234' };
+ok((await call('POST', '/tracks/suggest', { body: good })).status === 401, 'без входа — 401');
+const r1 = await call('POST', '/tracks/suggest', { body: good, token: T });
+ok(r1.status === 200 && r1.data.ok && r1.data.forwarded && /^t[a-z0-9]{12}$/.test(r1.data.id), 'заявка принята и ушла в бот', r1);
+const m = sent.find((x) => x.m === 'sendMessage');
+ok(m && m.b.chat_id === '8591275999' && /Новая трасса/.test(m.b.text) && /Ставрополь/.test(m.b.text) && /Сектор 1/.test(m.b.text), 'сообщение владельцу', m);
+ok((await call('POST', '/tracks/suggest', { body: good, token: T })).data.duplicate === true, 'повтор по cid — дубль');
+ok((await call('POST', '/tracks/suggest', { body: { ...good, cid: 'zzzzzzzz0001', sf: { lat: 0, lon: 0 } }, token: T })).data.field === 'sf', 'плохая С/Ф');
+ok((await call('POST', '/tracks/suggest', { body: { ...good, cid: 'zzzzzzzz0002', sectors: [{ lat: 55, lon: 37 }] }, token: T })).data.field === 'sectors', 'сектор далеко');
+ok((await call('POST', '/tracks/suggest', { body: { ...good, cid: 'zzzzzzzz0003', name: '<b>' }, token: T })).status === 400, 'имя проверяется');
+ok(!/<b>Картодром/.test(m.b.text.replace('<b>Картодром Ставрополь</b>', '')), 'экранирование');
+const html = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+const app = fs.readFileSync(new URL('../../app.js', import.meta.url), 'utf8');
+const sw = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../../styles.css', import.meta.url), 'utf8');
+ok(html.includes('id="trackSuggestHost"') && html.includes('lb-chips'), 'разметка');
+ok(app.includes('lapBattleSector(i, label)') && app.includes("'run.hint':'Старт, остановка, газ."), 'sector battle подключён + короткий хинт');
+ok(sw.includes("'./lap-battle.js'"), 'модуль в precache');
+const v141 = css.slice(css.indexOf('v141: sector battle'));
+ok(!/text-shadow|drop-shadow|0 0 ([2-9]|\d{2,})px/.test(v141), 'без свечения');
+if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v141 OK');

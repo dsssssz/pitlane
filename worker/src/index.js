@@ -8,6 +8,7 @@ import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, lo
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
 import { gpsRoute, deleteAccountGps, GpsLive } from './gpslive.js';
 import { shopRoute, deleteAccountShop } from './shop.js';
+import { trackSuggestRoute, deleteAccountTrackSug } from './tracksug.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
@@ -2418,6 +2419,7 @@ async function deleteAccount(kv, pid, currentToken, env = { PITLANE: kv }) {
   // v116: Wi-Fi GPS chips bound to the account (token hashes)
   Object.assign(rep, await deleteAccountGps(kv, pid, GPS_H));
   Object.assign(rep, await deleteAccountShop(kv, pid, SHOP_H)); // v137: заявки магазина
+  await deleteAccountTrackSug(kv, pid, SHOP_H); // v141: предложенные трассы
   // v115: profile music (Telegram file ids only — the files stay in Telegram)
   Object.assign(rep, await deleteAccountMusic(kv, pid));
   // v114: monthly 0–100 season aggregates
@@ -4150,6 +4152,8 @@ export default {
       // —— v116: PITLANE GPS по Wi-Fi (привязка чипа + live через Durable Object) ——
       { const gr = await gpsRoute({ req, env, path, url, headers, ip, pilot, h: GPS_H }); if (gr) return gr; }
       // —— v137: магазин (заявки, без онлайн-оплаты) ——
+      // —— v141: предложить / откалибровать трассу (модерация через бота) ——
+      { const tsr = await trackSuggestRoute({ req, env, path, headers, ip, pilot, h: SHOP_H }); if (tsr) return tsr; }
       { const shr = await shopRoute({ req, env, path, headers, ip, pilot, h: SHOP_H }); if (shr) return shr; }
 
       // —— v97: «Это моя машина» + комнаты экипажей (+ Stars season) ——

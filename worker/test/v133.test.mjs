@@ -14,7 +14,11 @@ const greensIn = (t) => (noComments(t).match(COL) || []).filter(neon);
 // v134: исключение — разбор сессии. Насыщенные зелёный/красный (лучше/хуже) разрешены ТОЛЬКО в правилах,
 // где каждый селектор начинается с #sessionSheet, и только через токены --ss-good / --ss-bad (без свечения).
 const SS_RULE = /(^|})\s*((?:#sessionSheet\b[^{},]*)(?:,\s*#sessionSheet\b[^{},]*)*)\{([^}]*)\}/g;
-const stripSession = (t) => t.replace(SS_RULE, '$1');
+// v141: Sector battle (круг) — второй разрешённый контекст: только правила .lb-chips / .lb-sec, без shadow/filter.
+const LB_RULE = /(?<=^|})()\s*((?:\.lb-(?:chips|sec)\b[^{},]*)(?:,\s*\.lb-(?:chips|sec)\b[^{},]*)*)\{([^}]*)\}/g;
+const lbRules = []; noComments(R('styles.css')).replace(LB_RULE, (_, a, sel, body) => { lbRules.push([sel.trim(), body]); return _; });
+const stripSession = (t) => t.replace(SS_RULE, '$1').replace(LB_RULE, '$1');
+ok(lbRules.length > 0 && lbRules.every(([, b]) => !/shadow|filter/.test(b)), 'sector battle: без свечения', lbRules.filter(([, b]) => /shadow|filter/.test(b)));
 const ssRules = []; noComments(R('styles.css')).replace(SS_RULE, (_, a, sel, body) => { ssRules.push([sel.trim(), body]); return _; });
 console.log('\n[CSS: ни одного неонового зелёного (кроме разбора сессии)]');
 for (const f of ['styles.css', 'legal.css']) ok(greensIn(stripSession(noComments(R(f)))).length === 0, `${f}: нет ярко-зелёных цветов (вкл. 8-значный hex и %23 в SVG-иконках)`, greensIn(R(f)).slice(0, 8));

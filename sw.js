@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v140';
+const CACHE = 'pitlane-v141';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -30,6 +30,7 @@ const CORE = [
   './car-brands.js',
   './shop-config.js',
   './shop-ui.js',
+  './lap-battle.js',
   './img/shop/gps-hero-720.webp',
   './img/flags/de.svg', './img/flags/gb.svg', './img/flags/it.svg', './img/flags/jp.svg', './img/flags/us.svg',
   './track-cal.js',

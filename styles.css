@@ -6427,3 +6427,29 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 #view-garage > * + * { margin-top: 24px; }
 #view-garage .card, #view-garage article { border-radius: 22px; }
 .view section + section, .view article + article { margin-top: 18px; }
+
+/* ===== v141: sector battle, сектора на карте, предложить трассу ===== */
+.lb-chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lb-chips > span { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 14px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); font: 500 15px/1.1 var(--font-num, Manrope), sans-serif; color: #e9e9e9; }
+.lb-chips > span b { font: 600 10px/1 Manrope, sans-serif; letter-spacing: .14em; color: #7d7d7d; }
+.lb-chips > span i { font-style: normal; font-size: 12px; color: #8a8a8a; min-height: 12px; }
+.lb-chips > span[data-tone="better"] { border-color: rgba(48,209,88,.45); }
+.lb-chips > span[data-tone="better"] i { color: #30d158; }
+.lb-chips > span[data-tone="worse"] { border-color: rgba(255,69,58,.45); }
+.lb-chips > span[data-tone="worse"] i { color: #ff453a; }
+.lb-sec { stroke: transparent; transition: stroke .3s ease; }
+.lb-sec[data-tone="better"] { stroke: #30d158; }
+.lb-sec[data-tone="worse"] { stroke: #ff453a; }
+.lb-ghost { fill: rgba(232,233,234,.9); stroke: #1a1a1a; stroke-width: 1.5; }
+.ts-card .ts-det summary { cursor: pointer; list-style: none; margin-top: 14px; padding: 14px 18px; border-radius: 18px; background: #ecebe8; color: #1c1c1d; font: 600 14px/1 Manrope, sans-serif; text-align: center; }
+.ts-card .ts-det summary::-webkit-details-marker { display: none; }
+#trackSuggestHost { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+.ts-in { width: 100%; box-sizing: border-box; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); color: #eee; font: 500 14px Manrope, sans-serif; }
+.ts-btn { padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: transparent; color: #e8e9ea; font: 600 13.5px Manrope, sans-serif; }
+.ts-btn:disabled, .ts-send:disabled { opacity: .4; }
+.ts-send { padding: 16px; border-radius: 18px; border: 0; background: #ecebe8; color: #1c1c1d; font: 600 14px Manrope, sans-serif; }
+.ts-pts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ts-pts li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(255,255,255,.06); font: 500 12.5px Manrope, sans-serif; color: #aaa; }
+.ts-pts li b { color: #e8e8e8; font-weight: 600; }
+.ts-msg { color: #a9a9a9; min-height: 16px; }
+.lb-chips > span > span { all: unset; font: 500 17px/1.1 var(--font-num, Manrope), sans-serif; color: #f0f0f0; }

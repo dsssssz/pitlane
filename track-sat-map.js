@@ -426,3 +426,22 @@ export function trackOutlineQuality(trackId) {
 }
 
 export { TRACK_OUTLINES };
+
+/* v141: Sector battle на спутниковой карте — линия делится на 3 равные по длине части; цвет только у пройденного сектора. */
+let secLines = null; let secMap = null;
+export function paintSatSector(i, tone, color) { // цвет приходит из lap-battle.js (контекст секторов)
+  const L = Lref(); if (!L || !state.map || !state.outline) return false;
+  if (secMap !== state.map) { secLines = null; secMap = state.map; }
+  if (!secLines) {
+    let ll = state.outline.getLatLngs(); if (Array.isArray(ll[0])) ll = ll[0];
+    if (!ll || ll.length < 4) return false;
+    const cum = [0]; for (let k = 1; k < ll.length; k++) cum.push(cum[k - 1] + ll[k - 1].distanceTo(ll[k]));
+    const tot = cum[cum.length - 1] || 1; const parts = [[], [], []];
+    ll.forEach((p, k) => { const s = Math.min(2, Math.floor((cum[k] / tot) * 3)); parts[s].push(p); if (k > 0 && s > 0 && parts[s].length === 1) parts[s].unshift(ll[k - 1]); });
+    secLines = parts.map((pts) => L.polyline(pts, { color: 'transparent', weight: 4.2, opacity: 1, lineCap: 'butt', interactive: false }).addTo(state.map));
+  }
+  const pl = secLines[i]; if (!pl) return false;
+  pl.setStyle({ color: tone === 'none' || !color ? 'transparent' : color });
+  return true;
+}
+export function resetSatSectors() { if (secLines && secMap === state.map) secLines.forEach((pl) => pl.setStyle({ color: 'transparent' })); }
