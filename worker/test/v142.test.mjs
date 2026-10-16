@@ -1,0 +1,22 @@
+// v142: аналитика круга — derive, whereLost, delta; фронт-подключение.
+import fs from 'fs';
+const A = await import('../../lap-analytics.js');
+let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c ? '' : JSON.stringify(x ?? '').slice(0, 400)); if (!c) fails++; };
+const fast = A.derive(A.demoLap(1, 0)), slow = A.derive(A.demoLap(1, 1));
+ok(fast.d.length > 100 && fast.L > 3000, 'derive: дистанция', fast.L);
+ok(Math.min(...fast.ax) < -0.3 && Math.max(...fast.ax) > 0.1, 'derive: торможение/разгон в g', [Math.min(...fast.ax), Math.max(...fast.ax)]);
+ok(Math.max(...fast.gl.map(Math.abs)) > 0.3 && Math.max(...fast.gl.map(Math.abs)) <= 2.5, 'derive: боковая G в разумных пределах', Math.max(...fast.gl.map(Math.abs)));
+const ds = A.deltaSeriesD(slow, fast); ok(ds.dt[ds.dt.length - 1] > 0.1, 'дельта: медленный круг проигрывает', ds.dt.at(-1));
+const wl = A.whereLost(slow, fast);
+ok(wl.length === 3 && wl.some((s) => s.dMs > 80 && s.tips.some((t) => /км\/ч|тормоз/.test(t))), 'правила: есть сектор с потерей и конкретный совет', wl.map((s) => [s.dMs, s.tips]));
+ok(A.whereLost(fast, fast).every((s) => s.dMs === 0 && /вровень/.test(s.tips[0])), 'одинаковые круги — вровень');
+ok(A.derive([]).d.length === 0, 'пустой круг не падает');
+const app = fs.readFileSync(new URL('../../app.js', import.meta.url), 'utf8');
+const html = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
+const sw = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../../styles.css', import.meta.url), 'utf8');
+ok(html.includes('id="lapAnalyticsHost"') && app.includes('teleSave(trackId') && app.includes("import('./lap-analytics.js')"), 'подключено к кругу');
+ok(sw.includes("'./lap-analytics.js'"), 'precache');
+const c = css.slice(css.indexOf('v142: аналитика круга'));
+ok(!/#30d158|#ff453a|shadow|glow/.test(c), 'аналитика — приглушённая палитра, без свечения');
+if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v142 OK');

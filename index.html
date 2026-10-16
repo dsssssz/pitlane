@@ -640,6 +640,16 @@
               <p>История track-day — пока бесплатно</p>
             </div>
           </article>
+          <article class="card la-card" id="lapAnalyticsCard">
+            <h3>Аналитика круга</h3>
+            <p class="tiny muted">Скорость, ускорение и боковая G по дистанции. Наложение на лучший круг и разбор, где ушло время.</p>
+            <div class="la-pick seg-control" role="group" aria-label="Сравнение">
+              <button type="button" class="seg-btn on" data-la="best" aria-pressed="true">vs мой лучший</button>
+              <button type="button" class="seg-btn" data-la="prev" aria-pressed="false">vs прошлый</button>
+            </div>
+            <div id="lapAnalyticsHost" class="la-host"></div>
+            <button type="button" class="la-demo-btn" id="btnLapAnalyticsDemo">Показать на демо-круге</button>
+          </article>
           <article class="card ts-card" id="trackSuggestCard">
             <h3>Нет вашей трассы?</h3>
             <p class="tiny muted">Откалибруйте её по GPS — старт/финиш и сектора. После проверки она появится в списке.</p>

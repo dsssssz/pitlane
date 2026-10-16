@@ -5207,6 +5207,7 @@ async function completeLapRun(how, atTs, gsnap) {
       at: rec.at,
     }));
   }
+  if (gsnap && how === 'gate') { try { teleSave(trackId, { ms, at: rec.at, valid: rec.valid !== false, pts: gsnap.points }); } catch (_) {} }
   if (gsnap && how === 'gate') {
     const gqG = valid ? { gpsQ: rec.gpsQ, avgAcc: rec.avgAcc, hz: rec.hz } : gpsQualityFromLapRun(ms);
     void ghostAfterFinish({
@@ -12303,7 +12304,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v141';
+const APP_VERSION = 'v142';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12422,6 +12423,34 @@ async function openShopSheet(productId) {
   try { _shopMod = _shopMod || await import('./shop-ui.js'); } catch (_) { const b = document.getElementById('shopBody'); if (b) b.textContent = 'Магазин не загрузился — проверьте интернет'; return; }
   _shopMod.openShop({ api, currentUser, needLogin, hap, close: closeShopSheet }, productId);
 }
+/* v142: телеметрия кругов (локально, последние 8 на трассу, прорежено) + аналитика */
+const TELE_KEY = 'pitlane-tele-v1';
+function teleAll() { try { return JSON.parse(localStorage.getItem(TELE_KEY) || '{}') || {}; } catch (_) { return {}; } }
+function teleSave(trackId, lap) {
+  const all = teleAll(); const pts = (lap.pts || []).filter((_, i, arr) => i % 2 === 0 || i === arr.length - 1).map((p) => ({ t: Math.round(p.t), d: Math.round(p.d * 10) / 10, v: Math.round(p.v * 10) / 10, lat: p.lat != null ? +p.lat.toFixed(6) : undefined, lon: p.lon != null ? +p.lon.toFixed(6) : undefined }));
+  if (pts.length < 10) return;
+  const list = (all[trackId] || []).concat([{ ms: lap.ms, at: lap.at, valid: lap.valid, pts }]).slice(-8);
+  all[trackId] = list; try { localStorage.setItem(TELE_KEY, JSON.stringify(all)); } catch (_) { all[trackId] = list.slice(-3); try { localStorage.setItem(TELE_KEY, JSON.stringify(all)); } catch (_) {} }
+}
+let _laMod = null; let laMode = 'best'; let laDemo = false;
+async function renderLapAnalytics() {
+  const host = document.getElementById('lapAnalyticsHost'); if (!host) return;
+  try { _laMod = _laMod || await import('./lap-analytics.js'); } catch (_) { host.textContent = 'Аналитика не загрузилась'; return; }
+  const trackId = document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  if (laDemo) { _laMod.renderAnalytics(host, { cur: _laMod.demoLap(1, 1), ref: _laMod.demoLap(1, 0), curLabel: 'круг 1:42.31', refLabel: 'лучший 1:41.58', demo: true }); return; }
+  const list = teleAll()[trackId] || [];
+  const cur = list[list.length - 1];
+  let ref = null;
+  if (cur) { const others = list.slice(0, -1); ref = laMode === 'prev' ? others[others.length - 1] : others.filter((l) => l.valid !== false).sort((x, y) => x.ms - y.ms)[0]; }
+  _laMod.renderAnalytics(host, { cur: cur ? cur.pts : [], ref: ref ? ref.pts : null, curLabel: cur ? 'последний ' + fmtLapTime(cur.ms) : '', refLabel: ref ? (laMode === 'prev' ? 'прошлый ' : 'лучший ') + fmtLapTime(ref.ms) : '' });
+}
+document.querySelectorAll('#lapAnalyticsCard [data-la]').forEach((b) => b.addEventListener('click', () => {
+  laMode = b.dataset.la; laDemo = false; document.querySelectorAll('#lapAnalyticsCard [data-la]').forEach((x) => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }); hap(6); void renderLapAnalytics();
+}));
+document.getElementById('btnLapAnalyticsDemo')?.addEventListener('click', () => { laDemo = !laDemo; document.getElementById('btnLapAnalyticsDemo').textContent = laDemo ? 'Скрыть демо' : 'Показать на демо-круге'; hap(6); void renderLapAnalytics(); });
+document.getElementById('trackSelect')?.addEventListener('change', () => { void renderLapAnalytics(); });
+setTimeout(() => { void renderLapAnalytics(); }, 1500);
+
 /* v141: «Предложить трассу» */
 document.querySelector('#trackSuggestCard details')?.addEventListener('toggle', (e) => {
   if (!e.target.open) return;
