@@ -6376,3 +6376,54 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .shop-done-row span { color: #8d8d8d; }
 .shop-done-row b { font-weight: 600; text-align: right; min-width: 0; overflow-wrap: anywhere; }
 .ico-shop { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ===== v140: HUD замера + больше воздуха ===== */
+#view-run > * + * { margin-top: 20px; }
+#view-run h2 { margin-bottom: 2px; }
+#view-run .run-hint { font-size: 13px; line-height: 1.5; color: #8d8d8d; }
+#view-run .safety-line { color: #6f6f6f; margin-top: 6px; }
+#view-run .speedo.card, #view-run #runIdleCard {
+  background: none !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important;
+  padding: 36px 8px 8px; text-align: center;
+}
+#runIdleCard .speed-num {
+  font: 300 clamp(96px, 30vw, 140px)/.85 var(--font-num), sans-serif;
+  color: #f4f4f2; letter-spacing: -.035em;
+}
+#runIdleCard .speed-unit { margin-top: 12px; font: 500 11px/1.4 Manrope, sans-serif; letter-spacing: .18em; text-transform: uppercase; color: #7d7d7d; }
+#runIdleCard .run-status {
+  margin: 28px auto 6px; max-width: 280px; color: #a9a9a9; text-transform: none;
+  letter-spacing: 0; font: 400 14px/1.55 Manrope, sans-serif;
+}
+#runIdleCard .ext-gps-bar { color: #6f6f6f; font-size: 12px; margin-top: 4px; background: transparent; border: 0; }
+.hud-line { position: relative; height: 2px; margin: 26px auto 0; max-width: 300px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+.hud-line-fill { position: absolute; inset: 0; transform-origin: left; transform: scaleX(0); background: rgb(158,205,176); transition: transform .25s ease-out; }
+.hud-zones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 300px; margin: 22px auto 0; }
+.hud-zones .hz { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.hud-zones .hz span { font: 500 10.5px/1 Manrope, sans-serif; letter-spacing: .12em; color: #7a7a7a; }
+.hud-zones .hz i { display: block; width: 100%; height: 2px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
+.hud-zones .hz b { display: block; height: 100%; transform-origin: left; transform: scaleX(0); background: rgba(232,233,234,.55); transition: transform .25s ease-out; }
+.hud-zones .hz.done span { color: #d8d8d8; }
+.hud-zones .hz.done b { background: rgb(158,205,176); }
+.run-drive .hud-line, .run-drive .hud-zones { max-width: 340px; width: 100%; }
+#runIdleCard .form-row { margin-top: 36px; }
+#btnArm.go-btn, #runDriveStop.go-btn {
+  background: #ecebe8; color: #1c1c1d; border: 0; border-radius: 22px;
+  min-height: 60px; padding: 18px 28px; box-shadow: none;
+  font: 600 15px/1 Manrope, sans-serif; letter-spacing: .14em; text-transform: uppercase;
+  transition: transform .15s ease, background .2s ease;
+}
+#btnArm.go-btn:active, #runDriveStop.go-btn:active { transform: scale(.98); background: #dcdbd8; filter: none; }
+.rd-ready strong { font-weight: 500; color: #e9e9e9; }
+.rd-ready span { color: #8a8a8a; line-height: 1.5; }
+
+/* больше воздуха: карточки, гараж */
+.view .card, .card {
+  padding: 22px 20px; border-radius: 22px;
+  border: 1px solid rgba(255,255,255,.06); box-shadow: none;
+}
+.view .card + .card { margin-top: 18px; }
+.card h3 { margin-bottom: 14px; }
+#view-garage > * + * { margin-top: 24px; }
+#view-garage .card, #view-garage article { border-radius: 22px; }
+.view section + section, .view article + article { margin-top: 18px; }

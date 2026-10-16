@@ -506,11 +506,17 @@
           </div>
           <h2 data-i18n="run.title">Замер</h2>
           <p class="run-car-name" id="runCarName">BMW G87 M2 Widebody</p>
-          <p class="muted" data-i18n="run.hint">Старт → почти стой → газуй. Fusion GPS+IMU сглаживает спидометр; времена появляются снизу по ходу.</p>
+          <p class="muted run-hint" data-i18n="run.hint">Старт, остановка, газ. Времена появятся по ходу.</p>
           <p class="tiny safety-line">Только треки и закрытые площадки. Не отвлекайтесь на телефон за рулём.</p>
           <div class="speedo card" id="runIdleCard">
             <div class="speed-num" id="liveSpeed">0</div>
             <div class="speed-unit">км/ч · GPS <span id="gpsAcc"></span></div>
+            <div class="hud-line" aria-hidden="true"><i class="hud-line-fill"></i></div>
+            <div class="hud-zones" aria-label="Зоны разгона">
+              <div class="hz" data-to="60"><span>0–60</span><i><b></b></i></div>
+              <div class="hz" data-to="100"><span>0–100</span><i><b></b></i></div>
+              <div class="hz" data-to="200"><span>0–200</span><i><b></b></i></div>
+            </div>
             <div class="run-status" id="runStatus">ожидание GPS</div>
             <div class="ext-gps-bar" id="extGpsBar" aria-live="polite">Источник: GPS телефона</div>
             <div class="ghost-pick" id="runGhostPick" data-scope="run"></div>
@@ -1001,6 +1007,12 @@
           <span id="rdReadyS">встаньте на открытом небе</span>
         </div>
         <div class="run-drive-speed"><strong id="runDriveSpeed">0</strong><span>км/ч</span></div>
+        <div class="hud-line" aria-hidden="true"><i class="hud-line-fill"></i></div>
+        <div class="hud-zones" aria-label="Зоны разгона">
+          <div class="hz" data-to="60"><span>0–60</span><i><b></b></i></div>
+          <div class="hz" data-to="100"><span>0–100</span><i><b></b></i></div>
+          <div class="hz" data-to="200"><span>0–200</span><i><b></b></i></div>
+        </div>
         <div class="rd-clock" aria-label="Время и дистанция от старта">
           <div><strong id="rdTimer">0.00</strong><span>с</span></div>
           <div><strong id="runDriveDist">0</strong><span>м</span></div>

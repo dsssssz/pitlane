@@ -3056,6 +3056,21 @@ function displayKmh() {
   return Math.round(s.showKmh || s.vKmh || filtShow || filtV || 0);
 }
 
+var hudPeak = 0;
+function hudZones(v, reset) {
+  if (reset) hudPeak = 0;
+  v = Math.max(0, +v || 0);
+  if (v > hudPeak) hudPeak = v;
+  document.querySelectorAll('.hud-line-fill').forEach((el) => { el.style.transform = 'scaleX(' + Math.min(1, v / 300).toFixed(3) + ')'; });
+  document.querySelectorAll('.hud-zones .hz').forEach((z) => {
+    const to = +z.dataset.to || 100;
+    const f = Math.min(1, hudPeak / to);
+    const b = z.querySelector('b');
+    if (b) b.style.transform = 'scaleX(' + f.toFixed(3) + ')';
+    z.classList.toggle('done', f >= 1);
+  });
+}
+
 function setRunText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
@@ -3072,6 +3087,7 @@ function openRunDrive(phase = 'ready') {
   setRunText('runDriveMsg', '');
   setRunText('runDriveDist', '0');
   setRunText('rdTimer', '0.00');
+  hudZones(0, true);
   setRunText('runDriveSpeed', document.getElementById('liveSpeed')?.textContent || '0');
   rdReadySet('wait', 'Ждём GPS', 'встаньте на открытом небе');
 }
@@ -3420,6 +3436,7 @@ function onGpsPoint(pos) {
   }
   const vShow = displayKmh();
   setRunText('liveSpeed', String(vShow));
+  hudZones(vShow);
   setRunText('boxLive', String(vShow));
   if (document.body.classList.contains('run-drive-on')) { setRunText('runDriveSpeed', String(vShow)); rdStatusUpdate(pos, now); }
   if (lapRun.active) onLapGps(pos, v);
@@ -12259,7 +12276,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v139';
+const APP_VERSION = 'v140';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
