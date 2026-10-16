@@ -12304,7 +12304,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v142';
+const APP_VERSION = 'v143';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12450,6 +12450,15 @@ document.querySelectorAll('#lapAnalyticsCard [data-la]').forEach((b) => b.addEve
 document.getElementById('btnLapAnalyticsDemo')?.addEventListener('click', () => { laDemo = !laDemo; document.getElementById('btnLapAnalyticsDemo').textContent = laDemo ? 'Скрыть демо' : 'Показать на демо-круге'; hap(6); void renderLapAnalytics(); });
 document.getElementById('trackSelect')?.addEventListener('change', () => { void renderLapAnalytics(); });
 setTimeout(() => { void renderLapAnalytics(); }, 1500);
+
+/* v143: видео + телеметрия (модуль грузится по кнопке) */
+let _vtMod = null;
+async function openVideoTele(scope) {
+  try { _vtMod = _vtMod || await import('./video-tele.js'); } catch (_) { return; }
+  _vtMod.openVideo({ getSpeed: () => displayKmh(), getLabel: () => (scope === 'lap' ? 'круг' : 'время'), hap, webUrl: 'https://dsssssz.github.io/pitlane/' });
+}
+document.getElementById('btnVideoRun')?.addEventListener('click', () => { void openVideoTele('run'); });
+document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* v141: «Предложить трассу» */
 document.querySelector('#trackSuggestCard details')?.addEventListener('toggle', (e) => {

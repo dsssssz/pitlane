@@ -1,0 +1,24 @@
+// v143: видео + телеметрия — выбор контейнера, фолбэк, имя файла, подключение.
+import fs from 'fs';
+const V = await import('../../video-tele.js');
+let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c ? '' : JSON.stringify(x ?? '')); if (!c) fails++; };
+ok(V.pickMime((m) => m === 'video/webm;codecs=vp8') === 'video/webm;codecs=vp8', 'pickMime: webm');
+ok(V.pickMime((m) => m.startsWith('video/mp4')) === 'video/mp4;codecs=avc1', 'pickMime: mp4 первым (iOS)');
+ok(V.pickMime(() => false) === '', 'pickMime: ничего');
+ok(V.support({ navigator: {}, isSecureContext: true }).reason === 'no-camera', 'фолбэк: нет камеры (Telegram WebView)');
+function MR() {} MR.isTypeSupported = (m) => m === 'video/webm';
+function HC() {} HC.prototype.captureStream = () => {};
+const s = V.support({ navigator: { mediaDevices: { getUserMedia() {} } }, MediaRecorder: MR, HTMLCanvasElement: HC, isSecureContext: true });
+ok(s.ok && s.mime === 'video/webm', 'поддержка есть', s);
+ok(V.support({ navigator: { mediaDevices: { getUserMedia() {} } }, HTMLCanvasElement: HC, isSecureContext: true }).reason === 'no-recorder', 'нет MediaRecorder');
+ok(V.fmtClock(65432) === '1:05.4', 'fmtClock');
+ok(/^pitlane-\d{8}-\d{4}\.mp4$/.test(V.fileName('video/mp4')) && V.fileName('video/webm').endsWith('.webm'), 'имя файла');
+const calls = []; const ctx = new Proxy({}, { get: (t, k) => k in t ? t[k] : (k === 'createLinearGradient' ? () => ({ addColorStop() {} }) : (...a) => calls.push(k)), set: (t, k, v) => { t[k] = v; return true; } });
+V.drawOverlay(ctx, 720, 1280, { speed: 132, ms: 8400, label: 'время', rec: true });
+ok(calls.filter((c) => c === 'fillText').length >= 5, 'оверлей рисуется');
+const app = fs.readFileSync(new URL('../../app.js', import.meta.url), 'utf8');
+const sw = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
+const vt = fs.readFileSync(new URL('../../video-tele.js', import.meta.url), 'utf8');
+ok(app.includes("import('./video-tele.js')") && sw.includes("'./video-tele.js'"), 'подключено + precache');
+ok(!/shadowBlur|shadowColor/.test(vt), 'оверлей без свечения');
+if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v143 OK');

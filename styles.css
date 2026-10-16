@@ -6492,3 +6492,20 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .la-ax span:first-child { transform: none; }
 .la-ax span:last-child { transform: translateX(-100%); }
 .la-ax span { white-space: nowrap; }
+
+/* ===== v143: видео + телеметрия ===== */
+.vt-open { padding: 14px 18px; border-radius: 16px; border: 1px solid rgba(255,255,255,.1); background: transparent; color: #e8e9ea; font: 600 13.5px Manrope, sans-serif; }
+.vt-open-lap { display: block; width: 100%; margin-top: 12px; }
+.vt-sheet { position: fixed; inset: 0; z-index: 90; background: #0b0b0c; display: flex; flex-direction: column; align-items: stretch; gap: 16px; padding: calc(env(safe-area-inset-top, 0px) + 16px) 20px calc(env(safe-area-inset-bottom, 0px) + 24px); box-sizing: border-box; }
+.vt-close { align-self: flex-end; padding: 10px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: transparent; color: #cfcfcf; font: 600 13px Manrope, sans-serif; }
+.vt-stage { flex: 1; min-height: 0; border-radius: 22px; overflow: hidden; background: #121213; border: 1px solid rgba(255,255,255,.06); display: grid; place-items: center; }
+.vt-canvas { width: 100%; height: 100%; object-fit: contain; display: block; }
+.vt-stage.vt-off { display: flex; flex-direction: column; justify-content: center; gap: 12px; padding: 32px; text-align: center; }
+.vt-stage.vt-off b { font: 500 18px Manrope, sans-serif; color: #ececec; }
+.vt-stage.vt-off span { font: 400 14px/1.6 Manrope, sans-serif; color: #9a9a9a; max-width: 300px; margin: 0 auto; }
+.vt-msg { margin: 0; min-height: 18px; text-align: center; color: #9a9a9a; font: 400 13px/1.5 Manrope, sans-serif; }
+.vt-rec { min-height: 60px; border: 0; border-radius: 22px; background: #ecebe8; color: #1c1c1d; font: 600 15px Manrope, sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+.vt-rec.on { background: #d49a9a; color: #1c1c1d; }
+.vt-out { display: flex; gap: 10px; }
+.vt-out:empty { display: none; }
+.vt-dl, .vt-share { flex: 1; text-align: center; padding: 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,.1); background: transparent; color: #e8e9ea; font: 600 13.5px Manrope, sans-serif; text-decoration: none; }
