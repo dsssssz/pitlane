@@ -6516,3 +6516,35 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .shop-plan-t { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .shop-plan-t b { font: 600 15px Manrope, sans-serif; color: #ececec; }
 .shop-plan p { margin: 8px 0 0; font: 400 13px/1.5 Manrope, sans-serif; }
+
+/* ===== v145: спидометр по референсу — графит, серебряные тонкие цифры, дуга-шкала, кольца ===== */
+#view-run #runIdleCard, .run-drive .run-drive-top { position: relative; isolation: isolate; }
+#view-run #runIdleCard::before, .run-drive .run-drive-top::before {
+  content: ''; position: absolute; z-index: -1; left: 50%; top: 46%; width: 760px; height: 760px; transform: translate(-50%, -50%); pointer-events: none;
+  background:
+    radial-gradient(circle, transparent 0 199px, rgba(255,255,255,.035) 200px 201px, transparent 202px 259px, rgba(255,255,255,.03) 260px 261px, transparent 262px 329px, rgba(255,255,255,.022) 330px 331px, transparent 332px),
+    radial-gradient(circle, rgba(46,50,58,.55) 0%, rgba(24,26,31,.35) 38%, transparent 70%);
+  -webkit-mask-image: radial-gradient(circle, #000 40%, transparent 72%); mask-image: radial-gradient(circle, #000 40%, transparent 72%);
+}
+.run-drive { background: radial-gradient(120% 80% at 50% 38%, #1d2027 0%, #14161b 55%, #0e0f12 100%) !important; }
+#runIdleCard .speed-num, .run-drive .run-drive-speed strong {
+  font-weight: 200 !important; letter-spacing: -.04em;
+  background: linear-gradient(180deg, #e6e7ea 0%, #c9cbcf 55%, #9fa2a8 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent !important; -webkit-text-fill-color: transparent;
+}
+#runIdleCard .speed-num { font-size: clamp(112px, 36vw, 160px) !important; }
+#runIdleCard .speed-unit, .run-drive .run-drive-speed span { text-transform: none !important; letter-spacing: .22em !important; font: 400 20px/1 Manrope, sans-serif !important; color: #a3a6ab !important; margin-top: 14px !important; }
+.hud-gauge { position: relative; max-width: 320px; width: 100%; margin: 30px auto 0; }
+.hud-gauge .hgz-svg { position: static !important; display: block; width: 100% !important; height: auto !important; aspect-ratio: 300 / 64; overflow: visible; }
+.hgz-track { fill: none; stroke: rgba(255,255,255,.06); stroke-width: 1; }
+.hgz-tick { stroke: rgba(200,203,208,.18); stroke-width: .7; }
+.hgz-mid { stroke: rgba(200,203,208,.28); }
+.hgz-major { stroke: rgba(200,203,208,.42); stroke-width: 1; }
+.hgz-fill { fill: none; stroke: rgba(222,224,228,.5); stroke-width: 2.2; stroke-linecap: round; transition: stroke-dasharray .35s cubic-bezier(.2,.7,.2,1); }
+.hgz-labels { position: relative; height: 16px; margin-top: 8px; font: 400 12px/1 Manrope, sans-serif; color: #6c7077; }
+.hgz-labels span { position: absolute; top: 0; transform: translateX(-50%); }
+.hgz-labels span:nth-child(1) { left: 7%; }
+.hgz-labels span:nth-child(2) { left: 50%; }
+.hgz-labels span:nth-child(3) { left: 93%; }
+.run-drive .hud-gauge { max-width: 360px; }
+.run-drive .hud-zones { margin-bottom: 22px; }

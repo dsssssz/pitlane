@@ -3059,11 +3059,38 @@ function displayKmh() {
 }
 
 var hudPeak = 0;
+/* v145: тонкая дуга-шкала под цифрами (0–200, при >200 — 0–300), мелкие риски, подписи 0 / середина / максимум */
+const HG = { cx: 150, cy: 352, r: 330, a: 23 * Math.PI / 180 };
+function hgPt(f, dr = 0) { const t = -HG.a + 2 * HG.a * f; return [HG.cx + (HG.r + dr) * Math.sin(t), HG.cy - (HG.r + dr) * Math.cos(t)]; }
+function hudGaugeBuild(el, max) {
+  const NS = 'http://www.w3.org/2000/svg'; const mk = (tag, at) => { const e = document.createElementNS(NS, tag); for (const k in at) e.setAttribute(k, at[k]); return e; };
+  const svg = mk('svg', { viewBox: '0 0 300 64', class: 'hgz-svg', preserveAspectRatio: 'xMidYMid meet' });
+  const [x0, y0] = hgPt(0), [x1, y1] = hgPt(1);
+  const arc = 'M' + x0.toFixed(2) + ' ' + y0.toFixed(2) + ' A' + HG.r + ' ' + HG.r + ' 0 0 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2);
+  svg.appendChild(mk('path', { d: arc, class: 'hgz-track' }));
+  const step = max / 80;
+  for (let k = 0; k <= 80; k++) {
+    const val = k * step, f = val / max; const major = k % 40 === 0; const mid = !major && k % 10 === 0;
+    const [a1, b1] = hgPt(f, major ? 5 : mid ? 3.5 : 2), [a2, b2] = hgPt(f, major ? -5 : mid ? -3 : -1.5);
+    svg.appendChild(mk('line', { x1: a1.toFixed(2), y1: b1.toFixed(2), x2: a2.toFixed(2), y2: b2.toFixed(2), class: major ? 'hgz-tick hgz-major' : mid ? 'hgz-tick hgz-mid' : 'hgz-tick' }));
+  }
+  svg.appendChild(mk('path', { d: arc, class: 'hgz-fill', pathLength: '1', 'stroke-dasharray': '0 1' }));
+  el.textContent = ''; el.appendChild(svg);
+  const lab = document.createElement('div'); lab.className = 'hgz-labels';
+  [0, max / 2, max].forEach((n) => { const s = document.createElement('span'); s.textContent = String(n); lab.appendChild(s); });
+  el.appendChild(lab); el.dataset.max = String(max);
+}
+function hudGauge(el, v, max) {
+  if (el.dataset.max !== String(max)) hudGaugeBuild(el, max);
+  const f = Math.max(0, Math.min(1, v / max));
+  const fill = el.querySelector('.hgz-fill'); if (fill) fill.setAttribute('stroke-dasharray', f.toFixed(4) + ' 1');
+}
 function hudZones(v, reset) {
   if (reset) hudPeak = 0;
   v = Math.max(0, +v || 0);
   if (v > hudPeak) hudPeak = v;
-  document.querySelectorAll('.hud-line-fill').forEach((el) => { el.style.transform = 'scaleX(' + Math.min(1, v / 300).toFixed(3) + ')'; });
+  const gMax = (hudPeak > 200 || v > 200) ? 300 : 200;
+  document.querySelectorAll('.hud-gauge').forEach((el) => hudGauge(el, v, gMax));
   document.querySelectorAll('.hud-zones .hz').forEach((z) => {
     const to = +z.dataset.to || 100;
     const f = Math.min(1, hudPeak / to);
@@ -12304,7 +12331,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v144';
+const APP_VERSION = 'v145';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12450,6 +12477,8 @@ document.querySelectorAll('#lapAnalyticsCard [data-la]').forEach((b) => b.addEve
 document.getElementById('btnLapAnalyticsDemo')?.addEventListener('click', () => { laDemo = !laDemo; document.getElementById('btnLapAnalyticsDemo').textContent = laDemo ? 'Скрыть демо' : 'Показать на демо-круге'; hap(6); void renderLapAnalytics(); });
 document.getElementById('trackSelect')?.addEventListener('change', () => { void renderLapAnalytics(); });
 setTimeout(() => { void renderLapAnalytics(); }, 1500);
+try { hudZones(0, true); } catch (_) {}
+window.__hud = hudZones; // скриншоты/отладка
 
 /* v143: видео + телеметрия (модуль грузится по кнопке) */
 let _vtMod = null;
