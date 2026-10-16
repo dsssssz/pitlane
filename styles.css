@@ -6548,3 +6548,62 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .hgz-labels span:nth-child(3) { left: 93%; }
 .run-drive .hud-gauge { max-width: 360px; }
 .run-drive .hud-zones { margin-bottom: 22px; }
+
+/* ===== v146: спокойный тон, воздух, светлая главная кнопка ===== */
+:root, #view-home {
+  --bg: #0b0c0e; --panel: #141518; --line: rgba(255,255,255,.06);
+  --h-line: rgba(255,255,255,.06); --h-line-2: rgba(255,255,255,.09);
+  --h-card: #141518; --h-card-solid: #141518;
+}
+html, body, #app { background: #0b0c0e !important; }
+/* 1. Старт: реальный победитель был «#app .form-row button {… !important}» — перебиваем тем же уровнем */
+#app #runIdleCard #btnArm.go-btn, #app .form-row #btnArm.go-btn {
+  background: #ecebe8 !important; color: #1b1c1e !important; border: 0 !important; border-radius: 20px !important;
+  min-height: 58px !important; padding: 18px 28px !important; box-shadow: none !important;
+  font: 600 16px/1 Manrope, sans-serif !important; letter-spacing: .01em !important; text-transform: none !important;
+}
+#app #btnArm.go-btn:active { background: #dddcd9 !important; }
+#app #runDriveStop.go-btn { text-transform: none !important; letter-spacing: .01em !important; font: 600 16px/1 Manrope, sans-serif !important; border-radius: 20px !important; }
+#runIdleCard .form-row { margin-top: 44px !important; padding: 0 4px; }
+/* 2. HUD: без радиального фона и колец, цифры «в воздухе», больше воздуха */
+#view-run #runIdleCard::before, .run-drive .run-drive-top::before { content: none !important; display: none !important; }
+.run-drive { background: #0b0c0e !important; }
+#view-run #runIdleCard { padding-top: 56px !important; padding-bottom: 16px !important; }
+#view-run .hud-gauge { margin-top: 40px; }
+#view-run .hud-zones { margin-top: 26px; }
+#runIdleCard .run-status { margin-top: 36px !important; }
+.run-drive .run-drive-speed { margin-top: 28px; }
+.run-drive .hud-gauge { margin-top: 36px; }
+.hgz-fill { stroke: rgba(158,205,176,.85) !important; }
+/* 3. Плотность: карточки, отступы, иерархия */
+#app .card, #app .box-card { background: #141518 !important; border: 1px solid rgba(255,255,255,.06) !important; border-radius: 22px; padding: 24px 22px !important; box-shadow: none !important; }
+#view-home .hw-grid { gap: 14px !important; }
+#view-home .hw { background: #141518 !important; border: 1px solid rgba(255,255,255,.06) !important; padding: 20px 18px !important; box-shadow: none !important; }
+#view-home .hw-k { font-size: 10.5px !important; letter-spacing: .14em; color: #6e7177 !important; }
+#view-home > * + * { margin-top: 28px !important; }
+#view-garage > * + * { margin-top: 28px !important; }
+/* 4. Пустые состояния */
+#view-home .hw-empty-t { font: 500 16px/1.3 Manrope, sans-serif !important; color: #e4e5e7 !important; }
+#view-home .hw-empty-s { font: 400 13px/1.5 Manrope, sans-serif !important; color: #7d8086 !important; margin-top: 4px; }
+.hw-empty-cta { display: inline-flex; align-self: flex-start; margin-top: 14px; padding: 10px 16px; border-radius: 14px; background: #ecebe8; color: #1b1c1e; font: 600 13px/1 Manrope, sans-serif; }
+.empty-garage { padding: 56px 24px 40px !important; text-align: center; }
+.empty-garage h2 { font: 500 22px/1.3 Manrope, sans-serif !important; color: #ececec; margin-top: 24px !important; }
+.empty-garage p { color: #8a8d92 !important; font: 400 14px/1.6 Manrope, sans-serif !important; max-width: 300px; margin: 10px auto 0 !important; }
+#app .empty-garage #btnAddCar.cta-light { margin-top: 32px; min-height: 54px; padding: 16px 28px; border-radius: 20px !important; border: 0 !important; background: #ecebe8 !important; color: #1b1c1e !important; font: 600 15px/1 Manrope, sans-serif !important; text-transform: none !important; box-shadow: none !important; }
+/* 6. Главная: «Замер» — главная светлая кнопка, остальное тише */
+#view-home .home-go { background: #ecebe8 !important; border: 0 !important; padding: 20px 22px !important; border-radius: 24px !important; }
+#view-home .home-go::before { display: none !important; }
+#view-home .home-go .hg-btn, #view-home .home-go .hg-title { color: #1b1c1e !important; }
+#view-home .home-go .hg-title { font-size: 24px !important; font-weight: 600 !important; }
+#view-home .home-go .hg-sub, #view-home .home-go .hg-scale, #view-home .home-go .hg-meta, #view-home .home-go .hg-gps, #view-home .home-go .hg-best { color: #5a5c60 !important; }
+#view-home .home-go .hg-track { stroke: rgba(0,0,0,.12) !important; }
+#view-home .home-go .hg-arc { stroke: #1b1c1e !important; }
+#view-home .home-go .hg-ticks line, #view-home .home-go .hg-needle line { stroke: rgba(0,0,0,.45) !important; }
+#view-home .home-go .hg-num { fill: #6a6c70 !important; }
+#view-home .home-go .hg-hub { fill: #1b1c1e !important; }
+#view-home .home-go .hg-core { background: #1b1c1e !important; color: #ecebe8 !important; box-shadow: none !important; border: 0 !important; }
+#view-home .home-go .hg-chev { border-color: #1b1c1e !important; color: #1b1c1e !important; }
+#view-home .hc-cta { background: transparent !important; border: 1px solid rgba(255,255,255,.14) !important; color: #d6d7d9 !important; }
+#view-home .home-go .hg-meta * { color: #4a4c50 !important; background: transparent !important; border-color: rgba(0,0,0,.12) !important; }
+#view-home .home-go .hg-meta b, #view-home .home-go .hg-best strong { color: #1b1c1e !important; }
+#runDrive #runDriveStop.go-btn, body #runDriveStop { text-transform: none !important; letter-spacing: .01em !important; font: 600 16px/1 Manrope, sans-serif !important; border-radius: 20px !important; background: #ecebe8 !important; color: #1b1c1e !important; }

@@ -17,6 +17,6 @@ const sw = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../styles.css', import.meta.url), 'utf8');
 ok(html.includes('id="lapAnalyticsHost"') && app.includes('teleSave(trackId') && app.includes("import('./lap-analytics.js')"), 'подключено к кругу');
 ok(sw.includes("'./lap-analytics.js'"), 'precache');
-const c = css.slice(css.indexOf('v142: аналитика круга'));
+const c0 = css.slice(css.indexOf('v142: аналитика круга')); const c = c0.slice(0, c0.indexOf('/* =====', 10) > 0 ? c0.indexOf('/* =====', 10) : undefined);
 ok(!/#30d158|#ff453a|shadow|glow/.test(c), 'аналитика — приглушённая палитра, без свечения');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v142 OK');

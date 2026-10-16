@@ -9011,7 +9011,7 @@ document.getElementById('btnRemoveCar')?.addEventListener('click', () => {
 const I18N = {
   ru: {
     'nav.home':'Главная','nav.duels':'Дуэли','nav.ride':'Заезд','nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Paddock','nav.park':'Парк',
-    'garage.empty':'Гараж пуст','garage.hint':'Добавь свой автомобиль — марка, кузов, год, мотор.','garage.add':'Добавить автомобиль','garage.reset':'сброс',
+    'garage.empty':'Гараж пока пуст','garage.hint':'Добавьте машину — и замеры будут сохраняться за ней.','garage.add':'Добавить машину','garage.reset':'сброс',
     'run.title':'Замер','run.hint':'Старт, остановка, газ. Времена появятся по ходу.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
@@ -12331,7 +12331,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v145';
+const APP_VERSION = 'v146';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -14418,7 +14418,7 @@ function studioSrcset(id, ext) { return [780, 1170, 1560].map((w) => `./img/cars
 function hwSet(id, nodes) { const b = document.getElementById(id); if (!b) return; b.replaceChildren(...nodes); }
 function hwBig(v, unit) { const b = padEl('b', 'hw-big', v); if (unit) b.appendChild(padEl('small', '', unit)); return b; }
 function hwLine(k, v, cls = '') { const r = padEl('span', 'hw-line ' + cls); r.appendChild(padEl('span', 'hw-lk', k)); r.appendChild(padEl('b', 'hw-lv', v)); return r; }
-function hwEmpty(title, sub) { return [padEl('span', 'hw-empty-t', title), padEl('span', 'hw-empty-s', sub)]; }
+function hwEmpty(title, sub, cta) { const r = [padEl('span', 'hw-empty-t', title), padEl('span', 'hw-empty-s', sub)]; if (cta) r.push(padEl('span', 'hw-empty-cta', cta)); return r; } // v146: одна ясная кнопка в пустом состоянии
 function homeBest0100(carId, remote) {
   const drag = remote?.prof?.best?.drag || {};
   const srv = (disc) => (drag[disc] && (!drag[disc].carId || drag[disc].carId === carId)) ? Number(drag[disc].t) : null;
@@ -14469,7 +14469,7 @@ function renderHwRecords(remote) {
   if (q != null) rows.push(hwLine('¼ мили', q.toFixed(2) + ' с'));
   if (lap) rows.push(hwLine('Круг', fmtLapTime(lap.ms)));
   const btn = document.getElementById('hwRec'); if (btn) btn.dataset.empty = rows.length ? '0' : '1';
-  hwSet('hwRecBody', rows.length ? rows : hwEmpty('Пока пусто', 'Первый замер появится здесь'));
+  hwSet('hwRecBody', rows.length ? rows : hwEmpty('Пока пусто', 'Первый замер появится здесь', 'Сделать замер'));
 }
 let _hwDuelsAt = 0;
 async function renderHwDuels() {
@@ -14578,7 +14578,8 @@ async function renderHwTeam() {
 }
 function renderHwTop(remote) {
   const board = remote?.board || [];
-  if (!board.length) { hwSet('hwTopBody', hwEmpty('Топ пока пуст', 'Стань первым в таблице')); return; }
+  { const tw = document.getElementById('hwTop'); if (tw) tw.dataset.empty = board.length ? '0' : '1'; }
+  if (!board.length) { hwSet('hwTopBody', hwEmpty('Топ пока пуст', 'Стань первым в таблице', 'Сделать замер')); return; }
   const lead = board[0];
   const nodes = [];
   const l = padEl('span', 'hw-top-lead');
@@ -14604,6 +14605,7 @@ document.getElementById('homeWidgets')?.addEventListener('click', (e) => {
   const k = w.dataset.hw;
   if (k === 'garage') { openCarInGarage(w.dataset.car || homeHeroCarId()); return; }
   if (k === 'records') { goToView(w.dataset.empty === '1' ? 'run' : 'tops'); return; }
+  if (k === 'tops' && w.dataset.empty === '1') { goToView('run'); return; }
   if (k === 'team') { openCrewSheet(); return; }
   if (k === 'pulse' && document.getElementById('hwPad')?.classList.contains('is-empty')) {
     if (sheetNavOn()) openTgSheet('pulse'); else goToView('pulse');
