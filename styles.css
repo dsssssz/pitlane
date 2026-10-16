@@ -6607,3 +6607,14 @@ html, body, #app { background: #0b0c0e !important; }
 #view-home .home-go .hg-meta * { color: #4a4c50 !important; background: transparent !important; border-color: rgba(0,0,0,.12) !important; }
 #view-home .home-go .hg-meta b, #view-home .home-go .hg-best strong { color: #1b1c1e !important; }
 #runDrive #runDriveStop.go-btn, body #runDriveStop { text-transform: none !important; letter-spacing: .01em !important; font: 600 16px/1 Manrope, sans-serif !important; border-radius: 20px !important; background: #ecebe8 !important; color: #1b1c1e !important; }
+
+/* ===== v147: Telegram Mini App — те же стили v140–v146, тема Telegram их не перебивает ===== */
+html.tma { color-scheme: dark; background: #0b0c0e !important; color: #f2f2f2; }
+html.tma body { background: #0b0c0e !important; color: #f2f2f2 !important; min-height: var(--tma-vh, 100dvh); }
+/* полноэкранный спидометр/круг/видео — во всю стабильную высоту окна Telegram, с безопасными зонами */
+html.tma .run-drive, html.tma .lap-drive, html.tma .vt-sheet { height: var(--tma-vh, 100dvh); bottom: auto; }
+html.tma .run-drive { padding-top: max(12px, calc(var(--sat) + 8px)) !important; padding-bottom: max(14px, calc(var(--sab) + 8px)) !important; padding-left: max(16px, var(--tma-left, 0px)); padding-right: max(16px, var(--tma-right, 0px)); }
+.vt-sheet { padding-top: calc(max(env(safe-area-inset-top, 0px), var(--tma-top, 0px)) + 16px) !important; padding-bottom: calc(max(env(safe-area-inset-bottom, 0px), var(--tma-bottom, 0px)) + 24px) !important; }
+/* светлая тема Telegram: кнопки/панели остаются нашими */
+html.tma #app .form-row #btnArm.go-btn, html.tma #runDrive #runDriveStop.go-btn { background: #ecebe8 !important; color: #1b1c1e !important; }
+html.tma #app .card, html.tma #view-home .hw { background: #141518 !important; color: #f2f2f2; }

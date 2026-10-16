@@ -88,7 +88,11 @@ import {
   paintSatSector, resetSatSectors,
 } from './track-sat-map.js';
 
+/* v147: в Telegram — тактильный отклик только на Старт/Стоп (замер и круг); остальное молча */
+const HAP_KEYS = new Set(['btnArm', 'runDriveStop', 'btnLapStart', 'btnLapArmedStart', 'btnLapStop', 'lapDriveEnd']);
+let _hapKey = false;
 function hap(ms = 12) {
+  if (isTMA && !_hapKey) return;
   if (isTMA) {
     // Telegram HapticFeedback (navigator.vibrate is unavailable in iOS WebViews)
     const kind = Array.isArray(ms) ? (Math.max(...ms) >= 30 ? 'heavy' : 'medium') : (ms >= 18 ? 'medium' : (ms <= 10 ? 'select' : 'light'));
@@ -97,7 +101,9 @@ function hap(ms = 12) {
   try { if (navigator.userActivation?.hasBeenActive !== false) navigator.vibrate?.(ms); } catch (_) {}
 }
 document.addEventListener('click', (e) => {
-  if (e.target.closest('button')) hap(10);
+  const b = e.target.closest('button'); if (!b) return;
+  if (isTMA) { if (!HAP_KEYS.has(b.id)) return; _hapKey = true; hap(18); setTimeout(() => { _hapKey = false; }, 0); return; }
+  hap(10);
 }, true);
 if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
   document.documentElement.classList.add('standalone');
@@ -7018,6 +7024,7 @@ if (isTMA) {
     ['feedbackSheet', 'feedbackClose'], ['padCommentsSheet', 'padCommentsClose'], ['pilotSheet', 'pilotClose'],
     ['bannerSheet', 'bannerClose'], ['ghostResult', 'ghostResultClose'],
     ['sessionSheet', 'sessionSheetClose'],
+    ['vtSheet', 'vtClose'], ['shopSheet', 'shopClose'], // v147
     ['tgSheet', 'tgSheetClose'],
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
@@ -12331,7 +12338,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v146';
+const APP_VERSION = 'v147';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

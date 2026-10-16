@@ -117,7 +117,7 @@ export const START_ROUTE = parseStartParam(START_PARAM);
 })();
 
 /* ---------- chrome: colors, fullscreen, swipes, safe areas ---------- */
-const THEME = '#1a1a1a';
+const THEME = '#0b0c0e'; // v147: = фон приложения (v146)
 function call(fn) { try { return fn(); } catch (err) { console.warn('[tma]', err?.message || err); return undefined; } }
 
 function applyInsets() {
@@ -129,6 +129,9 @@ function applyInsets() {
   root.setProperty('--tma-bottom', (n(sa.bottom) + n(ca.bottom)) + 'px');
   root.setProperty('--tma-left', (n(sa.left) + n(ca.left)) + 'px');
   root.setProperty('--tma-right', (n(sa.right) + n(ca.right)) + 'px');
+  // v147: стабильная высота окна Telegram (не прыгает при сворачивании/клавиатуре)
+  const vh = n(WebApp.viewportStableHeight) || n(WebApp.viewportHeight);
+  if (vh > 200) root.setProperty('--tma-vh', vh + 'px');
   document.documentElement.classList.toggle('tma-fullscreen', !!WebApp.isFullscreen);
 }
 

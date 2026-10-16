@@ -45,7 +45,7 @@ export function openVideo({ getSpeed, getLabel, hap, webUrl }) {
   if (root) root.remove();
   root = document.createElement('div'); root.id = 'vtSheet'; root.className = 'vt-sheet'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', 'Видео с телеметрией');
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  const close = mk('button', 'vt-close', 'Закрыть'); close.type = 'button';
+  const close = mk('button', 'vt-close', 'Закрыть'); close.type = 'button'; close.id = 'vtClose';
   const stage = mk('div', 'vt-stage'); const canvas = mk('canvas', 'vt-canvas'); canvas.width = 720; canvas.height = 1280; stage.appendChild(canvas);
   const msg = mk('p', 'vt-msg'); msg.setAttribute('role', 'status');
   const btn = mk('button', 'vt-rec', 'Включить камеру'); btn.type = 'button';
