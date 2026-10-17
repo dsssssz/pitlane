@@ -11,5 +11,5 @@ ok(app.includes('function hudZones') && app.includes('hudZones(vShow)'), 'зон
 const v140 = css.slice(css.indexOf('v140'));
 ok(/#btnArm\.go-btn[^{]*\{[^}]*background:\s*#ecebe8/.test(v140), 'Старт светлый');
 ok(!/glow|text-shadow:\s*0 0|box-shadow:\s*0 0 \d+px rgba?\(\s*(48|0),\s*2/.test(v140), 'без свечения');
-ok(/pitlane-v14\d/.test(sw), 'кэш sw поднят');
+ok(+((sw.match(/pitlane-v(\d+)/) || [])[1] || 0) >= 140, 'кэш sw поднят');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v140 OK');

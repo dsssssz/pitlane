@@ -1063,6 +1063,12 @@
         </div>
         <div class="run-drive-speed"><strong id="runDriveSpeed">0</strong><span>км/ч</span></div>
         <div class="hud-gauge" aria-hidden="true"></div>
+        <!-- v150: только три строки разгона; время появляется на месте -->
+        <div class="rd50-rows" id="rd50Rows" aria-label="Разгон">
+          <div class="rd50-row" data-k="0-60"><span>0–60</span><b>—</b></div>
+          <div class="rd50-row" data-k="0-100"><span>0–100</span><b>—</b></div>
+          <div class="rd50-row" data-k="0-200"><span>0–200</span><b>—</b></div>
+        </div>
         <div class="hud-zones" aria-label="Зоны разгона">
           <div class="hz" data-to="60"><span>0–60</span><i><b></b></i></div>
           <div class="hz" data-to="100"><span>0–100</span><i><b></b></i></div>
@@ -1106,8 +1112,13 @@
           </div>
         </div>
       </div>
-      <ul id="runDriveMarks" class="run-drive-marks rd-grid" aria-label="Отметки"></ul>
+      <!-- v150: остальные отметки — в спокойной шторке «Подробнее» -->
+      <div class="rd50-sheet" id="rd50Sheet" aria-hidden="true">
+        <p class="rd50-sheet-h">Все отметки</p>
+        <ul id="runDriveMarks" class="run-drive-marks rd-grid" aria-label="Отметки"></ul>
+      </div>
       <div class="run-drive-actions">
+        <button type="button" class="rd50-more" id="rd50More" aria-expanded="false" aria-controls="rd50Sheet">Подробнее</button>
         <button type="button" class="go-btn" id="runDriveStop">Стоп</button>
         <button type="button" id="runDriveShare" class="share-hud-btn hidden">Шейр</button>
         <button type="button" id="runDriveDuel" class="share-hud-btn hidden">В дуэль</button>

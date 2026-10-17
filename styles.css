@@ -6707,3 +6707,42 @@ html.v149 .h49-strip::after { content: ''; flex: none; width: 8px; }
 .h49-cap { max-width: 84px; font: 400 11px/1.25 Manrope, sans-serif !important; color: #75787e !important; text-transform: none !important; letter-spacing: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .h49-car.on .h49-cap { color: #c9cacd !important; }
 .h49-car:active .h49-th { transform: scale(.97); }
+/* ===== v150: оверлей замера — цифра, шкала, три строки, «Подробнее» ===== */
+html.v150 .run-drive { gap: 0; padding: calc(var(--sat, 0px) + 28px) 28px calc(var(--sab, 0px) + 18px); background: #0b0c0e !important; }
+html.v150 .run-drive .rd-status, html.v150 .run-drive .hud-zones, html.v150 .run-drive .rd-clock, html.v150 .run-drive #rdChartSlotL, html.v150 .run-drive .run-drive-label, html.v150 .run-drive #runDriveMsg { display: none !important; }
+html.v150 .run-drive .run-drive-top { flex: 1 1 auto; justify-content: center; gap: 0; }
+html.v150 .run-drive .rd-ready, html.v150 .run-drive[data-phase="ready"] .rd-ready { display: block; width: auto; margin: 0; margin-bottom: 18px; padding: 0; border: 0 !important; background: none !important; box-shadow: none !important; }
+html.v150 .run-drive .rd-ready strong { font: 400 12.5px/1.3 Manrope, sans-serif; color: #75787e; letter-spacing: .02em; }
+html.v150 .run-drive .rd-ready span { display: none; }
+html.v150 .run-drive[data-phase="live"] .rd-ready { visibility: hidden; }
+html.v150 .run-drive .run-drive-speed strong, html.v150 .run-drive[data-phase="ready"] .run-drive-speed strong { font: 200 clamp(120px, 40vw, 188px)/.9 Manrope, sans-serif; letter-spacing: -.04em; color: #ecebe8; }
+html.v150 .run-drive .run-drive-speed span { margin-top: 14px; font: 400 12px/1 Manrope, sans-serif; letter-spacing: .32em; text-indent: .32em; text-transform: none; color: #6f7278; }
+html.v150 .run-drive .hud-gauge { margin-top: 40px; width: 100%; }
+.rd50-rows { display: none; }
+html.v150 .rd50-rows { display: block; width: 100%; margin-top: 36px; border-top: 1px solid rgba(255,255,255,.06); }
+.rd50-row { display: flex; align-items: baseline; justify-content: space-between; padding: 17px 2px; border-bottom: 1px solid rgba(255,255,255,.06); }
+.rd50-row span { font: 400 14px/1 Manrope, sans-serif; letter-spacing: .04em; color: #8b8e93; }
+.rd50-row b { font: 300 20px/1 Manrope, sans-serif; font-variant-numeric: tabular-nums; color: #55585e; }
+.rd50-row.on b { color: #ecebe8; animation: rd50In .25s ease-out both; }
+@keyframes rd50In { from { opacity: 0; } to { opacity: 1; } }
+/* низ: «Подробнее» (текст) и тихий «Стоп» */
+html.v150 .run-drive .run-drive-actions { flex-direction: column; align-items: stretch; gap: 10px; }
+.rd50-more { display: none; }
+html.v150 .rd50-more { display: block; align-self: center; padding: 10px 18px !important; border: 0 !important; background: none !important; box-shadow: none !important; font: 400 13.5px/1 Manrope, sans-serif !important; letter-spacing: .02em !important; text-transform: none !important; color: #8b8e93 !important; cursor: pointer; }
+html.v150 .run-drive[data-phase="final"] .rd50-more { display: none; }
+html.v150 #runDrive #runDriveStop#runDriveStop.go-btn { width: 100%; min-height: 52px; border-radius: 26px !important; border: 1px solid rgba(255,255,255,.1) !important; background: #141518 !important; color: #c9cacd !important; font: 500 15px/1 Manrope, sans-serif !important; text-transform: none !important; letter-spacing: .01em !important; box-shadow: none !important; }
+/* шторка «Подробнее»: остальные отметки */
+.rd50-sheet { display: none; }
+html.v150 .rd50-sheet { display: block; position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; max-height: 62%; overflow-y: auto; padding: 22px 28px calc(var(--sab, 0px) + 140px); background: #141518; border-top: 1px solid rgba(255,255,255,.06); border-radius: 24px 24px 0 0; transform: translateY(100%); visibility: hidden; transition: transform .26s ease-out, visibility 0s linear .26s; }
+html.v150 .rd50-sheet.open { transform: none; visibility: visible; transition: transform .26s ease-out; }
+html.v150 .run-drive .run-drive-actions { position: relative; z-index: 3; }
+html.v150 .run-drive:has(.rd50-sheet.open) .run-drive-actions { margin: 0 -28px; padding: 6px 28px 0; background: #141518; }
+.rd50-sheet-h { margin: 0; margin-bottom: 8px; font: 500 12px/1 Manrope, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #75787e; }
+html.v150 .rd50-sheet .rd-grid { display: block !important; margin: 0; padding: 0; list-style: none; }
+html.v150 .rd50-sheet .rd-cell { display: flex !important; align-items: baseline; gap: 8px; min-height: 0; margin: 0; padding: 14px 0; border: 0 !important; border-bottom: 1px solid rgba(255,255,255,.06) !important; border-radius: 0 !important; background: none !important; box-shadow: none !important; opacity: 1 !important; }
+html.v150 .rd50-sheet .rd-cell span { flex: 1; font: 400 14px/1 Manrope, sans-serif; color: #8b8e93; text-transform: none; letter-spacing: .02em; }
+html.v150 .rd50-sheet .rd-cell strong { font: 300 18px/1 Manrope, sans-serif; color: #ecebe8; }
+html.v150 .rd50-sheet .rd-cell small { min-width: 52px; text-align: right; font: 400 11px/1 Manrope, sans-serif; color: #6f7278; }
+html.v150 .rd50-sheet .rd-cell[data-k="0-60"], html.v150 .rd50-sheet .rd-cell[data-k="0-100"], html.v150 .rd50-sheet .rd-cell[data-k="0-200"] { display: none !important; }
+html.v150 .run-drive[data-phase="final"] .rd50-sheet { display: none; }
+@media (prefers-reduced-motion: reduce) { .rd50-row.on b { animation: none; } html.v150 .rd50-sheet, html.v150 .rd50-sheet.open { transition: none; } }

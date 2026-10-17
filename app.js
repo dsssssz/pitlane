@@ -3163,6 +3163,7 @@ function rdGridBuild() {
   const ul = document.getElementById('runDriveMarks');
   if (!ul) return;
   ul.replaceChildren();
+  rd50Reset();
   for (const g of RM_GRID) {
     const li = padEl('li', 'rd-cell' + (g.hero ? ' hero' : ''));
     li.dataset.k = g.k;
@@ -3186,7 +3187,28 @@ function rdGridSet(k, val, sub, { flash = false, pre = false } = {}) {
   li.classList.toggle('pre', pre);
   if (!pre) li.classList.add('done');
   if (flash) { li.classList.remove('rd-in'); void li.offsetWidth; li.classList.add('rd-in'); }
+  if (!pre) rd50Set(k, val);
 }
+/* v150: три строки разгона в оверлее (0–60 / 0–100 / 0–200): «—», пока нет времени; потом плавно на месте */
+function rd50Row(k) { return document.querySelector(`#rd50Rows .rd50-row[data-k="${k}"]`); }
+function rd50Set(k, val) {
+  const row = rd50Row(k); if (!row) return;
+  const b = row.querySelector('b'); if (!b) return;
+  b.textContent = String(val) + ' с';
+  row.classList.remove('on'); void row.offsetWidth; row.classList.add('on');
+}
+function rd50Reset() {
+  document.querySelectorAll('#rd50Rows .rd50-row').forEach((r) => { r.classList.remove('on'); const b = r.querySelector('b'); if (b) b.textContent = '—'; });
+  rd50Sheet(false);
+}
+function rd50Sheet(open) {
+  const sh = document.getElementById('rd50Sheet'); const btn = document.getElementById('rd50More');
+  if (!sh) return;
+  const on = open == null ? !sh.classList.contains('open') : !!open;
+  sh.classList.toggle('open', on); sh.setAttribute('aria-hidden', on ? 'false' : 'true');
+  if (btn) { btn.setAttribute('aria-expanded', on ? 'true' : 'false'); btn.textContent = on ? 'Скрыть' : 'Подробнее'; }
+}
+document.getElementById('rd50More')?.addEventListener('click', () => rd50Sheet());
 function rdReadySet(state, title, sub) {
   const r = document.getElementById('rdReady');
   if (!r) return;
@@ -12338,7 +12360,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v149';
+const APP_VERSION = 'v150';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12485,7 +12507,7 @@ document.getElementById('btnLapAnalyticsDemo')?.addEventListener('click', () => 
 document.getElementById('trackSelect')?.addEventListener('change', () => { void renderLapAnalytics(); });
 setTimeout(() => { void renderLapAnalytics(); }, 1500);
 try { hudZones(0, true); } catch (_) {}
-window.__hud = hudZones; // скриншоты/отладка
+window.__hud = hudZones; /* скриншоты/отладка */ window.__rd = { open: (ph) => openRunDrive(ph), phase: (ph) => rdPhase(ph), set: (k, v, s) => rdGridSet(k, v, s, { flash: true }) }; // v150: скриншоты
 
 /* v143: видео + телеметрия (модуль грузится по кнопке) */
 let _vtMod = null;
@@ -12497,7 +12519,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v149');
+document.documentElement.classList.add('v148', 'v149', 'v150');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {

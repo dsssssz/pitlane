@@ -1,0 +1,20 @@
+// v150: оверлей замера — цифра, тонкая шкала, ровно три строки 0–60/0–100/0–200, «Подробнее» со всеми отметками, тихий «Стоп».
+import fs from 'fs';
+let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+const root = new URL('../../', import.meta.url);
+const html = fs.readFileSync(new URL('index.html', root), 'utf8');
+const app = fs.readFileSync(new URL('app.js', root), 'utf8');
+const css = fs.readFileSync(new URL('styles.css', root), 'utf8');
+const rd = html.slice(html.indexOf('id="runDrive"'), html.indexOf('id="lapDrive"'));
+const rows = rd.slice(rd.indexOf('id="rd50Rows"'), rd.indexOf('id="rd50Rows"') + 600);
+ok(rd.includes('id="rd50Rows"') && [...rows.matchAll(/class="rd50-row" data-k="([^"]+)"/g)].map((m) => m[1]).join(',') === '0-60,0-100,0-200', 'в оверлее ровно три строки 0–60 / 0–100 / 0–200');
+ok(rd.indexOf('class="hud-gauge"') < rd.indexOf('id="rd50Rows"') && rd.indexOf('id="runDriveSpeed"') < rd.indexOf('class="hud-gauge"'), 'порядок: цифра → шкала → строки');
+ok(/id="rd50Sheet"[\s\S]*id="runDriveMarks"/.test(rd) && /id="rd50More"[^>]*>Подробнее</.test(rd) && rd.includes('id="runDriveStop"'), '«Подробнее» со всеми отметками; «Стоп» на месте');
+ok(/if \(!pre\) rd50Set\(k, val\);/.test(app) && /rdGridBuild\(\) \{[\s\S]{0,120}rd50Reset\(\);/.test(app), 'строки питаются той же логикой (rdGridSet), сброс на новом заезде');
+const c = css.slice(css.indexOf('/* ===== v150'));
+ok(/html\.v150 \.run-drive \.rd-status, html\.v150 \.run-drive \.hud-zones, html\.v150 \.run-drive \.rd-clock, html\.v150 \.run-drive #rdChartSlotL/.test(c), 'плитки, зоны, время/дистанция и график убраны из оверлея');
+ok(/\.rd50-row\.on b \{[^}]*animation: rd50In \.25s/.test(c) && /prefers-reduced-motion[\s\S]*rd50-row\.on b \{ animation: none; \}/.test(c), 'время появляется плавно ~250 мс; reduced-motion');
+ok(/rd50-sheet \.rd-cell\[data-k="0-60"\]/.test(c), 'в шторке нет дублей трёх основных строк');
+ok(/#runDriveStop#runDriveStop\.go-btn \{[^}]*background: #141518/.test(c), '«Стоп» тихий (графит)');
+ok(!/text-shadow|drop-shadow|blur\(|orange|#ff9|#30d158/.test(c), 'без неона/оранжевого');
+if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v150 OK');
