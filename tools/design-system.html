@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="ru" class="v159">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PITLANE — система v159</title>
+<link rel="stylesheet" href="../styles.css" />
+<style>
+  /* страница-справочник: использует только токены из styles.css */
+  body { margin: 0; background: var(--ds-bg); color: var(--ds-text); font: var(--t-body); }
+  .ds { width: 1200px; padding: 48px; box-sizing: border-box; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 48px; }
+  .ds-head { grid-column: 1 / -1; display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 24px; border-bottom: 1px solid var(--ds-line); margin-bottom: 8px; }
+  .ds-head b { font: 600 13px/1 var(--font-ui); letter-spacing: .32em; }
+  .ds-head span { font: var(--t-cap); color: var(--ds-sub); }
+  section { padding: 24px 0; border-bottom: 1px solid var(--ds-line); }
+  section.wide { grid-column: span 2; }
+  .lab { font: var(--t-label); letter-spacing: .08em; text-transform: uppercase; color: var(--ds-sub); margin: 0 0 16px; }
+  .sw { display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 16px; height: 48px; border-bottom: 1px solid var(--ds-line); font: var(--t-cap); }
+  .sw i { width: 40px; height: 32px; border-radius: 4px; border: 1px solid var(--ds-line-2); }
+  .sw code { font: 400 12px/1 var(--font-num); color: var(--ds-sub); }
+  .ty { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--ds-line); }
+  .ty small { font: 400 12px/1 var(--font-num); color: var(--ds-mute); white-space: nowrap; }
+  .btns { display: grid; gap: 8px; }
+  .b { all: unset; box-sizing: border-box; display: grid; place-items: center; min-height: 48px; border-radius: var(--r1); font: 600 15px/1 var(--font-ui); }
+  .b.p { background: var(--ds-light); color: var(--ds-on-light); }
+  .b.s { border: 1px solid var(--ds-line-2); font-weight: 500; }
+  .b.t { color: var(--ds-sub); font-weight: 500; }
+  .b.d { border: 1px solid rgba(224,103,92,.4); color: var(--ds-bad); font-weight: 500; }
+  .start { width: 168px; height: 168px; border-radius: 50%; border: 1px solid var(--ds-line-3); position: relative; display: grid; place-items: center; font: 300 24px/1 var(--font-ui); margin: 16px auto 0; }
+  .start::before { content: ''; position: absolute; inset: 10px; border-radius: 50%; border: 1px solid var(--ds-line); }
+  .seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--ds-line-2); border-radius: var(--r1); }
+  .seg span { padding: 10px 14px; border-radius: 2px; font: 500 13px/1 var(--font-ui); color: var(--ds-sub); }
+  .seg span.on { background: var(--ds-fill-2); color: var(--ds-text); }
+  .row { display: grid; grid-template-columns: 24px 32px 1fr auto; gap: 12px; align-items: center; min-height: 56px; border-bottom: 1px solid var(--ds-line); }
+  .row.me { background: var(--ds-fill); box-shadow: inset 2px 0 0 var(--ds-acc); }
+  .row .n { font: 400 13px/1 var(--font-num); color: var(--ds-sub); padding-left: 8px; }
+  .row .a { width: 32px; height: 32px; border-radius: 50%; background: var(--ds-bg-2); border: 1px solid var(--ds-line-2); display: grid; place-items: center; font: 500 11px/1 var(--font-ui); }
+  .row b { font: 500 15px/1 var(--font-ui); } .row small { display: block; margin-top: 4px; font: 400 12px/1 var(--font-ui); color: var(--ds-sub); }
+  .row .t { font: 300 24px/1 var(--font-num); }
+  .cl { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ds-line); border-bottom: 1px solid var(--ds-line); }
+  .cl > div { padding: 16px 0 16px 16px; border-left: 1px solid var(--ds-line); display: flex; flex-direction: column; gap: 8px; }
+  .cl > div:first-child { border-left: 0; padding-left: 0; }
+  .cl b { font: var(--n-m); letter-spacing: -.02em; } .cl span { font: var(--t-label); letter-spacing: .08em; text-transform: uppercase; color: var(--ds-sub); }
+  .delta { text-align: center; padding: 16px 0; } .delta b { font: 200 96px/.9 var(--font-num); letter-spacing: -.05em; color: var(--ds-good); } .delta p { margin: 8px 0 0; font: var(--t-cap); color: var(--ds-sub); }
+  .bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; } .bar i { display: block; height: 3px; background: var(--ds-line-2); position: relative; } .bar i::after { content: ''; position: absolute; inset: 0; transform-origin: left; }
+  .bar i.g::after { background: var(--ds-good); } .bar i.r::after { background: var(--ds-bad); transform: scaleX(.6); } .bar i.w::after { background: var(--ds-text); transform: scaleX(.3); }
+  .grid8 { height: 64px; background-image: linear-gradient(90deg, var(--ds-line) 1px, transparent 1px); background-size: 8px 8px; border: 1px solid var(--ds-line); border-radius: 4px; }
+  .rad { display: flex; gap: 16px; } .rad div { width: 56px; height: 56px; border: 1px solid var(--ds-line-3); display: grid; place-items: end start; padding: 6px; box-sizing: border-box; font: 400 11px/1 var(--font-num); color: var(--ds-sub); }
+  .notes p { margin: 0 0 8px; font: var(--t-cap); color: var(--ds-sub); } .notes b { color: var(--ds-text); font-weight: 500; }
+</style>
+</head>
+<body>
+<div class="ds">
+  <div class="ds-head"><b>PITLANE</b><span>Система интерфейса v159 · чёрный, волоски, сетка 8, один акцент</span></div>
+  <section>
+    <p class="lab">Цвет</p>
+    <div class="sw"><i style="background:var(--ds-bg)"></i>Фон<code>#000</code></div>
+    <div class="sw"><i style="background:var(--ds-bg-1)"></i>Шторка, приподнятое<code>#0a0a0a</code></div>
+    <div class="sw"><i style="background:var(--ds-bg-2)"></i>Плашка, аватар<code>#121212</code></div>
+    <div class="sw"><i style="background:var(--ds-line)"></i>Волосок<code>rgba(255,255,255,.08)</code></div>
+    <div class="sw"><i style="background:var(--ds-text)"></i>Текст<code>#f5f5f5</code></div>
+    <div class="sw"><i style="background:var(--ds-sub)"></i>Вторичный, подписи<code>#8a8a8a</code></div>
+    <div class="sw"><i style="background:var(--ds-acc)"></i>Акцент — только «активно»<code>rgb(158,205,176)</code></div>
+    <div class="sw"><i style="background:var(--ds-good)"></i>Дельта: быстрее<code>#6cbf85</code></div>
+    <div class="sw"><i style="background:var(--ds-bad)"></i>Дельта: медленнее<code>#e0675c</code></div>
+  </section>
+  <section class="wide">
+    <p class="lab">Типографика · Inter (OFL) · PL Sans / PL Num, табличные цифры</p>
+    <div class="ty"><span style="font:var(--n-xl);letter-spacing:-.05em">−1.36</span><small>Num XL · 200 · 80</small></div>
+    <div class="ty"><span style="font:var(--n-l);letter-spacing:-.03em">2:18.40</span><small>Num L · 300 · 48</small></div>
+    <div class="ty"><span style="font:var(--n-m);letter-spacing:-.02em">4.21 с</span><small>Num M · 300 · 32</small></div>
+    <div class="ty"><span style="font:var(--t-h1);letter-spacing:-.01em">Сочи Автодром</span><small>Заголовок · 500 · 28/32</small></div>
+    <div class="ty"><span style="font:var(--t-title)">Моя машина</span><small>Титул · 600 · 17/24</small></div>
+    <div class="ty"><span style="font:var(--t-body)">Основной текст интерфейса</span><small>Текст · 400 · 15/22</small></div>
+    <div class="ty"><span style="font:var(--t-cap);color:var(--ds-sub)">Подпись, вторичная строка</span><small>Подпись · 400 · 13/18</small></div>
+    <div class="ty"><span class="lab" style="margin:0">Лучший круг</span><small>Метка · 500 · 11 · +.08em · капс</small></div>
+  </section>
+  <section>
+    <p class="lab">Кнопки</p>
+    <div class="btns"><span class="b p">Основное действие</span><span class="b s">Вторичное</span><span class="b t">Тихое</span><span class="b d">Удалить</span></div>
+    <div class="start">Старт</div>
+  </section>
+  <section>
+    <p class="lab">Выбор и приборы</p>
+    <div class="seg"><span class="on">0–100</span><span>100–200</span><span>¼ мили</span></div>
+    <div class="cl" style="margin-top:24px"><div><b>#2</b><span>Топ города</span></div><div><b>5</b><span>За 7 дней</span></div><div><b>4.21</b><span>Последний</span></div></div>
+    <div class="delta"><b>−1.36</b><p>дельта к лучшему · прогноз 2:17.04</p><div class="bar"><i class="g"></i><i class="r"></i><i class="w"></i></div></div>
+  </section>
+  <section>
+    <p class="lab">Строки списков</p>
+    <div class="row"><span class="n">1</span><span class="a">AR</span><span><b>Artem_GT</b><small>Porsche 911 GT3 RS</small></span><span class="t">3.89</span></div>
+    <div class="row me"><span class="n">2</span><span class="a">МА</span><span><b>Мага</b><small>McLaren 765LT · ты</small></span><span class="t">4.19</span></div>
+    <div class="row"><span class="n">3</span><span class="a">ЛД</span><span><b>Лиза Drift</b><small>BMW M3</small></span><span class="t">4.50</span></div>
+  </section>
+  <section>
+    <p class="lab">Сетка 8 · радиусы</p>
+    <div class="grid8"></div>
+    <div class="rad" style="margin-top:16px"><div style="border-radius:4px">4</div><div style="border-radius:6px">6</div><div style="border-radius:8px">8</div><div style="border-radius:50%">○</div></div>
+  </section>
+  <section class="wide notes">
+    <p class="lab">Правила</p>
+    <p><b>Без карточек.</b> Блоки разделены волоском 1px и воздухом 24/32 px; рамка — только у выбираемого (трасса, товар-фото).</p>
+    <p><b>Цифры — главные.</b> Крупно и легко (200–300), подпись — под цифрой, трекинг-капсом 11 px.</p>
+    <p><b>Один акцент.</b> Мятный — только состояние «активно»: вкладка, выбор, «ты» в таблице, живой GPS. Зелёный/красный — только дельты.</p>
+    <p><b>Без декора.</b> Нет градиентов, теней, свечения; размытие — только у шапки, панели и шторок (чтобы читалось поверх контента).</p>
+    <p><b>Движение.</b> 200 мс, cubic-bezier(.2,0,0,1), только fade/slide; при «уменьшить движение» — без анимаций.</p>
+  </section>
+</div>
+</body>
+</html>

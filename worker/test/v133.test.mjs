@@ -30,7 +30,7 @@ const css = stripSession(noComments(R('styles.css')));
 }
 const tok = css.match(/--acc-rgb:\s*(\d+),\s*(\d+),\s*(\d+)/);
 ok(!!tok && hls(+tok[1], +tok[2], +tok[3])[2] < .45, 'токен --acc-rgb — приглушённый (насыщенность < 45%)', tok?.slice(1));
-ok(/--c-acc:\s*rgb\(var\(--acc-rgb\)\)/.test(css) && /--c-fill:\s*#e8e9ea/.test(css) && /--c-bad:\s*#d49a9a/.test(css) && /--c-good:/.test(css), 'токены: --c-acc из --acc-rgb, --c-fill, --c-good, --c-bad');
+ok(/--ds-acc:\s*rgb\(var\(--acc-rgb\)\)/.test(css) && /--c-acc:\s*var\(--ds-acc\)/.test(css) && /--c-fill:\s*var\(--ds-light\)/.test(css) && /--ds-light:\s*#f2f2f2/.test(css) && /--c-bad:\s*var\(--ds-bad\)/.test(css) && /--c-good:\s*var\(--ds-good\)/.test(css), /* v159: токены системы */ 'токены: --c-acc из --acc-rgb, --c-fill, --c-good, --c-bad');
 ok(!/--c-acc:\s*var\(--c-acc\)/.test(css), 'нет циклической переменной');
 for (const v of ['accent', 'gold', 'h-acc']) { const m = css.match(new RegExp('--' + v + ':\\s*([^;]+);', 'g')) || []; ok(m.length && m.every((d) => !(d.match(COL) || []).some(neon)), `--${v} не неон`, m); }
 

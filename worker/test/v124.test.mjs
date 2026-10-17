@@ -16,7 +16,7 @@ ok(/html\.nav-widgets main \{ padding-bottom: calc\(96px \+ var\(--sab, 0px\)\);
 ok(/!activeBtn\.getClientRects\(\)\.length\) \{ pill\.style\.opacity = '0'/.test(app), 'пилюля прячется, когда шторка закрыта');
 console.log('[шторка]');
 ok(/id="tgSheet" role="dialog" aria-modal="true"/.test(html) && /class="tgs-grab"/.test(html) && /id="tgSheetScrim"/.test(html), 'диалог с граббером и затемнением');
-ok(/border-radius: 22px 22px 0 0/.test(css) && /\.tgs\.on \.tgs-panel \{ transform: translate3d\(0, 0, 0\); \}/.test(css), 'выезжает снизу, скруглённый верх');
+ok(/\.tgs-panel[^{]*\{[^}]*border-radius: var\(--r3\) var\(--r3\) 0 0/.test(css.slice(css.indexOf('/* ===== v159 DESIGN SYSTEM'))) /* v159: радиусы системы 8px */ && /\.tgs\.on \.tgs-panel \{ transform: translate3d\(0, 0, 0\); \}/.test(css), 'выезжает снизу, скруглённый верх');
 ok(/html\.tgs-open #viewHost \{ transform: scale\(\.94\)/.test(css), 'лёгкое уменьшение фона');
 const tgsCss = css.slice(css.indexOf('/* ——— v124: шторка'));
 ok(!/transition:[^;]*\b(top|height|bottom|left|margin)\b/.test(tgsCss), 'анимации только transform/opacity');

@@ -437,7 +437,7 @@ function drawTrack(id, elId, opts) {
     + '<line x1="-11" y1="-16" x2="-11" y2="16" stroke="#fff" stroke-width="2.2"/>'
     + '<rect x="-11" y="-16" width="9" height="9" fill="#111"/><rect x="-2" y="-16" width="9" height="9" fill="#eee"/>'
     + '<rect x="-11" y="-7" width="9" height="9" fill="#eee"/><rect x="-2" y="-7" width="9" height="9" fill="#111"/>'
-    + '<text x="16" y="4" fill="#9ECDB0" font-size="11" font-family="Manrope,sans-serif" font-weight="700">С/Ф</text>'
+    + '<text x="16" y="4" fill="#9ECDB0" font-size="11" font-family="PL Sans,sans-serif" font-weight="700">С/Ф</text>'
     + '</g>';
   const car = live
     ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)">'
@@ -12515,7 +12515,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v158';
+const APP_VERSION = 'v159';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12691,7 +12691,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -15529,7 +15529,7 @@ async function seasonImageBlob() {
   const g = c.getContext('2d');
   g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, W, H);
   const NEON = '#9ECDB0'; const TXT = '#f2f2f2'; const MUTE = '#8a8a8a';
-  const font = (w, px) => `${w} ${px}px Manrope, system-ui, sans-serif`;
+  const font = (w, px) => `${w} ${px}px "PL Sans", system-ui, sans-serif`;
   g.fillStyle = MUTE; g.font = font(700, 30); g.fillText('P I T L A N E', 64, 90);
   g.fillStyle = TXT; g.font = font(700, 64); g.fillText('Сезон экипажей', 64, 180);
   const tr = TRACKS.find((t) => t.id === s.trackId)?.name || s.trackId || '';

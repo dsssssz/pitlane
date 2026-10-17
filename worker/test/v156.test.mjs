@@ -6,10 +6,11 @@ const R = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const html = R('index.html'); const app = R('app.js'); const css = R('styles.css'); const sw = R('sw.js');
 const c = css.slice(css.indexOf('/* ===== v156'));
 // (1) стекло
-{ const g = (c.match(/html\.v156 \.h48-start, html\.v156 #app #view-lap \.lap-start-hero \{[^}]*\}/) || [''])[0];
-ok(/rgba\(255,255,255,\.10\)/.test(g) && /backdrop-filter: blur\(20px\) saturate\(1\.6\)/.test(g) && /color: #f4f3f0/.test(g), '«Старт» и «Старт круга»: полупрозрачное стекло, blur + saturate, светлый текст'); }
+// v159: стекло заменено системой — тонкий контурный круг без blur, светлый текст (одинаково для «Старт» и «Старт круга»)
+{ const sys = css.slice(css.indexOf('/* ===== v159 DESIGN SYSTEM')); const g = (sys.match(/\.h48-start, html\.v159[^{]*#view-lap \.lap-start-hero \{[^}]*\}/) || [''])[0];
+ok(/border: 1px solid var\(--ds-line-3\)/.test(g) && /backdrop-filter: none/.test(g) && /color: var\(--ds-text\)/.test(g), '«Старт» и «Старт круга»: тонкий контурный круг, без стекла, светлый текст'); }
 ok(/\.lap-start-hero::before \{[^}]*padding: 1px;[^}]*linear-gradient\(180deg, rgba\(255,255,255,\.46\)[^}]*mask/.test(c), 'обводка 1px градиентом, верх светлее');
-ok(/inset 0 1px 0 rgba\(255,255,255,\.22\)/.test(c), 'тонкий внутренний блик сверху');
+{ const sys = css.slice(css.indexOf('/* ===== v159 DESIGN SYSTEM')); ok(/\.h48-start::before, html\.v159[^{]*\{[^}]*inset: 10px; border-radius: 50%; border: 1px solid var\(--ds-line\)/.test(sys) && !/inset 0 1px 0 rgba\(255,255,255,\.22\)/.test(css), 'v159: вместо блика — внутреннее кольцо-волосок'); }
 ok(/@keyframes s56Sheen \{[^}]*translateX\(-105%\)/.test(c) && /classList\.add\('s56-sheen'\)/.test(app), 'мягкий блик проходит по нажатию');
 ok(!/text-shadow|drop-shadow|(?<!backdrop-filter: )blur\(|orange|#ff9|#30d158|0 0 \d+px/.test(c), 'без неона/свечения (blur — только backdrop-filter стекла)');
 ok(!/\.h48-start[^{]*\{[^}]*background: #ecebe8/.test(c), 'белой заливки у старта больше нет');

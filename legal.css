@@ -5,17 +5,18 @@
   --c-fill: #e8e9ea; --c-on-fill: #0b0c0c;
   --c-good: #a6cfb5; --c-bad: #d49a9a;
 }
+@font-face { font-family: "PL Sans"; src: url("./fonts/pl-sans.woff2") format("woff2"); font-weight: 300 700; font-display: swap; } /* v159: Inter (OFL), как в приложении */
 :root { color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: #1a1a1a; color: #e8e8e8; }
-body { font: 400 15px/1.6 Manrope, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
+body { font: 400 15px/1.6 "PL Sans", system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
 .legal { max-width: 720px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 24px) 18px 72px; }
-.legal .back { display: inline-block; margin-bottom: 18px; color: var(--c-acc); text-decoration: none; font: 700 12px/1 Manrope, sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.legal .back { display: inline-block; margin-bottom: 18px; color: var(--c-acc); text-decoration: none; font: 700 12px/1 "PL Sans", sans-serif; letter-spacing: .08em; text-transform: uppercase; }
 .legal .back:hover { text-decoration: underline; }
-.legal h1 { font: 800 30px/1.1 "Barlow Condensed", Manrope, sans-serif; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 6px; color: var(--c-acc); text-shadow: none; }
+.legal h1 { font: 800 30px/1.1 "PL Sans", system-ui, sans-serif; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 6px; color: var(--c-acc); text-shadow: none; }
 .legal .meta { margin: 0 0 22px; color: #8a8a8a; font-size: 12px; }
-.legal h2 { font: 700 18px/1.25 "Barlow Condensed", Manrope, sans-serif; letter-spacing: .08em; text-transform: uppercase; margin: 30px 0 10px; color: #f0f0f0; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.07); }
-.legal h3 { font: 700 15px/1.3 Manrope, sans-serif; margin: 18px 0 6px; color: #e0e0e0; }
+.legal h2 { font: 700 18px/1.25 "PL Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; margin: 30px 0 10px; color: #f0f0f0; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.07); }
+.legal h3 { font: 700 15px/1.3 "PL Sans", sans-serif; margin: 18px 0 6px; color: #e0e0e0; }
 .legal p, .legal li { color: #c8c8c8; margin: 0 0 10px; }
 .legal ul, .legal ol { padding-left: 1.25em; margin: 0 0 12px; }
 .legal a { color: var(--c-acc); }
@@ -31,11 +32,11 @@ body { font: 400 15px/1.6 Manrope, system-ui, -apple-system, "Segoe UI", sans-se
 /* Placeholders the operator must fill — deliberately loud */
 mark.ph { background: rgba(255, 196, 0, .16); color: #ffcf40; border: 1px dashed rgba(255, 196, 0, .7); border-radius: 6px; padding: 0 4px; font-weight: 700; white-space: nowrap; }
 .card { background: linear-gradient(165deg, #242424 0%, #1a1a1a 60%); border: 1px solid rgba(var(--acc-rgb), 0.28); border-radius: 16px; padding: 16px; margin: 14px 0; }
-.btn { appearance: none; display: block; width: 100%; min-height: 48px; border-radius: 14px; border: 1px solid var(--c-acc); background: #696969; color: var(--c-acc); font: 800 14px/1 Manrope, sans-serif; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
+.btn { appearance: none; display: block; width: 100%; min-height: 48px; border-radius: 14px; border: 1px solid var(--c-acc); background: #696969; color: var(--c-acc); font: 800 14px/1 "PL Sans", sans-serif; letter-spacing: .08em; text-transform: uppercase; cursor: pointer; }
 .btn-danger { border-color: rgba(212,154,154,0.45); background: rgba(212,154,154,0.1); color: var(--c-bad); }
 .btn:disabled { opacity: .4; cursor: default; }
 .field { display: block; margin: 12px 0; font-size: 13px; color: #d0d0d0; }
-.field input { display: block; width: 100%; margin-top: 6px; min-height: 46px; border-radius: 10px; border: 1px solid #696969; background: #121212; color: #f0f0f0; padding: 0 12px; font: 700 16px/1 Manrope, sans-serif; letter-spacing: .12em; }
+.field input { display: block; width: 100%; margin-top: 6px; min-height: 46px; border-radius: 10px; border: 1px solid #696969; background: #121212; color: #f0f0f0; padding: 0 12px; font: 700 16px/1 "PL Sans", sans-serif; letter-spacing: .12em; }
 .muted { color: #8a8a8a; font-size: 13px; }
 .hidden { display: none !important; }
 
@@ -50,14 +51,14 @@ html.tma .legal { padding-top: calc(env(safe-area-inset-top, 0px) + 64px); }
 html, body { background: #0c0c0c; color: #ededed; }
 .legal .back { color: #a3a3a3; font-weight: 600; letter-spacing: .16em; font-size: 10.5px; }
 .legal .back:hover { color: #f0f0f0; text-decoration: none; }
-.legal h1 { font: 700 30px/1.15 Manrope, system-ui, sans-serif; letter-spacing: -.01em; text-transform: none; color: #f5f5f5; text-shadow: none; }
+.legal h1 { font: 700 30px/1.15 "PL Sans", system-ui, sans-serif; letter-spacing: -.01em; text-transform: none; color: #f5f5f5; text-shadow: none; }
 .legal .meta { color: #696969; letter-spacing: .04em; }
-.legal h2 { font: 700 17px/1.3 Manrope, system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: #f0f0f0; border-top-color: rgba(255,255,255,.06); }
+.legal h2 { font: 700 17px/1.3 "PL Sans", system-ui, sans-serif; letter-spacing: 0; text-transform: none; color: #f0f0f0; border-top-color: rgba(255,255,255,.06); }
 .legal p, .legal li, .legal th, .legal td { color: #b9b9b9; }
 .legal a { color: #e8e8e8; text-decoration-color: rgba(var(--acc-rgb), 0.5); text-underline-offset: 3px; }
 .legal .note { border-left-color: rgba(var(--acc-rgb), 0.5); background: rgba(255,255,255,.03); }
 .card { background: linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02)), #121212; border: 1px solid rgba(255,255,255,.07); border-radius: 22px; }
-.btn { border-radius: 999px; border: 1px solid rgba(255,255,255,.1); background: var(--c-fill); color: #0c0c0c; font: 700 14px/1 Manrope, sans-serif; letter-spacing: 0; text-transform: none; }
+.btn { border-radius: 999px; border: 1px solid rgba(255,255,255,.1); background: var(--c-fill); color: #0c0c0c; font: 700 14px/1 "PL Sans", sans-serif; letter-spacing: 0; text-transform: none; }
 .btn-danger { border-color: rgba(212,154,154,0.35); background: rgba(212,154,154,0.08); color: var(--c-bad); }
 .field input { border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: #151515; }
 .field input:focus { outline: none; border-color: rgba(var(--acc-rgb), 0.5); }
@@ -68,3 +69,11 @@ html, body { background: #0c0c0c; color: #ededed; }
 /* v154: зоны нажатия ≥ 44 px (назад и ссылки в подвале) */
 .legal .back { padding: 16px 0; margin-bottom: 4px; }
 .legal footer a, .legal nav a { display: inline-block; padding: 12px 0; }
+
+/* v159: та же система, что в приложении — чистый чёрный, волоски, радиусы 4–8, подписи трекинг-капсом */
+html, body { background: #000; color: #f5f5f5; }
+.legal h1 { font: 500 28px/32px "PL Sans", system-ui, sans-serif; letter-spacing: -.01em; color: #f5f5f5; }
+.legal h2 { font: 500 11px/16px "PL Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; border-top: 1px solid rgba(255,255,255,.08); padding-top: 24px; margin-top: 32px; }
+.legal .back { color: #8a8a8a; font: 500 11px/16px "PL Sans", system-ui, sans-serif; letter-spacing: .08em; }
+.btn { border-radius: 4px; background: #f2f2f2; color: #000; border: 1px solid #f2f2f2; font: 600 15px/1 "PL Sans", system-ui, sans-serif; }
+.field input { border-radius: 4px; background: transparent; border: 1px solid rgba(255,255,255,.16); }

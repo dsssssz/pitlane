@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if 
 const root = new URL('../../', import.meta.url);
 const R = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const html = R('index.html'); const app = R('app.js'); const css = R('styles.css'); const sw = R('sw.js'); const shop = R('shop-ui.js');
-const c = css.slice(css.indexOf('/* ===== v158'));
+const c = css.slice(css.indexOf('/* ===== v159 DESIGN SYSTEM')); // v159: правила v158 переписаны в системе
 ok(/const CACHE = 'pitlane-v1(5[8-9]|[6-9]\d)'/.test(sw) && /APP_VERSION = 'v1(5[8-9]|[6-9]\d)'/.test(app) && /'v158'/.test(app), 'версия ≥ v158');
 // главная
 ok(/id="hwStats"[^>]*data-hw="stats"[^>]*hidden/.test(html) && /id="hw58Place"/.test(html) && /id="hw58Week"/.test(html) && /id="hw58Last"/.test(html), 'строка статистики: место в топе, за неделю, последняя сессия');

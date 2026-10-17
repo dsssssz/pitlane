@@ -24,20 +24,20 @@ export function drawOverlay(ctx, W, H, o) {
   ctx.fillStyle = g; ctx.fillRect(0, H * 0.62, W, H * 0.38);
   const pad = 36 * s;
   ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#f4f4f2'; ctx.font = `300 ${132 * s}px Manrope, system-ui, sans-serif`; ctx.textAlign = 'left';
+  ctx.fillStyle = '#f4f4f2'; ctx.font = `300 ${132 * s}px "PL Sans", system-ui, sans-serif`; ctx.textAlign = 'left';
   ctx.fillText(String(Math.round(o.speed || 0)), pad, H - pad - 26 * s);
-  ctx.fillStyle = 'rgba(244,244,242,.6)'; ctx.font = `600 ${18 * s}px Manrope, system-ui, sans-serif`;
+  ctx.fillStyle = 'rgba(244,244,242,.6)'; ctx.font = `600 ${18 * s}px "PL Sans", system-ui, sans-serif`;
   ctx.fillText('КМ/Ч', pad + 4 * s, H - pad);
-  ctx.textAlign = 'right'; ctx.fillStyle = '#f4f4f2'; ctx.font = `400 ${64 * s}px Manrope, system-ui, sans-serif`;
+  ctx.textAlign = 'right'; ctx.fillStyle = '#f4f4f2'; ctx.font = `400 ${64 * s}px "PL Sans", system-ui, sans-serif`;
   ctx.fillText(fmtClock(o.ms), W - pad, H - pad - 26 * s);
-  ctx.fillStyle = 'rgba(244,244,242,.6)'; ctx.font = `600 ${18 * s}px Manrope, system-ui, sans-serif`;
+  ctx.fillStyle = 'rgba(244,244,242,.6)'; ctx.font = `600 ${18 * s}px "PL Sans", system-ui, sans-serif`;
   ctx.fillText((o.label || 'ВРЕМЯ').toUpperCase(), W - pad, H - pad);
   const bw = W - pad * 2, by = H - pad - 190 * s;
   ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(pad, by, bw, 3 * s);
   ctx.fillStyle = 'rgb(158,205,176)'; ctx.fillRect(pad, by, bw * Math.min(1, (o.speed || 0) / 300), 3 * s);
-  ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(244,244,242,.85)'; ctx.font = `700 ${20 * s}px Manrope, system-ui, sans-serif`;
+  ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(244,244,242,.85)'; ctx.font = `700 ${20 * s}px "PL Sans", system-ui, sans-serif`;
   ctx.fillText('PITLANE', pad, pad + 20 * s);
-  if (o.rec) { ctx.textAlign = 'right'; ctx.fillStyle = '#d49a9a'; ctx.font = `600 ${18 * s}px Manrope, system-ui, sans-serif`; ctx.fillText('● REC', W - pad, pad + 20 * s); }
+  if (o.rec) { ctx.textAlign = 'right'; ctx.fillStyle = '#d49a9a'; ctx.font = `600 ${18 * s}px "PL Sans", system-ui, sans-serif`; ctx.fillText('● REC', W - pad, pad + 20 * s); }
 }
 
 export function openVideo({ getSpeed, getLabel, hap, webUrl, autostart = false, onClose }) {
