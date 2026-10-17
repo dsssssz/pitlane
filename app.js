@@ -12360,7 +12360,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v151';
+const APP_VERSION = 'v152';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12519,12 +12519,12 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v149', 'v150');
+document.documentElement.classList.add('v148', 'v150', 'v152');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
     const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'home';
-    const key = act === 'garage' ? 'garage' : act === 'home' || act === 'run' ? 'home' : 'account';
+    const key = act === 'garage' ? 'garage' : act === 'home' ? 'home' : act === 'zamer' || act === 'run' ? 'zamer' : 'account';
     document.querySelectorAll('.nav3-btn').forEach((b) => { const on = b.dataset.n3 === key; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   };
   nav?.addEventListener('click', (e) => {
@@ -12538,22 +12538,35 @@ document.documentElement.classList.add('v148', 'v149', 'v150');
   sync();
   // «Старт» на Главной = та же логика, что у кнопки замера (безопасность → armRun → полноэкранный спидометр)
   document.getElementById('h48Start')?.addEventListener('click', () => { withSafety(armRun)(); });
-  /* v149: лента машин на главной — миниатюры из img/cars/<id>.webp (те же, что в пикере) */
-  const strip = document.getElementById('h49Strip');
-  const renderStrip = () => {
-    if (!strip) return;
-    const cur = (() => { try { return currentCar()?.id || state.carId; } catch (_) { return state.carId; } })();
-    const ids = ['mclaren-765lt', 'gt3rs', 'g87-m2', 'm4', 'c63-ed507'];
-    const list = ids.map((id) => MODEL_CATALOG.find((m) => m.id === id)).filter(Boolean);
-    strip.innerHTML = list.map((m) => `<button type="button" class="h49-car${m.id === cur ? ' on' : ''}" role="listitem" data-h49-car="${esc(m.id)}"><span class="h49-th"><img src="${carThumbUrl(m.id)}" alt="" width="128" height="128" loading="lazy" decoding="async" /></span><span class="h49-cap">${esc(m.name.replace(/^(BMW|Porsche|McLaren|Mercedes-AMG|Lexus|Chevrolet)\s+/, ''))}</span></button>`).join('');
-  };
-  strip?.addEventListener('click', (e) => {
-    const b = e.target.closest?.('[data-h49-car]'); if (!b) return;
-    const id = b.dataset.h49Car;
-    goToView('garage');
-    setTimeout(() => { try { pickPodiumCar(id); } catch (_) {} setTimeout(() => { try { renderStrip(); } catch (_) {} }, 400); }, 120);
-  });
-  setTimeout(() => { try { renderStrip(); } catch (_) {} }, 600);
+  /* v152: карусель баннеров на Главной — scroll-snap, точки, авто каждые 6 с, пауза на касании */
+  (() => {
+    const track = document.getElementById('bn52Track'); const dots = document.getElementById('bn52Dots');
+    if (!track || !dots) return;
+    const slides = [...track.querySelectorAll('.bn52-s')]; if (!slides.length) return;
+    const reduce = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } })();
+    let cur = 0, paused = false, resumeT = 0;
+    const idx = () => Math.max(0, Math.min(slides.length - 1, Math.round(track.scrollLeft / Math.max(1, slides[0].offsetWidth + 12))));
+    const paint = (i) => { cur = i; dots.querySelectorAll('.bn52-dot').forEach((d, k) => { d.classList.toggle('on', k === i); d.setAttribute('aria-selected', k === i ? 'true' : 'false'); }); };
+    const go = (i) => { const n = (i + slides.length) % slides.length; track.scrollTo({ left: n * (slides[0].offsetWidth + 12), behavior: reduce ? 'auto' : 'smooth' }); paint(n); };
+    let raf = 0; track.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => paint(idx())); }, { passive: true });
+    const hold = () => { paused = true; clearTimeout(resumeT); };
+    const release = () => { clearTimeout(resumeT); resumeT = setTimeout(() => { paused = false; }, 8000); };
+    track.addEventListener('touchstart', hold, { passive: true }); track.addEventListener('pointerdown', hold);
+    track.addEventListener('touchend', release, { passive: true }); track.addEventListener('pointerup', release); track.addEventListener('pointercancel', release);
+    dots.addEventListener('click', (e) => { const d = e.target.closest('.bn52-dot'); if (!d) return; hold(); go(+d.dataset.i); release(); });
+    setInterval(() => {
+      if (paused || document.hidden) return;
+      if (!document.getElementById('view-home')?.classList.contains('active')) return;
+      go(cur + 1 >= slides.length ? 0 : cur + 1);
+    }, 6000);
+    track.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-bn52]'); if (!b) return;
+      const k = b.dataset.bn52;
+      if (k === 'shop') { try { openShopSheet(); } catch (_) {} return; }
+      document.querySelector(`#p48 [data-p48="${k}"]`)?.click(); // те же маршруты, что в Профиле
+    });
+    window.__bn52 = { go: (i) => go(i) }; // скриншоты/отладка
+  })();
   const renderH48 = () => {
     const nm = document.getElementById('hwCarName')?.textContent?.trim();
     const car = document.getElementById('h48Car');

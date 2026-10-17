@@ -181,18 +181,31 @@
         <div class="view-host" id="viewHost">
         <!-- v84: Главная — карусель разделов, моя машина, топ постов за сутки -->
         <section id="view-home" class="view active">
-          <!-- v148: Главная — одна кнопка «Старт», под ней машина и GPS -->
-          <section class="h48" id="h48" aria-label="Замер">
-            <!-- v149: герой — тёмный рендер концепт-машины (без марки) + текстовый вордмарк -->
-            <div class="h49-hero" id="h49Hero" aria-hidden="true">
-              <img src="./img/home/hero-v149.webp" alt="" width="1200" height="700" decoding="async" fetchpriority="high" />
-              <b class="h49-word">PITLANE</b>
+          <!-- v152: на месте карточки «Замер» — карусель баннеров (scroll-snap, точки, авто 6 с, пауза на касании) -->
+          <section class="bn52" id="bn52" aria-roledescription="карусель" aria-label="Pitlane">
+            <div class="bn52-track" id="bn52Track">
+              <button type="button" class="bn52-s b-chip" data-bn52="shop" role="group" aria-roledescription="баннер" aria-label="Чип 25 Гц">
+                <img src="./img/shop/gps-hero-720.webp" alt="" loading="eager" decoding="async" />
+                <span class="bn52-k">PITLANE GPS</span><b class="bn52-t">Чип 25 Гц</b><span class="bn52-d">25 точек в секунду — точнее телефона</span><i class="bn52-go" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="bn52-s b-tops" data-bn52="tops" role="group" aria-roledescription="баннер" aria-label="Кто быстрее в Москве">
+                <img src="./img/banners/tracks-800.webp" alt="" loading="lazy" decoding="async" />
+                <span class="bn52-k">Топы города</span><b class="bn52-t">Кто быстрее в Москве</b><span class="bn52-d">Разгоны и круги по трассам</span><i class="bn52-go" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="bn52-s b-duels" data-bn52="duels" role="group" aria-roledescription="баннер" aria-label="Брось вызов">
+                <img src="./img/banners/duels-800.webp" alt="" loading="lazy" decoding="async" />
+                <span class="bn52-k">Дуэли</span><b class="bn52-t">Брось вызов</b><span class="bn52-d">1 на 1 — разгон или круг</span><i class="bn52-go" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="bn52-s b-video" data-bn52="video" role="group" aria-roledescription="баннер" aria-label="С телеметрией">
+                <img src="./img/cars/studio/mclaren-765lt-780.webp" alt="" loading="lazy" decoding="async" />
+                <span class="bn52-k">Видео</span><b class="bn52-t">С телеметрией</b><span class="bn52-d">Скорость и время прямо на видео</span><i class="bn52-go" aria-hidden="true"></i>
+              </button>
+              <button type="button" class="bn52-s b-track" data-bn52="suggest" role="group" aria-roledescription="баннер" aria-label="Предложи трассу">
+                <img src="./img/track-maps/auto-msk-full.webp" alt="" loading="lazy" decoding="async" />
+                <span class="bn52-k">Трассы</span><b class="bn52-t">Предложи трассу</b><span class="bn52-d">Откалибруем и добавим в топы</span><i class="bn52-go" aria-hidden="true"></i>
+              </button>
             </div>
-            <button type="button" class="h48-start" id="h48Start">Старт</button>
-            <p class="h48-car" id="h48Car">Машина не выбрана</p>
-            <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
-            <!-- v149: лента машин — тап выбирает машину и открывает Гараж -->
-            <div class="h49-strip" id="h49Strip" role="list" aria-label="Машины"></div>
+            <div class="bn52-dots" id="bn52Dots" role="tablist" aria-label="Баннеры"><button type="button" class="bn52-dot on" data-i="0" role="tab" aria-label="Баннер 1"></button><button type="button" class="bn52-dot" data-i="1" role="tab" aria-label="Баннер 2"></button><button type="button" class="bn52-dot" data-i="2" role="tab" aria-label="Баннер 3"></button><button type="button" class="bn52-dot" data-i="3" role="tab" aria-label="Баннер 4"></button><button type="button" class="bn52-dot" data-i="4" role="tab" aria-label="Баннер 5"></button></div>
           </section>
           <!-- v120: баннеры скрыты (код остаётся); первым — главная кнопка замера -->
           <section class="home-go hg-a" id="homeGo">
@@ -362,6 +375,15 @@
               <button type="button" class="home-link hsec-all" data-view="pulse" aria-label="Все посты в Паддоке">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
             </div>
             <div id="homeTopPosts" class="home-posts"></div>
+          </section>
+        </section>
+
+        <section id="view-zamer" class="view">
+          <!-- v152: вкладка «Замер» — одна кнопка «Старт», под ней машина и GPS -->
+          <section class="h48" id="h48" aria-label="Замер">
+            <button type="button" class="h48-start" id="h48Start">Старт</button>
+            <p class="h48-car" id="h48Car">Машина не выбрана</p>
+            <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
           </section>
         </section>
 
@@ -1024,8 +1046,9 @@
         </div>
       <!-- v148: нижняя панель — Замер / Гараж / Профиль -->
       <nav class="nav3" id="nav3" aria-label="Разделы">
-        <button type="button" class="nav3-btn on" data-n3="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Замер</span></button>
-        <button type="button" class="nav3-btn" data-n3="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-6h4v6"/></svg><span>Гараж</span></button>
+        <button type="button" class="nav3-btn on" data-n3="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-6h4v6"/></svg><span>Главная</span></button>
+        <button type="button" class="nav3-btn" data-n3="zamer"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Замер</span></button>
+        <button type="button" class="nav3-btn" data-n3="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 15.5l1.6-4.4A2 2 0 0 1 7 9.8h10a2 2 0 0 1 1.9 1.3l1.6 4.4"/><path d="M3.5 15.5h17v2.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1h-10v1a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r=".6"/><circle cx="16.5" cy="15.5" r=".6"/></svg><span>Гараж</span></button>
         <button type="button" class="nav3-btn" data-n3="account"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.4"/><path d="M5.5 19.5c.9-3.2 3.3-4.9 6.5-4.9s5.6 1.7 6.5 4.9"/></svg><span>Профиль</span></button>
       </nav>
       </main>

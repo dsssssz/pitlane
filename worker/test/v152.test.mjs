@@ -1,0 +1,25 @@
+// v152: Главная — снова виджеты (без кнопки замера) + карусель баннеров; «Замер» — отдельная вкладка с одной кнопкой «Старт».
+import fs from 'fs';
+let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+const root = new URL('../../', import.meta.url);
+const html = fs.readFileSync(new URL('index.html', root), 'utf8');
+const app = fs.readFileSync(new URL('app.js', root), 'utf8');
+const css = fs.readFileSync(new URL('styles.css', root), 'utf8');
+const sw = fs.readFileSync(new URL('sw.js', root), 'utf8');
+const home = html.slice(html.indexOf('id="view-home"'), html.indexOf('id="view-zamer"'));
+const zam = html.slice(html.indexOf('id="view-zamer"'), html.indexOf('id="view-garage"'));
+ok(/id="view-home" class="view active"/.test(html), 'приложение открывается на Главной');
+ok(zam.includes('id="h48Start"') && zam.includes('id="h48Car"') && zam.includes('id="h48Gps"') && !home.includes('id="h48"'), '«Замер»: Старт + машина + GPS (v148), не на Главной');
+ok(!/h49|hero-v149/.test(html + app + sw) && !fs.existsSync(new URL('img/home/hero-v149.webp', root)), 'герой и лента v149 убраны');
+ok(home.includes('id="homeWidgets"') && /html\.v152 #homeGo \{ display: none !important; \}/.test(css), 'Главная: старые виджеты на месте, карточка замера скрыта');
+ok(home.indexOf('id="bn52"') > 0 && home.indexOf('id="bn52"') < home.indexOf('id="homeGo"'), 'карусель — на месте карточки замера');
+const keys = [...home.matchAll(/data-bn52="([a-z]+)"/g)].map((m) => m[1]);
+ok(keys.join(',') === 'shop,tops,duels,video,suggest', 'баннеры: чип → магазин, топы, дуэли, видео, трасса');
+ok((home.match(/class="bn52-dot( on)?"/g) || []).length === keys.length, 'точки по числу баннеров');
+ok(/scroll-snap-type: x mandatory/.test(css) && /}, 6000\);/.test(app) && /touchstart', hold/.test(app) && /prefers-reduced-motion: reduce/.test(app.slice(app.indexOf('v152: карусель'))), 'scroll-snap, авто 6 с, пауза на касании, reduced-motion');
+ok(/k === 'shop'\) \{ try \{ openShopSheet\(\); \}/.test(app) && /#p48 \[data-p48="\$\{k\}"\]/.test(app), 'баннеры ведут теми же маршрутами, что Профиль');
+ok(/html\.v152 #homeWidgets \[data-empty="1"\] \{ display: none !important; \}/.test(css), 'пустые виджеты скрыты');
+ok(/act === 'zamer' \|\| act === 'run' \? 'zamer'/.test(app), 'вкладка «Замер» подсвечена и на экране замера');
+const c = css.slice(css.indexOf('/* ===== v152'));
+ok(!/text-shadow|drop-shadow|blur\(|orange|#ff9|#30d158|#39ff14/i.test(c) && /\.bn52-s img \{[^}]*grayscale\(1\)/.test(c), 'графит: баннеры обесцвечены, без неона');
+if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v152 OK');

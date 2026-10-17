@@ -6,7 +6,8 @@ const app = fs.readFileSync(new URL('../../app.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../styles.css', import.meta.url), 'utf8');
 ok(/id="h48Start"[^>]*>Старт</.test(html) && /h48Start'\)\?\.addEventListener\('click', \(\) => \{ withSafety\(armRun\)\(\); \}\)/.test(app), 'Главная: «Старт» запускает тот же замер (безопасность → armRun)');
 const nav = html.slice(html.indexOf('id="nav3"'), html.indexOf('</nav>', html.indexOf('id="nav3"')));
-ok((nav.match(/data-n3=/g) || []).length === 3 && /data-n3="home"[\s\S]*Замер[\s\S]*data-n3="garage"[\s\S]*Гараж[\s\S]*data-n3="account"[\s\S]*Профиль/.test(nav), 'нижняя панель: ровно Замер / Гараж / Профиль');
+// v152: вкладок стало 4 — Главная / Замер / Гараж / Профиль (Замер, Гараж, Профиль на месте, в том же порядке)
+ok((nav.match(/data-n3=/g) || []).length === 4 && /data-n3="home"[\s\S]*Главная[\s\S]*data-n3="zamer"[\s\S]*Замер[\s\S]*data-n3="garage"[\s\S]*Гараж[\s\S]*data-n3="account"[\s\S]*Профиль/.test(nav), 'нижняя панель: Главная / Замер / Гараж / Профиль');
 const p = html.slice(html.indexOf('id="p48"'), html.indexOf('</section>', html.indexOf('id="p48"')));
 const keys = [...p.matchAll(/data-p48="([a-z]+)"/g)].map((m) => m[1]);
 ok(keys[0] === 'tops' && keys[1] === 'duels', 'Профиль: Топы и Дуэли — первые');
