@@ -12338,7 +12338,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v148';
+const APP_VERSION = 'v149';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12497,7 +12497,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148');
+document.documentElement.classList.add('v148', 'v149');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -12516,6 +12516,22 @@ document.documentElement.classList.add('v148');
   sync();
   // «Старт» на Главной = та же логика, что у кнопки замера (безопасность → armRun → полноэкранный спидометр)
   document.getElementById('h48Start')?.addEventListener('click', () => { withSafety(armRun)(); });
+  /* v149: лента машин на главной — миниатюры из img/cars/<id>.webp (те же, что в пикере) */
+  const strip = document.getElementById('h49Strip');
+  const renderStrip = () => {
+    if (!strip) return;
+    const cur = (() => { try { return currentCar()?.id || state.carId; } catch (_) { return state.carId; } })();
+    const ids = ['mclaren-765lt', 'gt3rs', 'g87-m2', 'm4', 'c63-ed507'];
+    const list = ids.map((id) => MODEL_CATALOG.find((m) => m.id === id)).filter(Boolean);
+    strip.innerHTML = list.map((m) => `<button type="button" class="h49-car${m.id === cur ? ' on' : ''}" role="listitem" data-h49-car="${esc(m.id)}"><span class="h49-th"><img src="${carThumbUrl(m.id)}" alt="" width="128" height="128" loading="lazy" decoding="async" /></span><span class="h49-cap">${esc(m.name.replace(/^(BMW|Porsche|McLaren|Mercedes-AMG|Lexus|Chevrolet)\s+/, ''))}</span></button>`).join('');
+  };
+  strip?.addEventListener('click', (e) => {
+    const b = e.target.closest?.('[data-h49-car]'); if (!b) return;
+    const id = b.dataset.h49Car;
+    goToView('garage');
+    setTimeout(() => { try { pickPodiumCar(id); } catch (_) {} setTimeout(() => { try { renderStrip(); } catch (_) {} }, 400); }, 120);
+  });
+  setTimeout(() => { try { renderStrip(); } catch (_) {} }, 600);
   const renderH48 = () => {
     const nm = document.getElementById('hwCarName')?.textContent?.trim();
     const car = document.getElementById('h48Car');

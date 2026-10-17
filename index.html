@@ -183,9 +183,16 @@
         <section id="view-home" class="view active">
           <!-- v148: Главная — одна кнопка «Старт», под ней машина и GPS -->
           <section class="h48" id="h48" aria-label="Замер">
+            <!-- v149: герой — тёмный рендер концепт-машины (без марки) + текстовый вордмарк -->
+            <div class="h49-hero" id="h49Hero" aria-hidden="true">
+              <img src="./img/home/hero-v149.webp" alt="" width="1200" height="700" decoding="async" fetchpriority="high" />
+              <b class="h49-word">PITLANE</b>
+            </div>
             <button type="button" class="h48-start" id="h48Start">Старт</button>
             <p class="h48-car" id="h48Car">Машина не выбрана</p>
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
+            <!-- v149: лента машин — тап выбирает машину и открывает Гараж -->
+            <div class="h49-strip" id="h49Strip" role="list" aria-label="Машины"></div>
           </section>
           <!-- v120: баннеры скрыты (код остаётся); первым — главная кнопка замера -->
           <section class="home-go hg-a" id="homeGo">
