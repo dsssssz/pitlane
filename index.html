@@ -244,6 +244,8 @@
               <span class="hw-car-txt"><span class="cb-row hw-car-row" id="hwCarRow"><b id="hwCarName" class="cb-name">—</b></span><span id="hwCarSub"></span></span>
               <span class="hw-car-chip" id="hwCarBest" hidden></span>
             </button>
+            <!-- v158: компактная строка статистики — место в топе, замеры за неделю, последняя сессия (только реальные данные; пусто — скрыта) -->
+            <button type="button" class="hw hw-wide hw-stats" id="hwStats" data-hw="stats" aria-label="Моя статистика — открыть мои замеры" hidden><span class="hw58-c" id="hw58Place" hidden><span class="hw58-k">Топ города</span><b class="hw58-v" id="hw58PlaceV">—</b><span class="hw58-s" id="hw58PlaceS"></span></span><span class="hw58-c" id="hw58Week" hidden><span class="hw58-k">За 7 дней</span><b class="hw58-v" id="hw58WeekV">—</b><span class="hw58-s" id="hw58WeekS"></span></span><span class="hw58-c" id="hw58Last" hidden><span class="hw58-k">Последняя</span><b class="hw58-v" id="hw58LastV">—</b><span class="hw58-s" id="hw58LastS"></span></span></button>
             <button type="button" class="hw" id="hwRec" data-hw="records"><span class="hw-k">Мои рекорды</span><span class="hw-body" id="hwRecBody"></span></button>
             <button type="button" class="hw" id="hwDuels" data-hw="duels"><span class="hw-k">Дуэли</span><span class="hw-body" id="hwDuelsBody"></span></button>
             <button type="button" class="hw hw-wide hw-chat" id="hwPad" data-hw="pulse" aria-label="Paddock — чат пилотов"><span class="hw-k">Paddock <span class="hw-k-sub">· чат пилотов</span></span><span class="hw-body" id="hwPadBody"></span></button>
@@ -643,6 +645,8 @@
             <button type="button" class="seg-btn on" data-view="lap" role="tab" aria-selected="true">Круг</button>
           </div>
           <h2 data-i18n="lap.title">Трек</h2>
+          <!-- v158: выбор трассы — карточки с силуэтом, длиной, вашим лучшим и рекордом трассы -->
+          <div class="tk58" id="tk58" role="listbox" aria-label="Трасса" aria-orientation="horizontal"></div>
           <p class="muted">Выбери трассу барабаном, старт на линии, финиш на той же.</p>
           <div class="grid-2 lap-grid">
             <article class="card lap-track-card">
@@ -729,6 +733,11 @@
               <p>Полный список кругов — пока бесплатно</p>
             </div>
           </article>
+        </section>
+
+        <!-- v158: Магазин — отдельная страница (шапка + назад), не шторка -->
+        <section id="view-shop" class="view shop58" aria-label="Магазин">
+          <div class="shop-body" id="shopBody"></div>
         </section>
 
         <section id="view-tops" class="view">
@@ -1204,8 +1213,44 @@
       </div>
       <div class="lap-drive-map" id="lapDriveMap"></div>
       <div class="lap-drive-chase hidden" id="lapDriveChase" aria-hidden="true"><span class="chase-tag">нет GPS</span><div class="chase-hud" aria-live="off"><span class="chase-v"><b data-chase-v>0</b><i>км/ч</i></span><span class="chase-acc" data-chase-acc>GPS —</span></div><p class="chase-note hidden" data-chase-note></p><div class="chase-acts"><button type="button" class="chase-btn chase-btn-gps hidden" data-chase-act="gps">Включить GPS</button><button type="button" class="chase-btn hidden" data-chase-act="demo" aria-pressed="false">Демо</button></div></div>
+      <!-- v158: HUD круга — дельта, текущий/лучший, секторы, мини-карта, прогноз. Старые элементы HUD остаются для логики -->
+      <div class="lh58" id="lh58" data-tone="none" data-phase="idle">
+        <header class="lh58-top">
+          <div class="lh58-tt"><b id="lh58Track">—</b><span id="lh58Sub">—</span></div>
+          <span class="lh58-gps" id="lh58Gps" data-q="none"><i aria-hidden="true"></i><span>GPS</span></span>
+          <button type="button" class="lh58-ic" id="lh58Video" aria-label="Видео с телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg></button>
+          <button type="button" class="lh58-ic" id="lh58Min" aria-label="Свернуть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+        </header>
+        <section class="lh58-delta" aria-live="off">
+          <span class="lh58-k" id="lh58DeltaK">дельта к лучшему</span>
+          <b class="lh58-dv" id="lh58Delta">—</b>
+          <span class="lh58-pred" id="lh58Pred">прогноз —</span>
+        </section>
+        <section class="lh58-times">
+          <div class="lh58-t lh58-cur"><span>Текущий</span><b id="lh58Cur">0:00.0</b></div>
+          <div class="lh58-t"><span>Лучший</span><b id="lh58Best">—</b></div>
+          <div class="lh58-t"><span>Скорость</span><b id="lh58Spd">0</b><small>км/ч</small></div>
+        </section>
+        <div class="lh58-sec" id="lh58Sec">
+          <div class="lh58-s" data-i="0" data-tone="none"><i class="lh58-sb"><i></i></i><span>S1</span><b>—</b></div>
+          <div class="lh58-s" data-i="1" data-tone="none"><i class="lh58-sb"><i></i></i><span>S2</span><b>—</b></div>
+          <div class="lh58-s" data-i="2" data-tone="none"><i class="lh58-sb"><i></i></i><span>S3</span><b>—</b></div>
+        </div>
+        <div class="lh58-map"><svg id="lh58Map" viewBox="0 0 300 170" preserveAspectRatio="xMidYMid meet" aria-hidden="true"><path class="lh58-trk-b" d=""/><path class="lh58-trk" d=""/><circle class="lh58-sf" r="4" cx="-10" cy="-10"/><circle class="lh58-me" r="6.5" cx="-10" cy="-10"/></svg><p class="lh58-msg" id="lh58Msg">—</p></div>
+        <div class="lh58-flash" id="lh58Flash" hidden role="status"></div>
+        <footer class="lh58-act">
+          <button type="button" class="lh58-arm" id="lh58Arm">Старт сессии</button>
+          <button type="button" class="lh58-b" id="lh58Reset">Сброс</button>
+          <button type="button" class="lh58-b" id="lh58End">Конец</button>
+        </footer>
+      </div>
     </div>
 
+
+    <!-- v158: итог сессии на трассе — круги, секторы, теоретический лучший -->
+    <div id="ls58" class="ls58 hidden" aria-hidden="true" role="dialog" aria-label="Итог сессии">
+      <div class="ls58-in" id="ls58In"></div>
+    </div>
 
     <div id="shareCard" class="share-card hidden" aria-hidden="true">
       <div class="share-card-inner">
@@ -1453,7 +1498,7 @@
       <div class="crew-sheet-inner race-sheet-inner shop-sheet-inner">
         <button type="button" class="share-card-close" id="shopClose" aria-label="Закрыть">×</button>
         <div class="race-sheet-handle" aria-hidden="true"></div>
-        <div class="shop-body" id="shopBody"></div>
+        <div class="shop-body" id="shopBodySheet"></div>
       </div>
     </div>
     <div id="feedbackSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Обратная связь">

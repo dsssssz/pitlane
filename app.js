@@ -4421,6 +4421,7 @@ const lapDrive = {
   mapModeUser: false, // v96: user picked a map mode during this HUD session
 };
 
+const LH58_ON = true; // v158: новый HUD круга
 const LAP_GATE_R = 48; // м — зона линии С/Ф вокруг TRACK_GEO
 const LAP_MAX_JUMP_MS = 95; // м за один тик — выше = телепорт
 const LAP_MAX_KMH = 340;
@@ -4944,7 +4945,7 @@ function openLapDrive() {
   try { unmountLapSatMap(); } catch (_) {}
   // v96: Sochi → 3D chase (behind the car) is the default HUD view unless reduced-motion
   lapDrive.mapModeUser = false;
-  if (trackId === 'sochi' && !sochiReduceMotion() && typeof THREE !== 'undefined') lapDrive.mapMode = 'chase';
+  if (trackId === 'sochi' && !sochiReduceMotion() && typeof THREE !== 'undefined' && !LH58_ON) lapDrive.mapMode = 'chase'; // v158: свой HUD с мини-картой — 3D-погоня под ним не крутится
   else if (lapDrive.mapMode === 'chase') lapDrive.mapMode = 'overview';
   {
     const geo = TRACK_GEO[trackId];
@@ -4976,7 +4977,7 @@ function openLapDrive() {
     }
   }
   // v119: chase Сочи ждёт three.js — догружаем и включаем, если пилот сам не переключил вид
-  if (trackId === 'sochi' && !sochiReduceMotion() && typeof THREE === 'undefined') {
+  if (trackId === 'sochi' && !sochiReduceMotion() && typeof THREE === 'undefined' && !LH58_ON) {
     void ensureThree().then(() => {
       if (!lapDrive.open || lapDrive.mapModeUser || lapRun.trackId !== 'sochi') return;
       lapDrive.mapMode = 'chase';
@@ -7191,6 +7192,8 @@ if (isTMA) {
   };
   const backTarget = () => {
     if (visible('geoDenied')) return () => hideGeoDenied();
+    if (visible('ls58')) return () => ls58Close(); // v158: итог сессии
+    if (document.getElementById('view-shop')?.classList.contains('active') && !visible('shopSheet') && ![...SHEETS].some(([id]) => visible(id))) return () => shop58Back(); // v158: магазин — страница
     for (const [id, btn] of SHEETS) if (visible(id)) return () => closeSheet(id, btn);
     if (visible('runDrive')) return run.armed ? null : () => closeRunDrive();
     if (visible('lapDrive')) return () => document.getElementById('lapDriveCancel')?.click();
@@ -12512,7 +12515,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v157';
+const APP_VERSION = 'v158';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12625,12 +12628,20 @@ function fbDownscaleShot(file) {
 
 /* v137: магазин — модуль грузится при первом открытии (витрина/карточка/заявка/«принята»), см. shop-ui.js и shop-config.js */
 let _shopMod = null;
+/* v158: магазин — отдельная страница (view-shop) с шапкой и «назад»; витрина → товар → заявка. BackButton Telegram: шаг назад, потом — откуда пришли */
+let _shopFrom = 'home';
 async function openShopSheet(productId) {
-  const sheet = document.getElementById('shopSheet'); if (!sheet) return;
-  sheet.classList.remove('hidden'); sheet.setAttribute('aria-hidden', 'false'); document.documentElement.classList.add('shop-open'); // v138: панель остаётся поверх
+  const prev = document.querySelector('.view.active')?.id?.replace('view-', '');
+  if (prev && prev !== 'shop') _shopFrom = prev;
+  try { closeTgSheet({ instant: true }); } catch (_) {}
+  try { plMenuClose(); } catch (_) {}
+  goToView('shop');
+  window.scrollTo(0, 0);
   try { _shopMod = _shopMod || await import('./shop-ui.js'); } catch (_) { const b = document.getElementById('shopBody'); if (b) b.textContent = 'Магазин не загрузился — проверьте интернет'; return; }
-  _shopMod.openShop({ api, currentUser, needLogin, hap, close: closeShopSheet }, productId);
+  _shopMod.openShop({ api, currentUser, needLogin, hap, close: shop58Leave, page: true }, productId);
 }
+function shop58Leave() { goToView(_shopFrom && document.getElementById('view-' + _shopFrom) ? _shopFrom : 'home'); }
+function shop58Back() { if (_shopMod && _shopMod.shopBack()) return; shop58Leave(); }
 /* v142: телеметрия кругов (локально, последние 8 на трассу, прорежено) + аналитика */
 const TELE_KEY = 'pitlane-tele-v1';
 function teleAll() { try { return JSON.parse(localStorage.getItem(TELE_KEY) || '{}') || {}; } catch (_) { return {}; } }
@@ -12680,7 +12691,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -12692,7 +12703,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     const b = e.target.closest('.nav3-btn'); if (!b) return;
     try { closeTgSheet({ instant: true }); } catch (_) {}
     try { closeShopSheet(); } catch (_) {}
-    goToView(b.dataset.n3); sync();
+    goToView(b.dataset.n3); sync(); window.scrollTo(0, 0);
   });
   /* v156: «Замер» открыт — спидометр пре-смонтирован скрытым; ушли — снимаем и гасим ожидание автостарта */
   {
@@ -14860,11 +14871,17 @@ async function renderHwDuels() {
   let rows = []; try { rows = await fetchMyDuels(); } catch (_) { rows = []; }
   const inbox = rows.filter((d) => duelCategory(d) === 'inbox').length;
   const active = rows.filter((d) => duelCategory(d) === 'active').length;
-  if (!inbox && !active) { hwSet('hwDuelsBody', hwEmpty('Нет активных', 'Вызови пилота 1 на 1')); return; }
+  const wDu = document.getElementById('hwDuels');
+  if (!inbox && !active) { hwSet('hwDuelsBody', hwEmpty('Нет активных', 'Вызови пилота 1 на 1')); if (wDu) wDu.hidden = true; return; } // v158: пустой виджет скрыт
+  if (wDu) wDu.hidden = false;
   const n = inbox + active;
   const nodes = [hwBig(String(n), n === 1 ? 'дуэль' : n < 5 ? 'дуэли' : 'дуэлей')];
   if (inbox) nodes.push(padEl('span', 'hw-note hw-acc', inbox === 1 ? 'тебя вызвали' : 'вызовов: ' + inbox));
   else nodes.push(padEl('span', 'hw-note', 'ждут заезда'));
+  // v158: ближайшая дуэль — соперник и дисциплина
+  { const d0 = rows.find((d) => duelCategory(d) === 'inbox') || rows.find((d) => duelCategory(d) === 'active');
+    if (d0) { const who = duelCategory(d0) === 'inbox' ? (d0.createdBy?.name || 'пилот') : (d0.challenger?.name || ''); const typ = d0.type === 'lap' ? 'круг' : '0–100';
+      nodes.push(padEl('span', 'hw-note hw58-next', (who ? (duelCategory(d0) === 'inbox' ? 'от ' : 'с ') + clipText(String(who), 14) + ' · ' : '') + typ)); } }
   hwSet('hwDuelsBody', nodes);
 }
 let _hwPadAt = 0;
@@ -14954,13 +14971,14 @@ async function renderHwTeam() {
   _hwTeamAt = Date.now();
   let rows = null; try { rows = isRemoteApi() && currentUser() ? await api.listMyCrews(crewPilotId()) : null; } catch (_) { rows = null; }
   const c = Array.isArray(rows) && rows.length ? rows[0] : null;
+  const wT = document.getElementById('hwTeam'); if (wT) wT.hidden = !c; // v158: нет команды — виджет скрыт (команда — в ☰)
   if (!c) { hwSet('hwTeamBody', hwEmpty('Нет команды', 'Собери экипаж')); return; }
   const n = Number(c.memberCount || c.members?.length || 0);
   hwSet('hwTeamBody', [padEl('b', 'hw-name', clipText(String(c.name || 'Экипаж'), 20)), padEl('span', 'hw-note', n ? n + ' из 10 пилотов' : 'экипаж')]);
 }
 function renderHwTop(remote) {
   const board = remote?.board || [];
-  { const tw = document.getElementById('hwTop'); if (tw) tw.dataset.empty = board.length ? '0' : '1'; }
+  { const tw = document.getElementById('hwTop'); if (tw) { tw.dataset.empty = board.length ? '0' : '1'; if (remote) tw.hidden = !board.length; } } // v158: пустой топ скрыт
   if (!board.length) { hwSet('hwTopBody', hwEmpty('Топ пока пуст', 'Стань первым в таблице', 'Сделать замер')); return; }
   const lead = board[0];
   const nodes = [];
@@ -14975,11 +14993,40 @@ function renderHwTop(remote) {
 }
 async function renderHomeWidgets() {
   if (!document.getElementById('homeWidgets')) return;
-  renderHwCar(null); renderHwRecords(null); renderHwTop(null);
+  renderHwCar(null); renderHwRecords(null); renderHwTop(null); try { renderHwStats(null); } catch (_) {}
   void renderHwDuels(); void renderHwPaddock(); void renderHwTeam();
   let remote = null; try { remote = await homeRemote(); } catch (_) { remote = null; }
   renderHwCar(remote); renderHwRecords(remote); renderHwTop(remote);
+  try { renderHwStats(remote); } catch (_) {}
   try { renderHomeGo(); } catch (_) {}
+}
+/* v158: строка статистики на Главной — место в топе 0–100, замеры за 7 дней, последняя сессия. Пустые ячейки скрыты, пустая строка — тоже. */
+function hw58Ago(at) {
+  const d = Math.floor((Date.now() - at) / 86400000);
+  if (!(at > 0)) return '';
+  if (d <= 0) return 'сегодня'; if (d === 1) return 'вчера'; if (d < 7) return d + ' дн. назад';
+  return new Date(at).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+}
+function hw58Data(remote) {
+  const out = { place: null, week: 0, last: null };
+  const board = remote?.board || [];
+  const i = remote?.pid ? board.findIndex((r) => r.pilotId === remote.pid) : -1;
+  if (i >= 0) out.place = { v: '#' + (i + 1), s: 'из ' + board.length + ' · 0–100' };
+  const wk = Date.now() - 7 * 86400000;
+  const ev = [];
+  for (const sl of (Array.isArray(state.slips) ? state.slips : [])) if (sl && sl.at > 0) ev.push({ at: sl.at, kind: 'run', v: sl.v0100 != null ? Number(sl.v0100).toFixed(2) + ' с' : '', s: '0–100' });
+  for (const [trackId, list] of Object.entries(state.laps || {})) for (const l of (Array.isArray(list) ? list : [])) if (l && l.at > 0 && l.ms > 0) ev.push({ at: l.at, kind: 'lap', v: fmtLapTime(l.ms), s: TRACKS.find((t) => t.id === trackId)?.name || trackId });
+  out.week = ev.filter((e) => e.at >= wk).length;
+  ev.sort((a, b) => b.at - a.at);
+  if (ev[0]) out.last = { v: ev[0].v || (ev[0].kind === 'lap' ? 'круг' : 'замер'), s: clipText(String(ev[0].s), 10) + ' · ' + hw58Ago(ev[0].at) };
+  return out;
+}
+function renderHwStats(remote) {
+  const w = document.getElementById('hwStats'); if (!w) return;
+  const d = hw58Data(remote);
+  const cell = (id, val) => { const c = document.getElementById(id); if (!c) return false; c.hidden = !val; if (val) { const v = document.getElementById(id + 'V'); const s2 = document.getElementById(id + 'S'); if (v && v.textContent !== val.v) v.textContent = val.v; if (s2 && s2.textContent !== val.s) s2.textContent = val.s; } return !!val; };
+  const n = [cell('hw58Place', d.place), cell('hw58Week', d.week ? { v: String(d.week), s: (d.week % 10 === 1 && d.week % 100 !== 11) ? 'заезд' : ([2, 3, 4].includes(d.week % 10) && ![12, 13, 14].includes(d.week % 100)) ? 'заезда' : 'заездов' } : null), cell('hw58Last', d.last)].filter(Boolean).length;
+  w.hidden = n === 0; w.dataset.n = String(n);
 }
 document.getElementById('homeWidgets')?.addEventListener('click', (e) => {
   const w = e.target?.closest?.('[data-hw]'); if (!w) return;
@@ -14989,6 +15036,7 @@ document.getElementById('homeWidgets')?.addEventListener('click', (e) => {
   if (k === 'records') { goToView(w.dataset.empty === '1' ? 'run' : 'tops'); return; }
   if (k === 'tops' && w.dataset.empty === '1') { goToView('run'); return; }
   if (k === 'team') { openCrewSheet(); return; }
+  if (k === 'stats') { try { window.__route48?.('history'); } catch (_) {} return; } // v158
   if (k === 'pulse' && document.getElementById('hwPad')?.classList.contains('is-empty')) {
     if (sheetNavOn()) openTgSheet('pulse'); else goToView('pulse');
     setTimeout(() => { try { document.getElementById('pulseText')?.focus({ preventScroll: true }); } catch (_) {} }, 480);
@@ -15890,3 +15938,260 @@ document.getElementById('topsBoard')?.addEventListener('keydown', (e) => {
 document.getElementById('topWeatherChips')?.addEventListener('click', () => { setTimeout(() => { void renderTopsBoard(); }, 0); });
 // v84: home is the default view on cold start (no goToView call) → render it once.
 if (document.getElementById('view-home')?.classList.contains('active')) setTimeout(() => { try { renderHome(); } catch (err) { console.warn('home', err); } }, 0);
+
+/* ——— v158: Трек как в про-приложениях: карточки трасс (силуэт, длина, мой лучший, рекорд), HUD (дельта, текущий/лучший,
+ * секторы S1–S3, мини-карта, прогноз), итог круга и сессии (сплиты, теоретический лучший). Логика круга прежняя — новый слой
+ * только читает lapRun / lapSession и жмёт старые кнопки. Зелёный/красный — только здесь, в дельте и секторах. ——— */
+const TK58 = { rec: {}, recAt: {}, proj: {}, lastN: 0, lastSess: 0, flashT: 0, timer: 0, io: null };
+function tk58Proj(trackId) {
+  if (TK58.proj[trackId] !== undefined) return TK58.proj[trackId];
+  const o = TRACK_OUTLINES[trackId]; const c = o && Array.isArray(o.coords) ? o.coords : null;
+  if (!c || c.length < 3) { TK58.proj[trackId] = null; return null; }
+  const W = 300, H = 170, pad = 14;
+  const lat0 = c.reduce((a, p) => a + p[1], 0) / c.length; const k = Math.cos(lat0 * Math.PI / 180);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const [lon, lat] of c) { const x = lon * k, y = -lat; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  const sc = Math.min((W - 2 * pad) / Math.max(1e-9, x1 - x0), (H - 2 * pad) / Math.max(1e-9, y1 - y0));
+  const ox = (W - (x1 - x0) * sc) / 2, oy = (H - (y1 - y0) * sc) / 2;
+  const f = (lon, lat) => [ox + (lon * k - x0) * sc, oy + (-lat - y0) * sc];
+  const d = c.map(([lon, lat], i) => { const [x, y] = f(lon, lat); return (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); }).join('') + 'Z';
+  const sfp = Array.isArray(o.sf) ? f(o.sf[0], o.sf[1]) : f(c[0][0], c[0][1]);
+  TK58.proj[trackId] = { d, f, sf: sfp };
+  return TK58.proj[trackId];
+}
+function tk58Svg(pr, cls) {
+  const NS = 'http://www.w3.org/2000/svg'; const s = document.createElementNS(NS, 'svg');
+  s.setAttribute('viewBox', '0 0 300 170'); s.setAttribute('aria-hidden', 'true'); if (cls) s.setAttribute('class', cls);
+  for (const c of ['tk58-p0', 'tk58-p']) { const p = document.createElementNS(NS, 'path'); p.setAttribute('class', c); p.setAttribute('d', pr.d); s.appendChild(p); }
+  const sf = document.createElementNS(NS, 'circle'); sf.setAttribute('class', 'tk58-sf'); sf.setAttribute('cx', pr.sf[0].toFixed(1)); sf.setAttribute('cy', pr.sf[1].toFixed(1)); sf.setAttribute('r', '4'); s.appendChild(sf);
+  return s;
+}
+function tk58Laps(trackId) { // круги трассы: история + текущая сессия (один и тот же объект не дублируем)
+  const set = new Set([...((state.laps && state.laps[trackId]) || []), ...(lapSession.trackId === trackId ? lapSession.laps : [])]);
+  return [...set].filter((l) => l && l.ms > 0 && l.how !== 'manual');
+}
+function tk58MyBest(trackId) { const l = tk58Laps(trackId).filter((r) => r.valid !== false || r.how === 'gate'); return l.length ? Math.min(...l.map((r) => r.ms)) : null; }
+function tk58RowMs(r) {
+  const m = Number(r?.ms); if (m > 0) return m;
+  const t = String(r?.t ?? ''); const mm = t.match(/^(\d+):(\d+(?:[.,]\d+)?)$/); if (mm) return (Number(mm[1]) * 60 + Number(mm[2].replace(',', '.'))) * 1000;
+  const n = Number(t); return n > 0 ? n * 1000 : null;
+}
+async function tk58Record(trackId) {
+  if (TK58.recAt[trackId] && Date.now() - TK58.recAt[trackId] < 300000) return;
+  TK58.recAt[trackId] = Date.now();
+  let rows = []; try { rows = isRemoteApi() ? await api.listLap(trackId) : []; } catch (_) { rows = []; }
+  let best = null; for (const r of (Array.isArray(rows) ? rows : [])) { const ms = tk58RowMs(r); if (ms && (!best || ms < best.ms)) best = { ms, name: String(r.name || 'пилот') }; }
+  TK58.rec[trackId] = best; tk58Paint();
+}
+function tk58Render() {
+  const host = document.getElementById('tk58'); if (!host) return;
+  if (!host.childElementCount) {
+    for (const t of tracksOrdered()) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'tk58-c'; b.dataset.tk = t.id; b.setAttribute('role', 'option');
+      const art = padEl('span', 'tk58-art'); const pr = tk58Proj(t.id);
+      if (pr) art.appendChild(tk58Svg(pr)); else art.appendChild(padEl('span', 'tk58-nomap', 'схема появится после калибровки'));
+      const g = TRACK_GEO[t.id]; if (t.cult && g && !g.rough) art.appendChild(padEl('span', 'tk58-ok', 'С/Ф проверен'));
+      b.appendChild(art);
+      const tx = padEl('span', 'tk58-tx');
+      tx.appendChild(padEl('b', 'tk58-n', t.name));
+      tx.appendChild(padEl('span', 'tk58-m', [t.km && String(t.km).replace('.', ',') + ' км', t.turns && t.turns + ' поворотов'].filter(Boolean).join(' · ')));
+      const st = padEl('span', 'tk58-st');
+      const a = padEl('span', 'tk58-kv'); a.append(padEl('span', '', 'Ваш лучший'), padEl('b', 'tk58-mine', '—'));
+      const r = padEl('span', 'tk58-kv'); r.append(padEl('span', '', 'Рекорд трассы'), padEl('b', 'tk58-rec', '—'), padEl('small', 'tk58-recn', ''));
+      st.append(a, r); tx.appendChild(st); b.appendChild(tx);
+      host.appendChild(b);
+    }
+    host.addEventListener('click', (e) => { const b = e.target.closest('[data-tk]'); if (!b) return; hap(6); tk58Pick(b.dataset.tk); });
+    try {
+      TK58.io = new IntersectionObserver((es) => { for (const e of es) if (e.isIntersecting) void tk58Record(e.target.dataset.tk); }, { root: host, threshold: 0.4 });
+      for (const b of host.children) TK58.io.observe(b);
+    } catch (_) {}
+  }
+  tk58Paint();
+}
+function tk58Paint() {
+  const host = document.getElementById('tk58'); if (!host) return;
+  const cur = document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  for (const b of host.children) {
+    const id = b.dataset.tk; const on = id === cur;
+    b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on));
+    const mb = tk58MyBest(id); const m = b.querySelector('.tk58-mine'); const mt = mb ? fmtLapTime(mb) : '—'; if (m && m.textContent !== mt) m.textContent = mt;
+    const rc = TK58.rec[id]; const re = b.querySelector('.tk58-rec'); const rt = rc ? fmtLapTime(rc.ms) : '—'; if (re && re.textContent !== rt) re.textContent = rt;
+    const rn = b.querySelector('.tk58-recn'); const nt = rc ? clipText(rc.name, 14) : ''; if (rn && rn.textContent !== nt) rn.textContent = nt;
+  }
+}
+function tk58Pick(id, opts = {}) {
+  const sel = document.getElementById('trackSelect');
+  if (sel && sel.value !== id && [...sel.options].some((o) => o.value === id)) { sel.value = id; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+  tk58Paint();
+  const b = document.querySelector(`#tk58 [data-tk="${id}"]`); const host = document.getElementById('tk58');
+  if (b && host && opts.scroll !== false) host.scrollTo({ left: b.offsetLeft - (host.clientWidth - b.offsetWidth) / 2, behavior: opts.instant ? 'auto' : 'smooth' });
+  void tk58Record(id);
+}
+
+/* HUD */
+function lh58Ref(trackId) {
+  const laps = tk58Laps(trackId).filter((l) => l.valid !== false || l.how === 'gate');
+  if (!laps.length) return null;
+  const best = laps.reduce((a, l) => (l.ms < a.ms ? l : a));
+  const s = Array.isArray(best.sectors) ? best.sectors : [];
+  const cum = Number.isFinite(s[0]) && Number.isFinite(s[1]) && s[1] > s[0] && best.ms > s[1] ? [s[0], s[1], best.ms] : null;
+  return { ms: best.ms, cum, dist: best.dist > 300 ? best.dist : null, lap: best };
+}
+function lh58RefAt(ref, d, L) {
+  d = Math.max(0, Math.min(L, d));
+  if (!ref.cum) return ref.ms * d / L;
+  const xs = [0, 0.92 * L / 3, 0.92 * 2 * L / 3, L]; const ts = [0, ...ref.cum]; // отсечки секторов пишутся на 92 % трети (onLapGps)
+  for (let i = 0; i < 3; i++) if (d <= xs[i + 1]) return ts[i] + (ts[i + 1] - ts[i]) * (d - xs[i]) / Math.max(1, xs[i + 1] - xs[i]);
+  return ref.ms;
+}
+function lh58Fmt(ms) { if (ms == null || !Number.isFinite(ms)) return '—'; return (ms < 0 ? '−' : '+') + (Math.abs(ms) / 1000).toFixed(2); }
+function lh58Tone(ms) { return ms == null ? 'none' : ms < -5 ? 'better' : ms > 5 ? 'worse' : 'even'; }
+function lh58Set(id, t) { const e = document.getElementById(id); if (e && e.textContent !== t) e.textContent = t; }
+function lh58Full(l) { // полные сплиты круга: S3 — до финиша
+  const s = Array.isArray(l?.sectors) ? l.sectors : [];
+  if (!(Number.isFinite(s[0]) && Number.isFinite(s[1]) && s[1] > s[0] && l.ms > s[1])) return null;
+  return [s[0], s[1] - s[0], l.ms - s[1]];
+}
+function lh58Theo(laps) {
+  const b = [null, null, null];
+  for (const l of laps) { const sp = lh58Full(l); if (!sp || (l.valid === false && l.how !== 'gate')) continue; sp.forEach((x, i) => { if (b[i] == null || x < b[i]) b[i] = x; }); }
+  return { best: b, sum: b.every((x) => x != null) ? b[0] + b[1] + b[2] : null };
+}
+function lh58Tick() {
+  const el = document.getElementById('lh58'); if (!el || !lapDrive.open) return;
+  const tid = lapRun.trackId || document.getElementById('trackSelect')?.value || TRACKS[0].id;
+  const tr = TRACKS.find((t) => t.id === tid) || {};
+  const phase = lapRun.active ? lapRun.phase : 'idle';
+  if (el.dataset.phase !== phase) el.dataset.phase = phase;
+  lh58Set('lh58Track', tr.name || '—');
+  const n = lapSession.trackId === tid ? lapSession.laps.length : 0;
+  const wx = document.getElementById('lapDriveWeather'); const wxt = wx?.dataset.ready ? wx.textContent.split(' · ')[0] : '';
+  let carN = ''; try { carN = currentCar().name; } catch (_) {}
+  lh58Set('lh58Sub', [phase === 'idle' ? 'сессия не идёт' : 'круг ' + (n + 1), clipText(carN, 22), wxt].filter(Boolean).join(' · '));
+  const running = phase === 'running' && lapRun.t0;
+  const elapsed = running ? Date.now() - lapRun.t0 : 0;
+  lh58Set('lh58Cur', fmtLapClock(elapsed));
+  const ref = lh58Ref(tid);
+  lh58Set('lh58Best', ref ? fmtLapTime(ref.ms) : '—');
+  lh58Set('lh58Spd', document.getElementById('lapDriveSpeed')?.textContent || '0');
+  // дельта: призрак (если едет) → иначе по секторам лучшего круга
+  const L = (ref && ref.dist) || trackLenM(tid);
+  let delta = null; let byGhost = false;
+  const gd = document.getElementById('lapGhostDelta');
+  if (running && gd && !gd.classList.contains('hidden')) { const t = (document.getElementById('lapGhostNum')?.textContent || '').replace('−', '-').replace('±', ''); const v = parseFloat(t); if (Number.isFinite(v)) { delta = v * 1000; byGhost = true; } }
+  if (delta == null && running && ref && lapRun.dist > 150) delta = elapsed - lh58RefAt(ref, lapRun.dist, L);
+  const tone = lh58Tone(delta); if (el.dataset.tone !== tone) el.dataset.tone = tone;
+  lh58Set('lh58DeltaK', !ref && !byGhost ? 'первый круг станет эталоном' : byGhost ? 'дельта к призраку' : 'дельта к лучшему');
+  lh58Set('lh58Delta', delta == null ? (running ? '±0.00' : '—') : lh58Fmt(delta));
+  lh58Set('lh58Pred', delta != null && ref ? 'прогноз ' + fmtLapTime(Math.max(1000, ref.ms + delta)) : ref ? 'прогноз —' : '');
+  // секторы
+  const bestS = (() => { try { return lapBattleRef(tid); } catch (_) { return [null, null, null]; } })();
+  const sp = LB.splitsOf(lapRun.sectorMs);
+  const curI = running ? lapRun.sectorHit.findIndex((h) => !h) : -1;
+  document.querySelectorAll('#lh58Sec .lh58-s').forEach((s, i) => {
+    let p = 0; let t = '—'; let tn = 'none';
+    if (running && lapRun.sectorHit[i]) { p = 1; t = fmtSectorSplit(sp[i]); const d = LB.sectorDelta(sp[i], bestS[i]); tn = d == null ? 'none' : d <= 0 ? 'better' : 'worse'; if (d != null) t += ' ' + lh58Fmt(d); }
+    else if (running && i === curI) { const a = 0.92 * L * i / 3; p = Math.max(0, Math.min(1, (lapRun.dist - a) / (0.92 * L / 3))); tn = 'live'; }
+    if (s.dataset.tone !== tn) s.dataset.tone = tn;
+    const bar = s.querySelector('.lh58-sb > i'); if (bar) { const v = p.toFixed(3); if (bar.style.getPropertyValue('--p') !== v) bar.style.setProperty('--p', v); }
+    const b = s.querySelector('b'); if (b && b.textContent !== t) b.textContent = t;
+  });
+  // мини-карта
+  const pr = tk58Proj(tid); const svg = document.getElementById('lh58Map');
+  if (svg) {
+    const [pb, pt] = svg.querySelectorAll('path'); const d = pr ? pr.d : '';
+    if (pt && pt.getAttribute('d') !== d) { pt.setAttribute('d', d); pb.setAttribute('d', d); const sf = svg.querySelector('.lh58-sf'); if (pr && sf) { sf.setAttribute('cx', pr.sf[0].toFixed(1)); sf.setAttribute('cy', pr.sf[1].toFixed(1)); } }
+    const me = svg.querySelector('.lh58-me'); const last = lapRun.last;
+    if (me) { if (pr && last && Number.isFinite(last.lat)) { const [x, y] = pr.f(last.lon, last.lat); me.setAttribute('cx', x.toFixed(1)); me.setAttribute('cy', y.toFixed(1)); me.style.opacity = '1'; } else me.style.opacity = '0'; }
+  }
+  lh58Set('lh58Msg', document.getElementById('lapDriveMsg')?.textContent || '');
+  // GPS
+  { const f = _homeLastFix; const g = document.getElementById('lh58Gps'); let q = 'none'; let txt = 'нет GPS';
+    if (f && Date.now() - f.at < 5000 && Number.isFinite(f.acc) && f.acc > 0) { q = f.acc <= 5 ? 'good' : f.acc <= 15 ? 'mid' : 'bad'; txt = '±' + Math.round(f.acc) + ' м'; }
+    if (g) { if (g.dataset.q !== q) g.dataset.q = q; const sp2 = g.querySelector('span'); if (sp2 && sp2.textContent !== txt) sp2.textContent = txt; } }
+  lh58Set('lh58Arm', phase === 'idle' ? 'Старт сессии' : phase === 'armed' ? 'Ждём линию С/Ф' : 'Круг идёт');
+  const arm = document.getElementById('lh58Arm'); if (arm) arm.disabled = phase !== 'idle';
+  const rs = document.getElementById('lh58Reset'); if (rs) rs.disabled = phase !== 'running';
+  lh58Set('lh58End', phase === 'idle' ? 'Закрыть' : 'Конец');
+  // итог только что пройденного круга
+  if (lapSession.startedAt !== TK58.lastSess) { TK58.lastSess = lapSession.startedAt; TK58.lastN = lapSession.laps.length; }
+  if (lapSession.laps.length > TK58.lastN) { TK58.lastN = lapSession.laps.length; lh58Flash(lapSession.laps[lapSession.laps.length - 1], tid); }
+}
+function lh58Flash(l, tid) {
+  const box = document.getElementById('lh58Flash'); if (!box || !l) return;
+  const others = tk58Laps(tid).filter((x) => x !== l && (x.valid !== false || x.how === 'gate'));
+  const prevBest = others.length ? Math.min(...others.map((x) => x.ms)) : null;
+  const ob = lh58Theo(others).best; const th = lh58Theo([...others, l]);
+  const sp = lh58Full(l);
+  box.replaceChildren();
+  const h = padEl('div', 'lh58-fh'); h.append(padEl('span', 'lh58-k', 'Круг ' + lapSession.laps.length + (l.how === 'manual' ? ' · ручной финиш' : l.valid === false ? ' · не в зачёт' : '')), padEl('b', 'lh58-ft', fmtLapTime(l.ms)));
+  const dd = prevBest != null ? l.ms - prevBest : null;
+  const dv = padEl('b', 'lh58-fd', dd == null ? 'первый круг' : lh58Fmt(dd)); dv.dataset.tone = lh58Tone(dd); h.appendChild(dv);
+  box.appendChild(h);
+  const row = padEl('div', 'lh58-fs');
+  for (let i = 0; i < 3; i++) { const c = padEl('span', 'lh58-fc'); const v = sp ? sp[i] : null; const d = v != null && ob[i] != null ? v - ob[i] : null; c.dataset.tone = d == null ? 'none' : d <= 0 ? 'better' : 'worse'; c.append(padEl('small', '', 'S' + (i + 1)), padEl('b', '', v != null ? fmtSectorSplit(v) : '—')); row.appendChild(c); }
+  box.appendChild(row);
+  if (th.sum != null) box.appendChild(padEl('p', 'lh58-fth', 'Теоретический лучший ' + fmtLapTime(th.sum)));
+  box.hidden = false; box.classList.remove('on'); void box.offsetWidth; box.classList.add('on');
+  clearTimeout(TK58.flashT); TK58.flashT = setTimeout(() => { box.classList.remove('on'); setTimeout(() => { box.hidden = true; }, 260); }, 8000);
+}
+function lh58Start() { clearInterval(TK58.timer); TK58.timer = setInterval(() => { try { lh58Tick(); } catch (_) {} }, 100); try { lh58Tick(); } catch (_) {} }
+function lh58Stop() { clearInterval(TK58.timer); TK58.timer = 0; }
+
+/* итог сессии */
+function ls58Open(laps, tid) {
+  const box = document.getElementById('ls58'); const inn = document.getElementById('ls58In'); if (!box || !inn) return;
+  const tr = TRACKS.find((t) => t.id === tid) || {};
+  const ok = laps.filter((l) => l.how !== 'manual');
+  const best = ok.length ? ok.reduce((a, l) => (l.ms < a.ms ? l : a)) : null;
+  const th = lh58Theo(ok);
+  inn.replaceChildren();
+  const hd = padEl('header', 'ls58-hd');
+  const ht = padEl('div', ''); ht.append(padEl('span', 'ls58-k', 'Итог сессии'), padEl('h2', 'ls58-t', tr.name || tid), padEl('span', 'ls58-s', laps.length + ' ' + (laps.length === 1 ? 'круг' : laps.length < 5 ? 'круга' : 'кругов') + ' · ' + new Date().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })));
+  const x = padEl('button', 'ls58-x'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть'); x.textContent = '×'; x.addEventListener('click', ls58Close);
+  hd.append(ht, x); inn.appendChild(hd);
+  const hero = padEl('section', 'ls58-hero');
+  const b1 = padEl('div', 'ls58-big'); b1.append(padEl('span', 'ls58-k', 'Лучший круг'), padEl('b', '', best ? fmtLapTime(best.ms) : '—'));
+  const b2 = padEl('div', 'ls58-big ls58-theo'); b2.append(padEl('span', 'ls58-k', 'Теоретический лучший'), padEl('b', '', th.sum != null ? fmtLapTime(th.sum) : '—'), padEl('small', '', th.sum != null && best ? 'потенциал ' + lh58Fmt(th.sum - best.ms) : 'нужны секторы всех трёх частей'));
+  hero.append(b1, b2); inn.appendChild(hero);
+  const bs = padEl('div', 'ls58-bs'); th.best.forEach((v, i) => { const c = padEl('span', ''); c.append(padEl('small', '', 'Лучший S' + (i + 1)), padEl('b', '', v != null ? fmtSectorSplit(v) : '—')); bs.appendChild(c); }); inn.appendChild(bs);
+  const tb = padEl('div', 'ls58-tb'); tb.setAttribute('role', 'table');
+  const hr = padEl('div', 'ls58-r ls58-rh'); ['№', 'Время', 'S1', 'S2', 'S3'].forEach((t) => hr.appendChild(padEl('span', '', t))); tb.appendChild(hr);
+  laps.forEach((l, i) => {
+    const r = padEl('div', 'ls58-r' + (l === best ? ' best' : '') + (l.how === 'manual' || l.valid === false ? ' off' : '')); const sp = lh58Full(l);
+    r.append(padEl('span', '', String(i + 1)), padEl('b', '', fmtLapTime(l.ms)));
+    for (let k = 0; k < 3; k++) { const c = padEl('span', '', sp ? fmtSectorSplit(sp[k]) : '—'); if (sp && th.best[k] != null && Math.abs(sp[k] - th.best[k]) < 1) c.className = 'ls58-sb'; r.appendChild(c); }
+    tb.appendChild(r);
+  });
+  if (!laps.length) tb.appendChild(padEl('p', 'ls58-empty', 'Кругов в этой сессии нет'));
+  inn.appendChild(tb);
+  const act = padEl('div', 'ls58-act');
+  const an = padEl('button', 'ls58-b', 'Аналитика круга'); an.type = 'button'; an.addEventListener('click', () => { ls58Close(); try { window.__route48?.('analytics'); } catch (_) {} });
+  const dn = padEl('button', 'ls58-b ls58-p', 'Готово'); dn.type = 'button'; dn.addEventListener('click', ls58Close);
+  act.append(an, dn); inn.appendChild(act);
+  box.classList.remove('hidden'); box.setAttribute('aria-hidden', 'false'); document.body.classList.add('ls58-on');
+}
+function ls58Close() { const box = document.getElementById('ls58'); if (!box) return; box.classList.add('hidden'); box.setAttribute('aria-hidden', 'true'); document.body.classList.remove('ls58-on'); }
+
+(() => {
+  const click = (id) => document.getElementById(id)?.click();
+  document.getElementById('lh58Arm')?.addEventListener('click', () => click('btnLapArmedStart'));
+  document.getElementById('lh58Reset')?.addEventListener('click', () => click('lapDriveFinish'));
+  document.getElementById('lh58Min')?.addEventListener('click', () => click('lapDriveCancel'));
+  document.getElementById('lh58Video')?.addEventListener('click', () => { hap(8); void openVideoTele('lap'); });
+  document.getElementById('lh58End')?.addEventListener('click', () => {
+    if (!lapRun.active) { click('lapDriveCancel'); return; }
+    const laps = lapSession.laps.slice(); const tid = lapSession.trackId || lapRun.trackId;
+    click('lapDriveEnd');
+    if (laps.length) ls58Open(laps, tid);
+  });
+  const ld = document.getElementById('lapDrive');
+  if (ld) new MutationObserver(() => { if (ld.classList.contains('hidden')) lh58Stop(); else if (!TK58.timer) lh58Start(); }).observe(ld, { attributes: true, attributeFilter: ['class'] });
+  document.getElementById('trackSelect')?.addEventListener('change', () => { tk58Paint(); });
+  const lv = document.getElementById('view-lap');
+  if (lv) new MutationObserver(() => { if (lv.classList.contains('active')) { tk58Render(); tk58Pick(document.getElementById('trackSelect')?.value || TRACKS[0].id, { instant: true }); } }).observe(lv, { attributes: true, attributeFilter: ['class'] });
+  setTimeout(() => { try { tk58Render(); } catch (_) {} }, 900);
+  document.getElementById('ls58')?.addEventListener('click', (e) => { if (e.target?.id === 'ls58') ls58Close(); });
+  window.__tk58 = { pick: tk58Pick, flash: (l) => lh58Flash(l, lapRun.trackId), summary: ls58Open, tick: lh58Tick, lapRun, lapSession }; // скриншоты/отладка
+})();

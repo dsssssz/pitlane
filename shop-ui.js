@@ -17,12 +17,13 @@ function picture(g, cls, eager) {
 }
 function head(title, sub, back) {
   const h = el('div', 'shop-head');
-  if (back) { const b = el('button', 'shop-back'); b.type = 'button'; b.setAttribute('aria-label', 'Назад'); b.appendChild(svg('M15 5l-7 7 7 7')); b.addEventListener('click', () => { D.hap?.(6); pop(); }); h.appendChild(b); }
+  // v158: страница — «назад» есть всегда: в витрине уводит из магазина, глубже — на шаг назад
+  if (back || D.page) { const b = el('button', 'shop-back'); b.type = 'button'; b.setAttribute('aria-label', back ? 'Назад' : 'Закрыть магазин'); b.appendChild(svg('M15 5l-7 7 7 7')); b.addEventListener('click', () => { D.hap?.(6); if (back) pop(); else D.close?.(); }); h.appendChild(b); }
   const t = el('div', 'shop-head-t'); t.appendChild(el('h2', 'shop-title', title)); if (sub) t.appendChild(el('p', 'shop-sub', sub)); h.appendChild(t);
   return h;
 }
 function svg(d) { const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('aria-hidden', 'true'); const p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', d); s.appendChild(p); return s; }
-function render() { const b = body(); if (!b) return; const v = st.stack[st.stack.length - 1] || { k: 'list' }; b.replaceChildren(VIEWS[v.k](v)); const sc = b.closest('.shop-sheet-inner'); if (sc) sc.scrollTop = 0; }
+function render() { const b = body(); if (!b) return; const v = st.stack[st.stack.length - 1] || { k: 'list' }; b.replaceChildren(VIEWS[v.k](v)); b.dataset.view = v.k; const sc = b.closest('.shop-sheet-inner'); if (sc) sc.scrollTop = 0; else if (D?.page) window.scrollTo(0, 0); }
 function push(v) { st.stack.push(v); render(); }
 function pop() { if (st.stack.length > 1) st.stack.pop(); render(); }
 
@@ -30,18 +31,26 @@ function pop() { if (st.stack.length > 1) st.stack.pop(); render(); }
 function viewList() {
   const f = document.createDocumentFragment();
   f.appendChild(head('Магазин', 'Железо PITLANE для трека'));
-  for (const p of visibleProducts()) {
-    const c = el('button', 'shop-card'); c.type = 'button'; c.dataset.product = p.id;
-    if (p.gallery?.[0]) c.appendChild(picture(p.gallery[0], 'shop-card-img', true));
+  // v158: сетка карточек — фото, цена, «Предзаказ»; первый товар — широкий
+  const grid = el('div', 'shop-grid');
+  visibleProducts().forEach((p, i) => {
+    const c = el('article', 'shop-card' + (i === 0 ? ' shop-card-hero' : '')); c.dataset.product = p.id;
+    const open = el('button', 'shop-card-open'); open.type = 'button'; open.setAttribute('aria-label', p.title + ' — подробнее');
+    if (p.gallery?.[0]) open.appendChild(picture(p.gallery[0], 'shop-card-img', i < 3));
     const t = el('span', 'shop-card-txt');
     t.appendChild(el('b', 'shop-card-title', p.title)); t.appendChild(el('span', 'shop-card-sub', p.subtitle || ''));
-    t.appendChild(el('span', 'shop-price', priceLine(p)));
-    c.appendChild(t);
-    c.addEventListener('click', () => { D.hap?.(6); push({ k: 'product', id: p.id }); });
-    f.appendChild(c);
-  }
+    t.appendChild(el('span', 'shop-price', Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу'));
+    open.appendChild(t);
+    open.addEventListener('click', () => { D.hap?.(6); push({ k: 'product', id: p.id }); });
+    c.appendChild(open);
+    const pre = el('button', 'shop-pre', orderable(p) ? (p.status === 'preorder' ? 'Предзаказ' : 'Заказать') : statusOf(p).label); pre.type = 'button'; pre.disabled = !orderable(p);
+    pre.addEventListener('click', async () => { D.hap?.(8); if (!D.currentUser()) { D.close?.(); D.needLogin('Чтобы оформить заявку, войдите — так мы сможем с вами связаться'); return; } st.stack = [{ k: 'list' }, { k: 'product', id: p.id }]; if (st.tg === undefined) await loadOrders(); push({ k: 'form', id: p.id }); });
+    c.appendChild(pre);
+    grid.appendChild(c);
+  });
+  f.appendChild(grid);
   if (SHOP_SUBS.length) {
-    const sec = el('section', 'shop-subs'); sec.appendChild(el('h3', 'shop-h3', 'Подписки'));
+    const sec = el('section', 'shop-subs'); const sh = el('div', 'shop-subs-h'); sh.append(el('h3', 'shop-h3', 'Подписки'), el('span', 'shop-badge', 'Скоро')); sec.appendChild(sh);
     for (const s of SHOP_SUBS) { const c = el('div', 'shop-plan'); const t = el('div', 'shop-plan-t'); t.appendChild(el('b', '', s.title)); t.appendChild(el('span', 'shop-badge', 'Скоро')); c.appendChild(t); c.appendChild(el('p', 'shop-muted', s.subtitle)); sec.appendChild(c); }
     f.appendChild(sec);
   }
