@@ -6875,7 +6875,6 @@ html.v154 .g53-ph #podiumWrap, html.v154 .hw-car-3d #podiumWrap { position: abso
 html.v154 .g53-ph #podiumWrap::after, html.v154 .hw-car-3d #podiumWrap::after { display: none; }
 html.v154 .hw-car-3d #podiumWrap { pointer-events: none; }
 html.v154 .g53-ph #view3d, html.v154 .hw-car-3d #view3d { background: #121316; }
-html.v154 .hw-car:not(.has-photo) .hw-car-art picture { display: none; }
 html.v154 .hw-car.has-photo .hw-car-3d { display: none; }
 .p3d-wait { position: absolute; inset: 0; display: grid; place-items: center; font: 500 12px/1 Manrope, sans-serif; letter-spacing: .04em; color: #6f7278; }
 .p3d-on > .p3d-wait { display: none; }

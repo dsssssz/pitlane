@@ -12430,7 +12430,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v154';
+const APP_VERSION = 'v155';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12598,7 +12598,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -12646,7 +12646,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154');
     const sync3d = () => {
       const act = document.querySelector('.view.active')?.id;
       if (act === 'view-garage') mountPodium('garage');
-      else if (act === 'view-home' && !document.getElementById('hwCar')?.classList.contains('has-photo')) mountPodium('home');
+      // v155: на Главной — студийный рендер; живое 3D только в Гараже
     };
     const vh = document.getElementById('viewHost');
     if (vh) new MutationObserver(() => { clearTimeout(sync3d.t); sync3d.t = setTimeout(sync3d, 60); }).observe(vh, { subtree: true, attributes: true, attributeFilter: ['class'] });
@@ -14686,7 +14686,8 @@ function renderHome() {
 }
 
 /* ——— v123: Главная из окошек-виджетов + меню ☰ + навигация без нижнего таббара (на телефоне) ——— */
-const STUDIO_IDS = new Set(); // v154: статичные студийные рендеры сняты с сайта (архив — вне репозитория); машины — живое 3D
+const STUDIO_IDS = new Set(['g87-m2', 'gt3rs', 'mclaren-765lt', 'g63', 'm4', 'm3', 'x6', 'isf', 'c63-ed507', 'spark']); // v155: студийные рендеры v153 — только для «Моя машина» на Главной
+function studioSrcset(id, ext) { return [780, 1170].map((w) => `./img/cars/studio/${id}-${w}.${ext} ${w}w`).join(', '); }
 function hwSet(id, nodes) { const b = document.getElementById(id); if (!b) return; b.replaceChildren(...nodes); }
 function hwBig(v, unit) { const b = padEl('b', 'hw-big', v); if (unit) b.appendChild(padEl('small', '', unit)); return b; }
 function hwLine(k, v, cls = '') { const r = padEl('span', 'hw-line ' + cls); r.appendChild(padEl('span', 'hw-lk', k)); r.appendChild(padEl('b', 'hw-lv', v)); return r; }
@@ -14712,9 +14713,12 @@ function renderHwCar(remote) {
     img.onerror = () => { img.onerror = null; img.dataset.car = ''; _myCarPhoto = null; document.getElementById('hwCar')?.classList.remove('has-photo'); renderHwCar(null); };
     img.src = ph;
   } else if (img && !ph && img.dataset.car !== m.id) {
-    // v154: без статичного рендера — живая 3D-модель (mountPodium('home')); своё фото — по-прежнему фото
-    img.dataset.car = m.id; av?.removeAttribute('srcset'); img.removeAttribute('srcset'); img.removeAttribute('src');
-    if (document.getElementById('view-home')?.classList.contains('active')) mountPodium('home');
+    img.dataset.car = m.id;
+    if (STUDIO_IDS.has(m.id)) { // v155: студийный рендер (живое 3D — только в Гараже)
+      av?.setAttribute('srcset', studioSrcset(m.id, 'avif'));
+      img.setAttribute('srcset', studioSrcset(m.id, 'webp'));
+      img.src = `./img/cars/studio/${m.id}-1170.webp`;
+    } else { av?.removeAttribute('srcset'); img.removeAttribute('srcset'); img.src = carThumbUrl(m.id); }
   }
   const row = document.getElementById('hwCarRow'); if (row) fillCarNameRow(row, m.name, { tag: 'b', id: 'hwCarName' }); // v135: + флаг страны марки
   let cls = ''; try { cls = (CARS.find((c) => c.id === m.id)?.cls) || ''; } catch (_) {}

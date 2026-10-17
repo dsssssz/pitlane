@@ -10,11 +10,11 @@ const webpW = (f) => { const b = fs.readFileSync(f); const t = b.toString('ascii
 let allOk = true, wOk = true;
 for (const id of IDS) for (const w of [780, 1170, 1560]) for (const ext of ['webp', 'avif']) { const f = `${root}img/cars/studio/${id}-${w}.${ext}`; if (!fs.existsSync(f) || fs.statSync(f).size < 4000) allOk = false; if (ext === 'webp' && fs.existsSync(f) && webpW(f) !== w) wOk = false; }
 // v154: статичные студийные рендеры сняты с сайта (машины — живое 3D), архив — вне репозитория
-ok(!fs.existsSync(root + 'img/cars/studio') && !fs.existsSync(root + 'img/cars/hero'), 'v154: студийных/hero-рендеров в репозитории нет');
+ok(!fs.existsSync(root + 'img/cars/hero') && fs.readdirSync(root + 'img/cars/studio').length === 40, 'v155: студийные рендеры только для виджета (780/1170), hero нет');
 ok(/<source id="hwCarAvif" type="image\/avif"/.test(html) && /id="hwCarImg"[^>]*sizes=/.test(html), '<picture>: AVIF + WebP, sizes');
-ok(!/studioSrcset/.test(app) && /mountPodium\('home'\)/.test(app), 'v154: «Моя машина» на Главной — живая 3D-модель, без srcset рендеров');
+ok(/function studioSrcset\(id, ext\) \{ return \[780, 1170\]/.test(app), 'v155: srcset 780w/1170w');
 ok(/<img id="homeHeroImg" class="hh-img" alt="" decoding="async" loading="lazy">/.test(html), 'старое превью без src (не грузится на Главной)');
-ok(!/img\/cars\/(hero|studio)\//.test(sw), 'v154: SW не кэширует удалённые рендеры');
+ok(!/img\/cars\/hero\//.test(sw) && /'\.\/img\/cars\/studio\/g87-m2-1170\.avif'/.test(sw), 'v155: SW кэширует рендеры виджета, hero — нет');
 console.log('[меню ☰]');
 ok(/id="btnMenu"[^>]*aria-controls="plMenu"/.test(html) && /id="btnProfile"/.test(html), 'кнопка меню рядом с профилем, профиль на месте');
 const menu = html.slice(html.indexOf('id="plMenu"'), html.indexOf('</aside>', html.indexOf('id="plMenu"')));

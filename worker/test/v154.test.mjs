@@ -19,11 +19,15 @@ const nav = html.slice(html.indexOf('id="nav3"'), html.indexOf('</nav>', html.in
 ok([...nav.matchAll(/data-n3="(\w+)"/g)].map((m) => m[1]).join() === 'home,zamer,lap,garage' && /Трек/.test(nav) && !/Профиль/.test(nav), 'вкладки: Главная / Замер / Трек / Гараж');
 ok(/act === 'lap' \? 'lap'/.test(app), 'вкладка «Трек» подсвечивается на экране круга');
 // живое 3D
-ok(/function mountPodium\(where\)/.test(app) && /mountPodium\('garage'\)/.test(app) && /mountPodium\('home'\)/.test(app), 'одна живая 3D-сцена: карточка Гаража и «Моя машина» на Главной');
-ok(/id="g53Art"/.test(html) && /id="hwCar3d"/.test(html) && !/id="g53Img"/.test(html), 'в карточках — 3D-хост, не <img>');
+ok(/function mountPodium\(where\)/.test(app) && /mountPodium\('garage'\)/.test(app) && !/mountPodium\('home'\)/.test(app), 'v155: живое 3D — только в Гараже');
+ok(/id="g53Art"/.test(html) && !/id="hwCar3d"/.test(html) && !/id="g53Img"/.test(html), 'v155: Гараж — 3D-хост; «Моя машина» на Главной — снова студийный рендер');
 ok(/av && canvas && av\.contains\(canvas\)/.test(app), '3D рисуется только на активной вкладке (батарея)');
-ok(!fs.existsSync(new URL('img/cars/studio', root)) && !fs.existsSync(new URL('img/cars/hero', root)) && !/cars\/(studio|hero)\//.test(html + app + sw), 'статичные рендеры v153 сняты с сайта и SW');
-ok(/const STUDIO_IDS = new Set\(\);/.test(app), 'старые пути к студийным рендерам выключены');
+const IDS = ['g87-m2', 'gt3rs', 'mclaren-765lt', 'g63', 'm4', 'm3', 'x6', 'isf', 'c63-ed507', 'spark'];
+const studio = fs.readdirSync(new URL('img/cars/studio', root));
+ok(studio.length === 40 && IDS.every((i) => [780, 1170].every((w) => ['webp', 'avif'].every((e) => studio.includes(`${i}-${w}.${e}`) && sw.includes(`'./img/cars/studio/${i}-${w}.${e}'`)))), 'v155: для виджета — только 780/1170 webp+avif всех машин, все в кэше SW');
+ok(!fs.existsSync(new URL('img/cars/hero', root)) && !/-1560\./.test(app + sw) && !/cars\/hero\//.test(html + app + sw), 'v155: hero и 1560 не возвращались');
+ok(/function studioSrcset\(id, ext\) \{ return \[780, 1170\]/.test(app) && /img\.src = `\.\/img\/cars\/studio\/\$\{m\.id\}-1170\.webp`;/.test(app), 'v155: «Моя машина» — studio srcset 780w/1170w');
+
 // «С видео»
 ok(/id="h54Video"[^>]*>[\s\S]{0,300}С видео/.test(html) && /id="l54Video"[^>]*>[\s\S]{0,300}С видео/.test(html), '«С видео» под «Старт» (Замер) и «Старт круга» (Трек)');
 ok(/withSafety\(\(\) => \{ armRun\(\); void openVideoTele\('run', \{ autostart: true \}\); \}\)\(\)/.test(app) && /lapStartFlow\(\(\) => \{ void openVideoTele\('lap', \{ autostart: true \}\); \}\)/.test(app), '«С видео» запускает замер/круг и запись сразу');
@@ -42,6 +46,6 @@ ok(!fs.existsSync(new URL('models/ferrari.glb', root)) && !fs.existsSync(new URL
 const core = [...sw.matchAll(/'(\.\/[^']+)'/g)].map((m) => m[1]).filter((x) => x !== './');
 ok(core.every((f) => fs.existsSync(new URL(f.slice(2), root))), 'SW: в precache нет удалённых файлов');
 ok(/@media \(min-width: 901px\) \{\s*html\.v154 \.rail \{ display: none !important; \}/.test(c) && /html\.v154 main \{ max-width: 520px/.test(c), 'десктоп: та же мобильная колонка, нижняя панель, без старого rail');
-ok(/const CACHE = 'pitlane-v154'/.test(sw) && /APP_VERSION = 'v154'/.test(app), 'версия v154');
+ok(/const CACHE = 'pitlane-v15[5-9]'/.test(sw) && /APP_VERSION = 'v15[5-9]'/.test(app), 'версия ≥ v155');
 ok(!/text-shadow|drop-shadow|blur\(|orange|#ff9|#30d158/.test(c), 'без неона/свечения');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v154 OK');
