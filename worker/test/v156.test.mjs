@@ -37,5 +37,5 @@ ok(/if \(AS56\.wait && !run\.armed\) as56Tick\(pos, v, now\);/.test(app) && /run
   s = mk(); [1000, 1500, 2100].forEach((t) => s.tick(0, t)); s.tick(5, 2300); ok(s.fired() === 1, '≥ 4 км/ч — сразу старт');
 }
 ok(/else \{ rd56Unpre\(\); as56Stop\(\); \}/.test(app), 'ушли с «Замера» — ожидание автостарта снято');
-ok(/const CACHE = 'pitlane-v15[6-9]'/.test(sw) && /APP_VERSION = 'v15[6-9]'/.test(app) && /'v155', 'v156'[,)]/.test(app), 'версия ≥ v156');
+ok(/const CACHE = 'pitlane-v1(5[6-9]|[6-9]\d)'/.test(sw) && /APP_VERSION = 'v1(5[6-9]|[6-9]\d)'/.test(app) && /'v155', 'v156'[,)]/.test(app), 'версия ≥ v156');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v156 OK');

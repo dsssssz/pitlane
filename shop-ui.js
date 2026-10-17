@@ -1,5 +1,6 @@
 /* v137: магазин PITLANE — шторка: витрина → карточка товара → заявка → «Заявка принята», плюс «Мои заявки».
  * Всё строится через DOM + textContent (без вставки HTML-строк). Оплаты онлайн нет (SHOP_CONFIG.payments=false). */
+import { flyShared } from './motion.js'; // v160: фото карточки перелетает в галерею товара
 import { SHOP_SUBS, SHOP_CONFIG, ORDER_STATUS, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal } from './shop-config.js';
 
 let D = null; // deps from app.js: { api, currentUser, needLogin, hap, close }
@@ -41,7 +42,7 @@ function viewList() {
     t.appendChild(el('b', 'shop-card-title', p.title)); t.appendChild(el('span', 'shop-card-sub', p.subtitle || ''));
     t.appendChild(el('span', 'shop-price', Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу'));
     open.appendChild(t);
-    open.addEventListener('click', () => { D.hap?.(6); push({ k: 'product', id: p.id }); });
+    open.addEventListener('click', () => { D.hap?.(6); const img = open.querySelector('img'); const from = img ? { el: img.cloneNode(true), rect: img.getBoundingClientRect() } : null; push({ k: 'product', id: p.id }); if (from && D.page) requestAnimationFrame(() => { try { flyShared(from, document.querySelector('#shopBody .shop-gal-slide img'), { dur: 420 }); } catch (_) {} }); });
     c.appendChild(open);
     const pre = el('button', 'shop-pre', orderable(p) ? (p.status === 'preorder' ? 'Предзаказ' : 'Заказать') : statusOf(p).label); pre.type = 'button'; pre.disabled = !orderable(p);
     pre.addEventListener('click', async () => { D.hap?.(8); if (!D.currentUser()) { D.close?.(); D.needLogin('Чтобы оформить заявку, войдите — так мы сможем с вами связаться'); return; } st.stack = [{ k: 'list' }, { k: 'product', id: p.id }]; if (st.tg === undefined) await loadOrders(); push({ k: 'form', id: p.id }); });

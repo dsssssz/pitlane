@@ -46,6 +46,6 @@ ok(!fs.existsSync(new URL('models/ferrari.glb', root)) && !fs.existsSync(new URL
 const core = [...sw.matchAll(/'(\.\/[^']+)'/g)].map((m) => m[1]).filter((x) => x !== './');
 ok(core.every((f) => fs.existsSync(new URL(f.slice(2), root))), 'SW: в precache нет удалённых файлов');
 ok(/@media \(min-width: 901px\) \{\s*html\.v154 \.rail \{ display: none !important; \}/.test(c) && /html\.v154 main \{ max-width: 520px/.test(c), 'десктоп: та же мобильная колонка, нижняя панель, без старого rail');
-ok(/const CACHE = 'pitlane-v15[5-9]'/.test(sw) && /APP_VERSION = 'v15[5-9]'/.test(app), 'версия ≥ v155');
+ok(/const CACHE = 'pitlane-v1(5[5-9]|[6-9]\d)'/.test(sw) && /APP_VERSION = 'v1(5[5-9]|[6-9]\d)'/.test(app), 'версия ≥ v155');
 ok(!/text-shadow|drop-shadow|(?<!backdrop-filter: )blur\(|orange|#ff9|#30d158/.test(c), 'без неона/свечения');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v154 OK');

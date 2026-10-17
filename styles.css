@@ -6983,3 +6983,34 @@ html.v159:not(#_):not(#_) .avatar-btn { background: var(--ds-bg-2) !important; b
 html.v159:not(#_):not(#_) .p48-row { min-height: 64px; }
 html.v159:not(#_):not(#_) .p48-row b, html.v159:not(#_):not(#_) .p48-row strong { font: 500 17px/24px var(--font-ui) !important; }
 html.v159:not(#_):not(#_) .p48-badge { border-radius: var(--r1) !important; background: transparent !important; border: 1px solid var(--ds-line-2) !important; color: var(--ds-text) !important; }
+
+/* ===== v160 MOTION — фирменные моменты в той же системе (только opacity/transform; «уменьшить движение» — без них) ===== */
+/* прибор замера: дуга + стрелка на пружине (JS), без CSS-переходов поверх */
+html.v159:not(#_):not(#_) .hgz-fill { transition: none !important; stroke: var(--ds-text) !important; stroke-width: 2 !important; }
+html.v159:not(#_):not(#_) .hgz-track { stroke: var(--ds-line-2) !important; }
+html.v159:not(#_):not(#_) .hgz-tick { stroke: var(--ds-line-3); } html.v159:not(#_):not(#_) .hgz-major { stroke: var(--ds-sub); }
+html.v159:not(#_):not(#_) .hgz-needle { stroke: var(--ds-acc); stroke-width: 2; stroke-linecap: round; }
+/* полоса дельты */
+html.v159:not(#_):not(#_) .lh60-bar { position: relative; align-self: stretch; height: 3px; margin: var(--s1) 0 var(--s3); background: var(--ds-line); }
+html.v159:not(#_):not(#_) .lh60-bar i { position: absolute; left: 50%; top: 0; bottom: 0; width: 50%; transform-origin: 0 50%; transform: scaleX(0); background: var(--ds-text); will-change: transform; }
+html.v159:not(#_):not(#_) .lh60-bar[data-tone="better"] i { background: var(--ds-good); } html.v159:not(#_):not(#_) .lh60-bar[data-tone="worse"] i { background: var(--ds-bad); }
+html.v159:not(#_):not(#_) .lh60-bar b { position: absolute; left: 50%; top: -6px; width: 1px; height: 15px; margin-left: -.5px; background: var(--ds-line-3); }
+html.v159:not(#_):not(#_) .lh60-bar span { position: absolute; top: 10px; font: 500 10px/1 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--ds-mute); }
+html.v159:not(#_):not(#_) .lh60-l { left: 0; } html.v159:not(#_):not(#_) .lh60-r { right: 0; }
+/* прорисовка трассы */
+html.v159:not(#_):not(#_) .ds-draw { stroke-dasharray: 1 1; stroke-dashoffset: 1; animation: ds-draw 1100ms cubic-bezier(.45, 0, .15, 1) var(--dd, 0ms) forwards; }
+@keyframes ds-draw { to { stroke-dashoffset: 0; } }
+/* вход в сессию: шапка → дельта → приборы → секторы → карта → кнопки */
+@keyframes ds-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes ds-num { from { opacity: 0; transform: translateY(16px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes ds-fade { from { opacity: 0; } to { opacity: 1; } }
+html.v159:not(#_):not(#_) .lh60-in .lh58-top { animation: ds-rise 320ms var(--ds-ease) both; }
+html.v159:not(#_):not(#_) .lh60-in .lh58-k, html.v159:not(#_):not(#_) .lh60-in .lh58-pred { animation: ds-fade 320ms var(--ds-ease) 120ms both; }
+html.v159:not(#_):not(#_) .lh60-in .lh58-dv { animation: ds-num 620ms var(--ds-ease) 80ms both; }
+html.v159:not(#_):not(#_) .lh60-in .lh60-bar { animation: ds-fade 400ms var(--ds-ease) 220ms both; }
+html.v159:not(#_):not(#_) .lh60-in .lh58-times { animation: ds-rise 360ms var(--ds-ease) 180ms both; }
+html.v159:not(#_):not(#_) .lh60-in .lh58-sec { animation: ds-rise 360ms var(--ds-ease) 240ms both; }
+html.v159:not(#_):not(#_) .lh60-in .lh58-map { animation: ds-fade 420ms var(--ds-ease) 280ms both; }
+html.v159:not(#_):not(#_) .lh60-in .lh58-act { animation: ds-rise 360ms var(--ds-ease) 360ms both; }
+html.v159:not(#_):not(#_) .ds-ghost { transition: none !important; }
+@media (prefers-reduced-motion: reduce) { html.v159:not(#_):not(#_) .ds-draw, html.v159:not(#_):not(#_) .lh60-in * { animation: none !important; stroke-dashoffset: 0; } }

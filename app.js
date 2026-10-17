@@ -52,6 +52,7 @@ function ensureThree() {
   return _threeP;
 }
 import { createExtGps } from './ext-gps.js';
+import { spring, countUp, flyShared, drawIn, reduced as motionReduced } from './motion.js'; // v160: движение
 /* v120: блок показывается, только когда в нём есть хотя бы N записей (пустая таблица хуже отсутствующей) */
 const SHOW_MIN = { leaders: 3, track: 1, sessionDay: 1, sectors: 3, season: 2 };
 function showWhen(id, on) { const e = typeof id === 'string' ? document.getElementById(id) : id; if (e) e.hidden = !on || e.classList.contains('v123-off'); } // v123: скрытые блоки старой Главной не всплывают
@@ -1661,6 +1662,10 @@ function goToView(id, opts = {}) {
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   clearTimeout(viewTransitionTimer);
 
+  // v160: общий элемент — машина с Главной «перелетает» на подиум Гаража
+  const fly60 = !reduce && prev && prev.id === 'view-home' && id === 'garage' ? document.getElementById('hwCarImg') : null;
+  const fly60r = fly60 ? fly60.getBoundingClientRect() : null; // снимаем до смены экрана
+  if (fly60) requestAnimationFrame(() => { try { flyShared({ el: fly60, rect: fly60r }, document.querySelector('#view-garage .g53-ph'), { dur: 460 }); } catch (_) {} });
   if (prev && !reduce) {
     prev.classList.add('leaving');
     prev.classList.remove('active');
@@ -3107,15 +3112,28 @@ function hudGaugeBuild(el, max) {
     svg.appendChild(mk('line', { x1: a1.toFixed(2), y1: b1.toFixed(2), x2: a2.toFixed(2), y2: b2.toFixed(2), class: major ? 'hgz-tick hgz-major' : mid ? 'hgz-tick hgz-mid' : 'hgz-tick' }));
   }
   svg.appendChild(mk('path', { d: arc, class: 'hgz-fill', pathLength: '1', 'stroke-dasharray': '0 1' }));
+  { const top = HG.cy - HG.r; svg.appendChild(mk('line', { x1: String(HG.cx), y1: (top - 9).toFixed(1), x2: String(HG.cx), y2: (top + 7).toFixed(1), class: 'hgz-needle', transform: `rotate(${(-HG.a * 180 / Math.PI).toFixed(3)} ${HG.cx} ${HG.cy})` })); } // v160: стрелка
   el.textContent = ''; el.appendChild(svg);
   const lab = document.createElement('div'); lab.className = 'hgz-labels';
   [0, max / 2, max].forEach((n) => { const s = document.createElement('span'); s.textContent = String(n); lab.appendChild(s); });
   el.appendChild(lab); el.dataset.max = String(max);
 }
+/* v160: шкала как прибор — дуга и стрелка едут пружиной (лёгкий перелёт, ζ≈0.72) между отсчётами GPS; цифра — точное значение. */
+const G60 = new WeakMap();
 function hudGauge(el, v, max) {
-  if (el.dataset.max !== String(max)) hudGaugeBuild(el, max);
+  if (el.dataset.max !== String(max)) { const old = G60.get(el); hudGaugeBuild(el, max); if (old) { G60.delete(el); } }
   const f = Math.max(0, Math.min(1, v / max));
-  const fill = el.querySelector('.hgz-fill'); if (fill) fill.setAttribute('stroke-dasharray', f.toFixed(4) + ' 1');
+  let s = G60.get(el);
+  if (!s) {
+    const fill = el.querySelector('.hgz-fill'); const nd = el.querySelector('.hgz-needle'); const k = 180 / Math.PI;
+    s = spring({ k: 70, zeta: 0.72, value: 0, eps: 2e-4, onUpdate: (x) => {
+      const q = Math.max(0, Math.min(1.02, x));
+      if (fill) fill.setAttribute('stroke-dasharray', Math.min(1, q).toFixed(4) + ' 1');
+      if (nd) nd.setAttribute('transform', `rotate(${((-HG.a + 2 * HG.a * q) * k).toFixed(3)} ${HG.cx} ${HG.cy})`);
+    } });
+    G60.set(el, s);
+  }
+  s.set(f);
 }
 function hudZones(v, reset) {
   if (reset) hudPeak = 0;
@@ -12515,7 +12533,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v159';
+const APP_VERSION = 'v160';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12691,7 +12709,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -15024,7 +15042,7 @@ function hw58Data(remote) {
 function renderHwStats(remote) {
   const w = document.getElementById('hwStats'); if (!w) return;
   const d = hw58Data(remote);
-  const cell = (id, val) => { const c = document.getElementById(id); if (!c) return false; c.hidden = !val; if (val) { const v = document.getElementById(id + 'V'); const s2 = document.getElementById(id + 'S'); if (v && v.textContent !== val.v) v.textContent = val.v; if (s2 && s2.textContent !== val.s) s2.textContent = val.s; } return !!val; };
+  const cell = (id, val) => { const c = document.getElementById(id); if (!c) return false; c.hidden = !val; if (val) { const v = document.getElementById(id + 'V'); const s2 = document.getElementById(id + 'S'); if (v && v.textContent !== val.v) { if (v.textContent === '—' && !w.hidden) countUp(v, val.v); else v.textContent = val.v; } /* v160: первый показ — счёт */ if (s2 && s2.textContent !== val.s) s2.textContent = val.s; } return !!val; };
   const n = [cell('hw58Place', d.place), cell('hw58Week', d.week ? { v: String(d.week), s: (d.week % 10 === 1 && d.week % 100 !== 11) ? 'заезд' : ([2, 3, 4].includes(d.week % 10) && ![12, 13, 14].includes(d.week % 100)) ? 'заезда' : 'заездов' } : null), cell('hw58Last', d.last)].filter(Boolean).length;
   w.hidden = n === 0; w.dataset.n = String(n);
 }
@@ -15962,7 +15980,7 @@ function tk58Proj(trackId) {
 function tk58Svg(pr, cls) {
   const NS = 'http://www.w3.org/2000/svg'; const s = document.createElementNS(NS, 'svg');
   s.setAttribute('viewBox', '0 0 300 170'); s.setAttribute('aria-hidden', 'true'); if (cls) s.setAttribute('class', cls);
-  for (const c of ['tk58-p0', 'tk58-p']) { const p = document.createElementNS(NS, 'path'); p.setAttribute('class', c); p.setAttribute('d', pr.d); s.appendChild(p); }
+  for (const c of ['tk58-p0', 'tk58-p']) { const p = document.createElementNS(NS, 'path'); p.setAttribute('class', c); p.setAttribute('d', pr.d); p.setAttribute('pathLength', '1'); s.appendChild(p); }
   const sf = document.createElementNS(NS, 'circle'); sf.setAttribute('class', 'tk58-sf'); sf.setAttribute('cx', pr.sf[0].toFixed(1)); sf.setAttribute('cy', pr.sf[1].toFixed(1)); sf.setAttribute('r', '4'); s.appendChild(sf);
   return s;
 }
@@ -16008,6 +16026,7 @@ function tk58Render() {
     } catch (_) {}
   }
   tk58Paint();
+  if (!TK58.drawn && document.getElementById('view-lap')?.classList.contains('active')) { TK58.drawn = true; drawIn([...host.querySelectorAll('.tk58-c')].slice(0, 3).map((b) => b.querySelector('.tk58-p')), { delay: 120, stagger: 120 }); } // v160: трассы прорисовываются при первом входе
 }
 function tk58Paint() {
   const host = document.getElementById('tk58'); if (!host) return;
@@ -16082,6 +16101,8 @@ function lh58Tick() {
   if (running && gd && !gd.classList.contains('hidden')) { const t = (document.getElementById('lapGhostNum')?.textContent || '').replace('−', '-').replace('±', ''); const v = parseFloat(t); if (Number.isFinite(v)) { delta = v * 1000; byGhost = true; } }
   if (delta == null && running && ref && lapRun.dist > 150) delta = elapsed - lh58RefAt(ref, lapRun.dist, L);
   const tone = lh58Tone(delta); if (el.dataset.tone !== tone) el.dataset.tone = tone;
+  lh60Bar(running ? delta : null);
+  { const hm = running ? lapRun.sectorHit.map((h) => (h ? 1 : 0)).join('') : ''; if (hm !== LH60.hits) { if (running && hm.split('1').length > LH60.hits.split('1').length) hap60('light'); LH60.hits = hm; } }
   lh58Set('lh58DeltaK', !ref && !byGhost ? 'первый круг станет эталоном' : byGhost ? 'дельта к призраку' : 'дельта к лучшему');
   lh58Set('lh58Delta', delta == null ? (running ? '±0.00' : '—') : lh58Fmt(delta));
   lh58Set('lh58Pred', delta != null && ref ? 'прогноз ' + fmtLapTime(Math.max(1000, ref.ms + delta)) : ref ? 'прогноз —' : '');
@@ -16116,7 +16137,7 @@ function lh58Tick() {
   lh58Set('lh58End', phase === 'idle' ? 'Закрыть' : 'Конец');
   // итог только что пройденного круга
   if (lapSession.startedAt !== TK58.lastSess) { TK58.lastSess = lapSession.startedAt; TK58.lastN = lapSession.laps.length; }
-  if (lapSession.laps.length > TK58.lastN) { TK58.lastN = lapSession.laps.length; lh58Flash(lapSession.laps[lapSession.laps.length - 1], tid); }
+  if (lapSession.laps.length > TK58.lastN) { TK58.lastN = lapSession.laps.length; const nl = lapSession.laps[lapSession.laps.length - 1]; const pb = tk58Laps(tid).filter((x) => x !== nl && x.how !== 'manual'); hap60(nl && nl.how !== 'manual' && (!pb.length || nl.ms < Math.min(...pb.map((x) => x.ms))) ? 'success' : 'medium'); lh58Flash(nl, tid); }
 }
 function lh58Flash(l, tid) {
   const box = document.getElementById('lh58Flash'); if (!box || !l) return;
@@ -16136,7 +16157,26 @@ function lh58Flash(l, tid) {
   box.hidden = false; box.classList.remove('on'); void box.offsetWidth; box.classList.add('on');
   clearTimeout(TK58.flashT); TK58.flashT = setTimeout(() => { box.classList.remove('on'); setTimeout(() => { box.hidden = true; }, 260); }, 8000);
 }
-function lh58Start() { clearInterval(TK58.timer); TK58.timer = setInterval(() => { try { lh58Tick(); } catch (_) {} }, 100); try { lh58Tick(); } catch (_) {} }
+/* v160: полоса дельты (как в трековых приложениях): центр — ноль, вправо — быстрее (зелёный), влево — медленнее (красный); пружина без перелёта. */
+const LH60 = { bar: null, hits: '', laps: 0 };
+function lh60Bar(delta) {
+  const box = document.getElementById('lh60Bar'); if (!box) return;
+  if (!LH60.bar) { const i = box.querySelector('i'); LH60.bar = spring({ k: 120, zeta: 1, value: 0, eps: 5e-4, onUpdate: (x) => { i.style.transform = `scaleX(${x.toFixed(4)})`; } }); }
+  const f = delta == null ? 0 : Math.max(-1, Math.min(1, -delta / 2000));
+  const tone = delta == null || Math.abs(delta) < 5 ? 'none' : delta < 0 ? 'better' : 'worse'; if (box.dataset.tone !== tone) box.dataset.tone = tone;
+  LH60.bar.set(f);
+}
+/* v160: тактильный отклик на ключевых моментах круга: сектор (лёгкий), круг (успех — если лучший). */
+function hap60(kind) { try { if (isTMA) { tmaHaptic(kind); return; } navigator.vibrate?.(kind === 'light' || kind === 'select' ? 8 : 18); } catch (_) {} }
+/* v160: кинематографичный вход в сессию — шапка, дельта, приборы, секторы, карта прорисовывается, кнопки; ~1.2 с, только opacity/transform. */
+function lh60Enter() {
+  const el = document.getElementById('lh58'); if (!el || motionReduced()) return;
+  const src = document.querySelector('#tk58 .tk58-c.on .tk58-art svg'); const dst = document.getElementById('lh58Map');
+  el.classList.remove('lh60-in'); void el.offsetWidth; el.classList.add('lh60-in');
+  setTimeout(() => el.classList.remove('lh60-in'), 1600);
+  requestAnimationFrame(() => { if (!(src && dst && flyShared(src, dst, { dur: 520, radius: 0 }))) drawIn(dst ? dst.querySelectorAll('.lh58-trk') : [], { delay: 260 }); });
+}
+function lh58Start() { lh60Enter(); clearInterval(TK58.timer); TK58.timer = setInterval(() => { try { lh58Tick(); } catch (_) {} }, 100); try { lh58Tick(); } catch (_) {} }
 function lh58Stop() { clearInterval(TK58.timer); TK58.timer = 0; }
 
 /* итог сессии */
@@ -16193,5 +16233,5 @@ function ls58Close() { const box = document.getElementById('ls58'); if (!box) re
   if (lv) new MutationObserver(() => { if (lv.classList.contains('active')) { tk58Render(); tk58Pick(document.getElementById('trackSelect')?.value || TRACKS[0].id, { instant: true }); } }).observe(lv, { attributes: true, attributeFilter: ['class'] });
   setTimeout(() => { try { tk58Render(); } catch (_) {} }, 900);
   document.getElementById('ls58')?.addEventListener('click', (e) => { if (e.target?.id === 'ls58') ls58Close(); });
-  window.__tk58 = { pick: tk58Pick, flash: (l) => lh58Flash(l, lapRun.trackId), summary: ls58Open, tick: lh58Tick, lapRun, lapSession }; // скриншоты/отладка
+  window.__v160 = { gauge: (v) => hudZones(v, false), bar: lh60Bar, enter: lh60Enter }; window.__tk58 = { pick: tk58Pick, flash: (l) => lh58Flash(l, lapRun.trackId), summary: ls58Open, tick: lh58Tick, lapRun, lapSession }; // скриншоты/отладка
 })();
