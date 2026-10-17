@@ -197,7 +197,7 @@
                 <span class="bn52-k">Дуэли</span><b class="bn52-t">Брось вызов</b><span class="bn52-d">1 на 1 — разгон или круг</span><i class="bn52-go" aria-hidden="true"></i>
               </button>
               <button type="button" class="bn52-s b-video" data-bn52="video" role="group" aria-roledescription="баннер" aria-label="С телеметрией">
-                <img src="./img/cars/studio/mclaren-765lt-780.webp" alt="" loading="lazy" decoding="async" />
+                <img src="./img/banners/paddock-800.webp" alt="" loading="lazy" decoding="async" />
                 <span class="bn52-k">Видео</span><b class="bn52-t">С телеметрией</b><span class="bn52-d">Скорость и время прямо на видео</span><i class="bn52-go" aria-hidden="true"></i>
               </button>
               <button type="button" class="bn52-s b-track" data-bn52="suggest" role="group" aria-roledescription="баннер" aria-label="Предложи трассу">
@@ -235,6 +235,7 @@
           <div class="hw-grid" id="homeWidgets">
             <button type="button" class="hw hw-car hw-wide" id="hwCar" data-hw="garage" aria-label="Моя машина — открыть Бокс">
               <span class="hw-car-art">
+                <span class="hw-car-3d" id="hwCar3d"><span class="p3d-wait" aria-hidden="true">3D загружается</span></span>
                 <picture>
                   <source id="hwCarAvif" type="image/avif" sizes="(max-width: 540px) calc(100vw - 32px), 508px">
                   <img id="hwCarImg" class="hw-car-img" alt="" width="1560" height="975" decoding="async" fetchpriority="high" sizes="(max-width: 540px) calc(100vw - 32px), 508px">
@@ -384,6 +385,7 @@
             <button type="button" class="h48-start" id="h48Start">Старт</button>
             <p class="h48-car" id="h48Car">Машина не выбрана</p>
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
+            <button type="button" class="v54-video" id="h54Video" aria-label="Старт с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>
           </section>
         </section>
 
@@ -391,12 +393,12 @@
           <!-- v153: Гараж — одна большая карточка текущей машины, остальные — компактной лентой ниже -->
           <section class="g53" id="g53" aria-label="Гараж">
             <article class="g53-hero" id="g53Hero">
-              <div class="g53-ph"><img id="g53Img" alt="" width="1170" height="731" decoding="async" /></div>
+              <div class="g53-ph" id="g53Art"><span class="p3d-wait" aria-hidden="true">3D загружается</span></div>
               <h2 class="g53-name" id="g53Name">—</h2>
               <p class="g53-sub" id="g53Sub"></p>
               <div class="g53-acts">
                 <button type="button" class="g53-mine" id="g53Mine">Это моя машина</button>
-                <button type="button" class="g53-3d" id="g53Studio" aria-expanded="false">3D и цвет</button>
+                <button type="button" class="g53-3d" id="g53Studio" aria-expanded="false">Цвет и детали</button>
               </div>
             </article>
             <p class="g53-cap">Другие машины</p>
@@ -480,11 +482,10 @@
                 <button type="button" data-hex="#f2f2f2" title="Белый" aria-label="Белый" style="background:#f2f2f2"></button>
                 <button type="button" data-hex="#c0c0c0" title="Серебро" aria-label="Серебро" style="background:#c0c0c0"></button>
                 <button type="button" data-hex="#c41e3a" title="Красный" aria-label="Красный" style="background:#c41e3a"></button>
-                <button type="button" data-hex="#39FF14" title="Неон" aria-label="Неон" style="background:#39FF14"></button>
                 <button type="button" data-hex="#1e4fd6" title="Синий" aria-label="Синий" style="background:#1e4fd6"></button>
                 <button type="button" data-hex="#f5c518" title="Жёлтый" aria-label="Жёлтый" style="background:#f5c518"></button>
                 <label class="paint-custom" title="Свой HEX">
-                  <input type="color" id="paintCustom" value="#39FF14" aria-label="Свой цвет" />
+                  <input type="color" id="paintCustom" value="#5b6b7a" aria-label="Свой цвет" />
                 </label>
               </div>
             </div>
@@ -641,7 +642,7 @@
             <button type="button" class="seg-btn" data-view="run" role="tab" aria-selected="false">Замер</button>
             <button type="button" class="seg-btn on" data-view="lap" role="tab" aria-selected="true">Круг</button>
           </div>
-          <h2 data-i18n="lap.title">Круг</h2>
+          <h2 data-i18n="lap.title">Трек</h2>
           <p class="muted">Выбери трассу барабаном, старт на линии, финиш на той же.</p>
           <div class="grid-2 lap-grid">
             <article class="card lap-track-card">
@@ -661,6 +662,7 @@
               <button type="button" class="mycar-chip" id="btnMyCarLap"><span>машина для зачёта</span><b data-mycar-line>не выбрана</b><i class="mycar-chip-go" aria-hidden="true">выбрать</i></button>
               <div class="lap-track-actions">
                 <button type="button" id="btnLapStart" class="lap-start-hero" data-i18n="lap.start">Старт круга</button>
+                <button type="button" class="v54-video" id="l54Video" aria-label="Старт круга с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>
                 <button type="button" id="btnLapStop" class="lap-finish-btn" data-i18n="lap.finish">Финиш круга</button>
               </div>
               <p class="tiny" id="lapGpsMsg">сессия не идёт</p>
@@ -713,8 +715,8 @@
           </article>
           <article class="card" id="sectorBattleCard">
             <div class="card-head-row">
-              <button type="button" class="pit-info-btn" data-help="sectorBattle" title="Справка" aria-label="Справка: Sector Battle">i</button>
-              <h3>Sector Battle</h3>
+              <button type="button" class="pit-info-btn" data-help="sectorBattle" title="Справка" aria-label="Справка: битва секторов">i</button>
+              <h3>Битва секторов</h3>
             </div>
             <p class="tiny muted race-sheet-sub">Этот круг vs твои лучшие секторы</p>
             <div id="sectorBattlePanel" class="sector-battle-host"></div>
@@ -927,18 +929,7 @@
               <button type="button" class="p48-row p48-big" data-p48="tops"><span><b>Топы</b><small>Лучшие разгоны и круги по трассам</small></span><i aria-hidden="true"></i></button>
               <button type="button" class="p48-row p48-big" data-p48="duels"><span><b>Дуэли</b><small>Вызов 1 на 1 — разгон или круг</small></span><em class="p48-badge" id="p48DuelsBadge" hidden></em><i aria-hidden="true"></i></button>
             </div>
-            <p class="p48-cap">Ещё</p>
-            <div class="p48-group">
-              <button type="button" class="p48-row" data-p48="history"><span><b>Мои замеры</b></span><i aria-hidden="true"></i></button>
-              <button type="button" class="p48-row" data-p48="lap"><span><b>Круг на трассе</b></span><i aria-hidden="true"></i></button>
-              <button type="button" class="p48-row" data-p48="tracks"><span><b>Трассы</b></span><i aria-hidden="true"></i></button>
-              <button type="button" class="p48-row" data-p48="analytics"><span><b>Аналитика круга</b></span><i aria-hidden="true"></i></button>
-              <button type="button" class="p48-row" data-p48="pulse"><span><b>Paddock</b></span><i aria-hidden="true"></i></button>
-              <button type="button" class="p48-row" data-p48="team"><span><b>Команда</b></span><i aria-hidden="true"></i></button>
-              <button type="button" class="p48-row" data-p48="video"><span><b>Видео с телеметрией</b></span><i aria-hidden="true"></i></button>
-              <button type="button" class="p48-row" data-p48="suggest"><span><b>Предложить трассу</b></span><i aria-hidden="true"></i></button>
-              <button type="button" class="p48-row" data-p48="shop"><span><b>Магазин</b></span><i aria-hidden="true"></i></button>
-            </div>
+            <!-- v154: остальные разделы — в меню ☰ (шапка справа) и во вкладке «Трек» -->
           </section>
           <article class="card music-card hidden" id="accMusic">
             <h3>Музыка</h3>
@@ -1044,7 +1035,7 @@
           <p class="tiny" id="accTrialLeft"></p>
           <article class="card" id="imuCard">
             <h3>Датчики движения</h3>
-            <p class="muted tiny">На iOS нужен жест пользователя, чтобы разрешить DeviceMotion / ориентацию для GPS+IMU fusion.</p>
+            <p class="muted tiny">На iPhone датчики движения включаются только по нажатию — так GPS и акселерометр работают вместе и точнее.</p>
             <button type="button" id="btnEnableImu" class="go-btn">Включить датчики движения</button>
             <p class="tiny" id="imuTip"></p>
           </article>
@@ -1067,8 +1058,8 @@
       <nav class="nav3" id="nav3" aria-label="Разделы">
         <button type="button" class="nav3-btn on" data-n3="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-6h4v6"/></svg><span>Главная</span></button>
         <button type="button" class="nav3-btn" data-n3="zamer"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Замер</span></button>
+        <button type="button" class="nav3-btn" data-n3="lap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18c0-4 2.5-5.5 5.5-5.5S15 11 15 8s2.2-3.5 4.5-2.5"/><circle cx="5" cy="18" r="1.6"/><path d="M15.5 18h4M17.5 16v4"/></svg><span>Трек</span></button>
         <button type="button" class="nav3-btn" data-n3="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 15.5l1.6-4.4A2 2 0 0 1 7 9.8h10a2 2 0 0 1 1.9 1.3l1.6 4.4"/><path d="M3.5 15.5h17v2.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1h-10v1a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r=".6"/><circle cx="16.5" cy="15.5" r=".6"/></svg><span>Гараж</span></button>
-        <button type="button" class="nav3-btn" data-n3="account"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.4"/><path d="M5.5 19.5c.9-3.2 3.3-4.9 6.5-4.9s5.6 1.7 6.5 4.9"/></svg><span>Профиль</span></button>
       </nav>
       </main>
       <!-- v124: шторка в стиле Telegram (снизу, граббер, затемнение, лёгкое уменьшение фона, свайп вниз) -->
@@ -1345,7 +1336,7 @@
       </div>
     </div>
 
-    <!-- v123: меню ☰ — выезжающая панель справа (закрытие: фон, кнопка, свайп вправо, Esc, Telegram BackButton) -->
+    <!-- v154: меню ☰ (вторичные разделы) снова в шапке справа; v123: выезжающая панель справа (закрытие: фон, кнопка, свайп вправо, Esc, Telegram BackButton) -->
     <div class="pl-menu hidden" id="plMenu" role="dialog" aria-modal="true" aria-label="Меню" aria-hidden="true">
       <div class="plm-scrim" id="plMenuScrim"></div>
       <aside class="plm-panel" id="plMenuPanel">
@@ -1353,25 +1344,21 @@
           <b class="plm-brand">PITLANE</b>
           <button type="button" class="plm-close" id="plMenuClose" aria-label="Закрыть меню"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         </div>
-        <nav class="plm-quick" aria-label="Разделы">
-          <button type="button" data-plm="home"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/></svg><span>Главная</span></button>
-          <button type="button" data-plm="run"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l3.2-3.2M10 3h4"/></svg><span>Заезд</span></button>
-          <button type="button" data-plm="duels"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7l5.5 5-5.5 5M20.5 7L15 12l5.5 5"/></svg><span>Дуэли</span></button>
-          <button type="button" data-plm="tops"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19v-7h3v7zM10.5 19V6h3v13zM16 19v-4h3v4z"/></svg><span>Топ</span></button>
-        </nav>
         <ul class="plm-list">
-          <li><button type="button" data-plm="team"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5M14.5 15c2.6-.4 4.9.8 5.5 4"/></svg><span>Команда<small>экипаж и общий зачёт</small></span></button></li>
-          <li><button type="button" data-plm="pulse"><svg viewBox="0 0 24 24" aria-hidden="true" class="plm-chat"><path class="ico-bb" d="M15.5 7.5h3A2.5 2.5 0 0 1 21 10v4.5A2.5 2.5 0 0 1 18.5 17H18v2.4L15.4 17"/><path class="ico-bf" d="M5.5 4h8A2.5 2.5 0 0 1 16 6.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-3.4 2.8V14h-.1A2.5 2.5 0 0 1 3 11.5v-5A2.5 2.5 0 0 1 5.5 4z"/><circle class="ico-d ico-d1" cx="6.6" cy="9" r="1"/><circle class="ico-d ico-d2" cx="9.5" cy="9" r="1"/><circle class="ico-d ico-d3" cx="12.4" cy="9" r="1"/></svg><span>Paddock<small>чат пилотов</small></span></button></li>
-          <li><button type="button" data-plm="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 20v-5h6v5"/></svg><span>Бокс · 3D<small>машина на подиуме</small></span></button></li>
-          <li><button type="button" data-plm="autodromes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 17c0-5 3-6 6-6s4-1 4-4 2-3 4-2M5 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0"/><path d="M15 17h4"/></svg><span>Трассы<small>автодромы и круг по GPS</small></span></button></li>
-          <li><button type="button" data-plm="gps"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><circle cx="12" cy="12" r="7"/></svg><span>Источник GPS · чип<small>телефон, Bluetooth, Wi-Fi</small></span></button></li>
-          <li><button type="button" data-plm="shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/></svg><span>Магазин<small>PITLANE GPS · предзаказ</small></span></button></li>
-          <li><a href="./method.html" data-plm="method"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg><span>Методика<small>как считаем время и класс</small></span></a></li>
-          <li><button type="button" data-plm="feedback"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v10H9l-5 4z"/></svg><span>Обратная связь<small>идея или ошибка — напиши</small></span></button></li>
+          <li><button type="button" data-plm="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 8v4l3 2"/></svg><span>Мои замеры<small>история и рекорды</small></span></button></li>
+          <li><button type="button" data-plm="pulse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v10H9l-5 4z"/></svg><span>Paddock<small>чат пилотов</small></span></button></li>
+          <li><button type="button" data-plm="team"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5M14.5 15c2.6-.3 4.6 1 5.2 3.6"/></svg><span>Команда<small>экипаж и комнаты</small></span></button></li>
+          <li><button type="button" data-plm="shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/></svg><span>Магазин<small>внешний GPS 10 Гц</small></span></button></li>
+          <li><button type="button" data-plm="suggest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg><span>Предложить трассу<small>откалибруем и добавим</small></span></button></li>
+          <li><button type="button" data-plm="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg><span>Настройки<small>язык, звук, аккаунт</small></span></button></li>
+          <li><button type="button" data-plm="feedback"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10h-8l-4 4v-4H5z"/></svg><span>Обратная связь<small>идея или ошибка</small></span></button></li>
+          <li><a href="./method.html" data-plm="method"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg><span>Методика<small>как считаем время и топы</small></span></a></li>
         </ul>
         <nav class="plm-legal" aria-label="Правовая информация">
           <a href="./privacy.html">Конфиденциальность</a>
           <a href="./terms.html">Соглашение</a>
+          <a href="./offer.html">Оферта</a>
+          <a href="./delete-account.html">Удаление аккаунта</a>
         </nav>
       </aside>
     </div>

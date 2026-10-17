@@ -7,11 +7,14 @@ const css = fs.readFileSync(new URL('../../styles.css', import.meta.url), 'utf8'
 ok(/id="h48Start"[^>]*>Старт</.test(html) && /const sb = document\.getElementById\('h48Start'\)[\s\S]{0,1200}sb\?\.addEventListener\('click', \(\) => \{[\s\S]{0,1400}withSafety\(armRun\)\(\);/.test(app) /* v153: та же логика + анимация */, 'Главная: «Старт» запускает тот же замер (безопасность → armRun)');
 const nav = html.slice(html.indexOf('id="nav3"'), html.indexOf('</nav>', html.indexOf('id="nav3"')));
 // v152: вкладок стало 4 — Главная / Замер / Гараж / Профиль (Замер, Гараж, Профиль на месте, в том же порядке)
-ok((nav.match(/data-n3=/g) || []).length === 4 && /data-n3="home"[\s\S]*Главная[\s\S]*data-n3="zamer"[\s\S]*Замер[\s\S]*data-n3="garage"[\s\S]*Гараж[\s\S]*data-n3="account"[\s\S]*Профиль/.test(nav), 'нижняя панель: Главная / Замер / Гараж / Профиль');
+ok((nav.match(/data-n3=/g) || []).length === 4 && /data-n3="home"[\s\S]*Главная[\s\S]*data-n3="zamer"[\s\S]*Замер[\s\S]*data-n3="lap"[\s\S]*Трек[\s\S]*data-n3="garage"[\s\S]*Гараж/.test(nav) && !/data-n3="account"/.test(nav), 'v154: нижняя панель: Главная / Замер / Трек / Гараж (Профиль — аватар в шапке)');
 const p = html.slice(html.indexOf('id="p48"'), html.indexOf('</section>', html.indexOf('id="p48"')));
 const keys = [...p.matchAll(/data-p48="([a-z]+)"/g)].map((m) => m[1]);
 ok(keys[0] === 'tops' && keys[1] === 'duels', 'Профиль: Топы и Дуэли — первые');
-for (const k of ['history', 'lap', 'tracks', 'analytics', 'pulse', 'team', 'video', 'suggest', 'shop']) ok(keys.includes(k) && app.includes(`k === '${k}'`), 'из Профиля доступно: ' + k);
+// v154: вторичные разделы — в меню ☰, круг/трассы/аналитика — вкладка «Трек», видео — «С видео» под стартом
+const menu = html.slice(html.indexOf('id="plMenu"'), html.indexOf('</aside>', html.indexOf('id="plMenu"')));
+for (const k of ['history', 'pulse', 'team', 'suggest', 'shop']) ok(menu.includes(`data-plm="${k}"`) && app.includes(`k === '${k}'`), 'v154: из меню ☰ доступно: ' + k);
+ok(/id="h54Video"/.test(html) && /id="l54Video"/.test(html) && /id="btnAutodromesLap"/.test(html), 'v154: видео — под стартом, трассы — во вкладке «Трек»');
 const c = css.slice(css.indexOf('v148: Старт / Гараж / Профиль'));
 ok(/html\.v148 main, html\.v148\.nav-widgets main \{ padding-bottom: calc\(var\(--n3-h\) \+ var\(--sab, 0px\) \+ 28px\) !important/.test(c), 'контент не уходит под нижнюю панель (высота + safe area)');
 ok(/\.nav3-btn\.on \{ color: rgb\(158,205,176\)/.test(c) && /\.h48-start \{[^}]*background: #ecebe8 !important[^}]*text-transform: none/.test(c), 'мята — активный пункт; «Старт» светлый, без капса');

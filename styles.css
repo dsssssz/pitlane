@@ -6083,7 +6083,7 @@ body { font-variant-numeric: tabular-nums; }
 /* — аватарки: монограмма на графите с едва заметным оттенком пилота; фото — миниатюрой — */
 .pad-ava { background: radial-gradient(120% 120% at 28% 18%, hsl(var(--ava-h, 210) 14% 34%) 0%, hsl(var(--ava-h, 210) 10% 17%) 55%, #121313 100%) !important;
   border: 1px solid rgba(255,255,255,.14) !important; color: #ececec !important; font-family: var(--font-ui) !important; font-weight: 600 !important; letter-spacing: .03em !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 8px -4px rgba(0,0,0,.8); text-shadow: 0 1px 0 rgba(0,0,0,.35); }
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 2px 8px -4px rgba(0,0,0,.8); }
 .pad-ava.has-img { background: #151616 !important; }
 
 /* — единые радиусы/поверхности для главного, меню, шторок, замера, топа, профиля — */
@@ -6640,7 +6640,7 @@ html.v148 #btnMenu, html.v148 #btnProfile, html.v148 header.top { display: none 
 html.v148 .brand-bar b { font-size: 13px; letter-spacing: .32em; color: #8b8e93; font-weight: 600; }
 /* нижняя панель из трёх пунктов; старая (v139) скрыта */
 .nav3 { display: none; }
-@media (max-width: 900px) {
+@media (max-width: 99999px) /* v154: и на десктопе — тот же мобильный дизайн */ {
   html.v148 .rail { display: none !important; }
   html.v148 .nav3 { display: grid; grid-template-columns: repeat(3, 1fr); position: fixed; z-index: 11000; left: 0; right: 0; bottom: 0;
     height: calc(var(--n3-h) + var(--sab, 0px)); padding: 0 12px var(--sab, 0px); background: rgba(11,12,14,.96); border-top: 1px solid rgba(255,255,255,.06); }
@@ -6683,7 +6683,7 @@ html.v148 #app .view.active:not(#view-home):not(#view-garage) > * { animation: n
 html.v148 .mycar-bar.is-empty { border-color: rgba(255,255,255,.06); background: #141518; }
 html.v148 .mycar-bar.is-empty .mycar-bar-k { color: #75787e; }
 html.v148 .rd-chip[data-q="mid"] b::before { background: #b9bbbf; }
-@media (max-width: 900px) { html.v148 #btnHome.bb-home { display: none; } }
+@media (max-width: 99999px) /* v154: и на десктопе — тот же мобильный дизайн */ { html.v148 #btnHome.bb-home { display: none; } }
 html.v148 main > .brand-bar { background: #0b0c0e !important; border-bottom: 1px solid rgba(255,255,255,.06); }
 /* ===== v150: оверлей замера — цифра, шкала, три строки, «Подробнее» ===== */
 html.v150 .run-drive { gap: 0; padding: calc(var(--sat, 0px) + 28px) 28px calc(var(--sab, 0px) + 18px); background: #0b0c0e !important; }
@@ -6753,7 +6753,7 @@ html.v152 .nav3-btn { min-width: 0; }
 html.v152 .nav3 { grid-template-columns: repeat(4, 1fr); }
 /* ===== v153: Гараж — одна карточка + лента; Круг — трасса и «Старт круга» ===== */
 .g53 { display: none; }
-@media (max-width: 900px) {
+@media (max-width: 99999px) /* v154: и на десктопе — тот же мобильный дизайн */ {
   html.v153 .g53 { display: block; padding-top: 6px; }
   html.v153:not(.g53-3d) #view-garage > :not(#g53) { display: none !important; }
   html.v153.g53-3d #view-garage .g53-list, html.v153.g53-3d #view-garage .g53-cap { display: none; }
@@ -6780,7 +6780,7 @@ html.v152 .nav3 { grid-template-columns: repeat(4, 1fr); }
 .g53-add { margin-top: 24px; min-height: 48px; padding: 0 28px !important; border: 0 !important; border-radius: 24px !important; background: #ecebe8 !important; color: #17181a !important; font: 500 15px/1 Manrope, sans-serif !important; text-transform: none !important; box-shadow: none !important; }
 /* Круг: до старта — только трасса и кнопка */
 .l53-more { display: none; }
-@media (max-width: 900px) {
+@media (max-width: 99999px) /* v154: и на десктопе — тот же мобильный дизайн */ {
   html.v153 #view-lap > .ride-seg, html.v153 #view-lap > p.muted, html.v153 #view-lap .lap-howto,
   html.v153 #view-lap #trackMap, html.v153 #view-lap #lapTrackMode, html.v153 #view-lap #lapTrackChase,
   html.v153 #view-lap #btnAutodromesLap, html.v153 #view-lap #btnVideoLap, html.v153 #view-lap #btnLapStop { display: none !important; }
@@ -6827,12 +6827,12 @@ html.v153 #runDrive.rd53-in .run-drive-actions, html.v153 #runDrive.rd53-in .rd-
   html.v153 #runDrive.rd53-in::before { display: none; }
   html.v153 #runDrive.rd53-in *, html.v153 #runDrive.rd53-in .hgz-track { animation: none !important; }
 }
-@media (max-width: 900px) {
+@media (max-width: 99999px) /* v154: и на десктопе — тот же мобильный дизайн */ {
   html.v153 #app #view-lap .lap-track-card .wheel { height: 118px; }
   html.v153 #view-lap #btnMyCarLap, html.v153 #view-lap #btnMyCarLap * { border-color: rgba(255,255,255,.08) !important; background-color: transparent !important; }
   html.v153 #view-lap #btnMyCarLap b { color: #c9cacd !important; }
 }
-@media (max-width: 900px) { html.v153 #view-lap #btnMyCarLap .mycar-chip-go { color: #c9cacd !important; border: 1px solid rgba(255,255,255,.12) !important; } }
+@media (max-width: 99999px) /* v154: и на десктопе — тот же мобильный дизайн */ { html.v153 #view-lap #btnMyCarLap .mycar-chip-go { color: #c9cacd !important; border: 1px solid rgba(255,255,255,.12) !important; } }
 /* v153: отметка «щёлкает» на место; итог выезжает снизу; рекорд; подъём в топе */
 html.v153 .rd50-row.on b { animation: rd53Click .26s cubic-bezier(.2,.7,.2,1) both; }
 @keyframes rd53Click { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
@@ -6852,3 +6852,77 @@ html.v153 .rd-hero.rd53-pb::after { content: ''; position: absolute; left: 0; ri
   html.v153 .rd-hero.rd53-pb .rd-hero-v { animation: rd53Fade .3s ease-out both; }
   html.v153 .rd-hero.rd53-pb::after { animation: none; display: none; }
 }
+/* ===== v154: шапка (☰ + аватар), нижняя панель Главная/Замер/Трек/Гараж, живое 3D, «С видео», десктоп = мобильная колонка ===== */
+html.v154 #btnMenu, html.v154 #btnProfile { display: grid !important; place-items: center; width: 44px; height: 44px; min-height: 44px; padding: 0; border-radius: 50%; background: transparent; border: 1px solid rgba(255,255,255,.08); color: #c9cacd; }
+html.v154 #btnProfile { overflow: hidden; }
+html.v154 #btnProfile img.bb-ava { width: 100%; height: 100%; object-fit: cover; display: block; }
+html.v154 #btnProfile.has-ava svg { display: none; }
+html.v154 .brand-bar { display: flex; align-items: center; gap: 8px; min-height: 56px; }
+html.v154 .brand-bar .bb-actions { margin-left: auto; display: flex; gap: 8px; }
+html.v154 .brand-bar .bb-home { width: 44px; height: 44px; min-height: 44px; }
+html.v154 .pl-menu { z-index: 12050; }
+html.v154 .plm-panel { background: #0f1012; border-left: 1px solid rgba(255,255,255,.06); box-shadow: none; }
+html.v154 .plm-panel::before { display: none; }
+html.v154 .plm-close { width: 44px; height: 44px; min-height: 44px; }
+html.v154 .plm-list { background: #141518; border: 1px solid rgba(255,255,255,.06); border-radius: 20px !important; }
+html.v154 .plm-list small, html.v154 .plm-legal a { color: #8d9096; }
+html.v154 .plm-legal { flex-wrap: wrap; gap: 6px 16px; }
+html.v154 .plm-legal a { padding: 12px 0; }
+/* живое 3D в карточках */
+.g53-ph, .hw-car-3d { position: relative; overflow: hidden; }
+.hw-car-3d { position: absolute; inset: 0; }
+html.v154 .g53-ph #podiumWrap, html.v154 .hw-car-3d #podiumWrap { position: absolute; inset: 0; width: auto; height: auto !important; margin: 0; border: 0 !important; border-radius: 0 !important; box-shadow: none; background: #121316; }
+html.v154 .g53-ph #podiumWrap::after, html.v154 .hw-car-3d #podiumWrap::after { display: none; }
+html.v154 .hw-car-3d #podiumWrap { pointer-events: none; }
+html.v154 .g53-ph #view3d, html.v154 .hw-car-3d #view3d { background: #121316; }
+html.v154 .hw-car:not(.has-photo) .hw-car-art picture { display: none; }
+html.v154 .hw-car.has-photo .hw-car-3d { display: none; }
+.p3d-wait { position: absolute; inset: 0; display: grid; place-items: center; font: 500 12px/1 Manrope, sans-serif; letter-spacing: .04em; color: #6f7278; }
+.p3d-on > .p3d-wait { display: none; }
+/* «С видео» — тихая вторичная кнопка под стартом */
+.v54-video { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid rgba(255,255,255,.1); color: #c9cacd; font: 500 14px/1 Manrope, sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.v54-video svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.v54-video:active { background: rgba(255,255,255,.04); }
+.h48 .v54-video { margin-top: 18px; }
+/* Трек: справочник трасс — тихая ссылка */
+html.v154 #app #view-lap #btnAutodromesLap { display: inline-flex !important; align-items: center; min-height: 44px; padding: 0 14px; color: #a3a6ab; background: none; border: 0; font: 500 14px/1 Manrope, sans-serif; }
+/* десктоп: та же мобильная колонка, нижняя панель по центру, старый rail скрыт */
+@media (min-width: 901px) {
+  html.v154 .rail { display: none !important; }
+  html.v154 #app { justify-content: center; }
+  html.v154 main { max-width: 520px; width: 100%; margin: 0 auto; }
+  html.v154 .nav3 { left: 50% !important; right: auto !important; width: 520px; transform: translateX(-50%); border-left: 1px solid rgba(255,255,255,.06); border-right: 1px solid rgba(255,255,255,.06); }
+  html.v154 body { background: #0b0c0e; }
+}
+/* v154 аудит: контраст приглушённых подписей (≥ 4.5:1 на #0b0c0e / #141518) */
+html.v154 .nav3-btn { color: #8a8d93; }
+html.v154 .nav3-btn.on { color: rgb(158,205,176); }
+html.v154 .hw-k, html.v154 .hw-k-sub, html.v154 .p48-row small, html.v154 .p48-cap, html.v154 #topsBoardSub,
+html.v154 #view-lap .lap-track-card h3, html.v154 #view-lap #lapGpsMsg, html.v154 #view-lap .lap-best, html.v154 .g53-sub,
+html.v154 .mycar-chip > span, html.v154 .pad-meta em, html.v154 .pad-meta time, html.v154 .acc-method .method-link { color: #9a9da3 !important; }
+html.v154 .brand-bar b { color: #a3a6ab; }
+/* v154 аудит: тихие акценты вместо жёлтого/оранжевого */
+html.v154 .cult-tag.rough-sf { color: #a3a6ab; border-color: rgba(255,255,255,.14); }
+html.v154 .mycar-warn { border-color: rgba(255,255,255,.1); background: #141518; color: #c9cacd; font-weight: 500; }
+
+html.v154 input[type="checkbox"]#duelGhostOn { background-color: #24262a; }
+/* v154 аудит: зоны нажатия ≥ 44 px */
+html.v154 .tgs-close, html.v154 .share-card-close { width: 44px !important; height: 44px !important; min-height: 44px !important; min-width: 44px !important; }
+html.v154 .mycar-tyre-chip, html.v154 .seg-btn, html.v154 .mycar-how, html.v154 .crew-linkish, html.v154 .sector-tops-link, html.v154 #trackSuggestCard summary, html.v154 .chase-btn, html.v154 .mycar-bar-btn, html.v154 .dyno-edit-btn, html.v154 #btnShareRun { min-height: 44px !important; }
+html.v154 .pit-info-btn { position: relative; }
+html.v154 .pit-info-btn::after { content: ''; position: absolute; inset: -9px; }
+html.v154 .colors button, html.v154 .paint-finish button { min-width: 44px; min-height: 44px; }
+html.v154 .bn52-dot { position: relative; overflow: visible; }
+html.v154 .bn52-dot::after { content: ''; position: absolute; left: -7px; right: -7px; top: -19px; bottom: -19px; }
+html.v154 .acc-legal a, html.v154 .auth-legal a { display: inline-block; padding: 12px 0; }
+/* v154 аудит: шторки и видео — над нижней панелью (раньше панель перекрывала кнопки внизу шторок) */
+html.v154 body:has(.race-sheet:not(.hidden)) .nav3, html.v154 body:has(.crew-sheet:not(.hidden)) .nav3, html.v154 body:has(#vtSheet) .nav3, html.v154 body:has(#safetySheet:not(.hidden)) .nav3, html.v154 body:has(.pl-menu:not(.hidden)) .nav3 { display: none !important; }
+html.v154 .vt-sheet { z-index: 12060; }
+/* v154: Трек — справочник трасс тихой ссылкой под стартом */
+html.v154 #view-lap .lap-track-card { display: flex; flex-direction: column; }
+html.v154 #app #view-lap #btnAutodromesLap { order: 30; align-self: center; margin-top: 6px; text-decoration: none; }
+html.v154 #view-lap #lapGpsMsg { order: 29; }
+html.v154 #view-lap .lap-track-actions .v54-video { margin-top: 4px; }
+/* v154: HUD круга — без нижней панели; кнопки видео — без капса */
+html.v154 body:has(#lapDrive:not(.hidden)) .nav3 { display: none !important; }
+html.v154 .vt-rec, html.v154 .vt-close, html.v154 .vt-dl, html.v154 .vt-share { text-transform: none !important; letter-spacing: 0 !important; }

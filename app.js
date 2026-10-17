@@ -2314,7 +2314,9 @@ function podiumInvalidate(ms = 0, hard = false) {
   kickLoop();
 }
 function podiumShouldRun() {
-  return !document.hidden && podiumInView;
+  // v154: сцена переезжает между Главной и Гаражом — рисуем только в активном экране (IntersectionObserver не видит скрытые вкладки)
+  const av = document.querySelector('.view.active');
+  return !document.hidden && podiumInView && !!(av && canvas && av.contains(canvas));
 }
 function kickLoop() {
   if (!renderer) return; // v119: подиум ещё не построен (three не загружен)
@@ -4469,7 +4471,7 @@ function buildSectorBattleHtml(trackId, lap, opts) {
   const optLine = opt != null
     ? `<p class="sb-opt">оптимал <strong>${fmtLapTime(opt)}</strong><em>сумма лучших секторов</em></p>`
     : '';
-  const title = o.title || 'Sector Battle';
+  const title = o.title || 'Битва секторов';
   const note = abOk ? '' : '<p class="sb-note">дельта без «победы» — нужен GPS A/B</p>';
   // v80: trackId comes from share payloads (#r= / ?s=) → escape (was an attribute-injection XSS)
   return `<div class="sector-battle" data-track="${esc(trackId)}">`
@@ -4487,14 +4489,14 @@ function renderSectorBattlePanel() {
   const list = ((state.laps && state.laps[trackId]) || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0));
   const withSec = list.filter((l) => sectorSplits(l));
   if (withSec.length < 1) {
-    host.innerHTML = '<p class="muted tiny">Sector Battle — проедьте 2+ круга с секторами на этой трассе</p>';
+    host.innerHTML = '<p class="muted tiny">Битва секторов — проедьте 2+ круга с секторами на этой трассе</p>';
     host.hidden = false;
     return;
   }
   const latest = withSec[0];
   const nSec = withSec.length;
   host.innerHTML = buildSectorBattleHtml(trackId, latest, {
-    title: nSec >= 2 ? 'Sector Battle · последний vs лучшие' : 'Sector Battle · первый круг с секторами',
+    title: nSec >= 2 ? 'Битва секторов · последний и лучшие' : 'Битва секторов · первый круг с секторами',
     excludeAt: latest.at,
   });
   host.hidden = false;
@@ -5586,7 +5588,14 @@ function renderTrackDays() {
 }
 
 // v101: no active car → «Это моя машина» first (lap starts right after saving) or «Ехать без зачёта»
-document.getElementById('btnLapStart')?.addEventListener('click', () => { void ensureCarBeforeRun(() => openLapDrivePreview()); });
+// v154: машина уже выбрана в гараже → сразу HUD, без шторки «Это моя машина» (резину спросим после финиша, если круг пойдёт в зачёт — requireCar)
+async function lapStartFlow(after) {
+  let mine = null; try { mine = await loadMyCar(); } catch (_) {}
+  const go = () => { openLapDrivePreview(); try { after?.(); } catch (_) {} };
+  if (mine || state.carId) { go(); return; }
+  void ensureCarBeforeRun(go);
+}
+document.getElementById('btnLapStart')?.addEventListener('click', () => { void lapStartFlow(); });
 document.getElementById('btnLapArmedStart')?.addEventListener('click', () => { withSafety(armLapRun)(); });
 document.getElementById('btnLapStop')?.addEventListener('click', () => {
   if (lapRun.active && lapRun.phase === 'running') {
@@ -6177,7 +6186,7 @@ function openShareCard(payload) {
     if (isLap && payload.sectors && payload.trackId) {
       const lapLike = { sectors: payload.sectors, ms: payload.ms, at: payload.at, gpsQ: payload.gpsQ, valid: payload.valid };
       sb.innerHTML = buildSectorBattleHtml(payload.trackId, lapLike, {
-        title: 'Sector Battle',
+        title: 'Битва секторов',
         excludeAt: payload.at,
       });
       sb.hidden = !sb.innerHTML;
@@ -7917,6 +7926,24 @@ function ensurePodium3d() {
   }
   return _podiumP;
 }
+/** v154: живое 3D везде — переносит #podiumWrap (один WebGL-контекст) в карточку Гаража или в «Моя машину» на Главной. */
+function mountPodium(where) {
+  const wrap = document.getElementById('podiumWrap');
+  const host = document.getElementById(where === 'home' ? 'hwCar3d' : 'g53Art');
+  if (!wrap || !host) return;
+  if (wrap.parentElement !== host) host.appendChild(wrap);
+  document.documentElement.dataset.p3d = where;
+  void ensurePodium3d().then((ok) => {
+    if (!ok) { host.classList.add('p3d-off'); return; }
+    host.classList.add('p3d-on');
+    if (where === 'home') {
+      let id = null; try { id = homeHeroCarId(); } catch (_) {}
+      if (id && id !== podiumModelId && MODEL_CATALOG.some((m) => m.id === id)) { try { loadPodiumModel(id); } catch (_) {} }
+    }
+    try { controls.enabled = where !== 'home'; controls.autoRotate = true; camera.zoom = where === 'home' ? 1.25 : 1.2; camera.updateProjectionMatrix(); } catch (_) {} // карточки ниже старого подиума — машина крупнее
+    onResize(); podiumInvalidate(800, true);
+  });
+}
 function bootPodium() {
   if (!renderer) return; // v119: сцена ещё не построена
   if (introBlocking3d) return; // intro still visible — no GLB decode / PMREM yet
@@ -9086,7 +9113,7 @@ const I18N = {
     'garage.empty':'Гараж пока пуст','garage.hint':'Добавьте машину — и замеры будут сохраняться за ней.','garage.add':'Добавить машину','garage.reset':'сброс',
     'run.title':'Замер','run.hint':'Старт, остановка, газ. Времена появятся по ходу.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
-    'lap.title':'Круг','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
+    'lap.title':'Трек','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Написать в Paddock…','pad.empty':'Пока тихо — напиши первым.',
     'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
@@ -9095,7 +9122,7 @@ const I18N = {
     'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car','garage.reset':'reset',
     'run.title':'Run','run.hint':'Start, stop, launch. Times appear as you go.','run.start':'Start',
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
-    'lap.title':'Lap','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start lap','lap.finish':'Finish lap',
+    'lap.title':'Track','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start lap','lap.finish':'Finish lap',
     'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'Write to Paddock…','pad.empty':'Quiet for now. Sign in and write the first post.',
     'acc.title':'Account','acc.login':'Sign in','acc.hint':'Telegram sign-in is needed for leaderboards, duels, teams and posts. Runs, garage and history work without it, on this device.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
   },
@@ -9819,7 +9846,7 @@ async function renderCarPhotoCard() {
   const ph = myCarPhotoUrl();
   const id = homeHeroCarId();
   if (ph) { img.removeAttribute('srcset'); img.src = ph; tag.textContent = 'твоё фото'; }
-  else { img.src = STUDIO_IDS.has(id) ? `./img/cars/studio/${id}-1170.webp` : carThumbUrl(id); tag.textContent = 'студийный рендер'; }
+  else { img.src = carThumbUrl(id); tag.textContent = 'превью модели'; }
   document.getElementById('cphDelete').hidden = !ph;
   document.getElementById('cphPickTxt').textContent = ph ? 'Заменить фото' : 'Загрузить фото';
   document.getElementById('cphShareRow').hidden = !ph;
@@ -12332,7 +12359,7 @@ const FEATURE_HELP = {
     extra: 'session-track',
   },
   sectorBattle: {
-    title: 'Sector Battle',
+    title: 'Битва секторов',
     lines: [
       'Личный разбор круга по секторам: этот круг vs твои лучшие секторы на этой трассе.',
       'Зелёный — быстрее PB сектора, красный — медленнее. «Оптимал» — сумма лучших секторов.',
@@ -12344,7 +12371,7 @@ const FEATURE_HELP = {
     lines: [
       'Публичный рейтинг по секторам трассы: фото, ник, время. Только GPS A/B.',
       '<strong>Как:</strong> выбери трассу и сектор (S1/S2/S3). Чтобы попасть — валидный круг с секторами.',
-      '<strong>Где:</strong> Топы → «Секторы» или кнопка под Sector Battle.',
+      '<strong>Где:</strong> Топы → «Секторы» или кнопка под «Битвой секторов».',
     ],
   },
 };
@@ -12403,7 +12430,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v153';
+const APP_VERSION = 'v154';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12554,20 +12581,29 @@ window.__hud = hudZones; /* скриншоты/отладка */ window.__rd = {
 
 /* v143: видео + телеметрия (модуль грузится по кнопке) */
 let _vtMod = null;
-async function openVideoTele(scope) {
+async function openVideoTele(scope, opts = {}) {
   try { _vtMod = _vtMod || await import('./video-tele.js'); } catch (_) { return; }
-  _vtMod.openVideo({ getSpeed: () => displayKmh(), getLabel: () => (scope === 'lap' ? 'круг' : 'время'), hap, webUrl: 'https://dsssssz.github.io/pitlane/' });
+  _vtMod.openVideo({ getSpeed: () => displayKmh(), getLabel: () => (scope === 'lap' ? 'круг' : 'время'), hap, webUrl: 'https://dsssssz.github.io/pitlane/', autostart: !!opts.autostart });
 }
+/* v154: «С видео» — тихая кнопка под «Старт» (Замер) и «Старт круга» (Трек): запускает замер/круг и сразу запись с камеры + телеметрия */
+document.getElementById('h54Video')?.addEventListener('click', () => {
+  hap(12);
+  withSafety(() => { armRun(); void openVideoTele('run', { autostart: true }); })();
+});
+document.getElementById('l54Video')?.addEventListener('click', () => {
+  hap(12);
+  void lapStartFlow(() => { void openVideoTele('lap', { autostart: true }); });
+});
 document.getElementById('btnVideoRun')?.addEventListener('click', () => { void openVideoTele('run'); });
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
     const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'home';
-    const key = act === 'garage' ? 'garage' : act === 'home' ? 'home' : act === 'zamer' || act === 'run' ? 'zamer' : 'account';
+    const key = act === 'garage' ? 'garage' : act === 'home' ? 'home' : act === 'zamer' || act === 'run' ? 'zamer' : act === 'lap' ? 'lap' : ''; // v154: Профиль — из аватара в шапке
     document.querySelectorAll('.nav3-btn').forEach((b) => { const on = b.dataset.n3 === key; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   };
   nav?.addEventListener('click', (e) => {
@@ -12596,6 +12632,27 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153');
       withSafety(armRun)();
     });
   }
+  /* v154: аватар пилота в шапке (кнопка Профиля) */
+  {
+    const src = document.getElementById('accAvatar'); const btn = document.getElementById('btnProfile');
+    const paint = () => { if (!btn) return; const u = src?.getAttribute('src') || ''; let im = btn.querySelector('img.bb-ava');
+      if (u && !/^\s*$/.test(u)) { if (!im) { im = document.createElement('img'); im.className = 'bb-ava'; im.alt = ''; im.onerror = () => { im.remove(); btn.classList.remove('has-ava'); }; btn.appendChild(im); } if (im.getAttribute('src') !== u) im.src = u; btn.classList.add('has-ava'); }
+      else { im?.remove(); btn.classList.remove('has-ava'); } };
+    if (src) new MutationObserver(paint).observe(src, { attributes: true, attributeFilter: ['src'] });
+    setTimeout(paint, 800);
+  }
+  /* v154: одна живая 3D-сцена (three.js) переезжает туда, где её видно: карточка Гаража или «Моя машина» на Главной */
+  {
+    const sync3d = () => {
+      const act = document.querySelector('.view.active')?.id;
+      if (act === 'view-garage') mountPodium('garage');
+      else if (act === 'view-home' && !document.getElementById('hwCar')?.classList.contains('has-photo')) mountPodium('home');
+    };
+    const vh = document.getElementById('viewHost');
+    if (vh) new MutationObserver(() => { clearTimeout(sync3d.t); sync3d.t = setTimeout(sync3d, 60); }).observe(vh, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    setTimeout(sync3d, 900);
+    window.__mount3d = mountPodium;
+  }
   /* v153: Гараж — большая карточка текущей машины + лента остальных */
   (() => {
     const host = document.getElementById('g53'); if (!host) return;
@@ -12608,9 +12665,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153');
       if (empty) { document.getElementById('g53List').innerHTML = ''; return; }
       const id = curId(); const m = list.find((x) => x.id === id) || list[0];
       const meta = (() => { try { return CARS.find((c) => c.id === m.id) || {}; } catch (_) { return {}; } })();
-      const img = document.getElementById('g53Img');
-      const src = STUDIO_IDS.has(m.id) ? `./img/cars/studio/${m.id}-1170.webp` : carThumbUrl(m.id);
-      if (img.getAttribute('src') !== src) img.src = src;
+      if (document.getElementById('view-garage')?.classList.contains('active')) mountPodium('garage'); // v154: живая 3D-модель в карточке
       document.getElementById('g53Name').textContent = m.name;
       document.getElementById('g53Sub').textContent = [m.year, meta.cls].filter(Boolean).join(' · ');
       const mine = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
@@ -12626,7 +12681,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153');
     document.getElementById('g53Mine')?.addEventListener('click', () => { document.getElementById('btnMyCarGarage')?.click(); setTimeout(render, 300); });
     document.getElementById('g53Studio')?.addEventListener('click', (e) => {
       const on = document.documentElement.classList.toggle('g53-3d');
-      e.currentTarget.setAttribute('aria-expanded', on ? 'true' : 'false'); e.currentTarget.textContent = on ? 'Скрыть 3D' : '3D и цвет';
+      e.currentTarget.setAttribute('aria-expanded', on ? 'true' : 'false'); e.currentTarget.textContent = on ? 'Скрыть' : 'Цвет и детали';
       try { window.dispatchEvent(new Event('resize')); } catch (_) {}
     });
     document.getElementById('g53Add')?.addEventListener('click', () => { document.documentElement.classList.add('g53-3d'); document.getElementById('btnAddCar')?.click(); });
@@ -12684,7 +12739,12 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153');
   const scrollTo = (id) => setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 260);
   document.getElementById('p48')?.addEventListener('click', (e) => {
     const r = e.target.closest('[data-p48]'); if (!r) return;
-    const k = r.dataset.p48;
+    route48(r.dataset.p48);
+  });
+  // v154: общий маршрутизатор разделов (Профиль + меню ☰)
+  function route48(k) {
+    if (k === 'settings') { goToView('account'); scrollTo('langSelect'); return; }
+    if (k === 'feedback') { openFeedbackSheet(); return; }
     if (k === 'tops') goToView('tops');
     else if (k === 'duels' || k === 'pulse') { if (sheetNavOn()) openTgSheet(k); else goToView(k); }
     else if (k === 'tracks') { if (sheetNavOn()) openTgSheet('tracks'); else goToView('lap'); }
@@ -12695,7 +12755,8 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153');
     else if (k === 'team') openCrewSheet();
     else if (k === 'video') void openVideoTele('run');
     else if (k === 'shop') void openShopSheet();
-  });
+  }
+  window.__route48 = route48;
   // бейдж входящих дуэлей — из нижней панели v139
   const badge = () => { const src = document.getElementById('sbBadgeDuels'); const dst = document.getElementById('p48DuelsBadge'); if (src && dst) { dst.hidden = src.hidden; dst.textContent = src.textContent; } };
   setInterval(badge, 3000); badge();
@@ -13436,7 +13497,7 @@ async function renderHomeHero() {
   const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
   if (!m) return;
   const img = document.getElementById('homeHeroImg');
-  const heroSrc = './img/cars/hero/' + m.id + '.webp';
+  const heroSrc = carThumbUrl(m.id); // v154: без статичных hero-рендеров
   if (img && img.dataset.car !== m.id) {
     img.dataset.car = m.id;
     img.onerror = () => { img.onerror = null; img.src = carThumbUrl(m.id); };
@@ -14625,8 +14686,7 @@ function renderHome() {
 }
 
 /* ——— v123: Главная из окошек-виджетов + меню ☰ + навигация без нижнего таббара (на телефоне) ——— */
-const STUDIO_IDS = new Set(['g87-m2', 'gt3rs', 'mclaren-765lt', 'g63', 'm4', 'm3', 'x6', 'isf', 'c63-ed507', 'spark']);
-function studioSrcset(id, ext) { return [780, 1170, 1560].map((w) => `./img/cars/studio/${id}-${w}.${ext} ${w}w`).join(', '); }
+const STUDIO_IDS = new Set(); // v154: статичные студийные рендеры сняты с сайта (архив — вне репозитория); машины — живое 3D
 function hwSet(id, nodes) { const b = document.getElementById(id); if (!b) return; b.replaceChildren(...nodes); }
 function hwBig(v, unit) { const b = padEl('b', 'hw-big', v); if (unit) b.appendChild(padEl('small', '', unit)); return b; }
 function hwLine(k, v, cls = '') { const r = padEl('span', 'hw-line ' + cls); r.appendChild(padEl('span', 'hw-lk', k)); r.appendChild(padEl('b', 'hw-lv', v)); return r; }
@@ -14652,12 +14712,9 @@ function renderHwCar(remote) {
     img.onerror = () => { img.onerror = null; img.dataset.car = ''; _myCarPhoto = null; document.getElementById('hwCar')?.classList.remove('has-photo'); renderHwCar(null); };
     img.src = ph;
   } else if (img && !ph && img.dataset.car !== m.id) {
-    img.dataset.car = m.id;
-    if (STUDIO_IDS.has(m.id)) {
-      av?.setAttribute('srcset', studioSrcset(m.id, 'avif'));
-      img.setAttribute('srcset', studioSrcset(m.id, 'webp'));
-      img.src = `./img/cars/studio/${m.id}-1170.webp`;
-    } else { av?.removeAttribute('srcset'); img.removeAttribute('srcset'); img.src = carThumbUrl(m.id); }
+    // v154: без статичного рендера — живая 3D-модель (mountPodium('home')); своё фото — по-прежнему фото
+    img.dataset.car = m.id; av?.removeAttribute('srcset'); img.removeAttribute('srcset'); img.removeAttribute('src');
+    if (document.getElementById('view-home')?.classList.contains('active')) mountPodium('home');
   }
   const row = document.getElementById('hwCarRow'); if (row) fillCarNameRow(row, m.name, { tag: 'b', id: 'hwCarName' }); // v135: + флаг страны марки
   let cls = ''; try { cls = (CARS.find((c) => c.id === m.id)?.cls) || ''; } catch (_) {}
@@ -14853,15 +14910,7 @@ document.getElementById('plMenu')?.addEventListener('click', (e) => {
   const k = it.dataset.plm;
   if (k === 'method') { plMenuClose(); return; } // обычная ссылка
   e.preventDefault(); hap(6); plMenuClose();
-  setTimeout(() => {
-    if (k === 'team') openCrewSheet();
-    else if (k === 'autodromes') { if (sheetNavOn()) openTgSheet('tracks'); else openAutodromeSheet(); }
-    else if ((k === 'duels' || k === 'pulse') && sheetNavOn()) openTgSheet(k);
-    else if (k === 'feedback') openFeedbackSheet();
-    else if (k === 'shop') void openShopSheet();
-    else if (k === 'gps') { goToView('run'); setTimeout(() => { const g = document.querySelector('#view-run .ext-gps-src'); try { g?.scrollIntoView({ block: 'center', behavior: 'smooth' }); g?.classList.add('hl-pulse'); setTimeout(() => g?.classList.remove('hl-pulse'), 1600); } catch (_) {} }, 280); }
-    else goToView(k);
-  }, 120);
+  setTimeout(() => { try { window.__route48?.(k); } catch (_) {} }, 120); // v154: те же маршруты, что у разделов Профиля
 });
 // свайп вправо по панели — закрыть
 (() => {

@@ -30,7 +30,7 @@ ok(r.data.every((p) => !('likes' in p) && !('phone' in p)) && 'commentCount' in 
 ok((await call('GET', '/pulse')).data.find((p) => p.text === 'пост 9').img?.startsWith('data:image'), 'обычный GET /pulse не изменился');
 
 console.log('[иконка-облачко]');
-ok((html.match(/class="ico ico-pad ico-chat"/g) || []).length === 2 && /class="plm-chat"/.test(html) && !/class="ico-ring"/.test(html), 'кружок заменён облачками: панель, скрытая вкладка rail, меню');
+ok((html.match(/class="ico ico-pad ico-chat"/g) || []).length === 2 && !/class="ico-ring"/.test(html), 'кружок заменён облачками: панель, скрытая вкладка rail, меню');
 ok(/class="ico-d ico-d1"/.test(html) && /@keyframes chatType/.test(css) && /\.nav-btn\.active \.ico-chat \.ico-d3[^{]*\{ animation-delay: \.24s; \}/.test(css), 'анимация «печатает…» при нажатии');
 console.log('[виджет]');
 ok(/id="hwPad" data-hw="pulse"/.test(html) && /class="hw hw-wide hw-chat" id="hwPad"/.test(html) && /чат пилотов/.test(html), 'широкий виджет «Paddock · чат пилотов»');

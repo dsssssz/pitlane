@@ -40,7 +40,7 @@ export function drawOverlay(ctx, W, H, o) {
   if (o.rec) { ctx.textAlign = 'right'; ctx.fillStyle = '#d49a9a'; ctx.font = `600 ${18 * s}px Manrope, system-ui, sans-serif`; ctx.fillText('● REC', W - pad, pad + 20 * s); }
 }
 
-export function openVideo({ getSpeed, getLabel, hap, webUrl }) {
+export function openVideo({ getSpeed, getLabel, hap, webUrl, autostart = false, onClose }) {
   let root = document.getElementById('vtSheet');
   if (root) root.remove();
   root = document.createElement('div'); root.id = 'vtSheet'; root.className = 'vt-sheet'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', 'Видео с телеметрией');
@@ -55,7 +55,7 @@ export function openVideo({ getSpeed, getLabel, hap, webUrl }) {
   const S = support();
   let stream = null, rec = null, chunks = [], raf = 0, t0 = 0, video = null, phase = 'idle';
   const stop = () => { cancelAnimationFrame(raf); try { rec && rec.state !== 'inactive' && rec.stop(); } catch (_) {} stream?.getTracks().forEach((t) => t.stop()); stream = null; };
-  close.addEventListener('click', () => { stop(); root.remove(); });
+  close.addEventListener('click', () => { stop(); root.remove(); try { onClose?.(); } catch (_) {} });
   if (!S.ok) {
     stage.classList.add('vt-off'); stage.textContent = '';
     stage.append(mk('b', null, 'Запись здесь недоступна'), mk('span', null, S.reason === 'no-camera' || S.reason === 'insecure' ? 'Это окно не даёт доступ к камере. Откройте PITLANE в браузере телефона — там запись работает.' : 'Браузер не умеет записывать видео с оверлеем. Откройте PITLANE в Chrome или Safari.'));
@@ -71,7 +71,7 @@ export function openVideo({ getSpeed, getLabel, hap, webUrl }) {
     drawOverlay(ctx, W, H, { speed: getSpeed(), ms: phase === 'rec' ? performance.now() - t0 : 0, label: getLabel?.() || 'время', rec: phase === 'rec' });
   };
   msg.textContent = 'Закрепите телефон в держателе. Скорость берётся из текущего источника GPS.';
-  btn.addEventListener('click', async () => {
+  const step = async () => {
     hap?.(8);
     if (phase === 'idle') {
       try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }); }
@@ -93,6 +93,9 @@ export function openVideo({ getSpeed, getLabel, hap, webUrl }) {
       rec.start(1000); t0 = performance.now(); phase = 'rec'; btn.textContent = 'Стоп'; btn.classList.add('on'); return;
     }
     if (phase === 'rec') { try { rec.stop(); } catch (_) {} phase = 'ready'; btn.textContent = 'Запись'; btn.classList.remove('on'); }
-  });
-  return { root, support: S, canvas, ctx };
+  };
+  btn.addEventListener('click', () => { void step(); });
+  // v154: «С видео» под стартом — камера и запись включаются сразу (замер/круг уже запущены под оверлеем)
+  if (autostart) void (async () => { await step(); if (phase === 'ready') await step(); })();
+  return { root, support: S, canvas, ctx, phase: () => phase };
 }
