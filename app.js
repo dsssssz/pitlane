@@ -3746,7 +3746,7 @@ function as56Ui() {
   const sb = document.getElementById('h48Start'); if (!sb) return;
   const auto = as56Mode(); const st = !auto ? 'manual' : !AS56.wait ? 'ready' : AS56.stillSince ? 'still' : 'wait';
   if (AS56.st === st) return; AS56.st = st;
-  const L = { manual: ['Старт', ''], ready: ['Готов', 'старт — когда тронетесь'], wait: ['Ждём', 'остановитесь · нажмите — отмена'], still: ['Тронитесь', 'замер начнётся сам'] }[st];
+  const L = { manual: ['Старт', ''], ready: ['Готов', 'старт — когда тронетесь'], wait: ['Ждём', 'остановитесь · нажмите — отмена'], still: ['Трогайтесь', 'замер начнётся сам'] }[st];
   if (sb.firstChild?.nodeType === 3) sb.firstChild.nodeValue = L[0]; else sb.prepend(L[0]);
   const sub = document.getElementById('h56Sub'); if (sub) sub.textContent = L[1];
   sb.classList.toggle('h56-wait', st === 'wait' || st === 'still');
@@ -12512,7 +12512,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v156';
+const APP_VERSION = 'v157';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
