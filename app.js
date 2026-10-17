@@ -102,7 +102,7 @@ function hap(ms = 12) {
 }
 document.addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
-  if (isTMA) { if (!HAP_KEYS.has(b.id)) return; _hapKey = true; hap(18); setTimeout(() => { _hapKey = false; }, 0); return; }
+  if (isTMA) { if (!HAP_KEYS.has(b.id) || b.id === 'h48Start') return; _hapKey = true; /* v153: у «Старт» — один свой удар */ hap(18); setTimeout(() => { _hapKey = false; }, 0); return; }
   hap(10);
 }, true);
 if (window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches) {
@@ -1416,9 +1416,33 @@ async function renderTops() {
         timeHtml: `${esc(String(r.t))}${topsGpsBadge(r)}`,
         pilotId: r.pilotId,
       })).join('');
+      try { topsRise(lEl, 'lap:' + trackId + ':' + wx); } catch (_) {}
     }
   }
 }
+/* v153: если пилот поднялся в топе с прошлого просмотра — его строка «въезжает» со старого места на новое (FLIP, 500 мс) */
+const TOPS_RANK_KEY = 'pitlane-tops-rank-v1';
+function topsRise(listEl, key, { prevOverride } = {}) {
+  const lis = [...listEl.children];
+  const i = lis.findIndex((li) => li.dataset.pilot && isMyPilotId(li.dataset.pilot));
+  if (i < 0) return null;
+  let m = {}; try { m = JSON.parse(localStorage.getItem(TOPS_RANK_KEY) || '{}') || {}; } catch (_) {}
+  const prev = prevOverride != null ? prevOverride : m[key];
+  m[key] = i; try { localStorage.setItem(TOPS_RANK_KEY, JSON.stringify(m)); } catch (_) {}
+  const li = lis[i]; li.classList.add('t53-me');
+  if (!(Number.isFinite(prev) && prev > i)) return null;
+  const reduce = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } })();
+  li.classList.remove('t53-rise'); void li.offsetWidth; li.classList.add('t53-rise');
+  setTimeout(() => li.classList.remove('t53-rise'), 1500);
+  if (reduce || !li.animate) return { from: prev, to: i };
+  const h = li.offsetHeight + (parseFloat(getComputedStyle(listEl).rowGap) || 0);
+  const steps = Math.min(prev, lis.length - 1) - i;
+  const ease = 'cubic-bezier(.2,.7,.2,1)';
+  li.animate([{ transform: `translateY(${steps * h}px)` }, { transform: 'none' }], { duration: 500, easing: ease });
+  for (let k = i + 1; k <= i + steps; k++) lis[k]?.animate([{ transform: `translateY(${-h}px)` }, { transform: 'none' }], { duration: 500, easing: ease });
+  return { from: prev, to: i };
+}
+window.__topsRise = topsRise; // скриншоты/отладка
 
 function syncTabPill(activeBtn) {
   const pill = document.getElementById('tabPill');
@@ -3073,7 +3097,7 @@ function hudGaugeBuild(el, max) {
   const svg = mk('svg', { viewBox: '0 0 300 64', class: 'hgz-svg', preserveAspectRatio: 'xMidYMid meet' });
   const [x0, y0] = hgPt(0), [x1, y1] = hgPt(1);
   const arc = 'M' + x0.toFixed(2) + ' ' + y0.toFixed(2) + ' A' + HG.r + ' ' + HG.r + ' 0 0 1 ' + x1.toFixed(2) + ' ' + y1.toFixed(2);
-  svg.appendChild(mk('path', { d: arc, class: 'hgz-track' }));
+  svg.appendChild(mk('path', { d: arc, class: 'hgz-track', pathLength: '1' }));
   const step = max / 80;
   for (let k = 0; k <= 80; k++) {
     const val = k * step, f = val / max; const major = k % 40 === 0; const mid = !major && k % 10 === 0;
@@ -3111,12 +3135,23 @@ function setRunText(id, text) {
   if (el) el.textContent = text;
 }
 
+/* v153: «Старт» вкладки «Замер» раскрывается в спидометр — круг растёт из центра кнопки (clip-path).
+ * Логику не задерживает: класс ставится в момент открытия оверлея (после подтверждения безопасности, если оно было). */
+const H53 = { at: 0, cx: 0, cy: 0, r: 0 };
+function rd53Reveal(el) {
+  if (!H53.at || performance.now() - H53.at > 20000) return;
+  H53.at = 0;
+  el.style.setProperty('--h53x', H53.cx + 'px'); el.style.setProperty('--h53y', H53.cy + 'px'); el.style.setProperty('--h53r', H53.r + 'px');
+  el.classList.remove('rd53-in'); void el.offsetWidth; el.classList.add('rd53-in');
+  clearTimeout(rd53Reveal._t); rd53Reveal._t = setTimeout(() => el.classList.remove('rd53-in'), 950);
+}
 function openRunDrive(phase = 'ready') {
   const el = document.getElementById('runDrive');
   if (!el) return;
   el.classList.remove('hidden');
   el.setAttribute('aria-hidden', 'false');
   document.body.classList.add('run-drive-on');
+  try { rd53Reveal(el); } catch (_) {}
   rdGridBuild();
   rdPhase(phase);
   setRunText('runDriveMsg', '');
@@ -3196,6 +3231,7 @@ function rd50Set(k, val) {
   const b = row.querySelector('b'); if (!b) return;
   b.textContent = String(val) + ' с';
   row.classList.remove('on'); void row.offsetWidth; row.classList.add('on');
+  _hapKey = true; try { hap(12); } finally { _hapKey = false; } // v153: лёгкий «щелчок» при фиксации отметки
 }
 function rd50Reset() {
   document.querySelectorAll('#rd50Rows .rd50-row').forEach((r) => { r.classList.remove('on'); const b = r.querySelector('b'); if (b) b.textContent = '—'; });
@@ -3883,6 +3919,8 @@ function rdDeltas() {
   const dt = p && isHero0100 ? pbDeltaText(p, true) : null;
   d.className = 'rd-delta' + (dt ? ' ' + dt.cls : '');
   d.textContent = dt ? dt.text : ''; d.hidden = !dt;
+  // v153: новый личный рекорд — число проявляется медленно, по герою один раз проходит тонкая мятная линия
+  if (p && isHero0100 && Number.isFinite(p.pbD) && p.pbD <= -0.005 && run.pbAnimFor !== p) { run.pbAnimFor = p; rd53Pb(); }
   let sText = ''; let sCls = '';
   if (p && isHero0100 && Number.isFinite(p.stD) && p.stLab) { sText = stockDeltaText(p.stD, p.stLab); sCls = p.stD <= -0.005 ? 'faster' : (p.stD >= 0.005 ? 'slower' : 'even'); }
   else if (p && isHero0100 && p.stNone === true) { sText = 'стокового времени здесь пока нет'; sCls = 'first'; }
@@ -3894,6 +3932,11 @@ function rdDeltas() {
     [1200, 3500].forEach((ms) => setTimeout(() => { if (run.summary && run.pendingShare === p) rdDeltas(); }, ms));
   }
 }
+function rd53Pb() {
+  const hero = document.querySelector('#rdFinal .rd-hero'); if (!hero) return;
+  hero.classList.remove('rd53-pb'); void hero.offsetWidth; hero.classList.add('rd53-pb');
+}
+window.__rd53Pb = rd53Pb; // скриншоты/отладка
 function rdBadge(tp) {
   const b = document.getElementById('rdBadge');
   if (!b) return;
@@ -12360,7 +12403,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v152';
+const APP_VERSION = 'v153';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12519,7 +12562,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -12537,7 +12580,66 @@ document.documentElement.classList.add('v148', 'v150', 'v152');
   if (host) new MutationObserver(sync).observe(host, { subtree: true, attributes: true, attributeFilter: ['class'] });
   sync();
   // «Старт» на Главной = та же логика, что у кнопки замера (безопасность → armRun → полноэкранный спидометр)
-  document.getElementById('h48Start')?.addEventListener('click', () => { withSafety(armRun)(); });
+  {
+    const sb = document.getElementById('h48Start');
+    const up = () => sb?.classList.remove('h53-press');
+    sb?.addEventListener('pointerdown', () => sb.classList.add('h53-press'));
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => sb?.addEventListener(ev, up));
+    sb?.addEventListener('click', () => {
+      up();
+      if (isTMA) { _hapKey = true; try { hap(30); } finally { _hapKey = false; } } // один heavy-удар; hap внутри armRun в Telegram уже не сработает
+      const r = sb.getBoundingClientRect();
+      Object.assign(H53, { at: performance.now(), cx: Math.round(r.left + r.width / 2), cy: Math.round(r.top + r.height / 2), r: Math.round(r.width / 2) });
+      const ring = document.createElement('span'); ring.className = 'h53-ring'; ring.setAttribute('aria-hidden', 'true');
+      ring.style.cssText = `left:${sb.offsetLeft}px;top:${sb.offsetTop}px;width:${sb.offsetWidth}px;height:${sb.offsetHeight}px`;
+      sb.parentElement.appendChild(ring); setTimeout(() => ring.remove(), 650);
+      withSafety(armRun)();
+    });
+  }
+  /* v153: Гараж — большая карточка текущей машины + лента остальных */
+  (() => {
+    const host = document.getElementById('g53'); if (!host) return;
+    const curId = () => { try { return podiumModelId || defaultPodiumId(); } catch (_) { return 'g87-m2'; } };
+    const render = () => {
+      const list = MODEL_CATALOG.slice();
+      const empty = !list.length && !garageList().length;
+      document.getElementById('g53Empty').hidden = !empty;
+      document.getElementById('g53Hero').hidden = empty;
+      if (empty) { document.getElementById('g53List').innerHTML = ''; return; }
+      const id = curId(); const m = list.find((x) => x.id === id) || list[0];
+      const meta = (() => { try { return CARS.find((c) => c.id === m.id) || {}; } catch (_) { return {}; } })();
+      const img = document.getElementById('g53Img');
+      const src = STUDIO_IDS.has(m.id) ? `./img/cars/studio/${m.id}-1170.webp` : carThumbUrl(m.id);
+      if (img.getAttribute('src') !== src) img.src = src;
+      document.getElementById('g53Name').textContent = m.name;
+      document.getElementById('g53Sub').textContent = [m.year, meta.cls].filter(Boolean).join(' · ');
+      const mine = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
+      const isMine = !!(mine && (mine.carId === m.id || mine.model === m.name));
+      const mb = document.getElementById('g53Mine'); mb.textContent = isMine ? 'Моя машина' : 'Это моя машина'; mb.classList.toggle('on', isMine);
+      document.getElementById('g53List').innerHTML = list.filter((x) => x.id !== m.id).map((x) => `<button type="button" class="g53-car" role="listitem" data-g53="${esc(x.id)}"><span class="g53-th"><img src="${carThumbUrl(x.id)}" alt="" width="256" height="256" loading="lazy" decoding="async" /></span><span class="g53-cn">${esc(x.name)}</span></button>`).join('');
+    };
+    document.getElementById('g53List')?.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-g53]'); if (!b) return;
+      try { pickPodiumCar(b.dataset.g53); } catch (_) {}
+      render(); try { host.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {}
+    });
+    document.getElementById('g53Mine')?.addEventListener('click', () => { document.getElementById('btnMyCarGarage')?.click(); setTimeout(render, 300); });
+    document.getElementById('g53Studio')?.addEventListener('click', (e) => {
+      const on = document.documentElement.classList.toggle('g53-3d');
+      e.currentTarget.setAttribute('aria-expanded', on ? 'true' : 'false'); e.currentTarget.textContent = on ? 'Скрыть 3D' : '3D и цвет';
+      try { window.dispatchEvent(new Event('resize')); } catch (_) {}
+    });
+    document.getElementById('g53Add')?.addEventListener('click', () => { document.documentElement.classList.add('g53-3d'); document.getElementById('btnAddCar')?.click(); });
+    const gv = document.getElementById('view-garage');
+    if (gv) new MutationObserver(() => { if (gv.classList.contains('active')) { try { render(); } catch (_) {} } }).observe(gv, { attributes: true, attributeFilter: ['class'] });
+    setTimeout(() => { try { render(); } catch (_) {} }, 700);
+    window.__g53 = render;
+  })();
+  /* v153: Круг — выбор трассы и «Старт круга»; история и аналитика — по кнопке */
+  document.getElementById('l53More')?.addEventListener('click', (e) => {
+    const v = document.getElementById('view-lap'); const on = v.classList.toggle('l53-open');
+    e.currentTarget.setAttribute('aria-expanded', on ? 'true' : 'false'); e.currentTarget.textContent = on ? 'Скрыть' : 'История и аналитика';
+  });
   /* v152: карусель баннеров на Главной — scroll-snap, точки, авто каждые 6 с, пауза на касании */
   (() => {
     const track = document.getElementById('bn52Track'); const dots = document.getElementById('bn52Dots');
@@ -12588,8 +12690,8 @@ document.documentElement.classList.add('v148', 'v150', 'v152');
     else if (k === 'tracks') { if (sheetNavOn()) openTgSheet('tracks'); else goToView('lap'); }
     else if (k === 'lap') goToView('lap');
     else if (k === 'history') { goToView('run'); scrollTo('runHistory'); }
-    else if (k === 'analytics') { goToView('lap'); scrollTo('lapAnalyticsCard'); }
-    else if (k === 'suggest') { goToView('lap'); const d = document.querySelector('#trackSuggestCard details'); if (d) { d.open = true; d.dispatchEvent(new Event('toggle')); } scrollTo('trackSuggestCard'); }
+    else if (k === 'analytics') { goToView('lap'); document.getElementById('view-lap')?.classList.add('l53-open'); scrollTo('lapAnalyticsCard'); }
+    else if (k === 'suggest') { goToView('lap'); document.getElementById('view-lap')?.classList.add('l53-open'); const d = document.querySelector('#trackSuggestCard details'); if (d) { d.open = true; d.dispatchEvent(new Event('toggle')); } scrollTo('trackSuggestCard'); }
     else if (k === 'team') openCrewSheet();
     else if (k === 'video') void openVideoTele('run');
     else if (k === 'shop') void openShopSheet();
@@ -15599,6 +15701,7 @@ async function renderTopsBoard() {
   const frag = document.createDocumentFragment();
   rows.slice(0, 100).forEach((r, i) => frag.appendChild(buildTopsRow(r, i, sel)));
   ol.appendChild(frag);
+  try { topsRise(ol, `${sel.kind}:${cls}:${sel.id}:${model || ''}:${_topsPrep}`); } catch (_) {} // v153: подъём в топе
 }
 document.getElementById('topsChips')?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('.tchip');

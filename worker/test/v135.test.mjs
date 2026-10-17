@@ -46,7 +46,7 @@ ok(/cp-name cb-row/.test(app), 'выбор машины: флаг у назва�
 ok(/carNameRow\(pr\.car, \{ rowTag: 'p', cls: 'pilot-car' \}\)/.test(app), 'публичный профиль: флаг у машины пилота');
 ok(/n\.textContent = name/.test(mod) && !/innerHTML/.test(mod), 'название — textContent');
 ok(/\.cb-row \.cb-name \{[^}]*text-overflow: ellipsis/.test(css) && /\.cb-flag \{[^}]*flex: none/.test(css), 'длинное название — многоточие, флаг не сжимается');
-const v135css = css.slice(css.indexOf('v135: флаг страны марки'));
+const v135at = css.indexOf('v135: флаг страны марки'); const v135css = css.slice(v135at, css.indexOf('/* ===== v153', v135at) > 0 ? css.indexOf('/* ===== v153', v135at) : undefined); // v153: подъём в топе — отдельный, разрешённый блок
 ok(!/text-shadow|drop-shadow|0 0 ([2-9]|\d{2,})px|#0f0|#39ff|lime/i.test(v135css), 'без неона/свечения');
 ok(!/hw-top|top-row|tops-/.test(v135css), 'таблицы топа не трогаем');
 ok(/'\.\/car-brands\.js'/.test(sw) && /img\/flags\/gb\.svg/.test(sw), 'SW: модуль и флаги в precache');

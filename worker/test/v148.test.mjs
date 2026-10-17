@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if 
 const html = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
 const app = fs.readFileSync(new URL('../../app.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../styles.css', import.meta.url), 'utf8');
-ok(/id="h48Start"[^>]*>Старт</.test(html) && /h48Start'\)\?\.addEventListener\('click', \(\) => \{ withSafety\(armRun\)\(\); \}\)/.test(app), 'Главная: «Старт» запускает тот же замер (безопасность → armRun)');
+ok(/id="h48Start"[^>]*>Старт</.test(html) && /const sb = document\.getElementById\('h48Start'\)[\s\S]{0,1200}sb\?\.addEventListener\('click', \(\) => \{[\s\S]{0,1400}withSafety\(armRun\)\(\);/.test(app) /* v153: та же логика + анимация */, 'Главная: «Старт» запускает тот же замер (безопасность → armRun)');
 const nav = html.slice(html.indexOf('id="nav3"'), html.indexOf('</nav>', html.indexOf('id="nav3"')));
 // v152: вкладок стало 4 — Главная / Замер / Гараж / Профиль (Замер, Гараж, Профиль на месте, в том же порядке)
 ok((nav.match(/data-n3=/g) || []).length === 4 && /data-n3="home"[\s\S]*Главная[\s\S]*data-n3="zamer"[\s\S]*Замер[\s\S]*data-n3="garage"[\s\S]*Гараж[\s\S]*data-n3="account"[\s\S]*Профиль/.test(nav), 'нижняя панель: Главная / Замер / Гараж / Профиль');

@@ -388,6 +388,24 @@
         </section>
 
         <section id="view-garage" class="view garage-hero">
+          <!-- v153: Гараж — одна большая карточка текущей машины, остальные — компактной лентой ниже -->
+          <section class="g53" id="g53" aria-label="Гараж">
+            <article class="g53-hero" id="g53Hero">
+              <div class="g53-ph"><img id="g53Img" alt="" width="1170" height="731" decoding="async" /></div>
+              <h2 class="g53-name" id="g53Name">—</h2>
+              <p class="g53-sub" id="g53Sub"></p>
+              <div class="g53-acts">
+                <button type="button" class="g53-mine" id="g53Mine">Это моя машина</button>
+                <button type="button" class="g53-3d" id="g53Studio" aria-expanded="false">3D и цвет</button>
+              </div>
+            </article>
+            <p class="g53-cap">Другие машины</p>
+            <div class="g53-list" id="g53List" role="list" aria-label="Другие машины"></div>
+            <div class="g53-empty" id="g53Empty" hidden>
+              <p class="g53-empty-t">Гараж пуст</p>
+              <button type="button" class="g53-add" id="g53Add">Добавить</button>
+            </div>
+          </section>
           <div class="podium-wrap" id="podiumWrap">
             <canvas id="view3d" aria-label="3D подиум"></canvas>
           </div>
@@ -652,6 +670,7 @@
               <p class="muted">Старт открывает HUD (карта, погода). Красная «Старт» внутри — вооружение. С/Ф на трассе стартует и финиширует честно. Ручной финиш не в топ.</p>
             </article>
           </div>
+          <button type="button" class="l53-more" id="l53More" aria-expanded="false">История и аналитика</button>
           <article class="card track-hist" id="trackHistCard" aria-live="polite">
             <div class="th-head"><h3>История трассы</h3><span class="th-track" id="thTrack"></span></div>
             <p class="th-line" id="thLine"></p>
@@ -1088,9 +1107,9 @@
         <div class="hud-gauge" aria-hidden="true"></div>
         <!-- v150: только три строки разгона; время появляется на месте -->
         <div class="rd50-rows" id="rd50Rows" aria-label="Разгон">
-          <div class="rd50-row" data-k="0-60"><span>0–60</span><b>—</b></div>
           <div class="rd50-row" data-k="0-100"><span>0–100</span><b>—</b></div>
-          <div class="rd50-row" data-k="0-200"><span>0–200</span><b>—</b></div>
+          <div class="rd50-row" data-k="100-200"><span>100–200</span><b>—</b></div>
+          <div class="rd50-row" data-k="200-300"><span>200–300</span><b>—</b></div>
         </div>
         <div class="hud-zones" aria-label="Зоны разгона">
           <div class="hz" data-to="60"><span>0–60</span><i><b></b></i></div>

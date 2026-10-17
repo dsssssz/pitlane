@@ -1,0 +1,28 @@
+// v153: строки 100–200/200–300, Гараж-карточка + лента, Круг до старта, единые рендеры, анимация «Старт».
+import fs from 'fs';
+let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+const root = new URL('../../', import.meta.url);
+const html = fs.readFileSync(new URL('index.html', root), 'utf8');
+const app = fs.readFileSync(new URL('app.js', root), 'utf8');
+const css = fs.readFileSync(new URL('styles.css', root), 'utf8');
+const c = css.slice(css.indexOf('/* ===== v153'));
+const g = html.slice(html.indexOf('id="g53"'), html.indexOf('</section>', html.indexOf('id="g53"')));
+ok(g.includes('id="g53Hero"') && g.includes('id="g53Img"') && g.includes('id="g53List"') && /id="g53Add"[^>]*>Добавить</.test(g), 'Гараж: большая карточка, лента остальных, пустое состояние с одной кнопкой «Добавить»');
+ok(/html\.v153:not\(\.g53-3d\) #view-garage > :not\(#g53\) \{ display: none !important; \}/.test(c) && app.includes("classList.toggle('g53-3d')"), 'старая 3D-студия и цвет — по кнопке «3D и цвет»');
+ok(/\.g53-list \{[^}]*overflow-x: auto/.test(c) && /pickPodiumCar\(b\.dataset\.g53\)/.test(app), 'лента листается, тап выбирает машину');
+ok(/html\.v153 #view-lap:not\(\.l53-open\) > article \{ display: none !important; \}/.test(c) && /#trackMap/.test(c) && /lap-start-hero \{[^}]*background: #ecebe8 !important/.test(c), 'Круг: до старта — трасса и светлый «Старт круга»; карта/HUD — после старта');
+ok((app.match(/getElementById\('view-lap'\)\?\.classList\.add\('l53-open'\)/g) || []).length >= 2, 'аналитика и «предложить трассу» из Профиля раскрывают нижние карточки');
+const ids = ['g87-m2', 'gt3rs', 'mclaren-765lt', 'g63', 'm4', 'm3', 'x6', 'isf', 'c63-ed507', 'spark'];
+const fresh = (f) => fs.statSync(new URL(f, root)).size > 2000;
+ok(ids.every((i) => fresh(`img/cars/${i}.webp`) && fresh(`img/cars/hero/${i}.webp`) && fresh(`img/cars/studio/${i}-1170.webp`)), 'рендеры всех машин на месте (thumb / hero / studio)');
+ok(/function rd53Reveal\(el\)/.test(app) && /try \{ rd53Reveal\(el\); \} catch \(_\) \{\}\n  rdGridBuild\(\);/.test(app), 'анимация включается в момент открытия оверлея (логика не ждёт)');
+ok(/withSafety\(armRun\)\(\);\n    \}\);/.test(app) && /H53\.at = 0;/.test(app), 'после окна безопасности — та же анимация; флаг одноразовый');
+ok(/\.h48-start\.h53-press \{ transform: scale\(\.94\); \}/.test(c) && /h53Ring \.5s/.test(c) && /rd53Clip \.42s/.test(c) && /rd53Arc \.5s[^;]*\.2s/.test(c) && /nth-child\(3\) \{ animation-delay: \.61s; \}/.test(c), 'нажатие 0.94 → кольцо → круг clip-path → дуга → цифры → строки (< 900 мс)');
+ok(/prefers-reduced-motion: reduce\) \{\s*\.h53-ring \{ display: none; \}/.test(c), 'reduced-motion: простой fade');
+ok(!/text-shadow|drop-shadow|blur\(|orange|#ff9|#30d158/.test(c), 'без неона/оранжевого');
+ok(/@keyframes rd53Click \{ from \{ opacity: 0; transform: scale\(1\.06\); \}/.test(c) && /row\.classList\.add\('on'\);\n  _hapKey = true; try \{ hap\(12\); \}/.test(app), 'отметка «щёлкает» на место 1.06→1 + лёгкая вибрация');
+ok(/rd-final:not\(\.hidden\) \{ animation: rd53Up \.3s/.test(c), 'итог выезжает снизу ~300 мс');
+ok(/p\.pbD <= -0\.005 && run\.pbAnimFor !== p\) \{ run\.pbAnimFor = p; rd53Pb\(\); \}/.test(app) && /rd53Sweep 1\.2s[^;]*forwards/.test(c) && !/confetti/i.test(app.slice(app.indexOf('function rd53Pb'))), 'рекорд: медленное проявление + одна мятная линия, без конфетти');
+ok(/topsRise\(lEl, 'lap:'/.test(app) && /duration: 500/.test(app.slice(app.indexOf('function topsRise'), app.indexOf('window.__topsRise'))) && /t53Hi 1\.4s/.test(c), 'топ: FLIP со старого места на новое (500 мс) + подсветка');
+ok(/prefers-reduced-motion: reduce\)[\s\S]*rd53Pb[\s\S]*display: none/.test(c) && /reduce \|\| !li\.animate/.test(app), 'reduced-motion уважается');
+if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v153 OK');

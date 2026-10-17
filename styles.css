@@ -6721,7 +6721,7 @@ html.v150 .rd50-sheet .rd-cell { display: flex !important; align-items: baseline
 html.v150 .rd50-sheet .rd-cell span { flex: 1; font: 400 14px/1 Manrope, sans-serif; color: #8b8e93; text-transform: none; letter-spacing: .02em; }
 html.v150 .rd50-sheet .rd-cell strong { font: 300 18px/1 Manrope, sans-serif; color: #ecebe8; }
 html.v150 .rd50-sheet .rd-cell small { min-width: 52px; text-align: right; font: 400 11px/1 Manrope, sans-serif; color: #6f7278; }
-html.v150 .rd50-sheet .rd-cell[data-k="0-60"], html.v150 .rd50-sheet .rd-cell[data-k="0-100"], html.v150 .rd50-sheet .rd-cell[data-k="0-200"] { display: none !important; }
+html.v150 .rd50-sheet .rd-cell[data-k="0-100"], html.v150 .rd50-sheet .rd-cell[data-k="100-200"], html.v150 .rd50-sheet .rd-cell[data-k="200-300"] { display: none !important; } /* v153: основные строки — 0–100 / 100–200 / 200–300 */
 html.v150 .run-drive[data-phase="final"] .rd50-sheet { display: none; }
 @media (prefers-reduced-motion: reduce) { .rd50-row.on b { animation: none; } html.v150 .rd50-sheet, html.v150 .rd50-sheet.open { transition: none; } }
 /* ===== v152: Главная (виджеты) + карусель; «Замер» — отдельная вкладка ===== */
@@ -6751,3 +6751,104 @@ html.v152 .bn52 { display: block; margin: 4px -16px 18px; }
 /* 4 вкладки */
 html.v152 .nav3-btn { min-width: 0; }
 html.v152 .nav3 { grid-template-columns: repeat(4, 1fr); }
+/* ===== v153: Гараж — одна карточка + лента; Круг — трасса и «Старт круга» ===== */
+.g53 { display: none; }
+@media (max-width: 900px) {
+  html.v153 .g53 { display: block; padding-top: 6px; }
+  html.v153:not(.g53-3d) #view-garage > :not(#g53) { display: none !important; }
+  html.v153.g53-3d #view-garage .g53-list, html.v153.g53-3d #view-garage .g53-cap { display: none; }
+}
+.g53-hero { padding: 0; padding-bottom: 26px; border-radius: 28px; border: 1px solid rgba(255,255,255,.06); background: #141518; overflow: hidden; text-align: center; }
+.g53-ph { aspect-ratio: 16 / 10; background: #0b0c0e; }
+.g53-ph img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.g53-name { margin: 22px 20px 0; font: 500 26px/1.15 Manrope, sans-serif; letter-spacing: -.01em; color: #ecebe8; }
+.g53-sub { margin: 8px 20px 0; font: 400 13px/1.35 Manrope, sans-serif; color: #75787e; }
+.g53-acts { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 24px; }
+.g53-mine { min-height: 46px; padding: 0 24px !important; border: 0 !important; border-radius: 23px !important; background: #ecebe8 !important; color: #17181a !important; font: 500 14.5px/1 Manrope, sans-serif !important; text-transform: none !important; letter-spacing: 0 !important; box-shadow: none !important; }
+.g53-mine.on { background: #1b1d21 !important; color: rgb(158,205,176) !important; border: 1px solid rgba(255,255,255,.08) !important; }
+.g53-3d { min-height: 46px; padding: 0 14px !important; border: 0 !important; background: none !important; box-shadow: none !important; color: #8b8e93 !important; font: 400 14px/1 Manrope, sans-serif !important; text-transform: none !important; letter-spacing: 0 !important; }
+.g53-cap { margin: 34px 4px 14px; font: 500 11px/1 Manrope, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #6f7278; }
+.g53-list { display: flex; gap: 12px; margin: 0 -16px; padding: 0 16px 6px; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 16px; scrollbar-width: none; }
+.g53-list::-webkit-scrollbar { display: none; }
+.g53-car { flex: none; width: 128px; display: flex; flex-direction: column; gap: 10px; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; scroll-snap-align: start; text-align: left; cursor: pointer; }
+.g53-th { display: block; width: 128px; height: 96px; border-radius: 18px; overflow: hidden; background: #141518; border: 1px solid rgba(255,255,255,.06); }
+.g53-th img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.g53-cn { font: 400 12px/1.3 Manrope, sans-serif !important; color: #9a9ca1 !important; text-transform: none !important; letter-spacing: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.g53-car:active .g53-th { transform: scale(.97); }
+.g53-empty { padding: 72px 24px; text-align: center; }
+.g53-empty-t { margin: 0; font: 400 16px/1.3 Manrope, sans-serif; color: #9a9ca1; }
+.g53-add { margin-top: 24px; min-height: 48px; padding: 0 28px !important; border: 0 !important; border-radius: 24px !important; background: #ecebe8 !important; color: #17181a !important; font: 500 15px/1 Manrope, sans-serif !important; text-transform: none !important; box-shadow: none !important; }
+/* Круг: до старта — только трасса и кнопка */
+.l53-more { display: none; }
+@media (max-width: 900px) {
+  html.v153 #view-lap > .ride-seg, html.v153 #view-lap > p.muted, html.v153 #view-lap .lap-howto,
+  html.v153 #view-lap #trackMap, html.v153 #view-lap #lapTrackMode, html.v153 #view-lap #lapTrackChase,
+  html.v153 #view-lap #btnAutodromesLap, html.v153 #view-lap #btnVideoLap, html.v153 #view-lap #btnLapStop { display: none !important; }
+  html.v153 #view-lap:not(.l53-open) > article { display: none !important; }
+  html.v153 #view-lap > h2 { margin: 0 4px 14px; font: 500 26px/1.1 Manrope, sans-serif; color: #ecebe8; }
+  html.v153 #view-lap .lap-grid { display: block; }
+  html.v153 #view-lap .lap-track-card { padding: 18px 18px 22px !important; border-radius: 28px !important; background: #141518 !important; border: 1px solid rgba(255,255,255,.06) !important; box-shadow: none !important; }
+  html.v153 #view-lap .lap-track-card h3 { margin: 0 4px; font: 500 11px/1 Manrope, sans-serif; letter-spacing: .16em; text-transform: uppercase; color: #6f7278; }
+  html.v153 #view-lap .lap-best { margin: 10px 0 0; text-align: center; font: 400 13px/1.3 Manrope, sans-serif; color: #75787e; }
+  html.v153 #view-lap #btnMyCarLap { margin: 10px auto 0; }
+  html.v153 #view-lap .lap-track-actions { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 22px; }
+  html.v153 #app #view-lap .lap-start-hero { width: min(44vw, 172px); min-height: 0; aspect-ratio: 1; border-radius: 50% !important; border: 0 !important; background: #ecebe8 !important; color: #17181a !important; font: 400 22px/1.15 Manrope, sans-serif !important; letter-spacing: 0 !important; text-transform: none !important; box-shadow: none !important; animation: none !important; }
+  html.v153 #app #view-lap .lap-start-hero:active { transform: scale(.97); }
+  html.v153 #view-lap #lapGpsMsg { margin-top: 14px; text-align: center; color: #6f7278; }
+  html.v153 .l53-more { display: block; margin: 26px auto 8px; padding: 10px 18px !important; border: 0 !important; background: none !important; box-shadow: none !important; color: #8b8e93 !important; font: 400 14px/1 Manrope, sans-serif !important; text-transform: none !important; letter-spacing: 0 !important; }
+}
+/* v153: анимация «Старт» → спидометр (< 900 мс) */
+html.v153 .h48 { position: relative; }
+html.v153 .h48-start { transition: transform .12s ease-out, background-color .2s ease-out; }
+html.v153 .h48-start.h53-press { transform: scale(.94); }
+.h53-ring { position: absolute; border-radius: 50%; border: 1px solid rgba(236,235,232,.55); pointer-events: none; animation: h53Ring .5s cubic-bezier(.2,.7,.2,1) forwards; }
+@keyframes h53Ring { from { opacity: .7; transform: scale(.94); } to { opacity: 0; transform: scale(1.42); } }
+html.v153 #runDrive.run-drive.rd53-in { animation: rd53Clip .42s cubic-bezier(.32,.72,.2,1) both !important; }
+html.v153 #runDrive.rd53-in::before { content: ''; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: #ecebe8; animation: rd53Wash .34s ease-out forwards; }
+@keyframes rd53Clip { from { clip-path: circle(var(--h53r, 120px) at var(--h53x, 50%) var(--h53y, 50%)); } to { clip-path: circle(150vmax at var(--h53x, 50%) var(--h53y, 50%)); } }
+@keyframes rd53Wash { from { opacity: 1; } to { opacity: 0; } }
+html.v153 #runDrive.rd53-in .run-drive-speed { animation: rd53Dig .38s cubic-bezier(.2,.7,.2,1) .24s both !important; }
+@keyframes rd53Dig { from { opacity: 0; transform: translateY(14px) scale(.92); } to { opacity: 1; transform: none; } }
+html.v153 #runDrive.rd53-in .hud-gauge { animation: none !important; }
+html.v153 #runDrive.rd53-in .hgz-track { stroke-dasharray: 1; animation: rd53Arc .5s cubic-bezier(.3,.6,.2,1) .2s both; }
+@keyframes rd53Arc { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+html.v153 #runDrive.rd53-in .hgz-tick, html.v153 #runDrive.rd53-in .hgz-labels { animation: rd53Fade .3s ease-out .4s both; }
+html.v153 #runDrive.rd53-in .rd50-row { animation: rd53Row .25s ease-out both; }
+html.v153 #runDrive.rd53-in .rd50-row:nth-child(1) { animation-delay: .45s; }
+html.v153 #runDrive.rd53-in .rd50-row:nth-child(2) { animation-delay: .53s; }
+html.v153 #runDrive.rd53-in .rd50-row:nth-child(3) { animation-delay: .61s; }
+html.v153 #runDrive.rd53-in .run-drive-actions, html.v153 #runDrive.rd53-in .rd-ready { animation: rd53Fade .3s ease-out .5s both; }
+@keyframes rd53Row { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes rd53Fade { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .h53-ring { display: none; }
+  html.v153 .h48-start.h53-press { transform: none; }
+  html.v153 #runDrive.run-drive.rd53-in { animation: rd53Fade .2s ease-out both !important; }
+  html.v153 #runDrive.rd53-in::before { display: none; }
+  html.v153 #runDrive.rd53-in *, html.v153 #runDrive.rd53-in .hgz-track { animation: none !important; }
+}
+@media (max-width: 900px) {
+  html.v153 #app #view-lap .lap-track-card .wheel { height: 118px; }
+  html.v153 #view-lap #btnMyCarLap, html.v153 #view-lap #btnMyCarLap * { border-color: rgba(255,255,255,.08) !important; background-color: transparent !important; }
+  html.v153 #view-lap #btnMyCarLap b { color: #c9cacd !important; }
+}
+@media (max-width: 900px) { html.v153 #view-lap #btnMyCarLap .mycar-chip-go { color: #c9cacd !important; border: 1px solid rgba(255,255,255,.12) !important; } }
+/* v153: отметка «щёлкает» на место; итог выезжает снизу; рекорд; подъём в топе */
+html.v153 .rd50-row.on b { animation: rd53Click .26s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes rd53Click { from { opacity: 0; transform: scale(1.06); } to { opacity: 1; transform: none; } }
+html.v153 .rd50-row b { transform-origin: 100% 50%; display: inline-block; }
+html.v153 .run-drive[data-phase="final"] .rd-final:not(.hidden) { animation: rd53Up .3s cubic-bezier(.2,.7,.2,1) both; }
+@keyframes rd53Up { from { opacity: 0; transform: translateY(36px); } to { opacity: 1; transform: none; } }
+html.v153 .rd-hero.rd53-pb { position: relative; overflow: hidden; }
+html.v153 .rd-hero.rd53-pb .rd-hero-v { animation: rd53Pb 1.1s cubic-bezier(.2,.6,.2,1) both; }
+@keyframes rd53Pb { from { opacity: 0; letter-spacing: .08em; } to { opacity: 1; letter-spacing: normal; } }
+html.v153 .rd-hero.rd53-pb::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, rgba(158,205,176,0), rgba(158,205,176,.9) 50%, rgba(158,205,176,0)); transform: translateX(-100%); animation: rd53Sweep 1.2s cubic-bezier(.4,.1,.2,1) .35s forwards; pointer-events: none; }
+@keyframes rd53Sweep { from { transform: translateX(-100%); opacity: 1; } 85% { opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+.tops-pilot-list li.t53-me, .tb-row.t53-me { position: relative; z-index: 1; }
+.tops-pilot-list li.t53-rise, .tb-row.t53-rise { animation: t53Hi 1.4s ease-out both; }
+@keyframes t53Hi { from { background-color: rgba(158,205,176,.14); } to { background-color: transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  html.v153 .rd50-row.on b, html.v153 .run-drive[data-phase="final"] .rd-final:not(.hidden) { animation: rd53Fade .2s ease-out both; }
+  html.v153 .rd-hero.rd53-pb .rd-hero-v { animation: rd53Fade .3s ease-out both; }
+  html.v153 .rd-hero.rd53-pb::after { animation: none; display: none; }
+}
