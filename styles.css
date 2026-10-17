@@ -6925,3 +6925,58 @@ html.v154 #view-lap .lap-track-actions .v54-video { margin-top: 4px; }
 /* v154: HUD круга — без нижней панели; кнопки видео — без капса */
 html.v154 body:has(#lapDrive:not(.hidden)) .nav3 { display: none !important; }
 html.v154 .vt-rec, html.v154 .vt-close, html.v154 .vt-dl, html.v154 .vt-share { text-transform: none !important; letter-spacing: 0 !important; }
+/* ===== v156: стеклянный «Старт» / «Старт круга», переход в спидометр одним движением, автостарт ===== */
+/* мягкая графитовая подложка под кнопкой — чтобы стекло читалось (без свечения) */
+html.v156 .h48 { isolation: isolate; }
+html.v156 .h48::before { content: ''; position: absolute; z-index: -1; left: 50%; top: 46%; width: min(118vw, 460px); aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side at 38% 34%, rgba(255,255,255,.075), rgba(255,255,255,0) 70%), radial-gradient(closest-side at 66% 70%, rgba(158,205,176,.05), rgba(158,205,176,0) 72%); }
+html.v156 .h48-start, html.v156 #app #view-lap .lap-start-hero {
+  position: relative; overflow: hidden; isolation: isolate; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border: 0 !important; color: #f4f3f0 !important; font-weight: 500 !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,.065) 46%, rgba(255,255,255,.075) 100%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.6); backdrop-filter: blur(20px) saturate(1.6);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), inset 0 26px 40px -30px rgba(255,255,255,.18), inset 0 -1px 0 rgba(255,255,255,.04), 0 26px 50px -26px rgba(0,0,0,.85) !important;
+  transition: transform .14s ease-out, background-color .2s ease-out; will-change: transform; }
+/* тонкая градиентная обводка 1px: верх светлее */
+html.v156 .h48-start::before, html.v156 #app #view-lap .lap-start-hero::before { content: ''; position: absolute; inset: 0; z-index: 1; border-radius: inherit; padding: 1px; pointer-events: none;
+  background: linear-gradient(180deg, rgba(255,255,255,.46) 0%, rgba(255,255,255,.14) 34%, rgba(255,255,255,.05) 64%, rgba(255,255,255,.12) 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+/* блик по нажатию — один мягкий проход */
+html.v156 .h48-start::after, html.v156 #app #view-lap .lap-start-hero::after { content: ''; position: absolute; inset: -2px; z-index: 0; border-radius: inherit; pointer-events: none; opacity: 0; transform: translateX(-105%);
+  background: linear-gradient(105deg, rgba(255,255,255,0) 36%, rgba(255,255,255,.15) 50%, rgba(255,255,255,0) 64%); }
+html.v156 .h48-start.s56-sheen::after, html.v156 #app #view-lap .lap-start-hero.s56-sheen::after { animation: s56Sheen .62s cubic-bezier(.3,.6,.2,1) both; }
+@keyframes s56Sheen { from { opacity: 1; transform: translateX(-105%); } to { opacity: 1; transform: translateX(105%); } }
+html.v156 .h48-start:active, html.v156 #app #view-lap .lap-start-hero:active { background: linear-gradient(180deg, rgba(255,255,255,.13) 0%, rgba(255,255,255,.085) 46%, rgba(255,255,255,.095) 100%) !important; }
+html.v156 #app #view-lap .lap-start-hero:active { transform: scale(.97); }
+html.v156 .h48-start.h53-press { transform: scale(.94); }
+html.v156 .h53-ring { border-color: rgba(255,255,255,.28); }
+/* подпись под «Готов» */
+html.v156 .h56-sub { display: block; position: relative; z-index: 2; max-width: 74%; margin-top: 12px; font: 400 13.5px/1.3 Manrope, sans-serif; color: #b4b6ba; letter-spacing: 0; }
+html.v156 .h56-sub:empty { display: none; }
+html.v156 .h48-start.h56-wait::before { animation: s56Wait 2.4s ease-in-out infinite; }
+@keyframes s56Wait { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+/* режим старта: Вручную / Автостарт */
+html.v156 .h56-mode { display: inline-flex; gap: 2px; padding: 3px; margin-bottom: 30px; border-radius: 999px; background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.06); }
+html.v156 .h56-mode button { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; color: #9a9da3; font: 500 14px/1 Manrope, sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color .2s, color .2s; }
+html.v156 .h56-mode button[aria-checked="true"] { background: rgba(255,255,255,.08); color: #ecebe8; box-shadow: inset 0 1px 0 rgba(255,255,255,.09); }
+html.v156 .h56-mode button:focus-visible { outline: 1px solid rgba(158,205,176,.8); outline-offset: 2px; }
+/* переход «Старт» → спидометр: оверлей пре-смонтирован скрытым; только clip-path / opacity / transform */
+html.v156 #runDrive.rd56-pre { visibility: hidden; pointer-events: none; }
+html.v156 #runDrive.rd56-pre, html.v156 #runDrive.rd56-pre * { animation: none !important; transition: none !important; }
+html.v156 #runDrive.rd53-in { will-change: clip-path; contain: layout paint; }
+html.v156 #runDrive.rd53-in .run-drive-speed, html.v156 #runDrive.rd53-in .rd50-row, html.v156 #runDrive.rd53-in .run-drive-actions { will-change: transform, opacity; }
+html.v156 #runDrive.rd53-in::before { background: rgba(255,255,255,.07); } /* стекло, а не белая вспышка */
+html.v156 body.run-drive-on.rd56-anim #app { visibility: visible; } /* страница остаётся под кругом, пока он не закроет экран */
+html.v156 body.run-drive-on.rd56-anim .nav3 { display: grid !important; opacity: 0; pointer-events: none; transition: opacity .18s ease-out; }
+html.v156 #runDrive.rd56-done, html.v156 #runDrive.rd56-done .run-drive-speed, html.v156 #runDrive.rd56-done .hud-gauge, html.v156 #runDrive.rd56-done .hud-zones { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  html.v156 .h48-start.s56-sheen::after, html.v156 #app #view-lap .lap-start-hero.s56-sheen::after, html.v156 .h48-start.h56-wait::before { animation: none; }
+}
+/* v156: содержимое проявляется вместе с кругом — без пустого тёмного кадра между раскрытием и цифрами */
+html.v156 #runDrive.rd53-in .run-drive-speed { animation-delay: .05s !important; animation-duration: .32s !important; }
+html.v156 #runDrive.rd53-in .hgz-track { animation-delay: .05s; }
+html.v156 #runDrive.rd53-in .hgz-tick, html.v156 #runDrive.rd53-in .hgz-labels { animation-delay: .16s; }
+html.v156 #runDrive.rd53-in .rd50-row:nth-child(1) { animation-delay: .2s; }
+html.v156 #runDrive.rd53-in .rd50-row:nth-child(2) { animation-delay: .26s; }
+html.v156 #runDrive.rd53-in .rd50-row:nth-child(3) { animation-delay: .32s; }
+html.v156 #runDrive.rd53-in .run-drive-actions, html.v156 #runDrive.rd53-in .rd-ready { animation-delay: .24s; }

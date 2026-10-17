@@ -381,7 +381,8 @@
         <section id="view-zamer" class="view">
           <!-- v152: вкладка «Замер» — одна кнопка «Старт», под ней машина и GPS -->
           <section class="h48" id="h48" aria-label="Замер">
-            <button type="button" class="h48-start" id="h48Start">Старт</button>
+            <div class="h56-mode" id="h56Mode" role="radiogroup" aria-label="Режим старта"><button type="button" role="radio" data-as56="0" aria-checked="true">Вручную</button><button type="button" role="radio" data-as56="1" aria-checked="false">Автостарт</button></div>
+            <button type="button" class="h48-start" id="h48Start">Старт<small class="h56-sub" id="h56Sub"></small></button>
             <p class="h48-car" id="h48Car">Машина не выбрана</p>
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
             <button type="button" class="v54-video" id="h54Video" aria-label="Старт с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>

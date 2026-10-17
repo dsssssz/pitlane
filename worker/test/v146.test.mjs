@@ -9,5 +9,5 @@ ok(/#runIdleCard::before[^{]*\{[^}]*content: none/.test(c) && /\.run-drive \{ ba
 ok(/--bg: #0b0c0e; --panel: #141518/.test(c), 'палитра: почти чёрный фон, мягкие панели');
 ok(/hwEmpty\('Пока пусто', 'Первый замер появится здесь', 'Сделать замер'\)/.test(app) && /hwEmpty\('Топ пока пуст', 'Стань первым в таблице', 'Сделать замер'\)/.test(app), 'пустые состояния — одна кнопка');
 ok(/#view-home \.home-go \{ background: #ecebe8/.test(c), 'Главная: «Замер» — светлая главная кнопка');
-ok(!/text-shadow|drop-shadow|#30d158|blur\(/.test(c), 'без свечения');
+ok(!/text-shadow|drop-shadow|#30d158|(?<!backdrop-filter: )blur\(/.test(c), 'без свечения');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v146 OK');

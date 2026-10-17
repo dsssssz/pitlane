@@ -21,5 +21,5 @@ ok(/k === 'shop'\) \{ try \{ openShopSheet\(\); \}/.test(app) && /#p48 \[data-p4
 ok(/html\.v152 #homeWidgets \[data-empty="1"\] \{ display: none !important; \}/.test(css), 'пустые виджеты скрыты');
 ok(/act === 'zamer' \|\| act === 'run' \? 'zamer'/.test(app), 'вкладка «Замер» подсвечена и на экране замера');
 const c = css.slice(css.indexOf('/* ===== v152'));
-ok(!/text-shadow|drop-shadow|blur\(|orange|#ff9|#30d158|#39ff14/i.test(c) && /\.bn52-s img \{[^}]*grayscale\(1\)/.test(c), 'графит: баннеры обесцвечены, без неона');
+ok(!/text-shadow|drop-shadow|(?<!backdrop-filter: )blur\(|orange|#ff9|#30d158|#39ff14/i.test(c) && /\.bn52-s img \{[^}]*grayscale\(1\)/.test(c), 'графит: баннеры обесцвечены, без неона');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v152 OK');

@@ -19,6 +19,6 @@ const c = css.slice(css.indexOf('v148: Старт / Гараж / Профиль'
 ok(/html\.v148 main, html\.v148\.nav-widgets main \{ padding-bottom: calc\(var\(--n3-h\) \+ var\(--sab, 0px\) \+ 28px\) !important/.test(c), 'контент не уходит под нижнюю панель (высота + safe area)');
 ok(/\.nav3-btn\.on \{ color: rgb\(158,205,176\)/.test(c) && /\.h48-start \{[^}]*background: #ecebe8 !important[^}]*text-transform: none/.test(c), 'мята — активный пункт; «Старт» светлый, без капса');
 ok(/rd48In \.25s/.test(c) && /prefers-reduced-motion: reduce/.test(c), 'анимация старта 250 мс + reduced-motion');
-ok(!/text-shadow|drop-shadow|#30d158|blur\(|orange|#ff9/.test(c), 'без неона/оранжевого');
+ok(!/text-shadow|drop-shadow|#30d158|(?<!backdrop-filter: )blur\(|orange|#ff9/.test(c), 'без неона/оранжевого');
 ok(/html\.v148 \.mycar-bar\.is-empty \.mycar-bar-k \{ color: #75787e/.test(c) && /html\.v148 main > \.brand-bar \{ background: #0b0c0e/.test(c), 'гараж без янтаря, шапка непрозрачная');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v148 OK');

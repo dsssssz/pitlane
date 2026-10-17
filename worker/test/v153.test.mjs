@@ -19,7 +19,7 @@ ok(/function rd53Reveal\(el\)/.test(app) && /try \{ rd53Reveal\(el\); \} catch \
 ok(/withSafety\(armRun\)\(\);\n    \}\);/.test(app) && /H53\.at = 0;/.test(app), 'после окна безопасности — та же анимация; флаг одноразовый');
 ok(/\.h48-start\.h53-press \{ transform: scale\(\.94\); \}/.test(c) && /h53Ring \.5s/.test(c) && /rd53Clip \.42s/.test(c) && /rd53Arc \.5s[^;]*\.2s/.test(c) && /nth-child\(3\) \{ animation-delay: \.61s; \}/.test(c), 'нажатие 0.94 → кольцо → круг clip-path → дуга → цифры → строки (< 900 мс)');
 ok(/prefers-reduced-motion: reduce\) \{\s*\.h53-ring \{ display: none; \}/.test(c), 'reduced-motion: простой fade');
-ok(!/text-shadow|drop-shadow|blur\(|orange|#ff9|#30d158/.test(c), 'без неона/оранжевого');
+ok(!/text-shadow|drop-shadow|(?<!backdrop-filter: )blur\(|orange|#ff9|#30d158/.test(c), 'без неона/оранжевого');
 ok(/@keyframes rd53Click \{ from \{ opacity: 0; transform: scale\(1\.06\); \}/.test(c) && /row\.classList\.add\('on'\);\n  _hapKey = true; try \{ hap\(12\); \}/.test(app), 'отметка «щёлкает» на место 1.06→1 + лёгкая вибрация');
 ok(/rd-final:not\(\.hidden\) \{ animation: rd53Up \.3s/.test(c), 'итог выезжает снизу ~300 мс');
 ok(/p\.pbD <= -0\.005 && run\.pbAnimFor !== p\) \{ run\.pbAnimFor = p; rd53Pb\(\); \}/.test(app) && /rd53Sweep 1\.2s[^;]*forwards/.test(c) && !/confetti/i.test(app.slice(app.indexOf('function rd53Pb'))), 'рекорд: медленное проявление + одна мятная линия, без конфетти');

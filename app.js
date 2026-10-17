@@ -3144,8 +3144,32 @@ function rd53Reveal(el) {
   if (!H53.at || performance.now() - H53.at > 20000) return;
   H53.at = 0;
   el.style.setProperty('--h53x', H53.cx + 'px'); el.style.setProperty('--h53y', H53.cy + 'px'); el.style.setProperty('--h53r', H53.r + 'px');
-  el.classList.remove('rd53-in'); void el.offsetWidth; el.classList.add('rd53-in');
-  clearTimeout(rd53Reveal._t); rd53Reveal._t = setTimeout(() => el.classList.remove('rd53-in'), 950);
+  // v156: оверлей уже смонтирован скрытым (rd56-pre) — без синхронной раскладки; страница под ним не перерисовывается,
+  // пока круг не закроет экран (rd56-anim держит #app видимым), а по окончании входные анимации не перезапускаются (rd56-done)
+  const had = el.classList.contains('rd53-in');
+  el.classList.remove('rd53-in', 'rd56-done'); if (had) void el.offsetWidth;
+  el.classList.remove('rd56-pre'); el.classList.add('rd53-in');
+  document.body.classList.add('rd56-anim');
+  clearTimeout(rd53Reveal._a); rd53Reveal._a = setTimeout(() => document.body.classList.remove('rd56-anim'), 460);
+  clearTimeout(rd53Reveal._t); rd53Reveal._t = setTimeout(() => { el.classList.add('rd56-done'); el.classList.remove('rd53-in'); }, 950);
+}
+/* v156: пре-монтаж спидометра — пока открыт «Замер», оверлей уже собран и разложен, но невидим */
+function rd56Pre() {
+  const el = document.getElementById('runDrive');
+  if (!el || !el.classList.contains('hidden') || run.armed || document.body.classList.contains('run-drive-on')) return;
+  el.classList.add('rd56-pre'); el.classList.remove('hidden');
+  rdGridBuild(); const ul = document.getElementById('runDriveMarks'); if (ul) ul.dataset.pre56 = '1';
+  rdPhase('ready');
+  setRunText('runDriveMsg', ''); setRunText('runDriveDist', '0'); setRunText('rdTimer', '0.00');
+  rdReadySet('wait', 'Ждём GPS', 'встаньте на открытом небе');
+}
+/** v156: сетка уже собрана при пре-монтаже — на старте не пересобираем. */
+function rd56Skip(ul) { if (ul.dataset.pre56 !== '1') return false; delete ul.dataset.pre56; return true; }
+function rd56Unpre() {
+  const el = document.getElementById('runDrive');
+  if (!el || !el.classList.contains('rd56-pre')) return;
+  el.classList.add('hidden'); el.classList.remove('rd56-pre');
+  const ul = document.getElementById('runDriveMarks'); if (ul) delete ul.dataset.pre56;
 }
 function openRunDrive(phase = 'ready') {
   const el = document.getElementById('runDrive');
@@ -3155,6 +3179,7 @@ function openRunDrive(phase = 'ready') {
   document.body.classList.add('run-drive-on');
   try { rd53Reveal(el); } catch (_) {}
   rdGridBuild();
+  el.classList.remove('rd56-pre');
   rdPhase(phase);
   setRunText('runDriveMsg', '');
   setRunText('runDriveDist', '0');
@@ -3168,8 +3193,10 @@ function closeRunDrive() {
   const el = document.getElementById('runDrive');
   if (!el) return;
   el.classList.add('hidden');
+  el.classList.remove('rd53-in', 'rd56-done', 'rd56-pre');
   el.setAttribute('aria-hidden', 'true');
-  document.body.classList.remove('run-drive-on');
+  document.body.classList.remove('run-drive-on', 'rd56-anim');
+  setTimeout(() => { if (document.getElementById('view-zamer')?.classList.contains('active')) rd56Pre(); }, 400);
 }
 
 /* v116: вибрация на отметках замера — по умолчанию выключена (просили без жужжания), включается галочкой */
@@ -3198,7 +3225,7 @@ function rdPhase(ph) {
 }
 function rdGridBuild() {
   const ul = document.getElementById('runDriveMarks');
-  if (!ul) return;
+  if (!ul || rd56Skip(ul)) return;
   ul.replaceChildren();
   rd50Reset();
   for (const g of RM_GRID) {
@@ -3536,6 +3563,7 @@ function onGpsPoint(pos) {
   if (document.body.classList.contains('run-drive-on')) { setRunText('runDriveSpeed', String(vShow)); rdStatusUpdate(pos, now); }
   if (lapRun.active) onLapGps(pos, v);
   if (wifiMode() && !lapRun.active) wifiRunTick(pos, v, now);
+  if (AS56.wait && !run.armed) as56Tick(pos, v, now);
 
   if (!run.armed) {
     let tip = wifiMode() ? 'PITLANE GPS по Wi-Fi живой. Стоите — замер вооружится сам' : 'GPS живой. Стоите — жмите «Старт»';
@@ -3709,6 +3737,60 @@ const wifiAuto = { stillSince: 0 };
 let wifiDevCache = null;
 function fmtLag(ms) { return ms < 1000 ? `${Math.max(10, Math.round(ms / 10) * 10)} мс` : `${(ms / 1000).toFixed(1)} с`; }
 function wifiMode() { try { return extGps?.state?.() === 'wifi'; } catch (_) { return false; } }
+/* ——— v156: автостарт замера. «Готов» → GPS ждёт остановку (< 1 км/ч, ≥ 1 с) → трогание (> 1.5 км/ч две точки подряд
+ * или ≥ 4 км/ч) само запускает замер — та же анимация и логика, что у «Старт». Ручной режим остаётся. ——— */
+const AS56_KEY = 'pitlane-autostart-v1';
+const AS56 = { wait: false, still: [], stillSince: 0, mv: 0, st: '' };
+function as56Mode() { try { return localStorage.getItem(AS56_KEY) === '1'; } catch (_) { return false; } }
+function as56Ui() {
+  const sb = document.getElementById('h48Start'); if (!sb) return;
+  const auto = as56Mode(); const st = !auto ? 'manual' : !AS56.wait ? 'ready' : AS56.stillSince ? 'still' : 'wait';
+  if (AS56.st === st) return; AS56.st = st;
+  const L = { manual: ['Старт', ''], ready: ['Готов', 'старт — когда тронетесь'], wait: ['Ждём', 'остановитесь · нажмите — отмена'], still: ['Тронитесь', 'замер начнётся сам'] }[st];
+  if (sb.firstChild?.nodeType === 3) sb.firstChild.nodeValue = L[0]; else sb.prepend(L[0]);
+  const sub = document.getElementById('h56Sub'); if (sub) sub.textContent = L[1];
+  sb.classList.toggle('h56-wait', st === 'wait' || st === 'still');
+  sb.setAttribute('aria-label', st === 'manual' ? 'Старт замера' : st === 'ready' ? 'Готов: замер начнётся сам, когда тронетесь' : 'Автостарт ждёт трогания. Нажмите, чтобы отменить');
+  document.querySelectorAll('#h56Mode [data-as56]').forEach((b) => b.setAttribute('aria-checked', String((b.dataset.as56 === '1') === auto)));
+}
+function as56Start() {
+  Object.assign(AS56, { wait: true, still: [], stillSince: 0, mv: 0 });
+  startWatch(); void keepAwake(true);
+  as56Ui();
+}
+function as56Stop() {
+  if (!AS56.wait) return;
+  Object.assign(AS56, { wait: false, still: [], stillSince: 0, mv: 0 });
+  if (!lapRun.active && !run.armed) void keepAwake(false);
+  as56Ui();
+}
+function as56Tick(pos, v, now) {
+  const sp = Number(pos?.coords?.speed);
+  const k = Number.isFinite(sp) && sp >= 0 && pos?.coords?.speed != null ? sp * 3.6 : v;
+  if (k == null || !Number.isFinite(k)) return;
+  if (k < 1) {
+    if (!AS56.stillSince) AS56.stillSince = now || 1;
+    AS56.still.push({ t: now, seq: rawSeq }); AS56.still = AS56.still.filter((x) => now - x.t <= 3000); AS56.mv = 0;
+  } else if (!AS56.stillSince || now - AS56.stillSince < 1000) {
+    if (k > 1.5) { AS56.stillSince = 0; AS56.still = []; AS56.mv = 0; } // ещё не стояли — ждём остановку
+  } else if (k > 1.5) {
+    AS56.mv++;
+    if (AS56.mv >= 2 || k >= 4) { as56Fire(); return; }
+  }
+  as56Ui();
+}
+function as56Fire() {
+  const seq0 = AS56.still.length ? Math.max(0, AS56.still[0].seq - 1) : null;
+  Object.assign(AS56, { wait: false, still: [], stillSince: 0, mv: 0 });
+  const sb = document.getElementById('h48Start');
+  if (sb && sb.checkVisibility?.() !== false && document.getElementById('view-zamer')?.classList.contains('active')) {
+    const r = sb.getBoundingClientRect();
+    Object.assign(H53, { at: performance.now(), cx: Math.round(r.left + r.width / 2), cy: Math.round(r.top + r.height / 2), r: Math.round(r.width / 2) });
+  }
+  if (isTMA) { _hapKey = true; try { hap(30); } finally { _hapKey = false; } } else hap([18, 40, 18]);
+  armRun({ quiet: true, rawSeq0: seq0 });
+  as56Ui();
+}
 function safetyAccepted() { try { return !!localStorage.getItem(SAFETY_KEY); } catch (_) { return true; } }
 function wifiRender(info, bar) {
   const w = info.wifi || {};
@@ -4180,7 +4262,7 @@ function armRun(opts = {}) {
   try { markFirstRun(); } catch (_) {}
   run.launched = false;
   run.samples = [];
-  run.rawSeq0 = rawSeq; // v104: сырой трек замера — с этой точки
+  run.rawSeq0 = opts.rawSeq0 != null ? opts.rawSeq0 : rawSeq; // v156: автостарт берёт трек с момента остановки; v104: сырой трек замера — с этой точки
   run.t0 = null;
   run.t0Ext = null;
   run.extStill = null;
@@ -12430,7 +12512,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v155';
+const APP_VERSION = 'v156';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12598,7 +12680,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -12612,6 +12694,30 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     try { closeShopSheet(); } catch (_) {}
     goToView(b.dataset.n3); sync();
   });
+  /* v156: «Замер» открыт — спидометр пре-смонтирован скрытым; ушли — снимаем и гасим ожидание автостарта */
+  {
+    let was = false;
+    const zsync = () => {
+      const on = !!document.getElementById('view-zamer')?.classList.contains('active');
+      if (on === was) return; was = on;
+      if (on) (window.requestIdleCallback || ((f) => setTimeout(f, 120)))(() => { if (document.getElementById('view-zamer')?.classList.contains('active')) rd56Pre(); });
+      else { rd56Unpre(); as56Stop(); }
+    };
+    const vh = document.getElementById('viewHost');
+    if (vh) new MutationObserver(zsync).observe(vh, { subtree: true, attributes: true, attributeFilter: ['class'] });
+    zsync();
+    document.getElementById('h56Mode')?.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-as56]'); if (!b) return;
+      try { localStorage.setItem(AS56_KEY, b.dataset.as56 === '1' ? '1' : '0'); } catch (_) {}
+      as56Stop(); AS56.st = ''; as56Ui();
+    });
+    as56Ui();
+    // стеклянные кнопки старта: мягкий блик по нажатию
+    ['h48Start', 'btnLapStart'].forEach((id) => { const b = document.getElementById(id); if (!b) return;
+      b.addEventListener('pointerdown', () => { b.classList.remove('s56-sheen'); void b.offsetWidth; b.classList.add('s56-sheen'); });
+      b.addEventListener('animationend', (e) => { if (e.animationName === 's56Sheen') b.classList.remove('s56-sheen'); }); });
+    window.__as56 = { gps: (kmh) => onGpsPoint({ timestamp: Date.now(), coords: { latitude: 43.4, longitude: 39.95, speed: kmh / 3.6, accuracy: 4, heading: 0 } }), st: () => AS56.st }; // скриншоты/отладка
+  }
   const host = document.getElementById('viewHost');
   if (host) new MutationObserver(sync).observe(host, { subtree: true, attributes: true, attributeFilter: ['class'] });
   sync();
@@ -12619,10 +12725,12 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
   {
     const sb = document.getElementById('h48Start');
     const up = () => sb?.classList.remove('h53-press');
-    sb?.addEventListener('pointerdown', () => sb.classList.add('h53-press'));
+    sb?.addEventListener('pointerdown', () => { sb.classList.add('h53-press'); if (!as56Mode()) rd56Pre(); });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => sb?.addEventListener(ev, up));
     sb?.addEventListener('click', () => {
       up();
+      if (as56Mode()) { if (AS56.wait) as56Stop(); else withSafety(as56Start)(); return; } // v156: автостарт
+      if (run.armed && document.body.classList.contains('run-drive-on')) return;
       if (isTMA) { _hapKey = true; try { hap(30); } finally { _hapKey = false; } } // один heavy-удар; hap внутри armRun в Telegram уже не сработает
       const r = sb.getBoundingClientRect();
       Object.assign(H53, { at: performance.now(), cx: Math.round(r.left + r.width / 2), cy: Math.round(r.top + r.height / 2), r: Math.round(r.width / 2) });
@@ -12725,14 +12833,15 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     window.__bn52 = { go: (i) => go(i) }; // скриншоты/отладка
   })();
   const renderH48 = () => {
+    if (document.body.classList.contains('run-drive-on')) return; // v156: под спидометром страницу не трогаем
     const nm = document.getElementById('hwCarName')?.textContent?.trim();
     const car = document.getElementById('h48Car');
     let saved = null; try { saved = JSON.parse(localStorage.getItem('pitlane-v1') || '{}').carId || null; } catch (_) {}
     const mine = myCarLocal();
     const hasCar = !!(mine || saved || (state.garage && state.garage.length));
-    if (car) { car.textContent = mine ? String(mine.model) : hasCar && nm && nm !== '—' ? nm : 'Машина не выбрана'; car.dataset.empty = hasCar ? '0' : '1'; }
+    if (car) { const t = mine ? String(mine.model) : hasCar && nm && nm !== '—' ? nm : 'Машина не выбрана'; if (car.textContent !== t) car.textContent = t; const e = hasCar ? '0' : '1'; if (car.dataset.empty !== e) car.dataset.empty = e; }
     const s = homeGoGpsStatus(); const g = document.getElementById('h48Gps'); const v = document.getElementById('h48GpsV');
-    if (v && v.textContent !== s.text) v.textContent = s.text; if (g) g.dataset.q = s.q;
+    if (v && v.textContent !== s.text) v.textContent = s.text; if (g && g.dataset.q !== s.q) g.dataset.q = s.q;
   };
   setInterval(() => { if (!document.hidden) { try { renderH48(); } catch (_) {} } }, 2000); setTimeout(() => { try { renderH48(); } catch (_) {} }, 600);
   // Профиль: разделы

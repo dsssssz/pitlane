@@ -16,5 +16,5 @@ ok(/html\.v150 \.run-drive \.rd-status, html\.v150 \.run-drive \.hud-zones, html
 ok(/\.rd50-row\.on b \{[^}]*animation: rd50In \.25s/.test(c) && /prefers-reduced-motion[\s\S]*rd50-row\.on b \{ animation: none; \}/.test(c), 'время появляется плавно ~250 мс; reduced-motion');
 ok(/rd50-sheet \.rd-cell\[data-k="0-100"\], html\.v150 \.rd50-sheet \.rd-cell\[data-k="100-200"\], html\.v150 \.rd50-sheet \.rd-cell\[data-k="200-300"\]/.test(c) && !/rd-cell\[data-k="0-60"\]/.test(c), 'в шторке нет дублей основных строк; 0–60 и 0–200 — в «Подробнее» (v153)');
 ok(/#runDriveStop#runDriveStop\.go-btn \{[^}]*background: #141518/.test(c), '«Стоп» тихий (графит)');
-ok(!/text-shadow|drop-shadow|blur\(|orange|#ff9|#30d158/.test(c), 'без неона/оранжевого');
+ok(!/text-shadow|drop-shadow|(?<!backdrop-filter: )blur\(|orange|#ff9|#30d158/.test(c), 'без неона/оранжевого');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v150 OK');
