@@ -89,7 +89,7 @@ import {
 } from './track-sat-map.js';
 
 /* v147: в Telegram — тактильный отклик только на Старт/Стоп (замер и круг); остальное молча */
-const HAP_KEYS = new Set(['btnArm', 'runDriveStop', 'btnLapStart', 'btnLapArmedStart', 'btnLapStop', 'lapDriveEnd']);
+const HAP_KEYS = new Set(['h48Start', 'btnArm', 'runDriveStop', 'btnLapStart', 'btnLapArmedStart', 'btnLapStop', 'lapDriveEnd']);
 let _hapKey = false;
 function hap(ms = 12) {
   if (isTMA && !_hapKey) return;
@@ -12338,7 +12338,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v147';
+const APP_VERSION = 'v148';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12495,6 +12495,58 @@ async function openVideoTele(scope) {
 }
 document.getElementById('btnVideoRun')?.addEventListener('click', () => { void openVideoTele('run'); });
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
+
+/* ——— v148: структура «Старт / Гараж / Профиль» ——— */
+document.documentElement.classList.add('v148');
+(() => {
+  const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
+  const sync = () => {
+    const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'home';
+    const key = act === 'garage' ? 'garage' : act === 'home' || act === 'run' ? 'home' : 'account';
+    document.querySelectorAll('.nav3-btn').forEach((b) => { const on = b.dataset.n3 === key; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  };
+  nav?.addEventListener('click', (e) => {
+    const b = e.target.closest('.nav3-btn'); if (!b) return;
+    try { closeTgSheet({ instant: true }); } catch (_) {}
+    try { closeShopSheet(); } catch (_) {}
+    goToView(b.dataset.n3); sync();
+  });
+  const host = document.getElementById('viewHost');
+  if (host) new MutationObserver(sync).observe(host, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  sync();
+  // «Старт» на Главной = та же логика, что у кнопки замера (безопасность → armRun → полноэкранный спидометр)
+  document.getElementById('h48Start')?.addEventListener('click', () => { withSafety(armRun)(); });
+  const renderH48 = () => {
+    const nm = document.getElementById('hwCarName')?.textContent?.trim();
+    const car = document.getElementById('h48Car');
+    let saved = null; try { saved = JSON.parse(localStorage.getItem('pitlane-v1') || '{}').carId || null; } catch (_) {}
+    const mine = myCarLocal();
+    const hasCar = !!(mine || saved || (state.garage && state.garage.length));
+    if (car) { car.textContent = mine ? String(mine.model) : hasCar && nm && nm !== '—' ? nm : 'Машина не выбрана'; car.dataset.empty = hasCar ? '0' : '1'; }
+    const s = homeGoGpsStatus(); const g = document.getElementById('h48Gps'); const v = document.getElementById('h48GpsV');
+    if (v && v.textContent !== s.text) v.textContent = s.text; if (g) g.dataset.q = s.q;
+  };
+  setInterval(() => { if (!document.hidden) { try { renderH48(); } catch (_) {} } }, 2000); setTimeout(() => { try { renderH48(); } catch (_) {} }, 600);
+  // Профиль: разделы
+  const scrollTo = (id) => setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 260);
+  document.getElementById('p48')?.addEventListener('click', (e) => {
+    const r = e.target.closest('[data-p48]'); if (!r) return;
+    const k = r.dataset.p48;
+    if (k === 'tops') goToView('tops');
+    else if (k === 'duels' || k === 'pulse') { if (sheetNavOn()) openTgSheet(k); else goToView(k); }
+    else if (k === 'tracks') { if (sheetNavOn()) openTgSheet('tracks'); else goToView('lap'); }
+    else if (k === 'lap') goToView('lap');
+    else if (k === 'history') { goToView('run'); scrollTo('runHistory'); }
+    else if (k === 'analytics') { goToView('lap'); scrollTo('lapAnalyticsCard'); }
+    else if (k === 'suggest') { goToView('lap'); const d = document.querySelector('#trackSuggestCard details'); if (d) { d.open = true; d.dispatchEvent(new Event('toggle')); } scrollTo('trackSuggestCard'); }
+    else if (k === 'team') openCrewSheet();
+    else if (k === 'video') void openVideoTele('run');
+    else if (k === 'shop') void openShopSheet();
+  });
+  // бейдж входящих дуэлей — из нижней панели v139
+  const badge = () => { const src = document.getElementById('sbBadgeDuels'); const dst = document.getElementById('p48DuelsBadge'); if (src && dst) { dst.hidden = src.hidden; dst.textContent = src.textContent; } };
+  setInterval(badge, 3000); badge();
+})();
 
 /* v141: «Предложить трассу» */
 document.querySelector('#trackSuggestCard details')?.addEventListener('toggle', (e) => {

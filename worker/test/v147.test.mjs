@@ -8,7 +8,7 @@ const bot = fs.readFileSync(new URL('../src/botcopy.js', import.meta.url), 'utf8
 ok(/APP_URL = 'https:\/\/dsssssz\.github\.io\/pitlane\/'/.test(bot), 'Mini App открывает тот же адрес, что и веб');
 ok(/const THEME = '#0b0c0e'/.test(tma) && /setBottomBarColor\(THEME\)/.test(tma) && /disableVerticalSwipes/.test(tma) && /expand\(\)/.test(tma), 'шапка/фон/нижняя панель = #0b0c0e, expand, без вертикальных свайпов');
 ok(/viewportStableHeight/.test(tma) && /--tma-vh/.test(css), 'стабильная высота окна');
-ok(/HAP_KEYS = new Set\(\['btnArm', 'runDriveStop'/.test(app) && /if \(isTMA && !_hapKey\) return;/.test(app), 'haptics в Telegram — только Старт/Стоп');
+ok(/HAP_KEYS = new Set\(\['h48Start', 'btnArm', 'runDriveStop'/.test(app) && /if \(isTMA && !_hapKey\) return;/.test(app), 'haptics в Telegram — только Старт/Стоп');
 ok(/\['vtSheet', 'vtClose'\], \['shopSheet', 'shopClose'\]/.test(app), 'BackButton закрывает видео и магазин');
 ok(!/var\(--tg-theme/.test(css), 'стили не завязаны на тему Telegram');
 const c = css.slice(css.indexOf('v147: Telegram Mini App'));

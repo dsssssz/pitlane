@@ -6618,3 +6618,72 @@ html.tma .run-drive { padding-top: max(12px, calc(var(--sat) + 8px)) !important;
 /* светлая тема Telegram: кнопки/панели остаются нашими */
 html.tma #app .form-row #btnArm.go-btn, html.tma #runDrive #runDriveStop.go-btn { background: #ecebe8 !important; color: #1b1c1e !important; }
 html.tma #app .card, html.tma #view-home .hw { background: #141518 !important; color: #f2f2f2; }
+
+/* ===== v148: Старт / Гараж / Профиль — минимализм ===== */
+html.v148 { --n3-h: 64px; --n3-gap: 12px; }
+/* Главная: только «Старт», машина и GPS */
+html.v148 #view-home > :not(#h48) { display: none !important; }
+html.v148 #view-home { padding: 0 !important; }
+.h48 { display: none; }
+html.v148 .h48 { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0; text-align: center;
+  min-height: calc(var(--tma-vh, 100dvh) - var(--sat, 0px) - var(--sab, 0px) - var(--n3-h) - 140px); padding: 24px 24px 40px; }
+.h48-start { width: min(78vw, 300px); aspect-ratio: 1; border-radius: 50% !important; border: 0 !important; background: #ecebe8 !important; color: #17181a !important;
+  font: 400 30px/1 Manrope, sans-serif !important; letter-spacing: -.005em !important; text-transform: none !important; box-shadow: none !important; padding: 0 !important; cursor: pointer;
+  transition: transform .2s ease-out, background-color .2s ease-out; -webkit-tap-highlight-color: transparent; }
+.h48-start:active { transform: scale(.97); background: #dddcd9 !important; }
+.h48-car { margin: 44px 0 0; font: 500 15px/1.3 Manrope, sans-serif; color: #c9cacd; }
+.h48-gps { margin: 10px 0 0; display: inline-flex; align-items: center; gap: 8px; font: 400 12.5px/1.3 Manrope, sans-serif; color: #75787e; }
+.h48-gps i { width: 6px; height: 6px; border-radius: 50%; background: #55585e; }
+.h48-gps[data-q="good"] i { background: rgb(158,205,176); }
+.h48-gps[data-q="mid"] i { background: #9a9da3; }
+.h48-gps[data-q="bad"] i { background: #d49a9a; }
+/* шапка: без меню и кнопки профиля (профиль — в нижней панели), бренд тихий */
+html.v148 #btnMenu, html.v148 #btnProfile, html.v148 header.top { display: none !important; }
+html.v148 .brand-bar b { font-size: 13px; letter-spacing: .32em; color: #8b8e93; font-weight: 600; }
+/* нижняя панель из трёх пунктов; старая (v139) скрыта */
+.nav3 { display: none; }
+@media (max-width: 900px) {
+  html.v148 .rail { display: none !important; }
+  html.v148 .nav3 { display: grid; grid-template-columns: repeat(3, 1fr); position: fixed; z-index: 11000; left: 0; right: 0; bottom: 0;
+    height: calc(var(--n3-h) + var(--sab, 0px)); padding: 0 12px var(--sab, 0px); background: rgba(11,12,14,.96); border-top: 1px solid rgba(255,255,255,.06); }
+  html.v148 main, html.v148.nav-widgets main { padding-bottom: calc(var(--n3-h) + var(--sab, 0px) + 28px) !important; }
+  html.v148.shop-open .nav3, html.v148.tgs-open .nav3 { z-index: 9; }
+  html.v148 body.run-drive-on .nav3 { display: none; }
+}
+.nav3-btn { all: unset; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: #6f7278; font: 500 11px/1 Manrope, sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color .2s ease-out; }
+.nav3-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.nav3-btn.on { color: rgb(158,205,176); }
+/* Профиль: разделы, соревнования первыми */
+.p48 { margin: 28px 0 8px; }
+.p48-group { background: #141518; border: 1px solid rgba(255,255,255,.06); border-radius: 24px; overflow: hidden; }
+.p48-main { margin-bottom: 28px; }
+.p48-cap { margin: 0 6px 12px; font: 600 11px/1 Manrope, sans-serif; letter-spacing: .14em; text-transform: uppercase; color: #6c6f75; }
+.p48-row { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 14px; padding: 18px 22px; cursor: pointer; border-top: 1px solid rgba(255,255,255,.05); }
+.p48-row:first-child { border-top: 0; }
+.p48-row > span { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.p48-row b { font: 500 15px/1.3 Manrope, sans-serif; color: #e6e7e9; }
+.p48-row small { font: 400 12.5px/1.4 Manrope, sans-serif; color: #74777d; }
+.p48-big { padding: 24px 22px; }
+.p48-big b { font-size: 19px; font-weight: 500; color: #f1f1f2; }
+.p48-row > i { width: 8px; height: 8px; border-right: 1.5px solid #5d6066; border-top: 1.5px solid #5d6066; transform: rotate(45deg); flex: none; }
+.p48-badge { font-style: normal; min-width: 22px; height: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 11px; background: rgba(158,205,176,.16); color: rgb(158,205,176); font: 600 12px/22px Manrope, sans-serif; text-align: center; }
+.p48-row:active { background: rgba(255,255,255,.025); }
+/* анимации: только старт замера и смена экранов; prefers-reduced-motion — без них */
+@keyframes rd48In { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes rd48Up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes v48In { from { opacity: 0; } to { opacity: 1; } }
+html.v148 .run-drive:not(.hidden) { animation: rd48In .25s cubic-bezier(.2,.7,.2,1) both; }
+html.v148 .run-drive:not(.hidden) .run-drive-speed, html.v148 .run-drive:not(.hidden) .hud-gauge { animation: rd48Up .3s cubic-bezier(.2,.7,.2,1) .06s both; }
+html.v148 .run-drive:not(.hidden) .hud-zones { animation: rd48Up .3s cubic-bezier(.2,.7,.2,1) .12s both; }
+html.v148 .view.active { animation: v48In .24s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  html.v148 .run-drive:not(.hidden), html.v148 .run-drive:not(.hidden) *, html.v148 .view.active { animation: none !important; }
+  .h48-start, .nav3-btn { transition: none !important; }
+}
+html.v148 #app .view.active:not(#view-home):not(#view-garage) > * { animation: none !important; }
+/* v148: graphite-only accents (no warm hues); tabs replace back button on mobile */
+html.v148 .mycar-bar.is-empty { border-color: rgba(255,255,255,.06); background: #141518; }
+html.v148 .mycar-bar.is-empty .mycar-bar-k { color: #75787e; }
+html.v148 .rd-chip[data-q="mid"] b::before { background: #b9bbbf; }
+@media (max-width: 900px) { html.v148 #btnHome.bb-home { display: none; } }
+html.v148 main > .brand-bar { background: #0b0c0e !important; border-bottom: 1px solid rgba(255,255,255,.06); }

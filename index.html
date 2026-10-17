@@ -181,6 +181,12 @@
         <div class="view-host" id="viewHost">
         <!-- v84: Главная — карусель разделов, моя машина, топ постов за сутки -->
         <section id="view-home" class="view active">
+          <!-- v148: Главная — одна кнопка «Старт», под ней машина и GPS -->
+          <section class="h48" id="h48" aria-label="Замер">
+            <button type="button" class="h48-start" id="h48Start">Старт</button>
+            <p class="h48-car" id="h48Car">Машина не выбрана</p>
+            <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
+          </section>
           <!-- v120: баннеры скрыты (код остаётся); первым — главная кнопка замера -->
           <section class="home-go hg-a" id="homeGo">
             <button type="button" class="hg-btn" id="homeGoBtn" data-hq="run" aria-label="Замер: 0–100, ¼ мили, круг">
@@ -867,6 +873,25 @@
               <p class="muted" id="accPhone">не вошли</p>
             </div>
           </div>
+          <!-- v148: всё остальное — в Профиле. Соревнования первыми -->
+          <section class="p48" id="p48" aria-label="Разделы">
+            <div class="p48-group p48-main">
+              <button type="button" class="p48-row p48-big" data-p48="tops"><span><b>Топы</b><small>Лучшие разгоны и круги по трассам</small></span><i aria-hidden="true"></i></button>
+              <button type="button" class="p48-row p48-big" data-p48="duels"><span><b>Дуэли</b><small>Вызов 1 на 1 — разгон или круг</small></span><em class="p48-badge" id="p48DuelsBadge" hidden></em><i aria-hidden="true"></i></button>
+            </div>
+            <p class="p48-cap">Ещё</p>
+            <div class="p48-group">
+              <button type="button" class="p48-row" data-p48="history"><span><b>Мои замеры</b></span><i aria-hidden="true"></i></button>
+              <button type="button" class="p48-row" data-p48="lap"><span><b>Круг на трассе</b></span><i aria-hidden="true"></i></button>
+              <button type="button" class="p48-row" data-p48="tracks"><span><b>Трассы</b></span><i aria-hidden="true"></i></button>
+              <button type="button" class="p48-row" data-p48="analytics"><span><b>Аналитика круга</b></span><i aria-hidden="true"></i></button>
+              <button type="button" class="p48-row" data-p48="pulse"><span><b>Paddock</b></span><i aria-hidden="true"></i></button>
+              <button type="button" class="p48-row" data-p48="team"><span><b>Команда</b></span><i aria-hidden="true"></i></button>
+              <button type="button" class="p48-row" data-p48="video"><span><b>Видео с телеметрией</b></span><i aria-hidden="true"></i></button>
+              <button type="button" class="p48-row" data-p48="suggest"><span><b>Предложить трассу</b></span><i aria-hidden="true"></i></button>
+              <button type="button" class="p48-row" data-p48="shop"><span><b>Магазин</b></span><i aria-hidden="true"></i></button>
+            </div>
+          </section>
           <article class="card music-card hidden" id="accMusic">
             <h3>Музыка</h3>
             <ul class="mu-list" data-mu-list></ul>
@@ -990,6 +1015,12 @@
           <button type="button" id="btnDeleteAccount" class="btn-danger hidden">Удалить аккаунт</button>
         </section>
         </div>
+      <!-- v148: нижняя панель — Замер / Гараж / Профиль -->
+      <nav class="nav3" id="nav3" aria-label="Разделы">
+        <button type="button" class="nav3-btn on" data-n3="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Замер</span></button>
+        <button type="button" class="nav3-btn" data-n3="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-6h4v6"/></svg><span>Гараж</span></button>
+        <button type="button" class="nav3-btn" data-n3="account"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.4"/><path d="M5.5 19.5c.9-3.2 3.3-4.9 6.5-4.9s5.6 1.7 6.5 4.9"/></svg><span>Профиль</span></button>
+      </nav>
       </main>
       <!-- v124: шторка в стиле Telegram (снизу, граббер, затемнение, лёгкое уменьшение фона, свайп вниз) -->
       <div class="tgs hidden" id="tgSheet" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Раздел">
