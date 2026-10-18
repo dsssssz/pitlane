@@ -26,6 +26,7 @@ function trackPath(id, box) {
 const tr = trackPath('sochi', { x: 720, y: 60, w: 500, h: 330 });
 const coupe = fs.readFileSync(path.join(ROOT, 'img/sil/coupe.svg'), 'utf8');
 const body = coupe.match(/<path d="(M70 238[^"]+)"/)[1];
+const LOGO = fs.readFileSync(path.join(ROOT, 'img/logo/pitlane-logo.svg'), 'utf8'); // v175: настоящий логотип вместо набранного шрифтом слова
 const glass = coupe.match(/<path d="(M300 140[^"]+)"/)[1];
 
 const html = `<!doctype html><html><head><meta charset="utf-8">
@@ -37,14 +38,15 @@ html,body{margin:0;width:1280px;height:640px;overflow:hidden;background:#1a1a1a}
  radial-gradient(700px 400px at 10% 100%, rgba(201,198,191,.05), transparent 70%),
  repeating-linear-gradient(115deg, rgba(255,255,255,.018) 0 2px, transparent 2px 22px), #1a1a1a}
 svg{position:absolute;inset:0}
-.txt{position:absolute;left:84px;top:150px}
-.wm{font:italic 800 176px/0.9 "Barlow Condensed",sans-serif;letter-spacing:.035em;color:#C9C6BF;
- text-shadow:0 0 18px rgba(201,198,191,.55),0 0 60px rgba(201,198,191,.25)}
+.txt{position:absolute;left:84px;top:118px}
+.wm svg{position:static;display:block;width:100%;height:auto}
+.wm{width:560px;line-height:0;
+}
 .sub{margin-top:22px;font:700 27px/1.25 Manrope,sans-serif;letter-spacing:.14em;color:#e2e2e2;text-transform:uppercase}
 .chips{margin-top:34px;display:flex;gap:12px}
 .chip{font:600 24px/1 "Barlow Condensed",sans-serif;letter-spacing:.12em;color:#C9C6BF;border:1.5px solid rgba(201,198,191,.55);
  background:rgba(201,198,191,.07);border-radius:999px;padding:10px 18px}
-.bar{position:absolute;left:84px;top:118px;width:120px;height:6px;background:#C9C6BF;box-shadow:0 0 14px rgba(201,198,191,.7);transform:skewX(-20deg)}
+.bar{display:none;position:absolute;left:84px;top:118px;width:120px;height:6px;background:#C9C6BF;box-shadow:0 0 14px rgba(201,198,191,.7);transform:skewX(-20deg)}
 </style></head><body><div class="b">
 <svg width="1280" height="640" viewBox="0 0 1280 640">
  <defs><filter id="gl" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
@@ -61,7 +63,7 @@ svg{position:absolute;inset:0}
  <path d="M0 612 H1280" stroke="#C9C6BF" stroke-opacity=".18" stroke-width="2"/>
 </svg>
 <div class="bar"></div>
-<div class="txt"><div class="wm">PITLANE</div>
+<div class="txt"><div class="wm">${LOGO}</div>
 <div class="sub">Гараж и телеметрия<br>для трека</div>
 <div class="chips"><span class="chip">0–100 GPS</span><span class="chip">КРУГИ</span><span class="chip">ТОПЫ</span><span class="chip">ДУЭЛИ</span></div></div>
 </div></body></html>`;

@@ -1,24 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#dedad2"/>
-      <stop offset="100%" stop-color="#a8a49c"/>
-    </linearGradient>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="#050505"/>
-  <rect x="20" y="20" width="472" height="472" rx="96" fill="none" stroke="#1a1f28" stroke-width="4"/>
-  <circle cx="256" cy="230" r="150" fill="none" stroke="#12161c" stroke-width="24"/>
-  <path d="M256 80 A150 150 0 1 1 118 328" fill="none" stroke="url(#g)" stroke-width="24" stroke-linecap="round"/>
-  <g transform="translate(172,160)">
-    <rect width="168" height="140" rx="14" fill="#0c0e12" stroke="#2a3140" stroke-width="4"/>
-    <rect x="10" y="10" width="37" height="40" fill="#f2f4f7"/><rect x="47" y="10" width="37" height="40" fill="#111418"/>
-    <rect x="84" y="10" width="37" height="40" fill="#f2f4f7"/><rect x="121" y="10" width="37" height="40" fill="#111418"/>
-    <rect x="10" y="50" width="37" height="40" fill="#111418"/><rect x="47" y="50" width="37" height="40" fill="#f2f4f7"/>
-    <rect x="84" y="50" width="37" height="40" fill="#111418"/><rect x="121" y="50" width="37" height="40" fill="#f2f4f7"/>
-    <rect x="10" y="90" width="37" height="40" fill="#f2f4f7"/><rect x="47" y="90" width="37" height="40" fill="#111418"/>
-    <rect x="84" y="90" width="37" height="40" fill="#f2f4f7"/><rect x="121" y="90" width="37" height="40" fill="#111418"/>
-  </g>
-  <circle cx="118" cy="328" r="15" fill="#C9C6BF"/>
-  <text x="256" y="450" text-anchor="middle" font-family="DejaVu Sans, Arial, sans-serif" font-size="52" font-weight="800" letter-spacing="8" fill="#C9C6BF">PITLANE</text>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512"><rect width="512" height="512" fill="#0a0a0a"/><circle cx="256" cy="256" r="236" fill="#1c1c1e"/><g transform="translate(77.4 263.5) scale(0.7059)"><path fill="#c9c6bf" d="M66 -37Q250 -111 434 -36.4Q250 -98.6 66 -37Z"/><g fill="#f2efe9">
+<path d="M0 0H46A16.5 16.5 0 0 1 62.5 16.5V26A16.5 16.5 0 0 1 46 42.5H19V32H46A6 6 0 0 0 52 26V16.5A6 6 0 0 0 46 10.5H10.5V66H0Z"/>
+<rect x="85" y="0" width="10.5" height="66"/>
+<path d="M117 0H179.5V10.5H153.5V66H143V10.5H117Z"/>
+<path d="M201 0H211.5V55.5H252.5V66H201Z"/>
+<path d="M270.5 66L303.5 0H309L342.5 66H330.5L306 19L281.5 66Z"/>
+<path d="M362 0H372.5L415 46V0H425.5V66H418L372.5 16.8V66H362Z"/>
+<path d="M451 0H505.5V10.5H461.5V28H502V38.5H461.5V55.5H505.5V66H451Z"/>
+</g></g></svg>

@@ -21,7 +21,7 @@ ok(/_jnMod = _jnMod \|\| await import\('\.\/journal\.js'\)/.test(app) && !/^impo
 // 1. запуск
 ok(!/id="intro"/.test(html) && !/intro-mark-svg|introChevronGlow/.test(html), 'старая заставка удалена из разметки');
 ok(!/[.#]intro[\w-]*\s*[{,]/.test(css) && !/\.intro-/.test(css), 'и её стили');
-ok(/<div id="launch" class="ln61"[^>]*aria-hidden="true">\s*<i class="ln61-p ln61-t"><b class="ln61-mark">PITLANE<\/b><\/i>\s*<i class="ln61-p ln61-b"><small class="ln61-sub">[^<]+<\/small><\/i>\s*<i class="ln61-line"><\/i>/.test(html), 'запуск: две панели (слово — на верхней, подпись — на нижней) и волосок');
+ok(/<div id="launch" class="ln61"[^>]*aria-hidden="true">\s*<i class="ln61-p ln61-t"><b class="ln61-mark"(?: role="img" aria-label="PITLANE"><svg[\s\S]*?<\/svg>|>PITLANE)<\/b><\/i>\s*<i class="ln61-p ln61-b"><small class="ln61-sub">[^<]+<\/small><\/i>\s*<i class="ln61-line"><\/i>/.test(html), 'запуск: две панели (слово — на верхней, подпись — на нижней) и волосок');
 { const kf = [...sys.matchAll(/@keyframes (ln61[\w-]*) \{([\s\S]*?)\}\s*\}/g)]; const props = kf.map((m) => m[2]).join(' ').match(/[\w-]+(?=\s*:)/g) || [];
   ok(kf.length >= 7 && props.every((p) => p === 'opacity' || p === 'transform'), 'запуск анимирует только transform/opacity (' + kf.length + ' keyframes)'); }
 ok(/@keyframes ln61-line \{ 0% \{ transform: scaleX\(0\)/.test(sys) && /\.ln61\.go \.ln61-t \{ animation: ln61-up 520ms[^;]*800ms both; \}/.test(sys) && /@keyframes ln61-up \{ from \{ transform: none; \} to \{ transform: translateY\(-100%\); \} \}/.test(sys) && /@keyframes ln61-dn [^\n]*translateY\(100%\)/.test(sys), 'волосок из центра, затем панели расходятся вверх/вниз');

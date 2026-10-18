@@ -6993,3 +6993,18 @@ html.v159:not(#_):not(#_) .gh74 .gp-chip.on .gh74-r::after { content: ''; positi
 html.v159:not(#_):not(#_) .gh74 .gp-chip:disabled { opacity: .45; }
 html.v159:not(#_):not(#_) .z61-rows .ds-row-v, html.v159:not(#_):not(#_) .t61-rows .ds-row-v { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; text-align: right; min-width: 0; }
 html.v159:not(#_):not(#_) .nw74 { white-space: nowrap; }
+
+/* ===== v175: логотип PITLANE (дуга + геометрический знак) — шапка и запуск ===== */
+html.v159:not(#_):not(#_) .brand-bar b.bb-logo { display: inline-flex; align-items: center; padding: 0 !important; letter-spacing: 0 !important; line-height: 0 !important; }
+html.v159:not(#_):not(#_) .brand-bar b.bb-logo::after { content: none !important; display: none !important; }
+html.v159:not(#_):not(#_) .brand-bar b.bb-logo svg { display: block; height: 32px; width: auto; }
+.ln61 .ln61-mark { font-size: 0 !important; letter-spacing: 0 !important; padding-left: 0 !important; line-height: 0 !important; display: flex; justify-content: center; }
+.ln61 .ln61-mark svg { display: block; width: min(76vw, 520px); height: auto; overflow: visible; }
+.ln61 .ln61-arc { transform-box: fill-box; transform-origin: 50% 50%; transform: scaleX(0); opacity: 0; }
+.ln61.go .ln61-mark { animation: none !important; opacity: 1 !important; }
+.ln61.go .ln61-arc { animation: ln75-arc 460ms cubic-bezier(.22,1,.36,1) 40ms both; }
+.ln61 .ln61-word { opacity: 0; }
+.ln61.go .ln61-word { animation: ln61-mark 420ms var(--ds-ease) 300ms both; }
+.ln61.skip .ln61-arc, .ln61.skip .ln61-word { animation: ln61-fade 160ms linear both; }
+@keyframes ln75-arc { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .ln61 .ln61-arc, .ln61 .ln61-word { opacity: 1; transform: none; animation: none !important; } }
