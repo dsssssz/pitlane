@@ -12989,7 +12989,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v179';
+const APP_VERSION = 'v180';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13165,7 +13165,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174', 'v175', 'v176', 'v177', 'v178', 'v179');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174', 'v175', 'v176', 'v177', 'v178', 'v179', 'v180');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -13328,22 +13328,44 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     const track = document.getElementById('bn52Track'); const dots = document.getElementById('bn52Dots');
     if (!track || !dots) return;
     const slides = [...track.querySelectorAll('.bn52-s')]; if (!slides.length) return;
+    /* v180: автопрокрутка — 5 с на баннер, плавный переход 300 мс (свой tween: на iOS smooth-scroll по scroll-snap срывался), по кругу.
+       Пауза: касание/свайп/колесо (+4 с после), вкладка скрыта, баннер вне экрана, не Главная. prefers-reduced-motion — без автопрокрутки.
+       Раньше шаг считался как ширина + 12 px, а зазор стал 8 px — индекс уезжал, и ротация «стояла». Теперь позиции берутся из offsetLeft. */
+    const BN_MS = 5000, BN_TW = 300, BN_RESUME = 4000;
     const reduce = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } })();
-    let cur = 0, paused = false, resumeT = 0;
-    const idx = () => Math.max(0, Math.min(slides.length - 1, Math.round(track.scrollLeft / Math.max(1, slides[0].offsetWidth + 12))));
-    const paint = (i) => { cur = i; dots.querySelectorAll('.bn52-dot').forEach((d, k) => { d.classList.toggle('on', k === i); d.setAttribute('aria-selected', k === i ? 'true' : 'false'); }); };
-    const go = (i) => { const n = (i + slides.length) % slides.length; track.scrollTo({ left: n * (slides[0].offsetWidth + 12), behavior: reduce ? 'auto' : 'smooth' }); paint(n); };
-    let raf = 0; track.addEventListener('scroll', () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => paint(idx())); }, { passive: true });
-    const hold = () => { paused = true; clearTimeout(resumeT); };
-    const release = () => { clearTimeout(resumeT); resumeT = setTimeout(() => { paused = false; }, 8000); };
+    const host = document.getElementById('bn52') || track.parentElement;
+    let cur = 0, touching = false, holdUntil = 0, onScreen = true, timer = 0, tw = 0, twOn = false;
+    const posOf = (i) => slides[i].offsetLeft - slides[0].offsetLeft;
+    const idx = () => { const x = track.scrollLeft; let best = 0, bd = Infinity; slides.forEach((_, i) => { const d = Math.abs(posOf(i) - x); if (d < bd) { bd = d; best = i; } }); return best; };
+    const paint = (i) => { const ch = cur !== i; cur = i; dots.querySelectorAll('.bn52-dot').forEach((d, k) => { d.classList.toggle('on', k === i); d.setAttribute('aria-selected', k === i ? 'true' : 'false'); }); if (ch) progress(); };
+    const homeActive = () => !!document.getElementById('view-home')?.classList.contains('active');
+    const canRun = () => !reduce && !touching && Date.now() >= holdUntil && !document.hidden && onScreen && homeActive() && slides.length > 1;
+    // тонкая платиновая полоска прогресса на активной точке — перезапуск анимации при каждом показе
+    function progress() {
+      const run = canRun(); host.classList.toggle('bn80-run', run);
+      const d = dots.querySelector('.bn52-dot.on'); if (!d) return;
+      d.classList.remove('bn80-p'); if (run) { void d.offsetWidth; d.classList.add('bn80-p'); }
+    }
+    const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+    const go = (i, anim = !reduce) => {
+      const n = (i + slides.length) % slides.length; const to = posOf(n); cancelAnimationFrame(tw);
+      if (!anim) { track.scrollLeft = to; paint(n); return; }
+      const from = track.scrollLeft, t0 = performance.now(); twOn = true; track.classList.add('bn80-tw'); paint(n);
+      const step = (now) => { const k = Math.min(1, (now - t0) / BN_TW); track.scrollLeft = from + (to - from) * ease(k); if (k < 1) tw = requestAnimationFrame(step); else { twOn = false; track.classList.remove('bn80-tw'); } };
+      tw = requestAnimationFrame(step);
+    };
+    const schedule = () => { clearTimeout(timer); progress(); if (!canRun()) { timer = setTimeout(schedule, Math.max(400, holdUntil - Date.now())); return; } timer = setTimeout(() => { if (canRun()) go(cur + 1); schedule(); }, BN_MS); };
+    let raf = 0; track.addEventListener('scroll', () => { if (twOn) return; cancelAnimationFrame(raf); raf = requestAnimationFrame(() => paint(idx())); }, { passive: true });
+    const hold = () => { touching = true; cancelAnimationFrame(tw); twOn = false; track.classList.remove('bn80-tw'); clearTimeout(timer); progress(); };
+    const release = () => { touching = false; holdUntil = Date.now() + BN_RESUME; schedule(); };
     track.addEventListener('touchstart', hold, { passive: true }); track.addEventListener('pointerdown', hold);
-    track.addEventListener('touchend', release, { passive: true }); track.addEventListener('pointerup', release); track.addEventListener('pointercancel', release);
-    dots.addEventListener('click', (e) => { const d = e.target.closest('.bn52-dot'); if (!d) return; hold(); go(+d.dataset.i); release(); });
-    setInterval(() => {
-      if (paused || document.hidden) return;
-      if (!document.getElementById('view-home')?.classList.contains('active')) return;
-      go(cur + 1 >= slides.length ? 0 : cur + 1);
-    }, 6000);
+    track.addEventListener('touchend', release, { passive: true }); track.addEventListener('touchcancel', release, { passive: true }); track.addEventListener('pointerup', release); track.addEventListener('pointercancel', release);
+    track.addEventListener('wheel', () => { holdUntil = Date.now() + BN_RESUME; schedule(); }, { passive: true });
+    dots.addEventListener('click', (e) => { const d = e.target.closest('.bn52-dot'); if (!d) return; holdUntil = Date.now() + BN_RESUME; go(+d.dataset.i); schedule(); });
+    document.addEventListener('visibilitychange', schedule);
+    try { new IntersectionObserver((es) => { onScreen = es.some((e) => e.isIntersecting && e.intersectionRatio >= 0.5); schedule(); }, { threshold: [0, 0.5, 1] }).observe(host); } catch (_) {}
+    { const hv = document.getElementById('view-home'); if (hv) new MutationObserver(schedule).observe(hv, { attributes: true, attributeFilter: ['class'] }); }
+    schedule();
     track.addEventListener('click', (e) => {
       const b = e.target.closest('[data-bn52]'); if (!b) return;
       bn63Open(b.dataset.bn52);
@@ -13357,7 +13379,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
       if (k === 'tops' || k === 'duels' || k === 'video' || k === 'suggest') r(k);
     }
     window.__bn63Open = bn63Open;
-    window.__bn52 = { go: (i) => go(i) }; // скриншоты/отладка
+    window.__bn52 = { go: (i) => go(i), cur: () => cur, state: () => ({ cur, run: canRun(), touching, onScreen, reduce, holdMs: Math.max(0, holdUntil - Date.now()) }) }; // скриншоты/отладка
   })();
   const renderH48 = () => {
     if (document.body.classList.contains('run-drive-on')) return; // v156: под спидометром страницу не трогаем

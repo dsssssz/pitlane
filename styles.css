@@ -7017,3 +7017,10 @@ html.v159:not(#_):not(#_) .rd-hero.rd53-pb .rd-badge { color: var(--accent-signa
 html.v159:not(#_):not(#_) .rd-hero.rd53-pb::after { background: var(--accent-signal); }
 html.v159:not(#_):not(#_) .tk58-sf { fill: var(--accent-signal); } html.v159:not(#_):not(#_) .sf-mark line { stroke: var(--accent-signal); } html.v159:not(#_):not(#_) .sat-sf-flag { border-color: var(--accent-signal); }
 html.v159:not(#_):not(#_) #p48DuelsBadge, html.v159:not(#_):not(#_) #plmDuelsBadge, html.v159:not(#_):not(#_) #sbBadgeDuels { background: var(--accent-signal) !important; color: #fff !important; border-color: transparent !important; }
+/* v180: автопрокрутка баннеров — во время своего 300 мс перехода snap выключен; на активной точке тонкая платиновая полоска прогресса (5 с) */
+html.v159:not(#_):not(#_) .bn52-track.bn80-tw { scroll-snap-type: none !important; scroll-behavior: auto !important; }
+html.v159:not(#_):not(#_) .bn52-dot.on { background: var(--ds-line-3) !important; overflow: hidden; }
+html.v159:not(#_):not(#_) .bn52-dot.on::before { content: ''; position: absolute; inset: 0; background: var(--ds-acc); transform-origin: 0 50%; transform: scaleX(1); }
+html.v159:not(#_):not(#_) .bn52.bn80-run .bn52-dot.on.bn80-p::before { animation: bn80p 5000ms linear both; }
+@keyframes bn80p { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { html.v159:not(#_):not(#_) .bn52-dot.on::before { animation: none !important; transform: none; } }
