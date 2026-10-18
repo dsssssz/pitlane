@@ -6939,3 +6939,15 @@ html.v159:not(#_):not(#_) .bn52-dot::after, html.v159:not(#_):not(#_) .g63-dot::
 html.v159:not(#_):not(#_) .pl-skel, html.v159:not(#_):not(#_) [aria-busy="true"].card { animation: v169-pulse 1.4s ease-in-out infinite; background: var(--ds-bg-2) !important; color: transparent !important; border-radius: var(--r2); }
 @keyframes v169-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { html.v159:not(#_):not(#_) .pl-skel { animation: none; } }
+
+/* ===== v171: сворачивающийся заголовок, параллакс машины, скелетоны в деле ===== */
+html.v159:not(#_):not(#_) .brand-bar > b { transition: opacity 220ms var(--ds-ease), transform 220ms var(--ds-ease); }
+html.v159:not(#_):not(#_) .brand-bar .bb-title { position: absolute; top: calc(var(--sat) + 8px); bottom: 8px; display: flex; align-items: center; max-width: calc(100% - 150px); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 600 17px/1.2 var(--font-ui); letter-spacing: -.01em; color: var(--ds-text); opacity: 0; transform: translateY(8px); pointer-events: none; transition: opacity 220ms var(--ds-ease), transform 320ms cubic-bezier(.34,1.56,.64,1); }
+html.v159:not(#_):not(#_) .brand-bar.bb-t-on > b { opacity: 0; transform: translateY(-8px); }
+html.v159:not(#_):not(#_) .brand-bar.bb-t-on .bb-title { opacity: 1; transform: none; }
+html.v159:not(#_):not(#_) #view-home #hwCar .hw-car-img { translate: 0 var(--px171, 0px); will-change: translate; }
+html.v159:not(#_):not(#_) #view-garage #podiumWrap { translate: 0 var(--px171, 0px); opacity: var(--po171, 1); }
+html.v159:not(#_):not(#_) .pl-skel-list { display: grid; gap: 8px; padding: 4px 0; }
+html.v159:not(#_):not(#_) .pl-skel-row { height: 64px; border-radius: var(--r2); background: var(--ds-bg-2) !important; }
+html.v159:not(#_):not(#_) .pl-skel-row:nth-child(2) { opacity: .8; } html.v159:not(#_):not(#_) .pl-skel-row:nth-child(3) { opacity: .6; } html.v159:not(#_):not(#_) .pl-skel-row:nth-child(4) { opacity: .45; }
+@media (prefers-reduced-motion: reduce) { html.v159:not(#_):not(#_) .brand-bar .bb-title, html.v159:not(#_):not(#_) .brand-bar > b { transition: none; } html.v159:not(#_):not(#_) #view-garage #podiumWrap { translate: none; opacity: 1; } }

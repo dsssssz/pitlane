@@ -9932,7 +9932,7 @@ async function openComments(postId) {
   if (msg) msg.textContent = '';
   padComposerState();
   const box = document.getElementById('padComList');
-  if (box) { box.replaceChildren(padEl('p', 'pad-loading', 'Загрузка…')); }
+  if (box) { box.replaceChildren(skel171(3, 'Загружаем комментарии')); }
   padShow('padCommentsSheet', true);
   { const b = document.getElementById('padComSend'); const t = document.getElementById('padComText'); if (b) b.disabled = !(t?.value || '').trim(); }
   const res = await api.listComments(postId);
@@ -10165,6 +10165,7 @@ async function openPilotProfile(pid) {
     sk.appendChild(padEl('span', 'pad-ava'));
     sk.appendChild(padEl('p', 'pad-loading', 'Загрузка профиля…'));
     body.appendChild(sk);
+    body.appendChild(skel171(4, 'Загрузка профиля'));
   }
   padShow('pilotSheet', true);
   if (body) body.scrollTop = 0;
@@ -12862,7 +12863,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v170';
+const APP_VERSION = 'v171';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13038,7 +13039,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -13865,13 +13866,20 @@ function setupHomeCarousel() {
     hcGoPos(_hcPos + 1);
   }, HC_INTERVAL);
 }
+/** v171: скелетон-заглушка вместо «Загружаем…» — n серых строк-карточек, пульсирует; aria-busy для скринридера */
+function skel171(n = 3, label = 'Загрузка') {
+  const w = document.createElement('div'); w.className = 'pl-skel-list'; w.setAttribute('aria-busy', 'true'); w.setAttribute('aria-label', label);
+  for (let i = 0; i < n; i++) { const r = document.createElement('div'); r.className = 'pl-skel pl-skel-row'; r.style.animationDelay = (i * 120) + 'ms'; w.appendChild(r); }
+  return w;
+}
+
 let _homePostsAt = 0;
 async function renderHomeTopPosts(force = false) {
   const box = document.getElementById('homeTopPosts');
   if (!box) return;
   if (!force && Date.now() - _homePostsAt < 60000 && box.childElementCount) return;
   _homePostsAt = Date.now();
-  if (!box.childElementCount) box.appendChild(padEl('p', 'home-empty', 'Загружаем…'));
+  if (!box.childElementCount) box.appendChild(skel171(3, 'Загружаем посты'));
   let rows = [];
   try { rows = await api.listPulseTopDay(); } catch (_) { rows = []; }
   box.replaceChildren();
@@ -16002,7 +16010,7 @@ async function renderDuelsView() {
   if (!list || _duelsLoading) return;
   _duelsLoading = true;
   try {
-    if (!list.childElementCount) list.appendChild(padEl('p', 'home-empty', 'Загружаем дуэли…'));
+    if (!list.childElementCount) list.appendChild(skel171(3, 'Загружаем дуэли'));
     let rows = [];
     if (isRemoteApi()) {
       try { rows = (await api.listMyDuels(duelPilotId())) || []; } catch (_) { rows = []; }
@@ -16832,4 +16840,44 @@ window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
   document.addEventListener('touchend', end, { passive: true });
   document.addEventListener('touchcancel', end, { passive: true });
   window.__sd169 = true;
+})();
+
+/* v171: большой заголовок экрана при прокрутке «сворачивается» в шапку (как в iOS), а фото машины — лёгкий параллакс. Только transform/opacity, один rAF на кадр. */
+(function collapse171() {
+  const bar = document.querySelector('.brand-bar'); if (!bar) return;
+  const logo = bar.querySelector(':scope > b');
+  const t = document.createElement('span'); t.className = 'bb-title'; t.setAttribute('aria-hidden', 'true');
+  if (logo) logo.after(t); else bar.appendChild(t);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let raf = 0, lastView = null, head = null;
+  const pick = () => {
+    const v = document.querySelector('.view.active'); if (!v) return null;
+    if (v !== lastView) { lastView = v; head = v.querySelector('h1, h2'); }
+    return head;
+  };
+  const tick = () => {
+    raf = 0;
+    const h = pick(); const bb = bar.getBoundingClientRect().bottom;
+    let on = false;
+    if (h && h.offsetParent !== null && (h.textContent || '').trim() && (h.textContent || '').trim() !== '—') {
+      const r = h.getBoundingClientRect(); on = r.bottom < bb + 2;
+      if (on && t.textContent !== h.textContent.trim()) t.textContent = h.textContent.trim();
+      if (on && logo) t.style.left = logo.offsetLeft + 'px';
+    }
+    bar.classList.toggle('bb-t-on', on);
+    if (!reduce) {
+      const y = window.scrollY || 0;
+      const img = document.getElementById('hwCarImg');
+      if (img && lastView && lastView.id === 'view-home') img.style.setProperty('--px171', Math.min(60, y * 0.18).toFixed(1) + 'px');
+      const pw = document.getElementById('podiumWrap');
+      if (pw && lastView && lastView.id === 'view-garage') { const k = Math.min(1, y / 420); pw.style.setProperty('--px171', (y * 0.32).toFixed(1) + 'px'); pw.style.setProperty('--po171', (1 - k * 0.55).toFixed(3)); }
+    }
+  };
+  const q = () => { if (!raf) raf = requestAnimationFrame(tick); };
+  addEventListener('scroll', q, { passive: true });
+  addEventListener('resize', q, { passive: true });
+  const mo = new MutationObserver(() => { lastView = null; q(); });
+  document.querySelectorAll('.view').forEach((v) => mo.observe(v, { attributes: true, attributeFilter: ['class'] }));
+  q();
+  window.__c171 = { tick }; window.__skel171 = skel171;
 })();
