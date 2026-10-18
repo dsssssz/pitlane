@@ -27,10 +27,10 @@ ok(/<div id="launch" class="ln61"[^>]*aria-hidden="true">\s*<i class="ln61-p ln6
 ok(/@keyframes ln61-line \{ 0% \{ transform: scaleX\(0\)/.test(sys) && /\.ln61\.go \.ln61-t \{ animation: ln61-up 520ms[^;]*540ms both; \}/.test(sys) && /@keyframes ln61-up \{ from \{ transform: none; \} to \{ transform: translateY\(-100%\); \} \}/.test(sys) && /@keyframes ln61-dn [^\n]*translateY\(100%\)/.test(sys), 'волосок из центра, затем панели расходятся вверх/вниз');
 ok(/const LN61 = \{ T: 1100, UI: 560 \}/.test(app) && 540 + 520 <= 1100, 'весь запуск ≤ 1,1 с (< 1,2 с)');
 ok(/html\.ln61-ui \.brand-bar > \* \{ animation: ln61-hdr/.test(sys) && /@keyframes ln61-hdr \{ from \{ opacity: 0; transform: translateY\(32px\)/.test(sys) && /@keyframes ln61-nav \{ from \{ opacity: 0; transform: translateY\(-32px\)/.test(sys) && /html\.ln61-ui \.view\.active > \* \{ animation: ln61-in/.test(sys), 'шапка, панель и контент разъезжаются по местам от центральной линии');
-ok(/const KEY = 'pitlane-intro-seen'/.test(app) && /sessionStorage\.getItem\(KEY\) === '1'/.test(app) && /sessionStorage\.setItem\(KEY, '1'\)/.test(app), 'раз за сессию (не на каждой вкладке)');
+ok(/const KEY = 'pitlane-intro-seen'/.test(app) && /sessionStorage\.getItem\(KEY\)/.test(app) && /sessionStorage\.setItem\(KEY, launchId\)/.test(app), 'раз за запуск (не на каждой вкладке; v162 — ключ запуска)');
 ok(/el\.addEventListener\('pointerdown', skip, \{ once: true \}\)/.test(app) && /\.ln61\.skip [^{]*\{ animation: ln61-fade 160ms/.test(sys), 'тап — пропустить (160 мс)');
-ok(/if \(seen \|\| deepSkip \|\| motionReduced\(\)\) \{ finish\(\); return; \}/.test(app) && /prefers-reduced-motion: reduce\) \{ \.ln61 \{ display: none !important; \}/.test(sys) && /html\.q-low \.ln61 \{ display: none !important; \}/.test(sys), 'reduced-motion и слабое железо — без анимации');
-ok(/animation: ln61-gone 1ms linear 6s forwards/.test(sys), 'страховка: без скрипта экран запуска уходит сам');
+ok(/if \(seen \|\| deepSkip \|\| reduceMotion\) \{ finish\(\); return; \}/.test(app) && /prefers-reduced-motion: reduce\) \{ \.ln61 \{ display: none !important; \}/.test(sys), 'reduced-motion — без анимации (v162: q-low больше не отключает)');
+ok(/animation: ln61-gone 1ms linear (6|20)s forwards/.test(sys), 'страховка: без скрипта экран запуска уходит сам');
 ok(/introBlocking3d = false;/.test(app.slice(app.indexOf('function setupLaunch'), app.indexOf('function setupLaunch') + 1500)), '3D ждёт конца запуска, как раньше');
 
 // 2. старые входы

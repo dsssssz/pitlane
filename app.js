@@ -2539,6 +2539,20 @@ const LN61 = { T: 1100, UI: 560 };
   const root = document.documentElement;
   if (!el) { introBlocking3d = false; return; }
   const KEY = 'pitlane-intro-seen';
+  /* v162: «запуск» = новый запуск Mini App, а не «вкладка браузера». Telegram iOS/Android держит sessionStorage WebView между открытиями,
+     поэтому флаг одной сессии навсегда глушил анимацию. Ключ запуска — подписанные launch-данные Telegram (auth_date + hash меняются
+     при каждом открытии); в браузере — сессия вкладки, как раньше. */
+  const launchId = (() => {
+    try {
+      if (isTMA && tmaInitData) { const q = new URLSearchParams(tmaInitData); return 'tg:' + (q.get('auth_date') || '') + ':' + String(q.get('hash') || q.get('signature') || q.get('query_id') || '').slice(0, 16); }
+      if (isTMA) { // запуск с клавиатурной кнопки — без initData: новый запуск = новая навигация не со своих страниц
+        const nav = performance.getEntriesByType?.('navigation')?.[0];
+        const own = (() => { try { return !!document.referrer && new URL(document.referrer).origin === location.origin; } catch (_) { return false; } })();
+        return (nav && nav.type !== 'navigate') || own ? 'tg:same' : 'tg:nav:' + Math.round(performance.timeOrigin || Date.now());
+      }
+    } catch (_) {}
+    return '1';
+  })();
   let finished = false;
   let timers = [];
   const finish = () => {
@@ -2547,7 +2561,7 @@ const LN61 = { T: 1100, UI: 560 };
     timers.forEach(clearTimeout); timers = [];
     el.remove();
     root.classList.remove('ln61-ui', 'ln61-run');
-    try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
+    try { if (launchId !== 'tg:same') sessionStorage.setItem(KEY, launchId); } catch (_) {}
     introBlocking3d = false;
     try { podiumInvalidate(1000, true); } catch (_) {}
     // v119: подиум и модели — только когда открыли Гараж
@@ -2558,10 +2572,15 @@ const LN61 = { T: 1100, UI: 560 };
     setTimeout(() => { try { tipsOnView((document.querySelector('.view.active')?.id || 'view-home').slice(5)); } catch (_) {} }, 700);
   };
   let seen = false;
-  try { seen = sessionStorage.getItem(KEY) === '1'; } catch (_) {}
+  try { const v = sessionStorage.getItem(KEY); seen = launchId === 'tg:same' ? !!v : v === launchId; } catch (_) {}
+  // пропуск — только явная ссылка пользователя (?view=… / startapp=track_… / skipIntro=1), не служебные параметры запуска Telegram
   let deepSkip = false;
   try { deepSkip = !!getDeepLinkView().skipIntro; } catch (_) {}
-  if (seen || deepSkip || motionReduced()) { finish(); return; }
+  // v162: только системное «Уменьшить движение»; эвристика слабого 3D (q-low) запуск не отключает — iPhone с режимом энергосбережения попадал в low
+  let reduceMotion = false;
+  try { reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) {}
+  window.__ln61 = { launchId, seen, deepSkip, reduceMotion }; // диагностика
+  if (seen || deepSkip || reduceMotion) { finish(); return; }
   // тап — сразу к интерфейсу: панели убираются за 160 мс, без второй волны
   const skip = () => {
     if (finished || el.classList.contains('skip')) return;
@@ -12546,7 +12565,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v161';
+const APP_VERSION = 'v162';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12722,7 +12741,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {

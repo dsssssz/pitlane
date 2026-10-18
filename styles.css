@@ -6538,7 +6538,7 @@ html.v159:not(#_):not(#_) .ds-ghost { transition: none !important; }
 
 /* ===== v161 — запуск, Журнал, сессия, строки параметров, шторка GPS =====
    Запуск: только transform/opacity, 1,1 с, раз за сессию, тап — пропустить, reduced-motion/q-low — без анимации. */
-.ln61 { position: fixed; inset: 0; z-index: 2147483000; overflow: hidden; pointer-events: auto; contain: strict; animation: ln61-gone 1ms linear 6s forwards; /* страховка: если скрипт не загрузился */ }
+.ln61 { position: fixed; inset: 0; z-index: 2147483000; overflow: hidden; pointer-events: auto; contain: strict; animation: ln61-gone 1ms linear 20s forwards; /* страховка: если скрипт не загрузился (v162: 20 с — холодный запуск в Telegram по медленной сети дольше 6 с) */ }
 .ln61-p { position: absolute; left: 0; right: 0; height: 50.5%; background: #000; will-change: transform; }
 .ln61-t { top: 0; } .ln61-b { bottom: 0; }
 .ln61-line { position: absolute; left: 0; right: 0; top: 50%; height: 1px; margin-top: -.5px; background: rgba(255,255,255,.56); transform: scaleX(0); will-change: transform, opacity; }
@@ -6569,7 +6569,6 @@ html.ln61-ui .view.active > :nth-child(n+5) { animation-delay: 160ms; }
 @keyframes ln61-nav { from { opacity: 0; transform: translateY(-32px); } to { opacity: 1; transform: none; } }
 @keyframes ln61-in { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .ln61 { display: none !important; } html.ln61-run .brand-bar > *, html.ln61-run .nav3 > *, html.ln61-run .view.active > * { opacity: 1 !important; animation: none !important; } }
-html.q-low .ln61 { display: none !important; }
 
 /* старые экраны недоступны: спидометр v84 и «Парк» — маршрут ведёт в Замер / Гараж */
 html.v159:not(#_):not(#_) #view-run, html.v159:not(#_):not(#_) #view-cars { display: none !important; }
