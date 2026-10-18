@@ -2516,6 +2516,7 @@ try {
     driveInState: () => (driveIn ? { t0: driveIn.t0, t: driveIn.lastT ?? 0, seekT: driveIn.seekT ?? null, controlsEnabled: controls.enabled } : null),
     // synchronous frame for offline recording: pose at t ms, render, return PNG data URL (null when no drive-in)
     // v110: podium QA hooks (harness only): current model id, load model, orbit camera relative to the car (az 0 = front, 180 = rear)
+    lite: () => (glbRoot && glbRoot.userData && glbRoot.userData.__lite175) || null,
     podiumModel: () => (glbRoot && glbRoot.userData && glbRoot.userData.__plateModel) || null,
     loadModel: (id) => { loadPodiumModel(id, 0); return true; },
     // v175: perf-QA — счётчики рендера и средний кадр (N принудительных рендеров), дамп мешей
@@ -7520,6 +7521,73 @@ function clearGlb() {
   moving.trunk = null;
 }
 
+/* v175: perf — салон скрыт, стёкла непрозрачные тонированные. Салон за тёмным стеклом не виден, а это ~20–35% треугольников
+   и самые дорогие прозрачные (BLEND/transmission) проходы. Только в рантайме, .glb не трогаем. Выключить: ?lite=0 или localStorage pitlane-lite-off=1. */
+const LITE_INT_RE = /interior|seat ?belt|seatbelt|seats?\b|_seats|steer|steering|dash|torpeda|cabin|salon|potolok|baked_dveri|headliner|pedal|\bint_|_int\b|mm_int|mm_sw\b|mm_mat0[0-5]|sparkint|car_interior|gauge|cockpit/i;
+const LITE_LIGHT_RE = /light|ligts|lamp|lens|indicator|drl|tail|head|bumper|emiss|brake|signal|fog|reflector/i;
+const LITE_GLASS_RE = /glass|window|windscreen|windshield|panarama|panorama|glasses/i;
+let _liteGlassMat = null;
+function liteGlassMat() {
+  if (_liteGlassMat) return _liteGlassMat;
+  _liteGlassMat = new THREE.MeshPhysicalMaterial({ name: 'pl75_dark_glass', color: 0x0b0c0e, metalness: 0, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.04, specularIntensity: 1, envMapIntensity: 1.7, transparent: false, opacity: 1, transmission: 0, depthWrite: true, side: THREE.DoubleSide });
+  _liteGlassMat.userData.__darkGlass = true;
+  return _liteGlassMat;
+}
+function liteOff175() {
+  try { if (/[?&]lite=0\b/.test(location.search)) return true; return localStorage.getItem('pitlane-lite-off') === '1'; } catch (_) { return false; }
+}
+function liteModel175(root) {
+  const rep = { hid: 0, hidTri: 0, glass: 0, keptLens: 0, off: false };
+  if (!root) return rep;
+  if (liteOff175()) { rep.off = true; root.userData.__lite175 = rep; return rep; }
+  root.updateMatrixWorld(true);
+  const all = new THREE.Box3().setFromObject(root); const H = Math.max(1e-6, all.max.y - all.min.y);
+  const triOf = (g) => (g ? (g.index ? g.index.count : (g.attributes.position?.count || 0)) / 3 : 0);
+  const bb = new THREE.Box3(); const c = new THREE.Vector3();
+  const metas = [];
+  root.traverse((o) => {
+    if (!o.isMesh || !o.geometry) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    const names = (o.name || '') + ' ' + (o.parent?.name || '') + ' ' + mats.map((m) => m?.name || '').join(' ');
+    bb.setFromObject(o); bb.getCenter(c);
+    metas.push({ o, mats, names, cy: (c.y - all.min.y) / H, box: bb.clone() });
+  });
+  // 1) стёкла → тёмное непрозрачное «тонированное» стекло; фары/фонари не трогаем
+  for (const m of metas) {
+    let changed = false;
+    const next = m.mats.map((mat) => {
+      if (!mat || !isGlassMat(mat)) return mat;
+      const nm = (mat.name || '') + ' ' + m.names;
+      const col = mat.color || { r: 0, g: 0, b: 0 };
+      const tinted = col.r > 0.12 && col.r > col.g * 1.8; // красные/оранжевые линзы
+      const isWin = LITE_GLASS_RE.test(nm) && !LITE_LIGHT_RE.test((m.o.name || '') + ' ' + (m.o.parent?.name || '')) && !/red|orange|amber/i.test(mat.name || '') && !tinted;
+      if (!isWin || m.cy < 0.5) { if (LITE_GLASS_RE.test(nm)) rep.keptLens++; return mat; }
+      changed = true; return liteGlassMat();
+    });
+    if (changed) {
+      m.o.material = Array.isArray(m.o.material) ? next : next[0];
+      m.o.castShadow = true; m.o.userData.__lite175 = 'glass'; rep.glass++;
+    }
+  }
+  // 2) салон — по именам материалов/мешей (проверка «внутри объёма стёкол» отброшена: объём стёкол захватывает капот, решётки и диски)
+  for (const m of metas) {
+    if (m.o.userData.__lite175) continue;
+    const mats = Array.isArray(m.o.material) ? m.o.material : [m.o.material];
+    const paintish = mats.some((mat) => /paint|carpaint/i.test(mat?.name || '') || mat?.userData?.__isPaintClone);
+    const matNames = mats.map((mat) => mat?.name || '').join(' '); const meshName = (m.o.name || '') + ' ' + (m.o.parent?.name || '');
+    const byName = LITE_INT_RE.test(matNames) || (LITE_INT_RE.test(meshName) && !/door|body|kit|paint|wheel|rim|tyre|tire/i.test(meshName));
+    if (byName && !paintish) { m.o.visible = false; m.o.userData.__lite175 = 'int'; rep.hid++; rep.hidTri += triOf(m.o.geometry); }
+  }
+  // 3) внутренний слой стекла за тёмным внешним не виден — убрать
+  for (const m of metas) {
+    if (m.o.userData.__lite175 !== 'glass') continue;
+    if (/windowinside|glass_iner|glass_in_|_inner/i.test((m.o.name || '') + ' ' + (m.o.parent?.name || ''))) { m.o.visible = false; m.o.userData.__lite175 = 'glass-in'; rep.hidTri += triOf(m.o.geometry); }
+  }
+  rep.hidTri = Math.round(rep.hidTri);
+  root.userData.__lite175 = rep;
+  return rep;
+}
+
 function fitGlb(obj, opts = {}) {
   try { finishDriveIn(); } catch (_) {}
   const prevRoot = glbRoot;
@@ -7606,6 +7674,7 @@ function fitGlb(obj, opts = {}) {
   controls.maxDistance = 16;
   controls.update();
   onResize();
+  try { liteModel175(glbRoot); } catch (err) { console.warn('lite175', err); } // v175: салон скрыт, стёкла тёмные непрозрачные
   try { degreenModel(glbRoot); } catch (err) { console.warn('degreen', err); } // v167: зелёная ливрея (GT3 RS) → графит
   try { applyStoredBodyPaint(); } catch (err) { console.warn('paint after fitGlb', err); }
   podiumInvalidate(1200, true);
@@ -8492,6 +8561,7 @@ function setStoredPaintFinish(finish, modelId) {
 
 function isGlassMat(mat) {
   if (!mat) return true;
+  if (mat.userData && mat.userData.__darkGlass) return true; // v175: тёмное непрозрачное стекло — всё ещё стекло для покраски
   const transmission = Number(mat.transmission || 0);
   const opacity = mat.opacity == null ? 1 : Number(mat.opacity);
   return !!(mat.transparent || mat.alphaMap || transmission > 0.01 || opacity < 0.999);
@@ -12912,7 +12982,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v175';
+const APP_VERSION = 'v176';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13088,7 +13158,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174', 'v175');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174', 'v175', 'v176');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
