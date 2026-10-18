@@ -93,6 +93,7 @@ import {
 const HAP_KEYS = new Set(['h48Start', 'btnArm', 'runDriveStop', 'btnLapStart', 'btnLapArmedStart', 'btnLapStop', 'lapDriveEnd']);
 let _hapKey = false;
 function hap(ms = 12) {
+  try { if (localStorage.getItem('pitlane-hap-off') === '1') return; } catch (_) {} // v166
   if (isTMA && !_hapKey) return;
   if (isTMA) {
     // Telegram HapticFeedback (navigator.vibrate is unavailable in iOS WebViews)
@@ -9489,7 +9490,7 @@ const I18N = {
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Трек','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Начать сессию','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Написать в Paddock…','pad.empty':'Пока тихо — напиши первым.',
-    'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
+    'acc.title':'Профиль','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
     'nav.home':'Home','nav.duels':'Duels','nav.ride':'Drive','nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock','nav.park':'Park',
@@ -9498,7 +9499,7 @@ const I18N = {
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
     'lap.title':'Track','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start session','lap.finish':'Finish lap',
     'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'Write to Paddock…','pad.empty':'Quiet for now. Sign in and write the first post.',
-    'acc.title':'Account','acc.login':'Sign in','acc.hint':'Telegram sign-in is needed for leaderboards, duels, teams and posts. Runs, garage and history work without it, on this device.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
+    'acc.title':'Profile','acc.login':'Sign in','acc.hint':'Telegram sign-in is needed for leaderboards, duels, teams and posts. Runs, garage and history work without it, on this device.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
   },
   zh: {
     'nav.home':'首页','nav.duels':'对决','nav.ride':'驾驶','nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单','nav.paddock':'Paddock',
@@ -12804,7 +12805,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v165';
+const APP_VERSION = 'v166';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12980,7 +12981,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -13194,7 +13195,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
   });
   // v154: общий маршрутизатор разделов (Профиль + меню ☰)
   function route48(k) {
-    if (k === 'settings') { goToView('account'); scrollTo('langSelect'); return; }
+    if (k === 'settings') { goToView('settings'); window.scrollTo(0, 0); return; } // v166: отдельный экран Настроек
     if (k === 'feedback') { openFeedbackSheet(); return; }
     if (k === 'tops') goToView('tops');
     else if (k === 'duels' || k === 'pulse') { if (sheetNavOn()) openTgSheet(k); else goToView(k); }
@@ -13209,7 +13210,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
   }
   window.__route48 = route48;
   // бейдж входящих дуэлей — из нижней панели v139
-  const badge = () => { const src = document.getElementById('sbBadgeDuels'); const dst = document.getElementById('p48DuelsBadge'); if (src && dst) { dst.hidden = src.hidden; dst.textContent = src.textContent; } };
+  const badge = () => { const src = document.getElementById('sbBadgeDuels'); const dst = document.getElementById('p48DuelsBadge'); if (src && dst) { dst.hidden = src.hidden; dst.textContent = src.textContent; } const m = document.getElementById('plmDuelsBadge'); if (src && m) { m.hidden = src.hidden; m.textContent = src.textContent; } };
   setInterval(badge, 3000); badge();
 })();
 
@@ -16500,7 +16501,7 @@ function lh60Bar(delta) {
   LH60.bar.set(f);
 }
 /* v160: тактильный отклик на ключевых моментах круга: сектор (лёгкий), круг (успех — если лучший). */
-function hap60(kind) { try { if (isTMA) { tmaHaptic(kind); return; } navigator.vibrate?.(kind === 'light' || kind === 'select' ? 8 : 18); } catch (_) {} }
+function hap60(kind) { try { if (localStorage.getItem('pitlane-hap-off') === '1') return; if (isTMA) { tmaHaptic(kind); return; } navigator.vibrate?.(kind === 'light' || kind === 'select' ? 8 : 18); } catch (_) {} }
 /* v160: кинематографичный вход в сессию — шапка, дельта, приборы, секторы, карта прорисовывается, кнопки; ~1.2 с, только opacity/transform. */
 function lh60Enter() {
   const el = document.getElementById('lh58'); if (!el || motionReduced()) return;
@@ -16702,3 +16703,35 @@ function rows61() {
 }
 setTimeout(rows61, 700); setInterval(() => { if (!document.hidden) rows61(); }, 3000);
 window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
+
+/* v166: экран «Настройки» — строки-переходы, вибрация, версия, кто вошёл */
+(() => {
+  const v = document.getElementById('view-settings'); if (!v) return;
+  document.addEventListener('click', (e) => {
+    const r = e.target?.closest?.('[data-st]'); if (!r) return;
+    const k = r.dataset.st;
+    if (k === 'profile') goToView('account');
+    else if (k === 'garage') goToView('garage');
+    else if (k === 'gps') window.__gps61?.open?.();
+    else if (k === 'settings') window.__route48?.('settings');
+    if (k !== 'gps') window.scrollTo(0, 0);
+  });
+  const ht = document.getElementById('hapToggle');
+  if (ht) {
+    try { ht.checked = localStorage.getItem('pitlane-hap-off') !== '1'; } catch (_) {}
+    ht.addEventListener('change', () => { try { if (ht.checked) localStorage.removeItem('pitlane-hap-off'); else localStorage.setItem('pitlane-hap-off', '1'); } catch (_) {} if (ht.checked) hap(10); });
+  }
+  const ver = document.getElementById('st66Ver'); if (ver) ver.textContent = 'PITLANE ' + APP_VERSION;
+  const who = () => {
+    const nick = (document.getElementById('accNick')?.value || '').trim(); const ph = (document.getElementById('accPhone')?.textContent || '').trim();
+    const t = nick || (ph && ph !== 'не вошли' ? ph : 'не вошли'); const el = document.getElementById('st66Who'); if (el && el.textContent !== t) el.textContent = t;
+  };
+  // пустые группы (уведомления до входа, «Быстрый Замер» вне iPhone-браузера) не показываем
+  const groups = () => v.querySelectorAll('.st66-g').forEach((g) => { const any = [...g.querySelectorAll('.st66-list > *')].some((c) => !c.hidden && !c.classList.contains('hidden') && getComputedStyle(c).display !== 'none'); g.hidden = !any; });
+  const dedupe = () => { const a = document.getElementById('accPhone'), b = document.getElementById('accPhoneStatus'); if (a && b) b.hidden = !!a.textContent.trim() && a.textContent.trim() === b.textContent.trim(); };
+  const pv = document.getElementById('view-account');
+  if (pv) new MutationObserver(() => { if (pv.classList.contains('active')) dedupe(); }).observe(pv, { attributes: true, attributeFilter: ['class'] });
+  new MutationObserver(() => { if (v.classList.contains('active')) { who(); groups(); } }).observe(v, { attributes: true, attributeFilter: ['class'] });
+  setTimeout(() => { try { groups(); dedupe(); } catch (_) {} }, 1500);
+  who();
+})();

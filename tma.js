@@ -203,6 +203,7 @@ export function setClosingGuard(on) {
 
 /* ---------- haptics ---------- */
 export function tmaHaptic(kind = 'light') {
+  try { if (localStorage.getItem('pitlane-hap-off') === '1') return true; } catch (_) {} // v166: Настройки → «Вибрация» выкл.
   if (!isTMA || !tmaAtLeast('6.1')) return false;
   const H = WebApp.HapticFeedback;
   if (!H) return false;

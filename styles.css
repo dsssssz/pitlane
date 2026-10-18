@@ -1797,7 +1797,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   opacity: .9;
 }
 .method-link:hover { text-decoration: underline; opacity: 1; }
-.acc-method { margin: 14px 0 8px; }
 .tops-weather,
 .tops-weather {
   display: flex;
@@ -3160,9 +3159,8 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
 .auth-sms-box { margin-top: 8px; }
 .auth-none { color: #c8c8c8; border-left: 2px solid #696969; padding-left: 8px; }
 .auth-legal { margin: 12px 0 0; color: var(--ds-sub); line-height: 1.4; }
-.auth-legal a, .acc-legal a { color: var(--c-acc); text-decoration: none; }
-.auth-legal a:hover, .acc-legal a:hover { text-decoration: underline; }
-.acc-legal { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 18px 0 8px; font: 500 12px/1.3 var(--font-ui); opacity: .85; }
+.auth-legal a { color: var(--c-acc); text-decoration: none; }
+.auth-legal a:hover { text-decoration: underline; }
 .btn-danger {
   appearance: none; width: 100%; min-height: 44px; margin-top: 10px;
   border-radius: 8px; border: 1px solid rgba(212,154,154,0.45);
@@ -3184,8 +3182,7 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
 
 /* ---------- Telegram Mini App (v77) ---------- */
 /* Telegram ToS: digital goods only via Stars — no Pro / prices / purchase UI inside the Mini App. */
-html.tma #btnProSoon, html.tma .btn-pro-soon, html.tma [data-buy], html.tma .paywall-card,
-html.tma #accTrialLeft, html.tma .acc-legal a[href$="offer.html"], html.tma .tma-hide, html.tma #iosHomeCard { display: none !important; }
+html.tma #btnProSoon, html.tma .btn-pro-soon, html.tma [data-buy], html.tma .paywall-card, html.tma #accTrialLeft, html.tma .tma-hide, html.tma #iosHomeCard { display: none !important; }
 html.tma body { overscroll-behavior: none; }
 .geo-denied { position: fixed; left: 12px; right: 12px; bottom: calc(92px + var(--sab)); z-index: 120; padding: 14px 14px 12px; box-shadow: none; }
 .geo-denied.hidden { display: none; }
@@ -3273,7 +3270,6 @@ html.tma body { overscroll-behavior: none; }
 .cp-card:active { transform: scale(0.97); }
 
 /* v80: feedback sheet + toast */
-.acc-feedback-btn { margin: 14px 0 6px; }
 .fb-types .seg-btn { font-size: 12px !important; letter-spacing: .06em; }
 .crew-field textarea {
   appearance: none;
@@ -4135,13 +4131,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px s
 #app .sfx-field { color: var(--h-text); font: 500 14px/1.3 var(--font-ui); padding: 14px 16px; border: 1px solid var(--h-line); border-radius: 8px; background: var(--h-card); justify-content: flex-start; text-align: left; gap: 12px; }
 #app .sfx-field input { accent-color: var(--h-acc); margin: 0; flex: 0 0 18px; width: 18px; height: 18px; min-height: 0; padding: 0; }
 #app .sfx-field span { flex: 1 1 auto; text-align: left; }
-#app .acc-legal { gap: 0; display: grid; border: 1px solid var(--h-line); border-radius: 8px; background: var(--h-card); padding: 0 16px; opacity: 1 !important; }
-#app .acc-legal a { display: flex; align-items: center; justify-content: space-between; min-height: 48px; border-bottom: 1px solid var(--h-line); color: var(--h-text); font: 500 14px/1.2 var(--font-ui); text-decoration: none; }
-#app .acc-legal a:last-child { border-bottom: 0; }
-#app .acc-legal a::after { content: ''; width: 16px; height: 16px; background: #5a5a5a; transform: rotate(-90deg); -webkit-mask: var(--chev-ico) center / contain no-repeat; mask: var(--chev-ico) center / contain no-repeat; }
-#app .acc-method a { color: var(--h-sub) !important; }
 #app .auth-legal a { color: var(--h-text); }
-#app .acc-feedback-btn { margin-top: 10px; }
 #app #accPhoneStatus, #app #accPlan, #app #accTrialLeft { color: var(--h-mute); font-size: 12px; }
 .auth-tg-btn { display: inline-flex !important; align-items: center; justify-content: center; gap: 10px; }
 
@@ -4615,7 +4605,6 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 .room-duel-post { width: 100%; margin-top: 10px; }
 
 /* ═══════════ v101: coach-marks — spotlight + пузырь со стрелкой (стиль v86–v89) ═══════════ */
-.acc-tips-btn { display: block; margin: 8px 0 6px; }
 .cm-root { position: fixed; inset: 0; z-index: 13500; pointer-events: none; opacity: 0; transition: opacity .24s cubic-bezier(.2,.7,.2,1); }
 .cm-root.on { opacity: 1; }
 .cm-block { position: fixed; background: transparent; -webkit-tap-highlight-color: transparent; }
@@ -6105,7 +6094,7 @@ html.v154 #app #view-lap #btnAutodromesLap { display: inline-flex !important; al
 /* v154 аудит: контраст приглушённых подписей (≥ 4.5:1 на #0b0c0e / #141518) */
 html.v154 .nav3-btn { color: #8a8d93; }
 html.v154 .nav3-btn.on { color: rgb(158,205,176); }
-html.v154 .hw-k, html.v154 .hw-k-sub, html.v154 .p48-row small, html.v154 #topsBoardSub, html.v154 #view-lap .lap-track-card h3, html.v154 #view-lap #lapGpsMsg, html.v154 #view-lap .lap-best, html.v154 .g53-sub, html.v154 .mycar-chip > span, html.v154 .pad-meta em, html.v154 .pad-meta time, html.v154 .acc-method .method-link { color: #9a9da3 !important; }
+html.v154 .hw-k, html.v154 .hw-k-sub, html.v154 .p48-row small, html.v154 #topsBoardSub, html.v154 #view-lap .lap-track-card h3, html.v154 #view-lap #lapGpsMsg, html.v154 #view-lap .lap-best, html.v154 .g53-sub, html.v154 .mycar-chip > span, html.v154 .pad-meta em, html.v154 .pad-meta time { color: #9a9da3 !important; }
 html.v154 .brand-bar b { color: #a3a6ab; }
 /* v154 аудит: тихие акценты вместо жёлтого/оранжевого */
 html.v154 .cult-tag.rough-sf { color: #a3a6ab; border-color: var(--ds-line-2); }
@@ -6120,7 +6109,7 @@ html.v154 .pit-info-btn::after { content: ''; position: absolute; inset: -9px; }
 html.v154 .colors button, html.v154 .paint-finish button { min-width: 44px; min-height: 44px; }
 html.v154 .bn52-dot { position: relative; overflow: visible; }
 html.v154 .bn52-dot::after { content: ''; position: absolute; left: -7px; right: -7px; top: -19px; bottom: -19px; }
-html.v154 .acc-legal a, html.v154 .auth-legal a { display: inline-block; padding: 12px 0; }
+html.v154 .auth-legal a { display: inline-block; padding: 12px 0; }
 /* v154 аудит: шторки и видео — над нижней панелью (раньше панель перекрывала кнопки внизу шторок) */
 html.v154 body:has(.race-sheet:not(.hidden)) .nav3, html.v154 body:has(.crew-sheet:not(.hidden)) .nav3, html.v154 body:has(#vtSheet) .nav3, html.v154 body:has(#safetySheet:not(.hidden)) .nav3, html.v154 body:has(.pl-menu:not(.hidden)) .nav3 { display: none !important; }
 html.v154 .vt-sheet { z-index: 12060; }
@@ -6863,3 +6852,49 @@ html.v159:not(#_):not(#_) .gfx64-o.on i { border-color: var(--ds-acc); border-wi
 html.v159:not(#_):not(#_) .gfx64-o:active { opacity: .7; }
 html.v159:not(#_):not(#_) .gfx64-note { margin: var(--s2) 0 0; font: 400 12px/16px var(--font-ui); color: var(--ds-mute); }
 html.v159:not(#_):not(#_) #view-garage .g64-gfx { margin-top: var(--s1); }
+
+/* ===== v166: Настройки — сгруппированные списки (iOS Settings), одна система строк ===== */
+html.v159:not(#_):not(#_) #view-settings.active { display: block; padding: var(--s3) var(--s3) calc(var(--s8) + 24px) !important; }
+html.v159:not(#_):not(#_) .st66-title { margin: var(--s2) 0 var(--s4) !important; font: 650 34px/40px var(--font-ui) !important; letter-spacing: -.02em !important; color: var(--ds-text) !important; text-align: left !important; text-transform: none !important; }
+html.v159:not(#_):not(#_) .st66-g { margin: 0 0 var(--s4); }
+html.v159:not(#_):not(#_) .st66-h { margin: 0 !important; margin-bottom: 8px !important; margin-left: 16px !important; font: var(--t-label) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: var(--ds-sub) !important; }
+html.v159:not(#_):not(#_) .st66-f { margin: 8px 16px 0 !important; font: 400 13px/18px var(--font-ui) !important; color: var(--ds-mute) !important; }
+html.v159:not(#_):not(#_) .st66-list { overflow: hidden; background: var(--ds-bg-1) !important; border: 1px solid var(--ds-line) !important; border-radius: var(--r3) !important; }
+html.v159:not(#_):not(#_) .st66-row { all: unset; box-sizing: border-box; position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 0 16px; color: var(--ds-text); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color 120ms var(--ds-ease); }
+html.v159:not(#_):not(#_) .st66-row.hidden, html.v159:not(#_):not(#_) .st66-row[hidden] { display: none !important; }
+html.v159:not(#_):not(#_) .st66-list > * + * { border-top: 1px solid var(--ds-line) !important; }
+html.v159:not(#_):not(#_) .st66-row:active { background: var(--ds-fill-2); }
+html.v159:not(#_):not(#_) .st66-k { flex: 1 1 auto; min-width: 0; font: 400 16px/22px var(--font-ui); color: var(--ds-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: none; letter-spacing: 0; }
+html.v159:not(#_):not(#_) .st66-v { flex: 0 1 auto; min-width: 0; max-width: 55%; font: 400 15px/20px var(--font-ui); color: var(--ds-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+html.v159:not(#_):not(#_) .st66-chev { flex: 0 0 auto; width: 8px; height: 8px; margin-right: 2px; border-right: 1.5px solid var(--ds-line-3); border-top: 1.5px solid var(--ds-line-3); transform: rotate(45deg); }
+html.v159:not(#_):not(#_) .st66-act .st66-k { color: var(--ds-text); }
+html.v159:not(#_):not(#_) .st66-danger .st66-k { color: var(--ds-bad) !important; }
+html.v159:not(#_):not(#_) .st66-static { cursor: default; }
+html.v159:not(#_):not(#_) .st66-solo { margin-top: var(--s4); background: var(--ds-bg-1); border: 1px solid var(--ds-line); border-radius: var(--r3); }
+/* выбор языка — нативный select поверх строки */
+html.v159:not(#_):not(#_) .st66-sel { cursor: pointer; }
+html.v159:not(#_):not(#_) .st66-sel select { all: unset; position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; font-size: 16px; }
+/* переключатели */
+html.v159:not(#_):not(#_) .st66-tg input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+html.v159:not(#_):not(#_) .st66-sw { flex: 0 0 auto; position: relative; width: 51px; height: 31px; border-radius: 999px; background: var(--ds-line-2); transition: background-color 220ms var(--ds-ease); }
+html.v159:not(#_):not(#_) .st66-sw::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: #fff; transition: transform 260ms cubic-bezier(.3, 1.4, .5, 1); }
+html.v159:not(#_):not(#_) .st66-tg input:checked ~ .st66-sw { background: var(--ds-acc); }
+html.v159:not(#_):not(#_) .st66-tg input:checked ~ .st66-sw::after { transform: translateX(20px); }
+html.v159:not(#_):not(#_) .st66-tg input:focus-visible ~ .st66-sw { outline: 2px solid var(--ds-acc); outline-offset: 2px; }
+/* перенесённые карточки внутри групп — без «коробки в коробке» */
+html.v159:not(#_):not(#_) #view-settings .st66-list > article.card, html.v159:not(#_):not(#_) #app #view-settings .st66-list > article.card { margin: 0 !important; padding: 16px !important; background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; text-align: left !important; }
+html.v159:not(#_):not(#_) .st66-list > article.card[hidden], html.v159:not(#_):not(#_) .st66-list > article.card.hidden { display: none !important; }
+html.v159:not(#_):not(#_) .st66-list > article.card h3 { margin: 0 !important; margin-bottom: 6px !important; font: 500 16px/22px var(--font-ui) !important; color: var(--ds-text) !important; text-transform: none !important; letter-spacing: 0 !important; }
+html.v159:not(#_):not(#_) .st66-list > article.card p { font: 400 13px/18px var(--font-ui) !important; color: var(--ds-mute) !important; margin: 0 !important; margin-bottom: 12px !important; }
+html.v159:not(#_):not(#_) .st66-list > article.card .go-btn, html.v159:not(#_):not(#_) .st66-list > article.card .btn-secondary { width: 100%; min-height: 44px !important; background: transparent !important; color: var(--ds-text) !important; border: 1px solid var(--ds-line-2) !important; border-radius: var(--r2) !important; font: 500 15px/1 var(--font-ui) !important; box-shadow: none !important; }
+/* меню ☰: подписи групп */
+html.v159:not(#_):not(#_) .plm-h { margin: var(--s3) 0 6px !important; padding: 0 4px; font: var(--t-label) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: var(--ds-sub) !important; }
+html.v159:not(#_):not(#_) .plm-head + .plm-h { margin-top: var(--s1) !important; }
+html.v159:not(#_):not(#_) .plm-list .plm-badge { margin-left: auto; }
+
+html.v159:not(#_):not(#_) #view-settings .st66-row, html.v159:not(#_):not(#_) #view-settings button.st66-row { background: transparent !important; border-left: 0 !important; border-right: 0 !important; border-bottom: 0 !important; border-radius: 0 !important; box-shadow: none !important; outline: 0; margin: 0 !important; width: 100% !important; min-height: 52px !important; justify-content: flex-start !important; text-align: left !important; font: inherit !important; }
+html.v159:not(#_):not(#_) #view-settings .st66-list > .st66-row:first-child { border-top: 0 !important; }
+html.v159:not(#_):not(#_) #view-settings .st66-row:active { background: var(--ds-fill-2) !important; }
+html.v159:not(#_):not(#_) #view-account .acc-crew-row[hidden], html.v159:not(#_):not(#_) #view-account #p48[hidden] { display: none !important; }
+html.v159:not(#_):not(#_) #view-account .st66-solo { display: flex !important; min-height: 52px !important; padding: 0 16px !important; margin: var(--s4) 0 0 !important; background: var(--ds-bg-1) !important; border: 1px solid var(--ds-line) !important; border-radius: var(--r3) !important; }
+html.v159:not(#_):not(#_) #view-settings .st66-g[hidden], html.v159:not(#_):not(#_) #view-account #accPhoneStatus[hidden] { display: none !important; }

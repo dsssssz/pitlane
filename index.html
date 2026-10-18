@@ -857,7 +857,7 @@
         </section>
 
         <section id="view-account" class="view">
-          <h2 data-i18n="acc.title">Аккаунт</h2>
+          <h2 data-i18n="acc.title">Профиль</h2>
           <div class="prof-banner" id="accBanner">
             <button type="button" class="prof-banner-edit" id="accBannerEdit" aria-label="Сменить баннер профиля">Баннер</button>
           </div>
@@ -872,7 +872,7 @@
             </div>
           </div>
           <!-- v148: всё остальное — в Профиле. Соревнования первыми -->
-          <section class="p48" id="p48" aria-label="Разделы">
+          <section class="p48" id="p48" aria-label="Разделы" hidden>
             <div class="p48-group p48-main">
               <button type="button" class="p48-row p48-big" data-p48="tops"><span><b>Топы</b><small>Лучшие разгоны и круги по трассам</small></span><i aria-hidden="true"></i></button>
               <button type="button" class="p48-row p48-big" data-p48="duels"><span><b>Дуэли</b><small>Вызов 1 на 1 — разгон или круг</small></span><em class="p48-badge" id="p48DuelsBadge" hidden></em><i aria-hidden="true"></i></button>
@@ -885,24 +885,10 @@
             <p class="muted tiny" data-mu-hint></p>
             <button type="button" class="go-btn mu-add" data-mu-add>Добавить трек</button>
           </article>
-          <button type="button" class="ds-row" id="accGfx" data-gfx-open aria-haspopup="dialog" aria-controls="gfx64"><span class="ds-row-k">Графика 3D</span><span class="ds-row-v" data-gfx-v>Баланс</span></button>
-          <label class="lang-field">Language / Язык
-            <select id="langSelect" class="lang-select" aria-label="Language">
-              <option value="ru">Русский</option>
-              <option value="en">English</option>
-              <option value="zh">中文</option>
-              <option value="es">Español</option>
-            </select>
-          </label>
-          <label class="sfx-field">
-            <input type="checkbox" id="sfxToggle" checked />
-            <span>Звук старта двигателя</span>
-          </label>
-          <article class="card" id="iosHomeCard">
-            <h3>Добавить Замер на Домой</h3>
-            <p class="muted">iPhone: откройте страницу иконки → Поделиться → На экран «Домой». На Android long-press иконки Pitlane → «Быстрый замер».</p>
-            <button type="button" id="btnOpenZamerPage" class="go-btn">Открыть страницу для иконки</button>
-          </article>
+          
+          
+          
+          
           <!-- Audio: JaimeLopes «Lambo Start Up Sound» Freesound #564373 — CC0 -->
           <form id="authForm" class="card auth-card" onsubmit="event.preventDefault();">
             <h3 data-i18n="acc.login">Вход</h3>
@@ -937,23 +923,40 @@
           </form>
           <p class="muted" id="accPhoneStatus">не вошли</p>
           <p class="tiny" id="accPlan"></p>
-          <div class="acc-crew-row">
-            <button type="button" class="btn-secondary" id="btnMyCarAcc">Это моя машина</button>
+          <div class="acc-crew-row" hidden>
+            
             <button type="button" class="btn-secondary" id="btnCrewAcc">Команда</button>
             <button type="button" class="btn-secondary" id="btnRoomsAcc" hidden>Мои комнаты</button>
             <button type="button" class="btn-secondary" id="btnGarageAcc">Бокс · 3D-подиум</button>
             <button type="button" class="btn-secondary" id="btnPulseAcc">Paddock</button>
           </div>
           <!-- v121: уведомления бота — только по событиям, переключатели по типам -->
-          <article class="card notify-card" id="accNotify" hidden>
-            <h3>Уведомления в Telegram</h3>
-            <p class="muted tiny" id="accNotifyState"></p>
-            <a class="btn-secondary notify-bot-link" id="accNotifyBot" href="https://t.me/pitlane_official_bot" target="_blank" rel="noopener" hidden>Открыть бота</a>
-            <div class="notify-list" id="accNotifyList"></div>
-            <p class="tiny muted">Только твои события, не больше 5 в сутки; несколько сразу — одной сводкой. В боте: /stop_notify.</p>
-            <p class="tiny" id="accNotifyMsg" role="status"></p>
-          </article>
-          <article class="card carphoto-card" id="accCarPhoto" hidden>
+          
+          
+          
+          <p class="tiny" id="accTrialLeft"></p>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <button type="button" class="st66-row st66-solo" data-st="settings"><span class="st66-k">Настройки</span><i class="st66-chev" aria-hidden="true"></i></button>
+        </section>
+        <!-- v166: единые Настройки — сгруппированные списки как в iOS; всё, что было разбросано по Профилю, теперь здесь -->
+        <section id="view-settings" class="view st66" aria-label="Настройки">
+          <h1 class="st66-title">Настройки</h1>
+          <div class="st66-g"><p class="st66-h">Аккаунт</p><div class="st66-list">
+            <button type="button" class="st66-row" data-st="profile"><span class="st66-k">Профиль</span><span class="st66-v" id="st66Who"></span><i class="st66-chev" aria-hidden="true"></i></button>
+            <button type="button" id="btnLogout" class="st66-row st66-act"><span class="st66-k">Выйти</span></button>
+          </div></div>
+          <div class="st66-g"><p class="st66-h">Моя машина</p><div class="st66-list">
+            <button type="button" class="st66-row" id="btnMyCarAcc"><span class="st66-k">Машина для зачёта</span><span class="st66-v" data-mycar-line>не выбрана</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <button type="button" class="st66-row" data-st="garage"><span class="st66-k">Гараж и покраска</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <article class="card carphoto-card" id="accCarPhoto" hidden>
             <h3>Фото машины</h3>
             <p class="muted tiny">Твоя машина на главной и в профиле. Без фото — студийный рендер модели.</p>
             <div class="cph-frame" id="cphFrame">
@@ -975,32 +978,73 @@
             <label class="notify-row cph-share" id="cphShareRow" hidden><input type="checkbox" id="cphShare"><span>Показывать на карточке заезда</span></label>
             <p class="tiny muted" id="cphMsg" role="status"></p>
           </article>
-          <article class="card follow-card" id="accFollows" hidden>
-            <h3>Подписки</h3>
-            <p class="muted tiny">Бот напишет, когда пилот или команда улучшат зачтённый круг или разгон. Те же правила: не больше 5 в сутки, сводкой.</p>
-            <ul class="follow-list" id="accFollowList"></ul>
-            <p class="tiny muted" id="accFollowNote"></p>
-          </article>
-          <p class="tiny" id="accTrialLeft"></p>
-          <article class="card" id="imuCard">
+          </div></div>
+          <div class="st66-g"><p class="st66-h">GPS и датчики</p><div class="st66-list">
+            <button type="button" class="st66-row" data-st="gps"><span class="st66-k">Источник GPS</span><span class="st66-v" data-gps61>Телефон</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <article class="card" id="imuCard">
             <h3>Датчики движения</h3>
             <p class="muted tiny">На iPhone датчики движения включаются только по нажатию — так GPS и акселерометр работают вместе и точнее.</p>
             <button type="button" id="btnEnableImu" class="go-btn">Включить датчики движения</button>
             <p class="tiny" id="imuTip"></p>
           </article>
-          <button type="button" id="btnProSoon" class="btn-pro-soon">пока бесплатно</button>
-          <p class="tiny acc-method"><a class="method-link" href="./method.html">Методика измерений и топов</a></p>
-          <button type="button" id="btnLogout">Выйти</button>
-          <button type="button" id="btnFeedback" class="btn-secondary acc-feedback-btn" aria-haspopup="dialog" aria-controls="feedbackSheet">Обратная связь</button>
-          <button type="button" id="btnTipsReset" class="btn-secondary acc-tips-btn">Показать подсказки</button>
-          <button type="button" id="btnHowCar" class="btn-secondary acc-tips-btn">Как привязать машину</button>
-          <nav class="acc-legal" aria-label="Документы">
-            <a href="./privacy.html">Политика конфиденциальности</a>
-            <a href="./terms.html">Пользовательское соглашение</a>
-            <a href="./offer.html">Оферта Pro</a>
-            <a href="./delete-account.html">Удаление аккаунта</a>
-          </nav>
-          <button type="button" id="btnDeleteAccount" class="btn-danger hidden">Удалить аккаунт</button>
+          </div></div>
+          <div class="st66-g"><p class="st66-h">Графика</p><div class="st66-list">
+            <button type="button" class="st66-row" id="accGfx" data-gfx-open aria-haspopup="dialog" aria-controls="gfx64"><span class="st66-k">Качество 3D</span><span class="st66-v" data-gfx-v>Баланс</span><i class="st66-chev" aria-hidden="true"></i></button>
+          </div><p class="st66-f">Ручной выбор не понижается автоматически. «Авто» подстраивается под телефон.</p></div>
+          <div class="st66-g"><p class="st66-h">Уведомления</p><div class="st66-list">
+            <article class="card notify-card" id="accNotify" hidden>
+            <h3>Уведомления в Telegram</h3>
+            <p class="muted tiny" id="accNotifyState"></p>
+            <a class="btn-secondary notify-bot-link" id="accNotifyBot" href="https://t.me/pitlane_official_bot" target="_blank" rel="noopener" hidden>Открыть бота</a>
+            <div class="notify-list" id="accNotifyList"></div>
+            <p class="tiny muted">Только твои события, не больше 5 в сутки; несколько сразу — одной сводкой. В боте: /stop_notify.</p>
+            <p class="tiny" id="accNotifyMsg" role="status"></p>
+          </article>
+            <article class="card follow-card" id="accFollows" hidden>
+            <h3>Подписки</h3>
+            <p class="muted tiny">Бот напишет, когда пилот или команда улучшат зачтённый круг или разгон. Те же правила: не больше 5 в сутки, сводкой.</p>
+            <ul class="follow-list" id="accFollowList"></ul>
+            <p class="tiny muted" id="accFollowNote"></p>
+          </article>
+          </div></div>
+          <div class="st66-g"><p class="st66-h">Звук и вибрация</p><div class="st66-list">
+            <label class="st66-row st66-tg sfx-field">
+            <input type="checkbox" id="sfxToggle" checked />
+            <span class="st66-k">Звук старта двигателя</span><i class="st66-sw" aria-hidden="true"></i>
+          </label>
+            <label class="st66-row st66-tg"><input type="checkbox" id="hapToggle" checked /><span class="st66-k">Вибрация (тактильный отклик)</span><i class="st66-sw" aria-hidden="true"></i></label>
+          </div></div>
+          <div class="st66-g"><p class="st66-h">Язык</p><div class="st66-list">
+            <label class="st66-row st66-sel lang-field"><span class="st66-k">Язык · Language</span>
+            <select id="langSelect" class="lang-select" aria-label="Language">
+              <option value="ru">Русский</option>
+              <option value="en">English</option>
+              <option value="zh">中文</option>
+              <option value="es">Español</option>
+            </select><i class="st66-chev" aria-hidden="true"></i>
+          </label>
+          </div></div>
+          <div class="st66-g"><p class="st66-h">Быстрый Замер</p><div class="st66-list">
+            <article class="card" id="iosHomeCard">
+            <h3>Добавить Замер на Домой</h3>
+            <p class="muted">iPhone: откройте страницу иконки → Поделиться → На экран «Домой». На Android long-press иконки Pitlane → «Быстрый замер».</p>
+            <button type="button" id="btnOpenZamerPage" class="go-btn">Открыть страницу для иконки</button>
+          </article>
+          </div></div>
+          <div class="st66-g"><p class="st66-h">Помощь</p><div class="st66-list">
+            <button type="button" id="btnTipsReset" class="st66-row"><span class="st66-k">Показать подсказки снова</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <button type="button" id="btnHowCar" class="st66-row"><span class="st66-k">Как привязать машину</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <button type="button" id="btnFeedback" class="st66-row" aria-haspopup="dialog" aria-controls="feedbackSheet"><span class="st66-k">Обратная связь</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <a class="st66-row" href="./method.html"><span class="st66-k">Методика измерений и топов</span><i class="st66-chev" aria-hidden="true"></i></a>
+          </div></div>
+          <div class="st66-g"><p class="st66-h">Документы</p><div class="st66-list">
+            <a class="st66-row" href="./privacy.html"><span class="st66-k">Политика конфиденциальности</span><i class="st66-chev" aria-hidden="true"></i></a><a class="st66-row" href="./terms.html"><span class="st66-k">Пользовательское соглашение</span><i class="st66-chev" aria-hidden="true"></i></a><a class="st66-row" href="./offer.html"><span class="st66-k">Оферта Pro</span><i class="st66-chev" aria-hidden="true"></i></a><a class="st66-row" href="./delete-account.html"><span class="st66-k">Удаление аккаунта</span><i class="st66-chev" aria-hidden="true"></i></a>
+          </div></div>
+          <div class="st66-g"><p class="st66-h">О приложении</p><div class="st66-list">
+            <div class="st66-row st66-static"><span class="st66-k">Версия</span><span class="st66-v" id="st66Ver">—</span></div>
+            <button type="button" id="btnProSoon" class="st66-row"><span class="st66-k">Тариф</span><span class="st66-v">пока бесплатно</span></button>
+            <button type="button" id="btnDeleteAccount" class="st66-row st66-danger hidden"><span class="st66-k">Удалить аккаунт</span></button>
+          </div></div>
         </section>
         </div>
       <!-- v148: нижняя панель — Замер / Гараж / Профиль -->
@@ -1394,13 +1438,23 @@
           <b class="plm-brand">PITLANE</b>
           <button type="button" class="plm-close" id="plMenuClose" aria-label="Закрыть меню"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         </div>
+        <!-- v166: меню — три группы: разделы, ещё, приложение. Документы — в Настройках -->
+        <p class="plm-h">Разделы</p>
         <ul class="plm-list">
           <li><button type="button" data-plm="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 8v4l3 2"/></svg><span>Журнал<small>замеры, сессии, дуэли</small></span></button></li>
+          <li><button type="button" data-plm="tops"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/></svg><span>Топы<small>лучшие разгоны и круги</small></span></button></li>
+          <li><button type="button" data-plm="duels"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19l9-9M14 5h5v5M19 19l-9-9M10 5H5v5"/></svg><span>Дуэли<small>вызов 1 на 1</small></span><em class="p48-badge plm-badge" id="plmDuelsBadge" hidden></em></button></li>
           <li><button type="button" data-plm="pulse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v10H9l-5 4z"/></svg><span>Paddock<small>чат пилотов</small></span></button></li>
           <li><button type="button" data-plm="team"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5M14.5 15c2.6-.3 4.6 1 5.2 3.6"/></svg><span>Команда<small>экипаж и комнаты</small></span></button></li>
+        </ul>
+        <p class="plm-h">Ещё</p>
+        <ul class="plm-list">
           <li><button type="button" data-plm="shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/></svg><span>Магазин<small>внешний GPS 10 Гц</small></span></button></li>
           <li><button type="button" data-plm="suggest"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/></svg><span>Предложить трассу<small>откалибруем и добавим</small></span></button></li>
-          <li><button type="button" data-plm="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg><span>Настройки<small>язык, звук, аккаунт</small></span></button></li>
+        </ul>
+        <p class="plm-h">Приложение</p>
+        <ul class="plm-list">
+          <li><button type="button" data-plm="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg><span>Настройки<small>аккаунт, GPS, графика, звук</small></span></button></li>
           <li><button type="button" data-plm="feedback"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10h-8l-4 4v-4H5z"/></svg><span>Обратная связь<small>идея или ошибка</small></span></button></li>
           <li><a href="./method.html" data-plm="method"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg><span>Методика<small>как считаем время и топы</small></span></a></li>
         </ul>
