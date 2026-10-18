@@ -10,7 +10,7 @@
   --ds-line: rgba(255,255,255,.08); --ds-line-2: rgba(255,255,255,.16); --ds-line-3: rgba(255,255,255,.32);
   --ds-text: #f2efe9; --ds-sub: #8a8a8a; --ds-mute: #6b6b6b;
   --acc-rgb: 201, 198, 191; --ds-acc: rgb(var(--acc-rgb));
-  --ds-good: #7fae8f; --ds-bad: #d0675c; --ds-on-light: #000; --ds-light: #f2f2f2;
+  --ds-good: #7fae8f; --ds-bad: #d0675c; --accent-signal: #e12323; /* v177: сигнальный красный (как дуга логотипа) — только индикаторы, ~5% акцентов; дельты остаются приглушённым #d0675c */ --ds-on-light: #000; --ds-light: #f2f2f2;
   /* сетка 8 px */
   --gutter: 24px; --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px; --s5: 40px; --s6: 48px; --s8: 64px;
   /* радиусы */
@@ -7008,3 +7008,12 @@ html.v159:not(#_):not(#_) .brand-bar b.bb-logo svg { display: block; height: 32p
 .ln61.skip .ln61-arc, .ln61.skip .ln61-word { animation: ln61-fade 160ms linear both; }
 @keyframes ln75-arc { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { .ln61 .ln61-arc, .ln61 .ln61-word { opacity: 1; transform: none; animation: none !important; } }
+/* v177: немного сигнального красного — плоско, без свечения. Только: активная вкладка, live/запись, кольцо «Старт» в замере, кончик стрелки, новый рекорд, С/Ф на карте, непрочитанные дуэли. Выбор и всё прочее — платина. */
+html.v159:not(#_):not(#_) .nav3-btn::before { background: var(--accent-signal); }
+html.v159:not(#_):not(#_) #runDrive[data-phase="live"] #rdLabel::before, html.v159:not(#_):not(#_) .chase-tag.live::before, html.v159:not(#_):not(#_) .vt-rec.on::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 6px; vertical-align: 1px; border-radius: 999px; background: var(--accent-signal); }
+html.v159:not(#_):not(#_) .h48-start.h56-wait, html.v159:not(#_):not(#_) #runDrive[data-phase="live"] #runDriveStop#runDriveStop.go-btn { border-color: var(--accent-signal) !important; }
+html.v159:not(#_):not(#_) .hgz-needle { stroke: var(--accent-signal); }
+html.v159:not(#_):not(#_) .rd-hero.rd53-pb .rd-badge { color: var(--accent-signal) !important; border-color: var(--accent-signal) !important; }
+html.v159:not(#_):not(#_) .rd-hero.rd53-pb::after { background: var(--accent-signal); }
+html.v159:not(#_):not(#_) .tk58-sf { fill: var(--accent-signal); } html.v159:not(#_):not(#_) .sf-mark line { stroke: var(--accent-signal); } html.v159:not(#_):not(#_) .sat-sf-flag { border-color: var(--accent-signal); }
+html.v159:not(#_):not(#_) #p48DuelsBadge, html.v159:not(#_):not(#_) #plmDuelsBadge, html.v159:not(#_):not(#_) #sbBadgeDuels { background: var(--accent-signal) !important; color: #fff !important; border-color: transparent !important; }
