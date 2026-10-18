@@ -47,7 +47,7 @@ export function countUp(el, text, { dur = 700 } = {}) {
   requestAnimationFrame(tick);
 }
 // Общий элемент: копия источника летит в прямоугольник цели и растворяется; цель проявляется. 360–420 мс, только transform/opacity.
-export function flyShared(from, to, { dur = 420, radius = 8 } = {}) {
+export function flyShared(from, to, { dur = 420, radius = 8, ease: easeIn = '' } = {}) {
   const rectA = from && from.rect; if (from && from.el) from = from.el; // можно передать { el, rect }, снятый до перестройки DOM
   if (!from || !to || reduced() || !to.animate) return false;
   const a = rectA || from.getBoundingClientRect(); const b = to.getBoundingClientRect();
@@ -63,7 +63,7 @@ export function flyShared(from, to, { dur = 420, radius = 8 } = {}) {
   document.body.appendChild(ghost);
   const sx = b.width / a.width; const sy = b.height / a.height; const s = Math.min(sx, sy);
   const dx = b.left + (b.width - a.width * s) / 2 - a.left; const dy = b.top + (b.height - a.height * s) / 2 - a.top;
-  const ease = 'cubic-bezier(.2, 0, 0, 1)'; const d = dur / scale();
+  const ease = easeIn || 'cubic-bezier(.2, 0, 0, 1)'; const d = dur / scale();
   ghost.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 1, offset: 0.8 }, { transform: `translate(${dx}px, ${dy}px) scale(${s})`, opacity: 0 }], { duration: d, easing: ease, fill: 'forwards' }).finished.then(() => ghost.remove(), () => ghost.remove());
   to.animate([{ opacity: 0 }, { opacity: 0, offset: 0.55 }, { opacity: 1 }], { duration: d, easing: 'linear' });
   return true;

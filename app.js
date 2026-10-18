@@ -1615,7 +1615,10 @@ function playEngineStart() {
   });
 }
 
+/* v161: все старые входы ведут в новые экраны: «run» (старый спидометр) → Замер, «cars» (Парк) → Гараж, «journal» → Журнал */
+const VIEW_ALIAS61 = { run: 'zamer', cars: 'garage', journal: 'history', measure: 'zamer', track: 'lap' };
 function goToView(id, opts = {}) {
+  id = VIEW_ALIAS61[id] || id;
   const next = document.getElementById('view-' + id);
   if (!next) return;
   try { if (typeof TGS !== 'undefined' && TGS.open) closeTgSheet({ instant: true }); } catch (_) {}
@@ -1665,7 +1668,7 @@ function goToView(id, opts = {}) {
   // v160: общий элемент — машина с Главной «перелетает» на подиум Гаража
   const fly60 = !reduce && prev && prev.id === 'view-home' && id === 'garage' ? document.getElementById('hwCarImg') : null;
   const fly60r = fly60 ? fly60.getBoundingClientRect() : null; // снимаем до смены экрана
-  if (fly60) requestAnimationFrame(() => { try { flyShared({ el: fly60, rect: fly60r }, document.querySelector('#view-garage .g53-ph'), { dur: 460 }); } catch (_) {} });
+  if (fly60) requestAnimationFrame(() => { try { flyShared({ el: fly60, rect: fly60r }, document.querySelector('#view-garage .g53-ph'), { dur: 520, ease: 'cubic-bezier(.45, 0, .2, 1)' }); } catch (_) {} }); // v161: дольше и ровнее — перелёт видно
   if (prev && !reduce) {
     prev.classList.add('leaving');
     prev.classList.remove('active');
@@ -2485,7 +2488,7 @@ try {
 } catch (_) {}
 
 
-const DEEP_VIEWS = new Set(['home', 'garage', 'run', 'lap', 'tops', 'duels', 'pulse', 'account', 'cars']);
+const DEEP_VIEWS = new Set(['home', 'garage', 'run', 'lap', 'tops', 'duels', 'pulse', 'account', 'cars', 'zamer', 'history', 'journal']); // v161: run/cars — алиасы новых экранов
 /** v81: ?screen=duel|crew|feedback|autodromes — opens a sheet (used by the Telegram bot's web_app buttons). */
 const DEEP_SCREENS = { shop: 'home', duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account', mycar: 'lap', rooms: 'tops', teams: 'tops' };
 const SCREEN_PARAM = (() => {
@@ -2527,43 +2530,53 @@ function clearDeepLinkUrl() {
   } catch (_) {}
 }
 
-(function setupIntro() {
-  const el = document.getElementById('intro');
+/* v161: запуск в духе бортовой системы — волосок из центра, панели расходятся, слово PITLANE,
+   шапка/навигация/контент разъезжаются по местам от центральной линии. ~1,1 с, раз за сессию, тап — пропустить,
+   reduced-motion / слабое железо — без анимации. Заменяет старую заставку (#intro). */
+const LN61 = { T: 1100, UI: 560 };
+(function setupLaunch() {
+  const el = document.getElementById('launch');
+  const root = document.documentElement;
   if (!el) { introBlocking3d = false; return; }
   const KEY = 'pitlane-intro-seen';
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let finished = false;
+  let timers = [];
   const finish = () => {
     if (finished) return;
     finished = true;
-    el.classList.add('done');
+    timers.forEach(clearTimeout); timers = [];
+    el.remove();
+    root.classList.remove('ln61-ui', 'ln61-run');
     try { sessionStorage.setItem(KEY, '1'); } catch (_) {}
     introBlocking3d = false;
     try { podiumInvalidate(1000, true); } catch (_) {}
-    // v119: подиум и модели — только когда открыли Бокс (раньше: boot + фоновая загрузка/разбор всех GLB)
+    // v119: подиум и модели — только когда открыли Гараж
     setTimeout(() => {
       try { if (document.getElementById('view-garage')?.classList.contains('active')) void ensurePodium3d(); } catch (_) {}
     }, 30);
     try { prefetchEngineStart(); } catch (_) {}
-    // v99: tour / first tip for the screen we land on
     setTimeout(() => { try { tipsOnView((document.querySelector('.view.active')?.id || 'view-home').slice(5)); } catch (_) {} }, 700);
   };
   let seen = false;
   try { seen = sessionStorage.getItem(KEY) === '1'; } catch (_) {}
   let deepSkip = false;
   try { deepSkip = !!getDeepLinkView().skipIntro; } catch (_) {}
-  if (seen || deepSkip) {
-    finish();
-    return;
-  }
-  el.addEventListener('click', finish, { once: true });
-  el.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape') finish();
+  if (seen || deepSkip || motionReduced()) { finish(); return; }
+  // тап — сразу к интерфейсу: панели убираются за 160 мс, без второй волны
+  const skip = () => {
+    if (finished || el.classList.contains('skip')) return;
+    el.classList.add('skip'); root.classList.remove('ln61-ui');
+    timers.forEach(clearTimeout); timers = [setTimeout(finish, 170 / (window.__motionScale || 1))];
+  };
+  el.addEventListener('pointerdown', skip, { once: true });
+  document.addEventListener('keydown', skip, { once: true });
+  const sc = window.__motionScale || 1; // кадры для отчёта — замедленно
+  requestAnimationFrame(() => {
+    if (finished) return;
+    root.classList.add('ln61-run'); el.classList.add('go');
+    timers.push(setTimeout(() => { if (!finished && !el.classList.contains('skip')) { root.classList.add('ln61-ui'); try { tmaHaptic('soft'); } catch (_) {} } }, LN61.UI / sc));
+    timers.push(setTimeout(finish, LN61.T / sc + 60));
   });
-  // v120: заставка короче — 1,7 с (повторный визит 0,7 с), тап — сразу
-  let ever = false;
-  try { ever = localStorage.getItem('pitlane-intro-ever') === '1'; localStorage.setItem('pitlane-intro-ever', '1'); } catch (_) {}
-  setTimeout(finish, reduce ? 600 : (ever ? 700 : 1700));
 })();
 
 renderTracks();
@@ -7200,7 +7213,7 @@ if (isTMA) {
     ['bannerSheet', 'bannerClose'], ['ghostResult', 'ghostResultClose'],
     ['sessionSheet', 'sessionSheetClose'],
     ['vtSheet', 'vtClose'], ['shopSheet', 'shopClose'], // v147
-    ['tgSheet', 'tgSheetClose'],
+    ['tgSheet', 'tgSheetClose'], ['gps61', 'gps61Close'], // v161
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
   const closeSheet = (id, btnId) => {
@@ -9216,7 +9229,7 @@ const I18N = {
     'garage.empty':'Гараж пока пуст','garage.hint':'Добавьте машину — и замеры будут сохраняться за ней.','garage.add':'Добавить машину','garage.reset':'сброс',
     'run.title':'Замер','run.hint':'Старт, остановка, газ. Времена появятся по ходу.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
-    'lap.title':'Трек','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Старт круга','lap.finish':'Финиш круга',
+    'lap.title':'Трек','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Начать сессию','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Написать в Paddock…','pad.empty':'Пока тихо — напиши первым.',
     'acc.title':'Аккаунт','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
@@ -9225,7 +9238,7 @@ const I18N = {
     'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car','garage.reset':'reset',
     'run.title':'Run','run.hint':'Start, stop, launch. Times appear as you go.','run.start':'Start',
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
-    'lap.title':'Track','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start lap','lap.finish':'Finish lap',
+    'lap.title':'Track','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start session','lap.finish':'Finish lap',
     'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'Write to Paddock…','pad.empty':'Quiet for now. Sign in and write the first post.',
     'acc.title':'Account','acc.login':'Sign in','acc.hint':'Telegram sign-in is needed for leaderboards, duels, teams and posts. Runs, garage and history work without it, on this device.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
   },
@@ -12533,7 +12546,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v160';
+const APP_VERSION = 'v161';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12709,7 +12722,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -12887,9 +12900,9 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     else if (k === 'duels' || k === 'pulse') { if (sheetNavOn()) openTgSheet(k); else goToView(k); }
     else if (k === 'tracks') { if (sheetNavOn()) openTgSheet('tracks'); else goToView('lap'); }
     else if (k === 'lap') goToView('lap');
-    else if (k === 'history') { goToView('run'); scrollTo('runHistory'); }
-    else if (k === 'analytics') { goToView('lap'); document.getElementById('view-lap')?.classList.add('l53-open'); scrollTo('lapAnalyticsCard'); }
-    else if (k === 'suggest') { goToView('lap'); document.getElementById('view-lap')?.classList.add('l53-open'); const d = document.querySelector('#trackSuggestCard details'); if (d) { d.open = true; d.dispatchEvent(new Event('toggle')); } scrollTo('trackSuggestCard'); }
+    else if (k === 'history') journalGo61(); // v161: единый Журнал
+    else if (k === 'analytics') { journalGo61('lap'); scrollTo('lapAnalyticsCard'); }
+    else if (k === 'suggest') { goToView('lap'); const d = document.querySelector('#trackSuggestCard details'); if (d) { d.open = true; d.dispatchEvent(new Event('toggle')); } scrollTo('trackSuggestCard'); }
     else if (k === 'team') openCrewSheet();
     else if (k === 'video') void openVideoTele('run');
     else if (k === 'shop') void openShopSheet();
@@ -13383,6 +13396,8 @@ function onViewEnter(id) {
             if (wasReady && m?.driveIn && glbRoot) { try { startDriveIn(glbRoot, podiumModelId); } catch (_) {} }
           }
         });
+      } else if (id === 'history') {
+        void renderJournal61(); try { void renderTrackHistory(); } catch (_) {} // v161
       } else if (id === 'lap') {
         void renderTrackHistory(); // v129
         // v119: карта (Leaflet) и chase Сочи (three.js) — подгружаем при входе на «Круг», чтобы HUD открылся как раньше
@@ -16235,3 +16250,110 @@ function ls58Close() { const box = document.getElementById('ls58'); if (!box) re
   document.getElementById('ls58')?.addEventListener('click', (e) => { if (e.target?.id === 'ls58') ls58Close(); });
   window.__v160 = { gauge: (v) => hudZones(v, false), bar: lh60Bar, enter: lh60Enter }; window.__tk58 = { pick: tk58Pick, flash: (l) => lh58Flash(l, lapRun.trackId), summary: ls58Open, tick: lh58Tick, lapRun, lapSession }; // скриншоты/отладка
 })();
+
+/* ——— v161: Журнал (замеры + сессии + дуэли), шторка «Источник GPS», строки параметров на Замере и Треке ——— */
+let _jnMod = null; let _jnDuels = null; let _jnDuelsAt = 0; let _jnEntries = [];
+function jnDeps61() {
+  return {
+    state, tracks: TRACKS, fmtLap: fmtLapTime,
+    carName: (id) => CARS.find((c) => c.id === id)?.name || MODEL_CATALOG.find((m) => m.id === id)?.name || '',
+    duelType: duelTypeLabel, duelStatus: duelStatusText,
+    duelVs: (d) => (d.createdBy?.name || 'пилот') + ' — ' + (d.challenger?.name || 'соперник?'),
+    openSummary: (laps, tid) => ls58Open(laps, tid),
+    canReview: (laps) => { try { return analyzeSession(laps).ok; } catch (_) { return false; } },
+    openReview: (i) => openSessionReview(i),
+    openAnalytics: (tid) => { jnPickTrack61(tid); journalGo61('lap'); setTimeout(() => document.getElementById('lapAnalyticsCard')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 260); },
+    shareLatest: () => document.getElementById('btnShareRun')?.click(),
+    go: (k) => goToView(k), video: () => void openVideoTele('run'),
+    openDuel: (id) => openDuelSheet({ duelId: id }),
+  };
+}
+function journalGo61(filter) {
+  if (filter && _jnMod) _jnMod.journalFilter(filter);
+  else if (filter) { try { localStorage.setItem('pitlane-journal-f', filter); } catch (_) {} }
+  goToView('history'); window.scrollTo(0, 0);
+  void renderJournal61();
+}
+function jnPickTrack61(tid) {
+  const sel = document.getElementById('trackSelect');
+  if (!sel || !tid || sel.value === tid || ![...sel.options].some((o) => o.value === tid)) return;
+  sel.value = tid; sel.dispatchEvent(new Event('change'));
+  try { renderLaps(); } catch (_) {} try { void renderTrackHistory(); } catch (_) {}
+}
+async function renderJournal61() {
+  const host = document.getElementById('jnHost'); if (!host) return;
+  try { _jnMod = _jnMod || await import('./journal.js'); } catch (_) { host.textContent = 'Журнал не загрузился — проверьте интернет'; return; }
+  const D = jnDeps61(); const f = _jnMod.journalFilter();
+  _jnEntries = _jnMod.buildEntries(D, _jnDuels || []);
+  _jnMod.renderJournal(host, D, _jnEntries, f);
+  const lapBox = document.getElementById('jnLap'); const runBox = document.getElementById('jnRun');
+  if (lapBox) lapBox.hidden = f !== 'lap';
+  if (runBox) runBox.hidden = f !== 'run' || !(state.slips || []).length;
+  // трассы с кругами — переключатель «Разбор трассы»
+  const tb = document.getElementById('jnTracks');
+  if (tb && f === 'lap') {
+    const cur = document.getElementById('trackSelect')?.value;
+    const ids = TRACKS.filter((t) => (state.laps?.[t.id] || []).length).map((t) => t.id);
+    if (cur && !ids.includes(cur)) ids.unshift(cur);
+    tb.replaceChildren(...ids.map((id) => { const b = padEl('button', 'jn-tr', TRACKS.find((t) => t.id === id)?.name || id); b.type = 'button'; b.dataset.jtr = id; b.setAttribute('aria-pressed', String(id === cur)); return b; }));
+  }
+  if (isRemoteApi() && Date.now() - _jnDuelsAt > 60000) {
+    _jnDuelsAt = Date.now();
+    let rows = [];
+    try { rows = (await api.listMyDuels(duelPilotId())) || []; } catch (_) { rows = []; }
+    _jnDuels = rows.filter((d) => d && d.id);
+    if (document.getElementById('view-history')?.classList.contains('active')) void renderJournal61();
+  }
+}
+document.getElementById('view-history')?.addEventListener('click', (e) => {
+  const t = e.target;
+  const f = t?.closest?.('[data-jf]');
+  if (f && _jnMod) { hap(6); _jnMod.journalFilter(f.dataset.jf); void renderJournal61(); return; }
+  const tr = t?.closest?.('[data-jtr]');
+  if (tr) { hap(6); jnPickTrack61(tr.dataset.jtr); void renderJournal61(); return; }
+  const go = t?.closest?.('[data-jgo]');
+  if (go) { hap(8); const k = go.dataset.jgo; if (k === 'duel') openDuelSheet({ createOnly: true }); else goToView(k); return; }
+  const hit = t?.closest?.('.jn-hit');
+  if (hit && _jnMod) {
+    const li = hit.parentElement; const ent = _jnEntries[Number(li.dataset.i)]; if (!ent) return;
+    hap(6);
+    const open = li.querySelector('.jn-x');
+    document.querySelectorAll('#jnHost .jn-x').forEach((x) => { x.remove(); x.parentElement?.querySelector('.jn-hit')?.setAttribute('aria-expanded', 'false'); });
+    document.querySelectorAll('#jnHost .jn-row.open').forEach((x) => x.classList.remove('open'));
+    if (!open) { li.appendChild(_jnMod.rowActions(ent, jnDeps61())); li.classList.add('open'); hit.setAttribute('aria-expanded', 'true'); }
+  }
+});
+// ссылки «Журнал замеров / сессий» с Замера и Трека — сначала фильтр, потом переход (сам переход — общий [data-view])
+document.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('[data-view="history"][data-jf]'); if (!b) return;
+  try { localStorage.setItem('pitlane-journal-f', b.dataset.jf); } catch (_) {}
+  setTimeout(() => { void renderJournal61(); window.scrollTo(0, 0); }, 0);
+}, true);
+// шторка «Источник GPS» (карточка источника перенесена со старого экрана замера)
+(() => {
+  const sh = document.getElementById('gps61'); if (!sh) return;
+  const close = () => { sh.classList.add('hidden'); sh.setAttribute('aria-hidden', 'true'); document.documentElement.classList.remove('gps61-on'); };
+  const open = () => { hap(8); sh.classList.remove('hidden'); sh.setAttribute('aria-hidden', 'false'); document.documentElement.classList.add('gps61-on'); };
+  ['z61Gps', 't61Gps'].forEach((id) => document.getElementById(id)?.addEventListener('click', open));
+  sh.addEventListener('click', (e) => { if (e.target?.closest?.('[data-close61]')) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sh.classList.contains('hidden')) close(); });
+  const bar = document.getElementById('extGpsBar');
+  const paint = () => {
+    const t = (bar?.textContent || '').replace(/^Источник:\s*/i, '').replace(/\s*\(.*$/, '').trim() || 'телефон';
+    const v = t.charAt(0).toUpperCase() + t.slice(1);
+    document.querySelectorAll('[data-gps61]').forEach((x) => { if (x.textContent !== v) x.textContent = v; });
+  };
+  if (bar) new MutationObserver(paint).observe(bar, { childList: true, characterData: true, subtree: true });
+  paint();
+  window.__gps61 = { open, close };
+})();
+// значения в строках «Журнал замеров / сессий»
+function rows61() {
+  const s = (state.slips || [])[0];
+  const z = document.getElementById('z61Last');
+  if (z) { const t = s && s.v0100 != null ? '0–100 ' + Number(s.v0100).toFixed(2) + ' с' : 'пусто'; if (z.textContent !== t) z.textContent = t; }
+  const l = document.getElementById('t61Last');
+  if (l) { const d = (state.trackDays || [])[0]; const n = (state.trackDays || []).length; const t = d && d.bestMs != null ? fmtLapTime(d.bestMs) + ' · ' + n + ' сесс.' : 'пусто'; if (l.textContent !== t) l.textContent = t; }
+}
+setTimeout(rows61, 700); setInterval(() => { if (!document.hidden) rows61(); }, 3000);
+window.__jn61 = { go: journalGo61, render: () => renderJournal61() };

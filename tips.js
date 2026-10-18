@@ -15,25 +15,26 @@ const KEY = 'pitlane-tips-v2';
 const AUTO_TIPS = false;
 
 /** Each step: target (selector list, first visible wins), title, text, tap: 'end' | 'next' | 'stay', before(): prepare UI. */
-const nav = (v) => `.nav-btn[data-view="${v}"]`;
+const nav = (v) => `.nav3-btn[data-n3="${v}"]`; // v161: нижняя панель — Главная / Замер / Трек / Гараж
 export const SCENARIOS = {
   tour: [
-    { target: '#homeGoBtn', title: 'Замер', text: 'Главная кнопка: 0–100 и ¼ мили по GPS. Телефона хватит.' },
-    { target: nav('run'), title: 'Заезд', text: 'Замер 0–100 и круг по GPS. Старт и финиш ловятся сами.' },
-    { target: nav('duels'), title: 'Дуэли', text: 'Вызов по ссылке. Сравнение внутри класса: A/B или телефон (C).' },
-    { target: nav('tops'), title: 'Топ', text: 'Честные рекорды. Фильтры и «Команда» — в меню «Фильтры».' },
-    { target: '#homeHero', title: 'Бокс', text: 'Твоя машина на 3D-подиуме — тап по карточке.' },
+    { target: nav('home'), title: 'Главная', text: 'Ваша машина, сводка и главное за день.' },
+    { target: nav('zamer'), title: 'Замер', text: '0–100 и ¼ мили по GPS. Одна кнопка «Старт».' },
+    { target: nav('lap'), title: 'Трек', text: 'Выберите трассу и начните сессию. Старт, финиш и сектора ловятся сами.' },
+    { target: nav('garage'), title: 'Гараж', text: 'Машина в 3D — цвет, детали и «Это моя машина».' },
+    { target: '#btnMenu', title: 'Меню', text: 'Журнал, Paddock, команда, магазин и настройки.' },
   ],
-  home: [{ target: '#homeHero', title: 'Главная', text: 'Твоя машина и главное за день. Тап по машине — в Бокс.' }],
+  home: [{ target: '#hwCarImg, #homeHero', title: 'Главная', text: 'Твоя машина и главное за день. Тап по машине — в Гараж.' }],
   garage: [
-    { target: '#btnMyCarGarage', title: 'Это моя машина', text: 'Выбери машину стрелками и нажми сюда. Каждый круг запишется на неё.' },
-    { target: '#btnCarPicker', title: 'Весь гараж', text: 'Листай стрелками или открой список всех машин.' },
+    { target: '#g53Mine, #btnMyCarGarage', title: 'Это моя машина', text: 'Выбери машину стрелками и нажми сюда. Каждый круг запишется на неё.' },
+    { target: '#g53List, #btnCarPicker', title: 'Весь гараж', text: 'Остальные машины — лентой ниже. Тап — на подиум.' },
   ],
-  run: [{ target: '#runIdleCard', title: 'Замер', text: 'Встань, дождись точности GPS и жми «Старт». Разгон ловится сам.' }],
+  zamer: [{ target: '#h48Start', title: 'Замер', text: 'Встань, дождись точности GPS и жми «Старт». Разгон ловится сам.' }],
+  history: [{ target: '#jnHost .jn-seg', title: 'Журнал', text: 'Замеры, сессии и дуэли в одном месте. Фильтр — сверху, тап по строке — детали.' }],
   lap: [
-    { target: '#trackWheel', title: 'Трасса', text: 'Крути барабан и выбери автодром.' },
+    { target: '#tk58', title: 'Трасса', text: 'Листайте карточки и выберите автодром.' },
     { target: '#btnMyCarLap', title: 'Машина для зачёта', text: 'На эту машину запишется круг. Тап — сменить.' },
-    { target: '#btnLapStart', title: 'Старт круга', text: 'Старт, финиш и сектора ловятся по GPS.' },
+    { target: '#btnLapStart', title: 'Начать сессию', text: 'Старт, финиш и сектора ловятся по GPS.' },
   ],
   tops: [
     { target: '#topsChips', title: 'Топ', text: 'Выбери трассу или замер — увидишь лучшие честные заезды.' },
@@ -52,7 +53,7 @@ export const SCENARIOS = {
 };
 // explicit «Как привязать машину?» walkthrough: garage button → sheet → model → tyre → save
 SCENARIOS.mycarHow = [
-  { target: '#btnMyCarGarage', title: 'Как привязать машину', text: 'Открой Бокс, выбери машину стрелками и нажми «Это моя машина».', before: () => D.goToView?.('garage'), tap: 'next' },
+  { target: '#g53Mine, #btnMyCarGarage', title: 'Как привязать машину', text: 'Открой Гараж, выбери машину стрелками и нажми «Это моя машина».', before: () => D.goToView?.('garage'), tap: 'next' },
   { ...SCENARIOS.mycar[0], before: () => D.openMyCar?.() },
   SCENARIOS.mycar[1],
   SCENARIOS.mycar[2],

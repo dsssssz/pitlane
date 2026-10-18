@@ -7,8 +7,8 @@
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
-  "background_color": "#1a1a1a",
-  "theme_color": "#1a1a1a",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "orientation": "portrait",
   "lang": "ru",
   "icons": [
@@ -22,15 +22,15 @@
       "name": "Быстрый замер",
       "short_name": "Замер",
       "description": "GPS 0–100",
-      "url": "./index.html?view=run&skipIntro=1",
+      "url": "./index.html?view=zamer&skipIntro=1",
       "icons": [
         { "src": "./img/icon-192.png", "sizes": "192x192", "type": "image/png" }
       ]
     },
     {
-      "name": "Круг",
-      "short_name": "Круг",
-      "description": "Круг по GPS",
+      "name": "Сессия на треке",
+      "short_name": "Трек",
+      "description": "Круги по GPS",
       "url": "./index.html?view=lap&skipIntro=1",
       "icons": [
         { "src": "./img/icon-192.png", "sizes": "192x192", "type": "image/png" }

@@ -9,7 +9,7 @@ const bar = html.slice(html.indexOf('<nav class="tabbar" id="tabbar">'), html.in
 const tabs = [...bar.matchAll(/class="nav-btn sheet-tab" data-sheet="([a-z]+)"/g)].map((m) => m[1]);
 ok(tabs.join(',') === 'duels,pulse,tracks,shop', 'v139: четыре пункта: Дуэли, Paddock, Трассы, Магазин');
 ok(/data-p48="duels"/.test(html) && /id="hwDuels"/.test(html), 'v154: Дуэли — в Профиле (аватар) и виджете Главной');
-ok(/id="tabPill"/.test(bar) && /\.tab-pill \{[\s\S]{0,400}transition: transform \.38s cubic-bezier/.test(css), 'та же «пилюля» с пружинным переездом');
+ok(/id="tabPill"/.test(bar) && /\.tab-pill \{ transition: transform \.32s/.test(css), 'та же «пилюля» с пружинным переездом');
 ok(/\.nav-btn:active \{ transform: scale\(\.92\); \}/.test(css) && /\.nav-btn\.active \.ico-lap \{ animation: icoPop/.test(css), 'сжатие при нажатии и анимация иконки как у старых вкладок');
 ok(/html\.nav-widgets \.rail nav\.tabbar > \.nav-btn\.sheet-tab \{ display: flex; \}/.test(css) && /^\.nav-btn\.sheet-tab \{ display: none; \}/m.test(css), 'пункты-шторки только на телефоне; десктопный рейл без изменений');
 ok(/html\.nav-widgets main \{ padding-bottom: calc\(96px \+ var\(--sab, 0px\)\); \}/.test(css), 'Главная с отступом под панель и safe-area');
@@ -21,7 +21,7 @@ ok(/html\.tgs-open #viewHost \{ transform: scale\(\.94\)/.test(css), 'лёгко
 const tgsCss = css.slice(css.indexOf('/* ——— v124: шторка'));
 ok(!/transition:[^;]*\b(top|height|bottom|left|margin)\b/.test(tgsCss), 'анимации только transform/opacity');
 ok(/@media \(prefers-reduced-motion: reduce\) \{\s*\.tgs-panel, \.tgs-scrim/.test(css), 'prefers-reduced-motion');
-ok(/\['tgSheet', 'tgSheetClose'\],\n  \];/.test(app), 'BackButton Telegram закрывает шторку (после листов, открытых поверх)');
+ok(/\['tgSheet', 'tgSheetClose'\],[^\n]*\n  \];/.test(app), 'BackButton Telegram закрывает шторку (после листов, открытых поверх)');
 ok(/getElementById\('tgSheetScrim'\)\?\.addEventListener\('click', \(\) => closeTgSheet\(\)\)/.test(app) && /e\.key === 'Escape' && TGS\.open\) closeTgSheet\(\)/.test(app), 'закрытие тапом по фону и Esc');
 ok(/fromHead \|\| body\.scrollTop <= 0/.test(app) && /\{ passive: false \}/.test(app) && /dy > 120 \|\| \(v > 0\.55 && dy > 40\)/.test(app), 'свайп вниз: шапка — всегда, контент — только с верха; порог/скорость');
 ok(/if \(TGS\.open === kind\) \{ closeTgSheet\(\); return; \}/.test(app) && /panel\.classList\.add\('swap'\); tgsFill\(kind\)/.test(app), 'переключение пунктов без закрытия; повторный тап закрывает');

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#1a1a1a" />
+    <meta name="theme-color" content="#000000" />
     <!-- v80: minimal CSP that cannot break the app (no plugins, no <base> hijack, forms only to self) -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-z2CTz9Y7ug2+lIHkdShb8RDoC8+FDWBnh50ogSss6nA=' 'sha256-8XvUhfOyAQ0xrN2l4lAR1NWN2swizirH1cFFwd7NzCY='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://*.workers.dev wss://pitlane-api.pitlane-taksimaga.workers.dev https://api.open-meteo.com https://server.arcgisonline.com https://tile.openstreetmap.org; media-src 'self' data: blob: https://pitlane-api.pitlane-taksimaga.workers.dev; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <script>try{if(/tgWebAppData|tgWebAppVersion/.test(location.hash)||sessionStorage.getItem("pitlane-tma")==="1")document.documentElement.classList.add("tma")}catch(e){}</script>
@@ -24,42 +24,11 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div id="intro" role="dialog" aria-label="Pitlane intro" aria-modal="true">
-      <div class="intro-bg" aria-hidden="true">
-        <div class="intro-vignette"></div>
-        <div class="intro-grain"></div>
-        <div class="intro-grid"></div>
-      </div>
-      <div class="intro-checkered" aria-hidden="true"></div>
-      <div class="intro-track" aria-hidden="true">
-        <div class="intro-line"></div>
-        <div class="intro-mark-wrap">
-          <div class="intro-trail"></div>
-          <div class="intro-speed-lines" aria-hidden="true">
-            <span></span><span></span><span></span>
-          </div>
-          <svg class="intro-mark-svg" viewBox="0 0 280 120" aria-hidden="true">
-            <defs>
-              <linearGradient id="introChevronGlow" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#9ECDB0" stop-opacity="0"/>
-                <stop offset="40%" stop-color="#9ECDB0" stop-opacity=".45"/>
-                <stop offset="100%" stop-color="#9ECDB0" stop-opacity="1"/>
-              </linearGradient>
-            </defs>
-            <!-- double chevron / speed arrow (v133: без glow) -->
-            <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M28 60 L118 18 L208 60 L118 102 Z" stroke="url(#introChevronGlow)" stroke-width="3.2" fill="rgba(158,205,176,0.06)"/>
-              <path d="M78 60 L168 18 L258 60 L168 102 Z" stroke="#9ECDB0" stroke-width="3.6" fill="rgba(10,10,10,.55)"/>
-              <path d="M148 60 L198 36 L248 60 L198 84 Z" stroke="#9ECDB0" stroke-width="2" fill="rgba(158,205,176,0.18)" opacity=".9"/>
-            </g>
-          </svg>
-        </div>
-      </div>
-      <div class="intro-brand">
-        <div class="intro-logo">PITLANE</div>
-        <p class="intro-tagline">гараж · замер · круг</p>
-      </div>
-      <p class="intro-skip">нажмите, чтобы пропустить</p>
+    <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
+    <div id="launch" class="ln61" role="presentation" aria-hidden="true">
+      <i class="ln61-p ln61-t"><b class="ln61-mark">PITLANE</b></i>
+      <i class="ln61-p ln61-b"><small class="ln61-sub">гараж · замер · круг</small></i>
+      <i class="ln61-line"></i>
     </div>
     <div id="app">
       <aside class="rail">
@@ -385,6 +354,11 @@
             <button type="button" class="h48-start" id="h48Start">Старт<small class="h56-sub" id="h56Sub"></small></button>
             <p class="h48-car" id="h48Car">Машина не выбрана</p>
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
+            <div class="z61-rows" role="group" aria-label="Параметры замера">
+              <button type="button" class="ds-row" id="z61Gps" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="ds-row-v" data-gps61>Телефон</span></button>
+              <div class="ds-row z61-ghost"><span class="ds-row-k">Призрак</span><div class="ghost-pick" id="runGhostPick" data-scope="run"></div></div>
+              <button type="button" class="ds-row" data-view="history" data-jf="run"><span class="ds-row-k">Журнал замеров</span><span class="ds-row-v" id="z61Last">—</span></button>
+            </div>
             <button type="button" class="v54-video" id="h54Video" aria-label="Старт с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>
           </section>
         </section>
@@ -553,11 +527,8 @@
           </div>
         </section>
 
-        <section id="view-run" class="view">
-          <div class="ride-seg seg-control" role="tablist" aria-label="Заезд">
-            <button type="button" class="seg-btn on" data-view="run" role="tab" aria-selected="true">Замер</button>
-            <button type="button" class="seg-btn" data-view="lap" role="tab" aria-selected="false">Круг</button>
-          </div>
+        <!-- v161: старый экран замера больше не открывается (маршрут run → zamer); узлы оставлены для совместимости кода -->
+        <section id="view-run" class="view v61-legacy" hidden aria-hidden="true">
           <h2 data-i18n="run.title">Замер</h2>
           <p class="run-car-name" id="runCarName">BMW G87 M2 Widebody</p>
           <p class="muted run-hint" data-i18n="run.hint">Старт, остановка, газ. Времена появятся по ходу.</p>
@@ -573,53 +544,10 @@
             </div>
             <div class="run-status" id="runStatus">ожидание GPS</div>
             <div class="ext-gps-bar" id="extGpsBar" aria-live="polite">Источник: GPS телефона</div>
-            <div class="ghost-pick" id="runGhostPick" data-scope="run"></div>
             <div class="form-row">
               <button type="button" class="go-btn" id="btnArm" data-i18n="run.start">Старт</button>
             </div>
           </div>
-          <article class="card ext-gps-card" id="extGpsCard">
-            <h3>Источник GPS</h3>
-            <div class="ext-gps-src" role="group" aria-label="Источник GPS">
-              <button type="button" data-gps-src="phone" class="on" aria-pressed="true">Телефон</button>
-              <button type="button" data-gps-src="ble" aria-pressed="false">Внешний GPS (PITLANE GPS)</button>
-              <button type="button" data-gps-src="wifi" aria-pressed="false">Внешний GPS (Wi-Fi)</button>
-              <button type="button" data-gps-src="sim" aria-pressed="false">Симулятор</button>
-            </div>
-            <div class="ext-gps-rate hidden" id="extGpsRate" role="group" aria-label="Частота приёмника">
-              <span class="tiny">Частота:</span>
-              <button type="button" data-ext-rate="10">10 Гц</button>
-              <button type="button" data-ext-rate="25">25 Гц</button>
-            </div>
-            <p class="tiny ext-gps-msg hidden" id="extGpsMsg" role="status"></p>
-            <p class="tiny muted" id="extGpsIosNote" hidden></p>
-            <div class="ext-gps-wifi hidden" id="extGpsWifi">
-              <p class="tiny wifi-state" id="wifiState" role="status">Wi-Fi: не подключено</p>
-              <ul class="wifi-devs" id="wifiDevs"></ul>
-              <div class="form-row">
-                <button type="button" class="share-hud-btn" id="wifiPairBtn">Привязать чип</button>
-              </div>
-              <div class="wifi-pair hidden" id="wifiPairBox">
-                <p class="tiny">Код привязки (20 минут, один раз):</p>
-                <strong class="wifi-code" id="wifiPairCode">——————</strong>
-                <p class="tiny muted" id="wifiPairWait">Введите код на странице настройки чипа — привязка пройдёт, как только чип выйдет в интернет.</p>
-              </div>
-              <details class="wifi-howto">
-                <summary>Как подключить с iPhone</summary>
-                <ol class="tiny">
-                  <li>Здесь нажмите «Привязать чип» — появится код.</li>
-                  <li>Чип: первый запуск — сам включает сеть настройки; иначе удерживайте кнопку BOOT 3 с (индикатор связи — фиолетовый).</li>
-                  <li>iPhone: Настройки → Wi-Fi → «PITLANE-GPS-XXXX», пароль <b>pitlanegps</b>. Откроется страница настройки (если нет — Safari, адрес 192.168.4.1).</li>
-                  <li>Впишите имя iPhone (Настройки → Основные → Об этом устройстве → Имя), пароль режима модема и код. «Сохранить».</li>
-                  <li>Выйдите из сети PITLANE-GPS. Настройки → Режим модема → включите «Разрешать другим» и «Максимальная совместимость» (2.4 ГГц). Не закрывайте этот экран, пока чип не подключится.</li>
-                  <li>Индикатор связи на чипе горит голубым — поток идёт. Здесь появится «чип в сети».</li>
-                  <li>Едем: стоите — замер сам вооружается, трогаетесь — отметки всплывают, начали сбавлять — итог.</li>
-                </ol>
-              </details>
-              <label class="wifi-hap tiny"><input type="checkbox" id="markHaptic" /> Короткая вибрация на отметке</label>
-            </div>
-            <p class="tiny muted">Внешний приёмник u-blox 10–25 Гц: по Bluetooth — Android + Chrome; по Wi-Fi (режим модема телефона) — iPhone и Telegram. Топ разгонов (0–100, 100–200, 80–120, ¼ мили) принимает только его; телефон и симулятор — в личную историю. Время на экране — справочно, в топ — после проверки сервером по сырым точкам.</p>
-          </article>
           <!-- hidden legacy ids for slip/publish compatibility -->
           <div class="sr-only" aria-hidden="true">
             <b id="runFrom">—</b><b id="run050">—</b><b id="run0100">—</b><b id="run100200">—</b>
@@ -627,25 +555,12 @@
             <b id="slipHero">—</b><b id="slip0100">—</b><b id="slip100200">—</b>
             <b id="slip0200">—</b><b id="slip200300">—</b><b id="slip80120">—</b><b id="slip1000">—</b>
           </div>
-          <div class="form-row run-secondary">
-            <button type="button" id="btnShareRun">Шейр слипа</button>
-            <button type="button" id="btnVideoRun" class="vt-open">Видео с телеметрией</button>
-          </div>
-          <article class="card">
-            <h3>Слипы</h3>
-            <ol id="runHistory" class="laps"></ol>
-          </article>
         </section>
 
         <section id="view-lap" class="view">
-          <div class="ride-seg seg-control" role="tablist" aria-label="Заезд">
-            <button type="button" class="seg-btn" data-view="run" role="tab" aria-selected="false">Замер</button>
-            <button type="button" class="seg-btn on" data-view="lap" role="tab" aria-selected="true">Круг</button>
-          </div>
           <h2 data-i18n="lap.title">Трек</h2>
           <!-- v158: выбор трассы — карточки с силуэтом, длиной, вашим лучшим и рекордом трассы -->
           <div class="tk58" id="tk58" role="listbox" aria-label="Трасса" aria-orientation="horizontal"></div>
-          <p class="muted">Выбери трассу барабаном, старт на линии, финиш на той же.</p>
           <div class="grid-2 lap-grid">
             <article class="card lap-track-card">
               <h3 data-i18n="lap.track">Трасса</h3>
@@ -662,6 +577,11 @@
               <button type="button" class="vt-open vt-open-lap" id="btnVideoLap">Видео с телеметрией</button>
               <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
               <button type="button" class="mycar-chip" id="btnMyCarLap"><span>машина для зачёта</span><b data-mycar-line>не выбрана</b><i class="mycar-chip-go" aria-hidden="true">выбрать</i></button>
+              <!-- v161: сессия как в Track Precision — трасса выбрана карточкой, ниже параметры сессии строками, затем «Начать сессию» -->
+              <div class="t61-sess" role="group" aria-label="Параметры сессии">
+                <button type="button" class="ds-row" id="t61Gps" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="ds-row-v" data-gps61>Телефон</span></button>
+                <button type="button" class="ds-row" data-view="history" data-jf="lap"><span class="ds-row-k">Журнал сессий</span><span class="ds-row-v" id="t61Last">—</span></button>
+              </div>
               <div class="lap-track-actions">
                 <button type="button" id="btnLapStart" class="lap-start-hero" data-i18n="lap.start">Старт круга</button>
                 <button type="button" class="v54-video" id="l54Video" aria-label="Старт круга с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>
@@ -669,20 +589,33 @@
               </div>
               <p class="tiny" id="lapGpsMsg">сессия не идёт</p>
             </article>
-            <article class="card lap-howto">
-              <h3 data-i18n="lap.gps">Круг по GPS</h3>
-              <p class="muted">Старт открывает HUD (карта, погода). Красная «Старт» внутри — вооружение. С/Ф на трассе стартует и финиширует честно. Ручной финиш не в топ.</p>
-            </article>
           </div>
-          <button type="button" class="l53-more" id="l53More" aria-expanded="false">История и аналитика</button>
+          <section class="card ts-card t61-suggest" id="trackSuggestCard">
+            <h3>Нет вашей трассы?</h3>
+            <p class="tiny muted">Откалибруйте её по GPS — старт/финиш и сектора. После проверки она появится в списке.</p>
+            <details class="ts-det"><summary>Предложить трассу</summary><div id="trackSuggestHost"></div></details>
+          </section>        </section>
+
+        <!-- v161: Журнал — замеры, сессии кругов и дуэли в одном месте -->
+        <section id="view-history" class="view jn61" aria-label="Журнал">
+          <h2>Журнал</h2>
+          <div class="jn" id="jnHost" aria-live="polite"></div>
+          <section class="jn-more" id="jnRun" hidden aria-label="Замеры">
+          <div class="jn-acts run-secondary">
+            <button type="button" id="btnShareRun">Шейр слипа</button>
+            <button type="button" id="btnVideoRun" class="vt-open">Видео с телеметрией</button>
+          </div>
+          </section>
+          <section class="jn-more" id="jnLap" hidden aria-label="Разбор трассы">
+            <h3 class="jn-day">Разбор трассы</h3>
+            <div class="jn-tracks" id="jnTracks" role="group" aria-label="Трасса для разбора"></div>
           <article class="card track-hist" id="trackHistCard" aria-live="polite">
             <div class="th-head"><h3>История трассы</h3><span class="th-track" id="thTrack"></span></div>
             <p class="th-line" id="thLine"></p>
             <div class="th-chart" id="thChart" aria-hidden="true"></div>
             <ol class="th-list" id="thList"></ol>
             <p class="th-note" id="thNote"></p>
-          </article>
-          <article class="card" id="compareCard">
+          </article>          <article class="card" id="compareCard">
             <h3>Сравнение</h3>
             <div id="compareBody">
               <p class="muted tiny">Сток vs ваш GPS по текущей машине и трассе.</p>
@@ -692,15 +625,13 @@
               <p><strong>Сравнение</strong> — сток / GPS</p>
               <p class="tiny">Пока бесплатно для всех.</p>
             </div>
-          </article>
-          <article class="card">
+          </article>          <article class="card">
             <h3>Track-day</h3>
             <ul id="trackDayList" class="laps"></ul>
             <div id="trackDayPaywall" class="paywall-card hidden">
               <p>История track-day — пока бесплатно</p>
             </div>
-          </article>
-          <article class="card la-card" id="lapAnalyticsCard">
+          </article>          <article class="card la-card" id="lapAnalyticsCard">
             <h3>Аналитика круга</h3>
             <p class="tiny muted">Скорость, ускорение и боковая G по дистанции. Наложение на лучший круг и разбор, где ушло время.</p>
             <div class="la-pick seg-control" role="group" aria-label="Сравнение">
@@ -709,13 +640,7 @@
             </div>
             <div id="lapAnalyticsHost" class="la-host"></div>
             <button type="button" class="la-demo-btn" id="btnLapAnalyticsDemo">Показать на демо-круге</button>
-          </article>
-          <article class="card ts-card" id="trackSuggestCard">
-            <h3>Нет вашей трассы?</h3>
-            <p class="tiny muted">Откалибруйте её по GPS — старт/финиш и сектора. После проверки она появится в списке.</p>
-            <details class="ts-det"><summary>Предложить трассу</summary><div id="trackSuggestHost"></div></details>
-          </article>
-          <article class="card" id="sectorBattleCard">
+          </article>          <article class="card" id="sectorBattleCard">
             <div class="card-head-row">
               <button type="button" class="pit-info-btn" data-help="sectorBattle" title="Справка" aria-label="Справка: битва секторов">i</button>
               <h3>Битва секторов</h3>
@@ -723,14 +648,18 @@
             <p class="tiny muted race-sheet-sub">Этот круг vs твои лучшие секторы</p>
             <div id="sectorBattlePanel" class="sector-battle-host"></div>
             <button type="button" class="sector-tops-link" id="btnSectorTopsFromBattle">Топ секторов</button>
-          </article>
-          <article class="card">
+          </article>          <article class="card">
             <h3 data-i18n="lap.sess">Все круги</h3>
             <ul id="lapList" class="laps"></ul>
             <div id="lapListPaywall" class="paywall-card hidden">
               <p>Полный список кругов — пока бесплатно</p>
             </div>
-          </article>
+          </article>          </section>
+          <div class="jn-stash" hidden>
+          <article class="card">
+            <h3>Слипы</h3>
+            <ol id="runHistory" class="laps"></ol>
+          </article>          </div>
         </section>
 
         <!-- v158: Магазин — отдельная страница (шапка + назад), не шторка -->
@@ -1381,6 +1310,56 @@
     </div>
 
     <!-- v154: меню ☰ (вторичные разделы) снова в шапке справа; v123: выезжающая панель справа (закрытие: фон, кнопка, свайп вправо, Esc, Telegram BackButton) -->
+    <!-- v161: источник GPS — одна шторка для Замера и Трека -->
+    <div class="ds-sheet hidden" id="gps61" role="dialog" aria-modal="true" aria-label="Источник GPS" aria-hidden="true">
+      <div class="ds-sheet-scrim" data-close61></div>
+      <div class="ds-sheet-panel">
+        <header class="ds-sheet-hd"><b>Источник GPS</b><button type="button" class="ds-sheet-x" id="gps61Close" data-close61 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+        <div class="ds-sheet-body">
+          <article class="card ext-gps-card" id="extGpsCard">
+            <h3>Источник GPS</h3>
+            <div class="ext-gps-src" role="group" aria-label="Источник GPS">
+              <button type="button" data-gps-src="phone" class="on" aria-pressed="true">Телефон</button>
+              <button type="button" data-gps-src="ble" aria-pressed="false">Внешний GPS (PITLANE GPS)</button>
+              <button type="button" data-gps-src="wifi" aria-pressed="false">Внешний GPS (Wi-Fi)</button>
+              <button type="button" data-gps-src="sim" aria-pressed="false">Симулятор</button>
+            </div>
+            <div class="ext-gps-rate hidden" id="extGpsRate" role="group" aria-label="Частота приёмника">
+              <span class="tiny">Частота:</span>
+              <button type="button" data-ext-rate="10">10 Гц</button>
+              <button type="button" data-ext-rate="25">25 Гц</button>
+            </div>
+            <p class="tiny ext-gps-msg hidden" id="extGpsMsg" role="status"></p>
+            <p class="tiny muted" id="extGpsIosNote" hidden></p>
+            <div class="ext-gps-wifi hidden" id="extGpsWifi">
+              <p class="tiny wifi-state" id="wifiState" role="status">Wi-Fi: не подключено</p>
+              <ul class="wifi-devs" id="wifiDevs"></ul>
+              <div class="form-row">
+                <button type="button" class="share-hud-btn" id="wifiPairBtn">Привязать чип</button>
+              </div>
+              <div class="wifi-pair hidden" id="wifiPairBox">
+                <p class="tiny">Код привязки (20 минут, один раз):</p>
+                <strong class="wifi-code" id="wifiPairCode">——————</strong>
+                <p class="tiny muted" id="wifiPairWait">Введите код на странице настройки чипа — привязка пройдёт, как только чип выйдет в интернет.</p>
+              </div>
+              <details class="wifi-howto">
+                <summary>Как подключить с iPhone</summary>
+                <ol class="tiny">
+                  <li>Здесь нажмите «Привязать чип» — появится код.</li>
+                  <li>Чип: первый запуск — сам включает сеть настройки; иначе удерживайте кнопку BOOT 3 с (индикатор связи — фиолетовый).</li>
+                  <li>iPhone: Настройки → Wi-Fi → «PITLANE-GPS-XXXX», пароль <b>pitlanegps</b>. Откроется страница настройки (если нет — Safari, адрес 192.168.4.1).</li>
+                  <li>Впишите имя iPhone (Настройки → Основные → Об этом устройстве → Имя), пароль режима модема и код. «Сохранить».</li>
+                  <li>Выйдите из сети PITLANE-GPS. Настройки → Режим модема → включите «Разрешать другим» и «Максимальная совместимость» (2.4 ГГц). Не закрывайте этот экран, пока чип не подключится.</li>
+                  <li>Индикатор связи на чипе горит голубым — поток идёт. Здесь появится «чип в сети».</li>
+                  <li>Едем: стоите — замер сам вооружается, трогаетесь — отметки всплывают, начали сбавлять — итог.</li>
+                </ol>
+              </details>
+              <label class="wifi-hap tiny"><input type="checkbox" id="markHaptic" /> Короткая вибрация на отметке</label>
+            </div>
+            <p class="tiny muted">Внешний приёмник u-blox 10–25 Гц: по Bluetooth — Android + Chrome; по Wi-Fi (режим модема телефона) — iPhone и Telegram. Топ разгонов (0–100, 100–200, 80–120, ¼ мили) принимает только его; телефон и симулятор — в личную историю. Время на экране — справочно, в топ — после проверки сервером по сырым точкам.</p>
+          </article>        </div>
+      </div>
+    </div>
     <div class="pl-menu hidden" id="plMenu" role="dialog" aria-modal="true" aria-label="Меню" aria-hidden="true">
       <div class="plm-scrim" id="plMenuScrim"></div>
       <aside class="plm-panel" id="plMenuPanel">
@@ -1389,7 +1368,7 @@
           <button type="button" class="plm-close" id="plMenuClose" aria-label="Закрыть меню"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         </div>
         <ul class="plm-list">
-          <li><button type="button" data-plm="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 8v4l3 2"/></svg><span>Мои замеры<small>история и рекорды</small></span></button></li>
+          <li><button type="button" data-plm="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 8v4l3 2"/></svg><span>Журнал<small>замеры, сессии, дуэли</small></span></button></li>
           <li><button type="button" data-plm="pulse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v10H9l-5 4z"/></svg><span>Paddock<small>чат пилотов</small></span></button></li>
           <li><button type="button" data-plm="team"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3"/><circle cx="16.5" cy="10" r="2.5"/><path d="M3.5 19c.6-3 2.8-4.5 5.5-4.5s4.9 1.5 5.5 4.5M14.5 15c2.6-.3 4.6 1 5.2 3.6"/></svg><span>Команда<small>экипаж и комнаты</small></span></button></li>
           <li><button type="button" data-plm="shop"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/></svg><span>Магазин<small>внешний GPS 10 Гц</small></span></button></li>

@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v160';
+const CACHE = 'pitlane-v161';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -13,7 +13,7 @@ const CORE = [
   './delete-account.html',
   './tools/tma-check.html',
   './legal.css',
-  './styles.css', './fonts/pl-sans.woff2', './fonts/pl-num.woff2', './motion.js',
+  './styles.css', './fonts/pl-sans.woff2', './fonts/pl-num.woff2', './motion.js', './journal.js',
   './app.js',
   './plates.js',
   './ext-gps.js',
