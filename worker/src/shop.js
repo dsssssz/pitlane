@@ -78,7 +78,7 @@ export function msgOrderOwner(o, buyer, h) {
     contactLine,
     o.comment ? 'Комментарий: ' + e(o.comment) : '',
     '',
-    'Пилот: ' + e(buyer.nick || '—') + ' · аккаунт ' + e(buyer.pid),
+    'Пилот: ' + e(buyer.nick || '—') + ' · аккаунт ' + e(buyer.pid) + (o.source === 'bot' ? ' · оформлено в боте' : ''),
   ].filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n');
   const url = o.contact.method === 'tg' ? (buyer.username ? 'https://t.me/' + buyer.username : (buyer.tgId ? 'tg://user?id=' + buyer.tgId : null))
     : o.contact.method === 'tg_other' ? 'https://t.me/' + o.contact.value.slice(1) : null;
