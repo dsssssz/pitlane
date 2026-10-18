@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v180';
+const CACHE = 'pitlane-v181';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -78,6 +78,7 @@ const CORE = [
   './vendor/telegram-web-app.js',
   './manifest.json',
   './favicon.svg',
+  './img/carbon-twill.svg',
   './img/icon-192.png',
   './img/icon-512.png',
   './img/emblem.svg',

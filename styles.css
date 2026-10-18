@@ -10,7 +10,7 @@
   --ds-line: rgba(255,255,255,.08); --ds-line-2: rgba(255,255,255,.16); --ds-line-3: rgba(255,255,255,.32);
   --ds-text: #f2efe9; --ds-sub: #8a8a8a; --ds-mute: #6b6b6b;
   --acc-rgb: 201, 198, 191; --ds-acc: rgb(var(--acc-rgb));
-  --ds-good: #7fae8f; --ds-bad: #d0675c; --accent-signal: #e12323; /* v177: сигнальный красный (как дуга логотипа) — только индикаторы, ~5% акцентов; дельты остаются приглушённым #d0675c */ --ds-on-light: #000; --ds-light: #f2f2f2;
+  --ds-good: #7fae8f; --ds-bad: #d0675c; --accent-signal: #e12323; --carbon: url('img/carbon-twill.svg'); /* v181: карбон 2/2 саржа, 2 КБ SVG-плитка, белым на 2–5 % */ /* v177: сигнальный красный (как дуга логотипа) — только индикаторы, ~5% акцентов; дельты остаются приглушённым #d0675c */ --ds-on-light: #000; --ds-light: #f2f2f2;
   /* сетка 8 px */
   --gutter: 24px; --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px; --s5: 40px; --s6: 48px; --s8: 64px;
   /* радиусы */
@@ -7024,3 +7024,8 @@ html.v159:not(#_):not(#_) .bn52-dot.on::before { content: ''; position: absolute
 html.v159:not(#_):not(#_) .bn52.bn80-run .bn52-dot.on.bn80-p::before { animation: bn80p 5000ms linear both; }
 @keyframes bn80p { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) { html.v159:not(#_):not(#_) .bn52-dot.on::before { animation: none !important; transform: none; } }
+/* v181: немного карбона — четыре места, тонкая саржа без свечения: шапка профиля, итог замера, карточка чипа в магазине, строка характеристик в Гараже */
+html.v159:not(#_):not(#_) .prof-banner { background-color: #101010 !important; background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; }
+html.v159:not(#_):not(#_) #rdFinal .rd-hero { background-color: var(--ds-bg-1); background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; border: 1px solid var(--ds-line); border-radius: var(--r3); padding: var(--s3) var(--s2) !important; }
+html.v159:not(#_):not(#_) #view-shop .shop-card-hero { background-color: var(--ds-bg-1); background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; border: 1px solid var(--ds-line) !important; border-radius: var(--r3) !important; padding: var(--s2) !important; }
+html.v159:not(#_):not(#_) #view-garage #g63Specs { background-color: var(--ds-bg-1); background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; border: 1px solid var(--ds-line); border-radius: var(--r3); padding: var(--s2) !important; }
