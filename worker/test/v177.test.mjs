@@ -1,0 +1,20 @@
+// v177: карточка Гаража синхронна с 3D при любой смене машины; тонировка читается тёмной.
+import fs from 'fs'; import path from 'path';
+let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c ? '' : (x || '')); if (!c) fails++; };
+const ROOT = new URL('../../', import.meta.url).pathname;
+const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+const app = rd('app.js'); const sw = rd('sw.js');
+ok(/const APP_VERSION = 'v1(7[7-9]|[89]\d)'/.test(app) && /const CACHE = 'pitlane-v1(7[7-9]|[89]\d)'/.test(sw) && /'v176', 'v177'/.test(app), 'версия v177');
+const lp = app.slice(app.indexOf('function loadPodiumModel('), app.indexOf('function loadPodiumModel(') + 1200);
+ok(/window\.__g53\(\)/.test(lp) && lp.indexOf('__g53') < lp.indexOf('fitGlb'), 'loadPodiumModel обновляет карточку g53 сразу');
+const g = app.match(/const GLASS177 = \{ clearcoat: ([\d.]+), spec: ([\d.]+), env: ([\d.]+) \}/);
+ok(g && +g[1] <= 0.6 && +g[2] <= 0.5 && +g[3] <= 1, 'стекло: слабые отражения (лак ≤ .6, спекуляр ≤ .5, env ≤ 1)', g && g[0]);
+ok(/color: 0x0b0c0e/.test(app) && /transmission: 0/.test(app), 'стекло по-прежнему почти чёрное и непрозрачное');
+ok(/card: \(\) =>/.test(app) && /glass: \(o\) =>/.test(app), 'QA-хуки card() и glass()');
+const html = rd('index.html'); const css = rd('styles.css');
+const red = (t) => (t.match(/#e12323/gi) || []).length;
+ok(/fill="#e12323" d="M66 -37/.test(rd('img/logo/pitlane-logo.svg')) && /fill="#e12323" d="M66 -37/.test(rd('img/logo/pitlane-icon.svg')) && /fill="#e12323" d="M66 -37/.test(rd('favicon.svg')), 'дуга логотипа красная #e12323 в SVG-файлах и favicon');
+ok(/class="lg-arc" fill="#e12323"/.test(html) && /class="ln61-arc" fill="#e12323"/.test(html) && red(html) === 2, 'шапка и запуск: красная только дуга');
+ok(red(css) === 0 && red(app) === 0 && !/#e12323[^"]*"\s*filter|drop-shadow\([^)]*e12323/i.test(html), 'красный нигде больше (стили/скрипт), без свечения');
+ok(/fill="#f2efe9"/.test(rd('img/logo/pitlane-logo.svg')), 'буквы остаются #f2efe9');
+if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v177 OK');

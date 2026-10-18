@@ -6,7 +6,7 @@ const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const app = rd('app.js'); const sw = rd('sw.js');
 ok(/const APP_VERSION = 'v1(7[6-9]|[89]\d)'/.test(app) && /const CACHE = 'pitlane-v1(7[6-9]|[89]\d)'/.test(sw) && /'v175', 'v176'/.test(app), 'версия v176');
 ok(/function liteModel175\(root\)/.test(app) && /liteModel175\(glbRoot\)/.test(app), 'облегчение применяется к каждой загруженной модели');
-ok(/color: 0x0b0c0e[^}]*clearcoat: 1[^}]*transparent: false[^}]*transmission: 0/.test(app), 'стекло: #0b0c0e, лак, непрозрачное, без transmission');
+ok(/color: 0x0b0c0e[^}]*clearcoat: (?:1|GLASS177\.clearcoat)[^}]*transparent: false[^}]*transmission: 0/.test(app), 'стекло: #0b0c0e, лак, непрозрачное, без transmission');
 ok(/LITE_LIGHT_RE = \/light\|ligts\|lamp\|lens/.test(app) && /red\|orange\|amber/.test(app), 'линзы фар и фонарей остаются как были');
 ok(/userData\.__darkGlass\) return true/.test(app), 'тёмное стекло не попадает в покраску');
 ok(/lite=0/.test(app) && /pitlane-lite-off/.test(app), 'выключатель ?lite=0 / localStorage');

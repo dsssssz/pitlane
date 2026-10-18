@@ -2519,6 +2519,8 @@ try {
     lite: () => (glbRoot && glbRoot.userData && glbRoot.userData.__lite175) || null,
     podiumModel: () => (glbRoot && glbRoot.userData && glbRoot.userData.__plateModel) || null,
     loadModel: (id) => { loadPodiumModel(id, 0); return true; },
+    glass: (o) => { const m = liteGlassMat(); if (o) { Object.assign(m, o); m.needsUpdate = true; podiumInvalidate(300, true); } return { clearcoat: m.clearcoat, spec: m.specularIntensity, env: m.envMapIntensity, rough: m.roughness }; },
+    card: () => ({ name: document.getElementById('g53Name')?.firstChild?.textContent || '', box: document.getElementById('boxName')?.textContent || '', model: (glbRoot && glbRoot.userData && glbRoot.userData.__plateModel) || null, pick: podiumModelId }),
     // v175: perf-QA — счётчики рендера и средний кадр (N принудительных рендеров), дамп мешей
     stats: (n = 20) => { if (!renderer || !scene || !camera) return null; renderer.info.autoReset = false; renderer.info.reset(); renderer.render(scene, camera); const calls = renderer.info.render.calls, tris = renderer.info.render.triangles; renderer.info.autoReset = true; const gl = renderer.getContext(); renderer.render(scene, camera); gl.finish(); const t0 = performance.now(); for (let i = 0; i < n; i++) renderer.render(scene, camera); gl.finish(); return { calls, tris, ms: +((performance.now() - t0) / n).toFixed(2) }; },
     dump: () => { const r = []; if (glbRoot) glbRoot.traverse((o) => { if (!o.isMesh) return; const ms = Array.isArray(o.material) ? o.material : [o.material]; const g = o.geometry; const tri = g ? (g.index ? g.index.count : (g.attributes.position?.count || 0)) / 3 : 0; r.push({ n: o.name, p: o.parent?.name || '', m: ms.map((m) => m?.name || '').join('|'), tri: Math.round(tri), tr: ms.some((m) => m?.transparent), tx: ms.some((m) => (m?.transmission || 0) > 0.01), op: ms.map((m) => +(m?.opacity ?? 1).toFixed(2)).join('|'), vis: o.visible, lite: o.userData?.__lite175 || '' }); }); return r; },
@@ -7527,9 +7529,11 @@ const LITE_INT_RE = /interior|seat ?belt|seatbelt|seats?\b|_seats|steer|steering
 const LITE_LIGHT_RE = /light|ligts|lamp|lens|indicator|drl|tail|head|bumper|emiss|brake|signal|fog|reflector/i;
 const LITE_GLASS_RE = /glass|window|windscreen|windshield|panarama|panorama|glasses/i;
 let _liteGlassMat = null;
+/* v177: тонировка читается тёмной — база почти чёрная, отражения только бликами (слабый спекуляр/env, лак тонкий) */
+const GLASS177 = { clearcoat: 0.5, spec: 0.35, env: 0.7 };
 function liteGlassMat() {
   if (_liteGlassMat) return _liteGlassMat;
-  _liteGlassMat = new THREE.MeshPhysicalMaterial({ name: 'pl75_dark_glass', color: 0x0b0c0e, metalness: 0, roughness: 0.06, clearcoat: 1, clearcoatRoughness: 0.04, specularIntensity: 1, envMapIntensity: 1.7, transparent: false, opacity: 1, transmission: 0, depthWrite: true, side: THREE.DoubleSide });
+  _liteGlassMat = new THREE.MeshPhysicalMaterial({ name: 'pl75_dark_glass', color: 0x0b0c0e, metalness: 0, roughness: 0.06, clearcoat: GLASS177.clearcoat, clearcoatRoughness: 0.03, specularIntensity: GLASS177.spec, envMapIntensity: GLASS177.env, transparent: false, opacity: 1, transmission: 0, depthWrite: true, side: THREE.DoubleSide });
   _liteGlassMat.userData.__darkGlass = true;
   return _liteGlassMat;
 }
@@ -8148,6 +8152,8 @@ function loadPodiumModel(id, animDir = 0) {
   try { state.carId = m.id; } catch (_) {}
   try { save(); } catch (_) {}
   try { applyCarUI(); } catch (_) {}
+  // v177: карточка Гаража (g53) знает о смене машины из любого пути (шторка выбора, Главная, ◀▶, хуки) — иначе имя отставало от 3D
+  try { if (!same && window.__g53 && document.getElementById('view-garage')?.classList.contains('active')) window.__g53(); } catch (_) {}
   const doTitle = () => applyPodiumTitle(m);
   if (animDir && !same) runHeroTitleTransition(animDir, doTitle);
   else doTitle();
@@ -12982,7 +12988,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v176';
+const APP_VERSION = 'v177';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13158,7 +13164,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174', 'v175', 'v176');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174', 'v175', 'v176', 'v177');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
