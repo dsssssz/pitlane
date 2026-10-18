@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>PITLANE GPS — прошивка через браузер</title>
-  <script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <!-- v184: esp-web-tools 10.4.0 лежит у нас (раньше — плавающий unpkg @10 без SRI на том же origin, что и Mini App с токеном) -->
+  <script type="module" src="./vendor/esp-web-tools-10.4.0/install-button.js"></script>
   <style>
     body { font: 16px/1.5 system-ui, sans-serif; background: #0b0b0d; color: #eee; max-width: 640px; margin: 40px auto; padding: 0 16px; }
     h1 { font-size: 22px; } code { background: #1c1c22; padding: 1px 5px; border-radius: 4px; }

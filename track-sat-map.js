@@ -153,7 +153,11 @@ export function mountLapSatMap(trackId, hostEl, opts) {
   const meta = (opts && opts.meta) || qualityLabel(o.quality);
   const cap = document.createElement('p');
   cap.className = 'lap-map-cap sat-map-cap';
-  cap.innerHTML = trName + '<br><small>' + meta + (o.rough ? ' · С/Ф приблизителен' : '') + '</small>';
+  // v184: без innerHTML — имя/метка трассы только текстом (защита от HTML в названии)
+  cap.append(document.createTextNode(String(trName)), document.createElement('br'));
+  const capSmall = document.createElement('small');
+  capSmall.textContent = String(meta) + (o.rough ? ' · С/Ф приблизителен' : '');
+  cap.appendChild(capSmall);
   host.appendChild(cap);
 
   state.trackId = trackId;

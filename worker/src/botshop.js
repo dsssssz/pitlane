@@ -17,6 +17,7 @@ import { APP_URL, RULE, esc, webAppBtn, START_CAPTION, TG_BANNER_URL } from './b
 import { createOrder, listOrders, setOrderStatus, getOrder, msgOrderOwner, adminStatusKeyboard, msgOrderStatusBuyer, msgOrderBuyer, shopAdmins, ownerChat, normPhone, SHOP_RL } from './shop.js';
 
 export const FLOW_TTL = 3600;
+export const SUPPORT_DAY_MAX = 100; // v184: обращений в поддержку через бота на весь сервис в сутки (спам с многих аккаунтов)
 const flowKey = (chat) => 'botflow:' + chat;
 const TG_USER_RE = /^@?([A-Za-z][A-Za-z0-9_]{4,31})$/;
 export const QUICK_CITIES = ['Москва', 'Санкт-Петербург'];
@@ -319,7 +320,7 @@ export async function botFlowMessage(env, msg, H) {
   const stay = async (cmd, spec) => { await tidy(); const s = await paint(spec); await putFlow(kv, chat, f); return { cmd, mode: modeOf(s) }; };
   if (f.step === 'support') {
     if (tx.length < 3) return stay('support:short', screenSupport(f.bk, 'Напишите вопрос текстом.'));
-    if (await H.rateHit(kv, 'rl:botsup:' + chat, 5, 86400)) { await dropFlow(kv, chat); await tidy(); await paint(screenNote('Сегодня уже несколько обращений — мы ответим на них. Новые — завтра.')); return { cmd: 'support:limited' }; }
+    if (await H.rateHit(kv, 'rl:botsup:' + chat, 5, 86400) || await H.rateHit(kv, 'rl:botsup:day:' + H.moscowDateKey(), SUPPORT_DAY_MAX, 86400)) { /* v184: + общий потолок в сутки */ await dropFlow(kv, chat); await tidy(); await paint(screenNote('Сегодня уже несколько обращений — мы ответим на них. Новые — завтра.')); return { cmd: 'support:limited' }; }
     const owner = ownerChat(env);
     const un = userName(msg.from);
     const body = '<b>Поддержка · бот</b>\n' + RULE + '\n' + esc(tx.slice(0, 2000)) + '\n' + RULE + '\n' +
@@ -382,7 +383,7 @@ export async function botCallback(env, cq, H) {
     await ack(r.changed ? (ORDER_SHORT[o.status] + (notified ? ' · покупатель уведомлён' : ' · покупателю не доставлено')) : 'Статус уже такой');
     return { cmd: 'cb:as', status: o.status, changed: r.changed, notified };
   }
-  if (await H.rateHit(kv, 'rl:tgcb:' + chat, 40, 60)) { await ack(); return { cmd: 'cb:limited' }; }
+  if (await (H.tgFlood ? H.tgFlood(env, 'RL_TGCB', 'c:' + chat, 'rl:tgcb:' + chat, 40) : H.rateHit(kv, 'rl:tgcb:' + chat, 40, 60))) { await ack(); return { cmd: 'cb:limited' }; } // v184: без записи KV на нажатие
   // кнопка из уведомления → экран новым сообщением (уведомление остаётся), прошлый экран удаляется
   const fresh = data.startsWith('n:'); if (fresh) data = data.slice(2);
   const [key, bk0] = data.split('~'); const back = bk0 && BACK_RE.test(bk0) ? bk0 : null;
@@ -419,8 +420,9 @@ export async function botCallback(env, cq, H) {
   if (key === 'ox') return nav('cb:cancel', screenNote(CANCELED_TEXT, [[cb('Магазин', 'sh')]]));
   // дальше — шаги оформления: нужно живое состояние
   const f = await getFlow(kv, chat);
-  if (!f || !f.pid) return done('cb:expired', screenNote(EXPIRED_TEXT, [[cb('Магазин', 'sh')]]));
-  const p = productById(f.pid);
+  const p = f && f.pid ? productById(f.pid) : null;
+  // v184: товар убрали из конфига посреди оформления → раньше TypeError (кнопка «крутилась» без ответа)
+  if (!f || !f.pid || !p) { if (f) await dropFlow(kv, chat); return done('cb:expired', screenNote(EXPIRED_TEXT, [[cb('Магазин', 'sh')]])); }
   const step = async (cmd, spec) => { await ack(); const s = await paint(spec); f.mid = s.mid; f.ph = s.photo; await putFlow(kv, chat, f); return { cmd, mode: modeOf(s), mid: s.mid }; };
   if ((m = key.match(/^oq:(\d)$/))) {
     const q = Number(m[1]); if (q < 1 || q > (p.maxQty || 5)) { await ack(); return { cmd: 'cb:oq:bad' }; }
@@ -450,6 +452,12 @@ export async function botCallback(env, cq, H) {
   if (key === 'oe') { await clearAux(env, chat, f, H); const g = { step: 'qty', pid: f.pid, un: f.un, nm: f.nm, cid: f.cid, mid: f.mid, ph: f.ph }; Object.keys(f).forEach((k) => delete f[k]); Object.assign(f, g); return step('cb:edit', screenQty(f)); }
   if (key === 'ok' && f.step === 'confirm' && f.qty && f.city && f.cm) {
     if (!orderable(p)) { await ack('Товар сейчас недоступен', true); return { cmd: 'cb:ok:na' }; }
+    // v184: двойное нажатие «Подтвердить» (Telegram шлёт апдейты параллельно) → раньше две заявки; замок на cid (best effort, KV)
+    const lockKey = 'botlock:' + f.cid;
+    if (await kv.get(lockKey)) { await ack('Заказ уже оформляется'); return { cmd: 'cb:ok:busy' }; }
+    const lockTok = H.randB36(12);
+    await kv.put(lockKey, lockTok, { expirationTtl: 60 });
+    if ((await kv.get(lockKey)) !== lockTok) { await ack('Заказ уже оформляется'); return { cmd: 'cb:ok:busy' }; } // параллельный «победил»
     const { pilot } = await H.ensurePilotForProvider(kv, 'tg', String(from.id), { nick: f.nm });
     const mine = await listOrders(kv, pilot.id, H);
     const dup = mine.find((o) => o.cid === f.cid);

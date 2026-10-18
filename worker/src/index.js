@@ -11,7 +11,7 @@ import { shopRoute, deleteAccountShop } from './shop.js';
 import { botCallback, botFlowMessage, botCommand, botStart, mainMenuRows } from './botshop.js';
 import { trackSuggestRoute, deleteAccountTrackSug } from './tracksug.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
-import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
+import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, roomsRefundedPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
 /**
  * Pitlane shared tops API — Cloudflare Worker + KV
  * Bindings: PITLANE (KV namespace)
@@ -1864,6 +1864,17 @@ async function startInfo(env, text) {
   } catch (_) { return null; }
 }
 
+/**
+ * v184: флуд-контроль бота без записи в KV на каждое сообщение/нажатие. Раньше rl:tgchat / rl:tgcb = 1 запись KV на апдейт
+ * (один аккаунт со скриптом ≈ 50+ записей/мин → квота KV и счёт). Биндинг Workers Rate Limiting считает в памяти колокации.
+ * Нет биндинга (тесты/локально) → прежнее KV-окно.
+ */
+async function tgFlood(env, binding, key, kvKey, limit) {
+  const rl = env && env[binding];
+  if (rl && typeof rl.limit === 'function') return burstLimited(env, binding, key);
+  return rateHit(env.PITLANE, kvKey, limit, 60);
+}
+
 async function tgCall(env, method, payload) {
   const token = String(env.TELEGRAM_BOT_TOKEN || '').trim();
   if (!token) return { ok: false, description: 'no token' };
@@ -1890,7 +1901,8 @@ async function tgHandleMessage(env, msg) {
   const chatId = msg?.chat?.id;
   if (msg?.chat?.type !== 'private' || !Number.isSafeInteger(chatId)) return null;
   // per-chat flood guard: 12 replies / minute, then silence (fixed window, no writes once over)
-  if (await rateHit(env.PITLANE, 'rl:tgchat:' + chatId, 12, 60)) return { cmd: 'limited' };
+  // v184: per-chat flood guard without KV writes (Workers Rate Limiting binding RL_TGMSG, 12/min); KV window only as a fallback (tests/local)
+  if (await tgFlood(env, 'RL_TGMSG', 'm:' + chatId, 'rl:tgchat:' + chatId, 12)) return { cmd: 'limited' };
   // v121: человек сам написал боту → ему можно присылать уведомления о его событиях (если вошёл через Telegram)
   await markStarted(env.PITLANE, chatId);
   {
@@ -2749,7 +2761,7 @@ const BOT_H = {
   get tgCall() { return tgCall; }, get tgEsc() { return tgEsc; }, get kvJson() { return kvJson; }, get kvListAll() { return kvListAll; }, get rateHit() { return rateHit; },
   get cleanLabel() { return cleanLabel; }, get containsPhone() { return containsPhone; }, get randB36() { return randB36; }, get safeName() { return safeName; },
   get tgChatOf() { return tgChatOf; }, get moscowDateKey() { return moscowDateKey; }, get webAppBtn() { return webAppBtn; }, get isPilotUuid() { return isPilotUuid; },
-  get ensurePilotForProvider() { return ensurePilotForProvider; },
+  get ensurePilotForProvider() { return ensurePilotForProvider; }, get tgFlood() { return tgFlood; },
 };
 /** v121: helpers for ./notify.js */
 const NOTIFY_H = {
@@ -2901,6 +2913,10 @@ export default {
           return json({ ok: true, ...rest, cmd: rest.cmd || null }, 200, headers);
         }
         const msg = upd && (upd.message || null);
+        if (msg && msg.refunded_payment) { // v184: возврат Stars → откатить продление сезона (раньше не обрабатывался)
+          const r = await roomsRefundedPayment(env, msg, ROOM_H);
+          return json({ ok: true, refunded: !!r?.ok, duplicate: !!r?.duplicate }, 200, headers);
+        }
         if (msg && msg.successful_payment) {
           const r = await roomsSuccessfulPayment(env, msg, ROOM_H);
           return json({ ok: true, paid: !!r?.ok, duplicate: !!r?.duplicate }, 200, headers);

@@ -600,6 +600,33 @@ export async function roomsSuccessfulPayment(env, msg, h) {
   return { ok: true, roomId: room.id, paidUntil: room.paidUntil };
 }
 
+/**
+ * v184: message.refunded_payment (возврат Stars через refundStarPayment / поддержку Telegram) → откат продления.
+ * Один раз на charge: запись paycharge:<id> получает refundedAt. Без исходной оплаты — ничего не трогаем.
+ */
+export async function roomsRefundedPayment(env, msg, h) {
+  const rp = msg?.refunded_payment;
+  const charge = String(rp?.telegram_payment_charge_id || '').slice(0, 128);
+  if (!rp || !charge) return { ok: false, msg: 'no charge' };
+  const ckey = 'paycharge:' + charge;
+  let rec = null;
+  try { rec = JSON.parse((await env.PITLANE.get(ckey)) || 'null'); } catch (_) { rec = null; }
+  if (!rec) return { ok: false, msg: 'unknown charge' };
+  if (rec.refundedAt) return { ok: true, duplicate: true };
+  rec.refundedAt = Date.now();
+  await env.PITLANE.put(ckey, JSON.stringify(rec));
+  if (rec.error || !rec.roomId) return { ok: true, roomId: null };
+  const room = await loadRoom(env.PITLANE, rec.roomId, h);
+  if (!room) return { ok: true, roomId: null };
+  const pay = (Array.isArray(room.payments) ? room.payments : []).find((x) => x && x.charge === charge);
+  if (pay && !pay.refunded) {
+    pay.refunded = rec.refundedAt;
+    room.paidUntil = Math.max(0, (Number(room.paidUntil) || 0) - ROOM_SEASON_DAYS * DAY);
+    await saveRoom(env.PITLANE, room);
+  }
+  return { ok: true, roomId: room.id, paidUntil: room.paidUntil || 0 };
+}
+
 /* ———————————————— account deletion ———————————————— */
 export const ROOM_RL_BUCKETS = ['mycar', 'room', 'rjoin', 'rlap', 'rpay', 'rinv'];
 

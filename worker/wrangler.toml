@@ -73,3 +73,16 @@ simple = { limit = 60, period = 60 }
 #   TWILIO_SID / TWILIO_TOKEN / TWILIO_FROM  — SMS login
 #   TELEGRAM_BOT_TOKEN                       — Telegram login (from @BotFather)
 #   ADMIN_TOKEN                              — enables POST /admin/migrate-pilots (delete after use)
+
+# v184: флуд-контроль бота по чату (в памяти, без записей KV): сообщения 12/мин, нажатия кнопок 40/мин
+[[unsafe.bindings]]
+name = "RL_TGMSG"
+type = "ratelimit"
+namespace_id = "8004"
+simple = { limit = 12, period = 60 }
+
+[[unsafe.bindings]]
+name = "RL_TGCB"
+type = "ratelimit"
+namespace_id = "8005"
+simple = { limit = 40, period = 60 }

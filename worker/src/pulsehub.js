@@ -15,6 +15,7 @@ export const PULSE_KEEP = 200;
 export const PULSE_MAX_BYTES = 3_000_000;
 export const PULSE_CID_RE = /^[A-Za-z0-9_-]{8,40}$/;
 const CID_WINDOW_MS = 24 * 3600e3;
+export const SNAP_MIN_MS = 1100; // v184: KV — не чаще 1 записи/с на ключ
 
 const byAt = (a, b) => (b.at || 0) - (a.at || 0);
 
@@ -172,9 +173,43 @@ export class PulseHub {
       for (const id of out.changed) { const r = kept.find((x) => x.id === id); if (r) put['p:' + id] = r; }
       if (Object.keys(put).length) await st.put(put);
       if (out.removed.size) await st.delete([...out.removed].map((id) => 'p:' + id));
-      await this.env.PITLANE.put('pulse', JSON.stringify(kept));
+      await this.snapshot();
     }
     return { res: out.res, rows: this.rows };
+  }
+
+  /**
+   * v184: снимок ленты в KV. Раньше ошибка KV (лимит 1 запись/с на ключ при серии лайков/постов от нескольких аккаунтов)
+   * роняла всю операцию в 500 — пост/лайк уже в DO, а клиент видел «не опубликовано» и повторял. Теперь ошибка KV
+   * не роняет операцию: снимок перепишет alarm DO через ~1,5 с (источник правды — хранилище DO).
+   */
+  async snapshot() {
+    try {
+      await this.env.PITLANE.put('pulse', JSON.stringify(this.rows));
+      this.lastKv = Date.now();
+      return true;
+    } catch (_) { /* KV 429 (1 запись/с на ключ) или сбой — операция уже в DO, снимок догонит alarm */ }
+    try {
+      const st = this.state.storage;
+      if (typeof st.setAlarm === 'function' && !(await st.getAlarm())) await st.setAlarm(Date.now() + SNAP_MIN_MS + 400);
+    } catch (_) {}
+    return false;
+  }
+
+  async alarm() {
+    const p = this.q.then(() => this.flushSnapshot()); // в той же очереди, что и операции
+    this.q = p.catch(() => {});
+    return p;
+  }
+
+  async flushSnapshot() {
+    await this.load();
+    try {
+      await this.env.PITLANE.put('pulse', JSON.stringify(this.rows));
+      this.lastKv = Date.now();
+    } catch (_) {
+      try { await this.state.storage.setAlarm(Date.now() + 3000); } catch (_) {}
+    }
   }
 
   async fetch(req) {
