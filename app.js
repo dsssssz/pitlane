@@ -1738,14 +1738,19 @@ if (document.getElementById('lapForm')) document.getElementById('lapForm').onsub
  * low    = DPR ≤1.25, no MSAA (from next load), no realtime mirror/shadow maps (flat black floor, ring glow compensated), 30 fps while idle-rotating
  * Initial tier: ?quality= override → fresh localStorage → GPU heuristic → high.
  * Then FPS on the podium decides (down-only, never back up within a session). */
-const Q_KEY = 'pitlane-quality-v1';
+/* v164: настройка «Графика» — Авто / Плавность / Баланс (по умолчанию) / Максимум. Ручной выбор фиксирует уровень (Q.locked). */
+const GFX_KEY = 'pitlane-gfx-v1';
+const GFX_TIER = { smooth: 'low', balance: 'medium', max: 'high' };
+const GFX_LABEL = { auto: 'Авто', smooth: 'Плавность', balance: 'Баланс', max: 'Максимум' };
+function gfxMode() { try { const v = localStorage.getItem(GFX_KEY); return GFX_LABEL[v] ? v : 'balance'; } catch (_) { return 'balance'; } }
+const Q_KEY = 'pitlane-quality-v2'; // v164: новый ключ — сбрасывает ложный «low», записанный старым замером FPS (см. qMeasureStep)
 const Q_TIERS = ['high', 'medium', 'low'];
 const Q_STALE_MS = 7 * 24 * 3600 * 1000;
 const Q_TARGET_FPS = 45;
 const Q_PRESETS = {
-  high: { dprCap: 2, maxFps: 0, idleFps: 0, aa: true, shadow: true, shadowRes: 0, shadowStatic: false, refl: 'full', reflEvery: 1, areaLights: true },
-  medium: { dprCap: 1.5, maxFps: 60, idleFps: 60, aa: true, shadow: true, shadowRes: 1024, shadowStatic: true, refl: 'half', reflEvery: 2, areaLights: true },
-  low: { dprCap: 1.25, maxFps: 60, idleFps: 30, aa: false, shadow: false, shadowRes: 0, shadowStatic: true, refl: 'off', reflEvery: 0, areaLights: true },
+  high: { dprCap: 3, maxFps: 0, idleFps: 0, aa: true, shadow: true, shadowRes: 0, shadowStatic: false, refl: 'full', reflEvery: 1, areaLights: true },
+  medium: { dprCap: 2, maxFps: 60, idleFps: 60, aa: true, shadow: true, shadowRes: 1024, shadowStatic: true, refl: 'half', reflEvery: 2, areaLights: true },
+  low: { dprCap: 1, maxFps: 60, idleFps: 30, aa: true, shadow: false, shadowRes: 0, shadowStatic: true, refl: 'off', reflEvery: 0, areaLights: true },
 };
 function qGpuString() {
   try {
@@ -1771,6 +1776,7 @@ const Q = (() => {
   let url = '';
   try { url = (new URLSearchParams(location.search).get('quality') || '').toLowerCase(); } catch (_) {}
   if (Q_TIERS.includes(url)) { st.tier = url; st.source = 'url'; st.locked = true; return st; }
+  { const m = gfxMode(); if (GFX_TIER[m]) { st.tier = GFX_TIER[m]; st.source = 'user:' + m; st.locked = true; return st; } } // v164: ручной выбор — без авто-понижения
   try {
     const raw = JSON.parse(localStorage.getItem(Q_KEY) || 'null');
     if (raw && Q_TIERS.includes(raw.tier)) st.stored = raw;
@@ -1788,6 +1794,12 @@ const Q = (() => {
   return st;
 })();
 function qPreset() { return Q_PRESETS[Q.tier] || Q_PRESETS.high; }
+/** v164: плотность пикселей 3D — родная (до 3× на iPhone) в пределах бюджета ~2,4 Мп на холст; карточка Гаража ~390×340 → 3× = 1,2 Мп. */
+function q3dDpr() {
+  const dev = window.devicePixelRatio || 1; let d = Math.min(dev, qPreset().dprCap);
+  try { const w = canvas?.clientWidth || 390, h = canvas?.clientHeight || 340; d = Math.min(d, Math.sqrt(2.4e6 / Math.max(1, w * h))); } catch (_) {}
+  return Math.max(1, Math.round(d * 100) / 100);
+}
 /** Apple GPUs (iPhone/iPad/Mac) are strong; iOS Low Power Mode caps rAF at 30 fps — don't mistake that for a slow GPU. */
 function qTargetFps() {
   const g = Q.gpu || (Q.stored && Q.stored.gpu) || '';
@@ -1831,7 +1843,7 @@ function build3dScene() {
     powerPreference: 'high-performance',
   });
   renderer.setClearColor(SHOWROOM_BG, 1); // v163: шоурум — чёрный фон сливается со страницей
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qPreset().dprCap));
+  renderer.setPixelRatio(q3dDpr());
   if (!Q.gpu) {
     try {
       const gl = renderer.getContext();
@@ -2043,7 +2055,7 @@ function ensureFlatFloor() {
 function applyQualityTier(fromEnv = false) {
   const p = qPreset();
   try {
-    const dpr = Math.min(window.devicePixelRatio || 1, p.dprCap);
+    const dpr = q3dDpr();
     if (renderer.getPixelRatio() !== dpr) { renderer.setPixelRatio(dpr); onResize(); }
   } catch (_) {}
   try {
@@ -2319,6 +2331,7 @@ function onResize() {
   let h = Math.max(1, Math.floor(rect.height || canvas.clientHeight || 240));
   // fallback if layout not ready
   if (w < 8 || h < 8) { w = 320; h = 240; }
+  { const d = q3dDpr(); if (renderer.getPixelRatio() !== d) renderer.setPixelRatio(d); } // v164: плотность — под реальный размер холста
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -2390,7 +2403,9 @@ function qMeasureReset() {
   if (qm.phase !== 'idle' && qm.phase !== 'done') { qm.phase = 'idle'; }
 }
 function qMeasureStep(now, rendered) {
-  if (qm.done || introBlocking3d || !glbRoot || !podiumEnvReady) return false;
+  if (qm.done || Q.locked || introBlocking3d || !glbRoot || !podiumEnvReady) return false;
+  // v164: мерить только когда модель реально на экране и не едет (drive-in); иначе пауза цикла (другая вкладка, прокрутка) читалась как «медленный GPU»
+  if (!podiumShouldRun() || driveIn) { if (qm.phase === 'sample' || qm.phase === 'warm') { qm.phase = 'idle'; } return false; }
   // "after models warm up": wait for catalog prefetch/parse (or 20 s max) so parse jank isn't read as a slow GPU
   if (!glbPrefetchDone && (!glbPrefetchT0 || now - glbPrefetchT0 < 20000)) return false;
   if (qm.phase === 'idle') { qm.phase = 'warm'; qm.t0 = now; return true; }
@@ -2403,6 +2418,7 @@ function qMeasureStep(now, rendered) {
       if (qm.lastT) {
         const d = now - qm.lastT;
         if (d > 3000 && qm.stalls < 2) { qm.stalls++; qm.phase = 'idle'; return true; } // long stall (GC / decode) — retry, max 2×
+        if (d > 250) { qm.phase = 'idle'; return true; } // v164: разрыв (цикл стоял) — не кадр, начать заново
         qm.deltas.push(d);
       }
       qm.lastT = now;
@@ -2412,7 +2428,8 @@ function qMeasureStep(now, rendered) {
     if (el < 2000) return true;
     const ds = qm.deltas.slice().sort((a, b) => a - b);
     const med = ds.length ? ds[ds.length >> 1] : 1000;
-    const fps = qm.frames / (el / 1000);
+    const fps = qm.frames / (el / 1000); // v164: разрывы > 250 мс сбрасывают выборку выше
+    if (qm.frames < 20) { qm.phase = 'warm'; qm.t0 = now; return true; }
     const slow = fps < qTargetFps();
     const from = Q.tier;
     Q.measured.push({ tier: from, fps: +fps.toFixed(1), medMs: +med.toFixed(1) });
@@ -12598,7 +12615,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v163';
+const APP_VERSION = 'v164';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12774,7 +12791,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -12868,7 +12885,8 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
       const id = curId(); const m = list.find((x) => x.id === id) || list[0];
       const meta = (() => { try { return CARS.find((c) => c.id === m.id) || {}; } catch (_) { return {}; } })();
       if (document.getElementById('view-garage')?.classList.contains('active')) mountPodium('garage'); // v154: живая 3D-модель в карточке
-      document.getElementById('g53Name').textContent = m.name;
+      { const h = document.getElementById('g53Name'); h.textContent = m.name; // v164: флаг страны марки рядом с именем (как на карточке Главной)
+        try { const br = brandOf(m.name); if (br) { const f = padEl('span', 'cb-flag g64-flag'); f.setAttribute('role', 'img'); f.setAttribute('aria-label', COUNTRIES[br.cc] || ''); f.title = COUNTRIES[br.cc] || ''; const im = document.createElement('img'); im.alt = ''; im.decoding = 'async'; im.draggable = false; im.src = flagUrl(br); f.appendChild(im); h.appendChild(f); } } catch (_) {} }
       document.getElementById('g53Sub').textContent = [m.year, meta.cls].filter(Boolean).join(' · ');
       g63Paint(list, m, meta);
       const mine = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
@@ -16457,6 +16475,33 @@ document.addEventListener('click', (e) => {
   if (bar) new MutationObserver(paint).observe(bar, { childList: true, characterData: true, subtree: true });
   paint();
   window.__gps61 = { open, close };
+})();
+/* v164: шторка «Графика» (Настройки и Гараж) — применяется сразу, без перезагрузки */
+function setGfxMode(m) {
+  if (!GFX_LABEL[m]) return;
+  try { localStorage.setItem(GFX_KEY, m); } catch (_) {}
+  if (GFX_TIER[m]) { Q.tier = GFX_TIER[m]; Q.source = 'user:' + m; Q.locked = true; qm.done = true; qm.phase = 'done'; }
+  else { Q.locked = false; Q.source = 'auto'; Q.tier = qTierFromGpu(Q.gpu); qm.done = false; qm.phase = 'idle'; qm.stalls = 0; }
+  document.documentElement.classList.toggle('q-low', Q.tier === 'low');
+  try { if (renderer) { applyQualityTier(); onResize(); podiumInvalidate(800, true); } } catch (_) {}
+  gfxPaint();
+}
+function gfxPaint() {
+  const m = gfxMode();
+  document.querySelectorAll('[data-gfx-v]').forEach((e) => { e.textContent = GFX_LABEL[m]; });
+  document.querySelectorAll('#gfx64 [data-gfx]').forEach((b) => { const on = b.dataset.gfx === m; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+  const n = document.getElementById('gfx64Note');
+  if (n) { let d = 1; try { d = renderer ? renderer.getPixelRatio() : q3dDpr(); } catch (_) {} n.textContent = 'Сейчас: ' + ({ high: 'максимум', medium: 'баланс', low: 'плавность' }[Q.tier] || Q.tier) + ' · плотность ×' + (Math.round(d * 10) / 10) + (m === 'auto' ? ' · может снизиться при низком FPS' : ' · не снижается автоматически'); }
+}
+(() => {
+  const sh = document.getElementById('gfx64'); if (!sh) return;
+  const close = () => { sh.classList.add('hidden'); sh.setAttribute('aria-hidden', 'true'); };
+  const open = () => { hap(8); gfxPaint(); sh.classList.remove('hidden'); sh.setAttribute('aria-hidden', 'false'); };
+  document.addEventListener('click', (e) => { if (e.target?.closest?.('[data-gfx-open]')) open(); });
+  sh.addEventListener('click', (e) => { const o = e.target?.closest?.('[data-gfx]'); if (o) { hap(6); setGfxMode(o.dataset.gfx); return; } if (e.target?.closest?.('[data-close64]')) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sh.classList.contains('hidden')) close(); });
+  gfxPaint();
+  window.__gfx64 = { open, close, set: setGfxMode };
 })();
 // значения в строках «Журнал замеров / сессий»
 function rows61() {

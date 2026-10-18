@@ -5989,7 +5989,7 @@ html.v152 .nav3 { grid-template-columns: repeat(4, 1fr); }
 .g53-acts { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 24px; }
 .g53-mine { min-height: 46px; padding: 0 24px !important; border: 0 !important; border-radius: 8px !important; background: #ecebe8 !important; color: #17181a !important; font: 500 14.5px/1 var(--font-ui) !important; text-transform: none !important; letter-spacing: 0 !important; box-shadow: none !important; }
 .g53-mine.on { background: #1b1d21 !important; color: rgb(158,205,176) !important; border: 1px solid var(--ds-line) !important; }
-.g53-3d { min-height: 46px; padding: 0 14px !important; border: 0 !important; background: none !important; box-shadow: none !important; color: #8b8e93 !important; font: 400 14px/1 var(--font-ui) !important; text-transform: none !important; letter-spacing: 0 !important; }
+button.g53-3d { /* v164: было «.g53-3d» — тот же класс вешается на <html> при «Цвет и детали», и вся страница получала padding 14px и чужой шрифт */  min-height: 46px; padding: 0 14px !important; border: 0 !important; background: none !important; box-shadow: none !important; color: #8b8e93 !important; font: 400 14px/1 var(--font-ui) !important; text-transform: none !important; letter-spacing: 0 !important; }
 .g53-cap { margin: 34px 4px 14px; font: 500 11px/1 var(--font-ui); letter-spacing: .16em; text-transform: uppercase; color: #6f7278; }
 .g53-list { display: flex; gap: 12px; margin: 0 -16px; padding: 0 16px 6px; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 16px; scrollbar-width: none; }
 .g53-list::-webkit-scrollbar { display: none; }
@@ -6796,3 +6796,56 @@ html.v159:not(#_):not(#_) #view-lap #btnMyCarLap > b { font: 400 15px/20px var(-
 html.v159:not(#_):not(#_) #view-lap #btnMyCarLap .mycar-chip-go { font-size: 0 !important; width: 8px !important; height: 8px !important; min-width: 0 !important; padding: 0 !important; margin: 0 4px 0 0 !important; border: 0 !important; border-top: 1.5px solid var(--ds-sub) !important; border-right: 1.5px solid var(--ds-sub) !important; border-radius: 0 !important; background: none !important; transform: rotate(45deg); }
 html.v159:not(#_):not(#_) #view-home #hwTop .hw-body, html.v159:not(#_):not(#_) #view-home #hwDuels .hw-body { gap: 4px !important; }
 html.v159:not(#_):not(#_) #view-home #hwTop .hw-top-lead { gap: 6px !important; }
+
+/* ===== v164 — плитки без переполнения, флаг у имени, квадратные образцы цвета, нижняя часть Гаража в системе v163 ===== */
+/* скрытые и пустые плитки действительно скрыты (правило плитки v163 перебивало [hidden] и data-empty) */
+html.v159:not(#_):not(#_) #view-home #homeWidgets .hw[hidden], html.v159:not(#_):not(#_) #view-home #homeWidgets .hw[data-empty="1"], html.v159:not(#_):not(#_) #view-home #homeWidgets #hwStats[hidden] { display: none !important; }
+html.v159:not(#_):not(#_) #view-home #homeWidgets .hw-empty-cta { display: none !important; } /* вся плитка — кнопка; в плитке без второй кнопки */
+html.v159:not(#_):not(#_) #view-home #homeWidgets .hw-empty-t { font: 500 15px/20px var(--font-ui) !important; color: var(--ds-text) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+html.v159:not(#_):not(#_) #view-home #homeWidgets .hw-empty-s { font: 400 12px/16px var(--font-ui) !important; color: var(--ds-mute) !important; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+html.v159:not(#_):not(#_) #view-home #homeWidgets .hw-body > * { max-width: 100%; min-width: 0; }
+html.v159:not(#_):not(#_) #view-home #homeWidgets .hw-body { overflow: hidden; }
+/* флаг страны у большого имени в Гараже */
+html.v159:not(#_):not(#_) #view-garage .g53-name .g64-flag { display: inline-flex; vertical-align: middle; margin-left: 10px; width: 26px; height: 19.5px; border-radius: 3px; overflow: hidden; transform: translateY(-3px); outline: 1px solid var(--ds-line); outline-offset: -1px; }
+html.v159:not(#_):not(#_) #view-garage .g53-name .g64-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* «Цвет и детали»: без дубля имени со стрелками — имя и свайп уже сверху */
+html.v159:not(#_):not(#_).g53-3d #view-garage .mycar > .hero-title { display: none !important; }
+html.v159:not(#_):not(#_) #view-garage .mycar { padding: 0 !important; margin: 0 !important; background: transparent !important; border: 0 !important; text-align: left !important; }
+/* машина для зачёта / резина — строка параметров */
+html.v159:not(#_):not(#_) #view-garage #myCarBar { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: var(--s2) !important; min-height: 72px; padding: var(--s2) 0 !important; margin: 0 !important; border: 0 !important; border-bottom: 1px solid var(--ds-line) !important; border-radius: 0 !important; background: transparent !important; text-align: left !important; }
+html.v159:not(#_):not(#_) #view-garage .mycar-bar-txt { display: flex !important; flex-direction: column; align-items: flex-start !important; gap: 4px; min-width: 0; text-align: left !important; }
+html.v159:not(#_):not(#_) #view-garage .mycar-bar-k { font: var(--t-label) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: var(--ds-sub) !important; }
+html.v159:not(#_):not(#_) #view-garage .mycar-bar-v { font: 500 15px/20px var(--font-ui) !important; color: var(--ds-text) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+html.v159:not(#_):not(#_) #view-garage .mycar-bar-cls { font: 400 12px/16px var(--font-ui) !important; color: var(--ds-mute) !important; }
+html.v159:not(#_):not(#_) #view-garage #btnMyCarGarage { flex: none; height: 40px !important; min-height: 40px !important; padding: 0 var(--s2) !important; border-radius: var(--r2) !important; border: 1px solid var(--ds-line-2) !important; background: transparent !important; color: var(--ds-text) !important; font: 500 14px/1 var(--font-ui) !important; }
+/* цвет кузова: подпись слева, финиш — сегменты во всю ширину, образцы — квадраты ровной сеткой */
+html.v159:not(#_):not(#_) #view-garage .body-paint { padding: var(--s3) 0 !important; margin: 0 !important; border: 0 !important; border-bottom: 1px solid var(--ds-line) !important; background: transparent !important; text-align: left !important; }
+html.v159:not(#_):not(#_) #view-garage .paint-label { margin: 0 0 var(--s2) !important; text-align: left !important; font: var(--t-label) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: var(--ds-sub) !important; }
+html.v159:not(#_):not(#_) #view-garage #paintFinish { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; width: 100% !important; margin: 0 0 var(--s2) !important; padding: 2px !important; gap: 2px !important; border: 1px solid var(--ds-line-2) !important; border-radius: var(--r2) !important; background: transparent !important; }
+html.v159:not(#_):not(#_) #view-garage #paintFinish button { min-height: 36px !important; height: 36px; border: 0 !important; border-radius: var(--r1) !important; background: transparent !important; color: var(--ds-sub) !important; font: 500 13px/1 var(--font-ui) !important; box-shadow: none !important; }
+html.v159:not(#_):not(#_) #view-garage #paintFinish button.on { background: var(--ds-fill-2) !important; color: var(--ds-text) !important; }
+html.v159:not(#_):not(#_) #view-garage #colorBar { display: grid !important; grid-template-columns: repeat(8, minmax(0, 1fr)) !important; gap: 10px !important; justify-content: stretch !important; margin: 0 !important; }
+html.v159:not(#_):not(#_) #view-garage #colorBar > button, html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom { position: relative; width: auto !important; height: auto !important; min-height: 0 !important; min-width: 0 !important; max-width: none !important; aspect-ratio: 1 / 1; padding: 0 !important; margin: 0 !important; border-radius: var(--r1) !important; border: 1px solid var(--ds-line-2) !important; box-shadow: none !important; transform: none; outline: 0; transition: outline-color var(--ds-t) var(--ds-ease); }
+html.v159:not(#_):not(#_) #view-garage #colorBar > button.on, html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom.on { outline: 1.5px solid var(--ds-acc) !important; outline-offset: 2px; }
+html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom { overflow: hidden; background: var(--ds-surface-2, #16181b) !important; display: grid; place-items: center; }
+html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom::after { content: '+'; font: 300 20px/1 var(--font-ui); color: var(--ds-text); pointer-events: none; }
+html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+/* паспорт динамики — заголовок + строки-волоски */
+html.v159:not(#_):not(#_) #view-garage #boxDyno { padding: var(--s3) 0 !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; }
+html.v159:not(#_):not(#_) #view-garage .box-dyno-head { display: flex !important; align-items: flex-start !important; justify-content: space-between !important; gap: var(--s2); margin-bottom: var(--s2) !important; }
+html.v159:not(#_):not(#_) #view-garage .box-dyno-head h3 { margin: 0 !important; font: 600 20px/24px var(--font-ui) !important; letter-spacing: -.01em !important; color: var(--ds-text) !important; text-transform: none !important; }
+html.v159:not(#_):not(#_) #view-garage #btnDynoEdit { height: 40px !important; min-height: 40px !important; padding: 0 var(--s2) !important; border-radius: var(--r2) !important; font: 500 14px/1 var(--font-ui) !important; }
+html.v159:not(#_):not(#_) #view-garage .dyno-row { min-height: 48px; padding: 0 !important; border-bottom: 1px solid var(--ds-line) !important; background: transparent !important; }
+html.v159:not(#_):not(#_) #view-garage .dyno-row span { font: 400 14px/20px var(--font-ui) !important; color: var(--ds-sub) !important; text-transform: none !important; letter-spacing: 0 !important; }
+html.v159:not(#_):not(#_) #view-garage .dyno-row strong { font: 300 20px/1 var(--font-num) !important; color: var(--ds-text) !important; }
+/* шторка «Графика»: варианты строками с подсказкой, выбран — мятная точка */
+html.v159:not(#_):not(#_) .gfx64-list { display: flex; flex-direction: column; padding-top: var(--s1); }
+html.v159:not(#_):not(#_) .gfx64-o { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: 64px; padding: var(--s1) 0; border-bottom: 1px solid var(--ds-line); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+html.v159:not(#_):not(#_) .gfx64-o span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+html.v159:not(#_):not(#_) .gfx64-o b { font: 500 16px/22px var(--font-ui); color: var(--ds-text); }
+html.v159:not(#_):not(#_) .gfx64-o small { font: 400 13px/18px var(--font-ui); color: var(--ds-sub); }
+html.v159:not(#_):not(#_) .gfx64-o i { flex: none; width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--ds-line-3); }
+html.v159:not(#_):not(#_) .gfx64-o.on i { border-color: var(--ds-acc); border-width: 6px; box-shadow: none; background: #0a0a0a; }
+html.v159:not(#_):not(#_) .gfx64-o:active { opacity: .7; }
+html.v159:not(#_):not(#_) .gfx64-note { margin: var(--s2) 0 0; font: 400 12px/16px var(--font-ui); color: var(--ds-mute); }
+html.v159:not(#_):not(#_) #view-garage .g64-gfx { margin-top: var(--s1); }

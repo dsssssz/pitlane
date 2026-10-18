@@ -380,6 +380,7 @@
                 <button type="button" class="g53-mine" id="g53Mine">Это моя машина</button>
                 <button type="button" class="g53-3d" id="g53Studio" aria-expanded="false">Цвет и детали</button>
               </div>
+              <button type="button" class="ds-row g64-gfx" data-gfx-open aria-haspopup="dialog" aria-controls="gfx64"><span class="ds-row-k">Графика</span><span class="ds-row-v" data-gfx-v>Баланс</span></button>
             </article>
             <p class="g53-cap">Все машины</p>
             <div class="g53-list" id="g53List" role="list" aria-label="Другие машины"></div>
@@ -879,6 +880,7 @@
             <p class="muted tiny" data-mu-hint></p>
             <button type="button" class="go-btn mu-add" data-mu-add>Добавить трек</button>
           </article>
+          <button type="button" class="ds-row" id="accGfx" data-gfx-open aria-haspopup="dialog" aria-controls="gfx64"><span class="ds-row-k">Графика 3D</span><span class="ds-row-v" data-gfx-v>Баланс</span></button>
           <label class="lang-field">Language / Язык
             <select id="langSelect" class="lang-select" aria-label="Language">
               <option value="ru">Русский</option>
@@ -1317,6 +1319,20 @@
 
     <!-- v154: меню ☰ (вторичные разделы) снова в шапке справа; v123: выезжающая панель справа (закрытие: фон, кнопка, свайп вправо, Esc, Telegram BackButton) -->
     <!-- v161: источник GPS — одна шторка для Замера и Трека -->
+    <!-- v164: качество графики — выбор пользователя важнее авто-понижения -->
+    <div class="ds-sheet hidden" id="gfx64" role="dialog" aria-modal="true" aria-label="Графика" aria-hidden="true">
+      <div class="ds-sheet-scrim" data-close64></div>
+      <div class="ds-sheet-panel">
+        <header class="ds-sheet-hd"><b>Графика 3D</b><button type="button" class="ds-sheet-x" data-close64 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+        <div class="ds-sheet-body gfx64-list" role="radiogroup" aria-label="Качество графики">
+          <button type="button" class="gfx64-o" role="radio" data-gfx="auto"><span><b>Авто</b><small>Подстраивается под устройство и FPS</small></span><i aria-hidden="true"></i></button>
+          <button type="button" class="gfx64-o" role="radio" data-gfx="smooth"><span><b>Плавность</b><small>Без отражений и теней, ×1 — дольше батарея</small></span><i aria-hidden="true"></i></button>
+          <button type="button" class="gfx64-o" role="radio" data-gfx="balance"><span><b>Баланс</b><small>Чёткость ×2, сглаживание, рендер по требованию</small></span><i aria-hidden="true"></i></button>
+          <button type="button" class="gfx64-o" role="radio" data-gfx="max"><span><b>Максимум</b><small>Полная плотность экрана до ×3, отражения, мягкие тени</small></span><i aria-hidden="true"></i></button>
+          <p class="gfx64-note" id="gfx64Note"></p>
+        </div>
+      </div>
+    </div>
     <div class="ds-sheet hidden" id="gps61" role="dialog" aria-modal="true" aria-label="Источник GPS" aria-hidden="true">
       <div class="ds-sheet-scrim" data-close61></div>
       <div class="ds-sheet-panel">
