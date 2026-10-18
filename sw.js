@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v169';
+const CACHE = 'pitlane-v170';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -34,6 +34,11 @@ const CORE = [
   './lap-analytics.js',
   './video-tele.js',
   './img/shop/gps-hero-720.webp',
+  './img/banners/bn-gps-800.webp',
+  './img/banners/bn-tops-800.webp',
+  './img/banners/bn-duels-800.webp',
+  './img/banners/bn-video-800.webp',
+  './img/banners/bn-track-800.webp',
   './img/flags/de.svg', './img/flags/gb.svg', './img/flags/it.svg', './img/flags/jp.svg', './img/flags/us.svg',
   './track-cal.js',
   './legal-config.js',

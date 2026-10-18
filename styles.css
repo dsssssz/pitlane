@@ -6733,8 +6733,13 @@ html.v159:not(#_):not(#_) #view-home .h63-span#hwPad .pc-top { flex-direction: r
 /* — баннеры: фото в полную яркость, скрим только под текстом, заголовок + кнопка — */
 html.v159:not(#_):not(#_) .bn52-s { aspect-ratio: 16 / 10 !important; padding: var(--s2) var(--s2) var(--s2) !important; gap: 4px !important; border: 0 !important; background: #1a1c1f !important; }
 html.v159:not(#_):not(#_) .bn52-s img { filter: none !important; }
-html.v159:not(#_):not(#_) .bn52-s.b-chip img { filter: none !important; object-position: 50% 40%; }
-html.v159:not(#_):not(#_) .bn52-s.b-tops img, html.v159:not(#_):not(#_) .bn52-s.b-duels img, html.v159:not(#_):not(#_) .bn52-s.b-video img, html.v159:not(#_):not(#_) .bn52-s.b-track img { filter: brightness(1.18) saturate(1.05) !important; }
+/* v170: новые баннеры уже в палитре «чёрный + платина» и снятые светлыми — без фильтров; кадр подогнан так, чтобы объект был справа, а заголовок слева внизу */
+html.v159:not(#_):not(#_) .bn52-s img { filter: none !important; }
+html.v159:not(#_):not(#_) .bn52-s.b-chip img { object-position: 62% 50%; }
+html.v159:not(#_):not(#_) .bn52-s.b-tops img { object-position: 64% 50%; }
+html.v159:not(#_):not(#_) .bn52-s.b-duels img { object-position: 78% 50%; }
+html.v159:not(#_):not(#_) .bn52-s.b-video img { object-position: 40% 60%; }
+html.v159:not(#_):not(#_) .bn52-s.b-track img { object-position: 60% 50%; }
 html.v159:not(#_):not(#_) .bn52-k { color: rgba(255,255,255,.82) !important; }
 html.v159:not(#_):not(#_) .bn52-t { font: 600 24px/28px var(--font-ui) !important; letter-spacing: -.01em !important; color: #fff !important; }
 html.v159:not(#_):not(#_) .bn52-d { font: 400 13px/18px var(--font-ui) !important; color: rgba(255,255,255,.82) !important; max-width: calc(100% - 150px); }
