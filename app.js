@@ -1236,7 +1236,7 @@ document.getElementById('topWeatherChips')?.addEventListener('click', (e) => {
 document.addEventListener('click', (e) => {
   const b = e.target?.closest?.('.tops-gps');
   if (b?.dataset?.tip) {
-    try { alert(b.dataset.tip); } catch (_) {}
+    try { plFlash(b.dataset.tip); } catch (_) {} // v172: тост вместо системного alert
   }
 });
 
@@ -10449,11 +10449,32 @@ function appendDisputeButton(body, pid) {
   wrap.append(btn, msg);
   body.appendChild(wrap);
 }
+/** v172: свой лист ввода вместо системного prompt() — в стиле приложения, с клавиатурой iOS, Esc/скрим/смахивание = отмена. Возвращает строку или null. */
+function askText172(title, { placeholder = '', value = '', multi = false, ok = 'Готово', hint = '' } = {}) {
+  return new Promise((resolve) => {
+    const root = document.createElement('div'); root.className = 'ds-sheet ask172'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true');
+    root.innerHTML = '<div class="ds-sheet-scrim" data-ask-x></div><div class="ds-sheet-panel"><header class="ds-sheet-hd"><b></b><button type="button" class="ds-sheet-x" data-ask-x aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header><div class="ask172-body"><p class="ask172-hint"></p></div><button type="button" class="ask172-ok"></button></div>';
+    root.querySelector('b').textContent = title;
+    const hp = root.querySelector('.ask172-hint'); if (hint) hp.textContent = hint; else hp.remove();
+    const f = document.createElement(multi ? 'textarea' : 'input'); f.className = 'ask172-in'; f.placeholder = placeholder; f.value = value || ''; if (!multi) { f.type = 'text'; f.enterKeyHint = 'done'; } else f.rows = 4;
+    f.setAttribute('aria-label', title); root.querySelector('.ask172-body').prepend(f);
+    const okb = root.querySelector('.ask172-ok'); okb.textContent = ok;
+    let done = false;
+    const fin = (v) => { if (done) return; done = true; document.removeEventListener('keydown', onKey, true); root.remove(); resolve(v); };
+    const onKey = (e) => { if (e.key === 'Escape') { e.stopPropagation(); fin(null); } else if (e.key === 'Enter' && !multi) { e.preventDefault(); fin(f.value); } };
+    root.addEventListener('click', (e) => { if (e.target.closest('[data-ask-x]')) fin(null); else if (e.target.closest('.ask172-ok')) fin(f.value); });
+    document.addEventListener('keydown', onKey, true);
+    document.body.appendChild(root);
+    setTimeout(() => { try { f.focus(); } catch (_) {} }, 60);
+    window.__ask172 = { fin, root };
+  });
+}
+
 async function sendDispute(ctx, msgEl) {
   const say = (t) => { if (msgEl) msgEl.textContent = t; };
   if (!currentUser()) { say(REJECT_TEXT.no_account); return; }
   let reason = '';
-  try { reason = window.prompt('Что не так с результатом? (видео, свидетели, подозрение на подделку трека)') || ''; } catch (_) {}
+  try { reason = (await askText172('Что не так с результатом?', { placeholder: 'Видео, свидетели, подозрение на подделку трека…', multi: true, ok: 'Отправить жалобу' })) || ''; } catch (_) {}
   reason = reason.trim();
   if (reason.length < 3) { say('Опишите, что не так — хотя бы пару слов.'); return; }
   const res = await api.dispute({ ...ctx, reason: reason.slice(0, 500) });
@@ -11127,7 +11148,7 @@ document.getElementById('duelList')?.addEventListener('click', (e) => {
   void showDuelView(li.getAttribute('data-duel-id'));
 });
 document.getElementById('duelPasteOpen')?.addEventListener('click', async () => {
-  const raw = prompt('Вставь ссылку или id дуэли');
+  const raw = await askText172('Открыть дуэль', { placeholder: 'Ссылка или id дуэли', ok: 'Открыть' });
   if (!raw) return;
   let id = String(raw).trim();
   const m = id.match(/[?&#]duel=([^&]+)/i) || id.match(/duel\/([^/?#]+)/i);
@@ -12463,10 +12484,10 @@ function sessionPilotNick() {
 }
 
 async function sessionCheckinClick() {
-  if (!currentUser()) { alert(REJECT_TEXT.no_account); return; }
+  if (!currentUser()) { plFlash(REJECT_TEXT.no_account); return; }
   let nick = sessionPilotNick();
   if (!nick) {
-    nick = String(prompt('Твой ник для «я на месте»', 'пилот') || '').trim().slice(0, 48);
+    nick = String((await askText172('Твой ник для «я на месте»', { value: 'пилот', ok: 'Отметиться' })) || '').trim().slice(0, 48);
   }
   if (!nick) return;
   const res = await api.sessionCheckin({ nick, pilotId: (() => { try { return actingPilotId(); } catch (_) { return undefined; } })() });
@@ -12475,7 +12496,7 @@ async function sessionCheckinClick() {
     await renderSessionOfDay();
     try { hap(18); } catch (_) {}
   } else {
-    alert(res?.error || 'Не удалось отметиться. Нужен Worker.');
+    plFlash(res?.error || 'Не удалось отметиться — нет связи с сервером');
   }
 }
 
@@ -12618,7 +12639,7 @@ document.getElementById('crewList')?.addEventListener('click', (e) => {
   void showCrewView(li.getAttribute('data-crew-id'));
 });
 document.getElementById('crewPasteOpen')?.addEventListener('click', async () => {
-  const raw = prompt('Вставь ссылку, id или код экипажа');
+  const raw = await askText172('Открыть экипаж', { placeholder: 'Ссылка, id или код экипажа', ok: 'Открыть' });
   if (!raw) return;
   let id = String(raw).trim();
   const m = id.match(/[?&#]crew=([^&]+)/i) || id.match(/crew\/([^/?#]+)/i);
@@ -12863,7 +12884,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v171';
+const APP_VERSION = 'v172';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13039,7 +13060,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {

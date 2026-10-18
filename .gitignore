@@ -2,3 +2,4 @@ node_modules/
 .wrangler/
 .dev.vars
 tools/studio-render/out/
+img/banners/raw/
