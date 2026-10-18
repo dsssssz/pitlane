@@ -451,24 +451,29 @@
               <button type="button" class="mycar-bar-btn" id="btnMyCarGarage">Это моя машина</button>
             </div>
             <div class="body-paint" id="bodyPaint">
-              <p class="paint-label">Цвет кузова</p>
-              <div class="paint-finish" id="paintFinish" role="group" aria-label="Финиш кузова">
-                <button type="button" data-finish="gloss" class="on" aria-pressed="true">Глянец</button>
+              <!-- v165: библиотека красок — что красим, категория, образцы, имя краски -->
+              <div class="pl65-head"><p class="paint-label">Покраска</p></div>
+              <div class="pl65-target" id="pl65Target" role="tablist" aria-label="Что красим">
+                <button type="button" data-target="body" class="on" role="tab" aria-selected="true">Кузов</button>
+                <button type="button" data-target="wheels" role="tab" aria-selected="false">Диски</button>
+                <button type="button" data-target="calipers" role="tab" aria-selected="false">Суппорты</button>
+              </div>
+              <div class="paint-finish" id="paintFinish" role="group" aria-label="Категория краски">
+                <button type="button" data-finish="gloss" class="on" aria-pressed="true">Солид</button>
+                <button type="button" data-finish="metallic" aria-pressed="false">Металлик</button>
+                <button type="button" data-finish="pearl" aria-pressed="false">Перламутр</button>
                 <button type="button" data-finish="matte" aria-pressed="false">Мат</button>
                 <button type="button" data-finish="satin" aria-pressed="false">Сатин</button>
+                <button type="button" data-finish="chrome" aria-pressed="false">Хром</button>
+                <button type="button" data-finish="candy" aria-pressed="false">Кэнди</button>
               </div>
-              <div class="colors" id="colorBar" role="listbox" aria-label="Цвет кузова">
-                <button type="button" class="on" data-hex="" title="Сток" aria-label="Сток" style="background:linear-gradient(135deg,#8a8a8a 0%,#3a3a3a 55%,#1a1a1a 100%)"></button>
-                <button type="button" data-hex="#1a1a1a" title="Чёрный" aria-label="Чёрный" style="background:#1a1a1a"></button>
-                <button type="button" data-hex="#f2f2f2" title="Белый" aria-label="Белый" style="background:#f2f2f2"></button>
-                <button type="button" data-hex="#c0c0c0" title="Серебро" aria-label="Серебро" style="background:#c0c0c0"></button>
-                <button type="button" data-hex="#c41e3a" title="Красный" aria-label="Красный" style="background:#c41e3a"></button>
-                <button type="button" data-hex="#1e4fd6" title="Синий" aria-label="Синий" style="background:#1e4fd6"></button>
-                <button type="button" data-hex="#f5c518" title="Жёлтый" aria-label="Жёлтый" style="background:#f5c518"></button>
-                <label class="paint-custom" title="Свой HEX">
+              <div class="colors" id="colorBar" role="listbox" aria-label="Краска">
+                <button type="button" class="on" data-hex="" title="Заводской цвет" aria-label="Заводской цвет" style="background:linear-gradient(135deg,#8a8a8a 0%,#3a3a3a 55%,#1a1a1a 100%)"></button>
+                <label class="paint-custom" title="Свой цвет">
                   <input type="color" id="paintCustom" value="#5b6b7a" aria-label="Свой цвет" />
                 </label>
               </div>
+              <p class="pl65-name"><b id="pl65N">Заводской цвет</b><span id="pl65S">как с завода</span></p>
             </div>
             <!-- legacy hidden ids for JS compatibility -->
             <span id="boxClass" class="hidden">—</span>

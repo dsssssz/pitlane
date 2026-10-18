@@ -8282,6 +8282,9 @@ document.querySelectorAll('[data-photo]').forEach((b) => {
 });
 
 const paint = { body: null, wheel: null, finish: 'gloss' };
+const PAINT_CATS = [['gloss', 'Солид'], ['metallic', 'Металлик'], ['pearl', 'Перламутр'], ['matte', 'Мат'], ['satin', 'Сатин'], ['chrome', 'Хром'], ['candy', 'Кэнди']];
+const PAINT_FIN_OK = new Set(PAINT_CATS.map((c) => c[0]));
+const PAINT_GAIN = { v: 0.5 };
 const PAINT_LS_KEY = 'pitlane-paint';
 
 /** Split CamelCase / digits so "Recycled" ≠ "led" and "2020Paint" → paint. */
@@ -8399,7 +8402,7 @@ function normalizePaintEntry(v) {
     const hex = (typeof v.hex === 'string' && /^#?[0-9a-fA-F]{6}$/.test(v.hex))
       ? (v.hex.startsWith('#') ? v.hex : '#' + v.hex)
       : null;
-    const finish = (v.finish === 'matte' || v.finish === 'satin' || v.finish === 'gloss') ? v.finish : 'gloss';
+    const finish = PAINT_FIN_OK.has(v.finish) ? v.finish : 'gloss'; // v165: 7 категорий
     return { hex, finish };
   }
   return { hex: null, finish: 'gloss' };
@@ -8434,7 +8437,7 @@ function setStoredPaintHex(hex, modelId) {
 function setStoredPaintFinish(finish, modelId) {
   const id = modelId || podiumModelId || state.carId;
   if (!id) return;
-  const f = (finish === 'matte' || finish === 'satin') ? finish : 'gloss';
+  const f = PAINT_FIN_OK.has(finish) ? finish : 'gloss';
   const s = paintStoreAll();
   const prev = normalizePaintEntry(s[id]);
   s[id] = { hex: prev.hex, finish: f };
@@ -8577,6 +8580,8 @@ function rememberPaintOrig(mat) {
     clearcoat: mat.clearcoat,
     clearcoatRoughness: mat.clearcoatRoughness,
     envMapIntensity: mat.envMapIntensity,
+    normalMap: mat.normalMap || null,
+    normalScale: mat.normalScale ? mat.normalScale.clone() : null,
   };
 }
 
@@ -8595,39 +8600,187 @@ function restorePaintOrig(mat) {
   mat.needsUpdate = true;
 }
 
+/* v165: библиотека красок в духе конфигуратора — 7 категорий, свои имена, каждая со своим материалом.
+   Солид · Металлик (флейк) · Перламутр/хамелеон (iridescence — цвет плывёт с углом) · Мат · Сатин · Хром · Кэнди (глубокий тонированный лак).
+   Всё — материалами three.js поверх GLB (сами .glb не трогаем). Смена краски — плавный переход 520 мс. */
 const PAINT_FINISH_PRESETS = {
-  gloss: { roughness: 0.18, metalnessMax: 0.18, clearcoat: 1.0, clearcoatRoughness: 0.08, envMin: 1.05 },
-  satin: { roughness: 0.42, metalnessMax: 0.14, clearcoat: 0.25, clearcoatRoughness: 0.35, envMin: 0.9 },
-  matte: { roughness: 0.72, metalnessMax: 0.08, clearcoat: 0, clearcoatRoughness: 0.6, envMin: 0.75 },
+  gloss:    { roughness: 0.16, metalness: 0.04, clearcoat: 1.0, clearcoatRoughness: 0.06, env: 0.8, gain: 0.5 },
+  metallic: { roughness: 0.28, metalness: 0.6, clearcoat: 1.0, clearcoatRoughness: 0.03, env: 0.45, flake: 0.06, gain: 0.45 },
+  pearl:    { roughness: 0.22, metalness: 0.28, clearcoat: 1.0, clearcoatRoughness: 0.04, env: 0.8, irid: 1, gain: 0.5 },
+  matte:    { roughness: 0.74, metalness: 0.06, clearcoat: 0, clearcoatRoughness: 0.6, env: 0.35, spec: 0.5, gain: 0.35 },
+  satin:    { roughness: 0.44, metalness: 0.2, clearcoat: 0.3, clearcoatRoughness: 0.4, env: 0.5, spec: 0.7, gain: 0.38 },
+  chrome:   { roughness: 0.05, metalness: 1.0, clearcoat: 0, clearcoatRoughness: 0.1, env: 1.6 },
+  candy:    { roughness: 0.2, metalness: 0.55, clearcoat: 1.0, clearcoatRoughness: 0.02, env: 0.9, flake: 0.06, gain: 0.45 },
 };
+/** [имя, hex, (для перламутра — толщина плёнки нм: шире = сильнее «хамелеон»)] */
+const PAINT_LIB = {
+  gloss: [['Графит', '#2b2e33'], ['Мел', '#eeece6'], ['Сигнал', '#c8102e'], ['Гоночный жёлтый', '#f2c200'], ['Лазурь', '#1f6fd1'], ['Рыжий тигр', '#d4541c']],
+  metallic: [['Северное серебро', '#b9bdc3'], ['Ночная Нева', '#1b2a4a'], ['Ладога', '#2f5f80'], ['Малахит', '#1e5a46'], ['Коньяк', '#6a3a1f'], ['Тёмный титан', '#55595e']],
+  pearl: [['Белая ночь', '#f1efe8', [180, 420]], ['Опал', '#d9dde3', [260, 680]], ['Северное сияние', '#17534f', [380, 1100]], ['Аметист', '#4a2f73', [350, 900]], ['Хамелеон «Казань»', '#2a1f4f', [450, 1250]], ['Медный мираж', '#6b2f1a', [400, 1000]]],
+  matte: [['Мат-чёрный', '#141516'], ['Мат-графит', '#3b3e42'], ['Хаки', '#5a604c'], ['Песок', '#b5a584'], ['Мат-синий', '#2a3b57'], ['Мат-кармин', '#7a1c1c']],
+  satin: [['Сатин-сталь', '#8b9097'], ['Бронза', '#7a6246'], ['Оливка', '#4b5240'], ['Сатин-белый', '#dcdad3'], ['Сатин-синий', '#24406b'], ['Сатин-бордо', '#5a1a26']],
+  chrome: [['Зеркало', '#e6e8ea'], ['Золото', '#d4af37'], ['Розовое золото', '#d8a08a'], ['Хром-синий', '#3a6bd0'], ['Хром-бронза', '#8c6239'], ['Чёрный хром', '#2a2b2e']],
+  candy: [['Кэнди-рубин', '#7d0b1c'], ['Кэнди-кобальт', '#0d2a85'], ['Кэнди-изумруд', '#0a5236'], ['Кэнди-апельсин', '#b8400b'], ['Кэнди-фиолет', '#4a0f6b'], ['Кэнди-янтарь', '#a86a05']],
+};
+/** Диски и суппорты — тонируются поверх родной текстуры (тёмная резина остаётся тёмной). */
+const PART_LIB = {
+  wheels: [['Чёрный глянец', '#1c1c1d'], ['Антрацит', '#3c3f43'], ['Тёмное серебро', '#8c9096'], ['Бронза', '#8a6a3a'], ['Золото', '#c2a14a'], ['Белый', '#ececec'], ['В цвет кузова', 'body']],
+  calipers: [['Красный', '#c8102e'], ['Жёлтый', '#f2c200'], ['Синий', '#1f5fd1'], ['Мятный', '#4fae8f'], ['Чёрный', '#151515'], ['Серебро', '#b9bdc3'], ['Рыжий', '#d4541c']],
+};
+const PART_LABEL = { body: 'Кузов', wheels: 'Диски', calipers: 'Суппорты' };
+const FIN_LABEL = Object.fromEntries(PAINT_CATS);
+function paintLookup(hex, finish) {
+  const h = String(hex || '').toLowerCase(); const row = (PAINT_LIB[finish] || []).find((p) => p[1] === h);
+  return row ? { name: row[0], fin: finish, film: row[2] || null } : null;
+}
 
 function currentPaintFinish() {
   const f = paint.finish || getStoredPaintFinish(podiumModelId || state.carId) || 'gloss';
-  return (f === 'matte' || f === 'satin') ? f : 'gloss';
+  return PAINT_FIN_OK.has(f) ? f : 'gloss';
 }
 
-/** Solid lacquer: pure color replace — never multiply with original albedo map. */
-function applySolidBodyColor(mat, color, finish) {
+let flakeTex = null;
+/** Флейк металлика: мелкий шум нормалей 128², тайлится. Даёт «искру» в бликах, лак сверху остаётся гладким. */
+function paintFlakeTex() {
+  if (flakeTex) return flakeTex;
+  const n = 128; const c = document.createElement('canvas'); c.width = c.height = n;
+  const g = c.getContext('2d'); const im = g.createImageData(n, n); let s = 1337;
+  const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
+  for (let i = 0; i < n * n; i++) { const x = rnd() * 2 - 1, y = rnd() * 2 - 1; im.data[i * 4] = 128 + x * 127; im.data[i * 4 + 1] = 128 + y * 127; im.data[i * 4 + 2] = 255; im.data[i * 4 + 3] = 255; }
+  g.putImageData(im, 0, 0);
+  flakeTex = new THREE.CanvasTexture(c); flakeTex.wrapS = flakeTex.wrapT = THREE.RepeatWrapping; flakeTex.repeat.set(36, 36); flakeTex.colorSpace = THREE.NoColorSpace;
+  return flakeTex;
+}
+
+/** Материал краски должен быть Physical (лак, iridescence, specular). Standard → Physical без потери карт. */
+function toPhysicalPaint(mat) {
+  if (mat.isMeshPhysicalMaterial || !mat.isMeshStandardMaterial) return mat.clone();
+  const p = new THREE.MeshPhysicalMaterial();
+  THREE.MeshStandardMaterial.prototype.copy.call(p, mat);
+  p.defines = { STANDARD: '', PHYSICAL: '' };
+  return p;
+}
+
+/* Плавный переход: каждый материал лерпит цвет и параметры к цели (линейное пространство) */
+const paintTw = new Map(); let paintTwRaf = 0;
+const PAINT_TW_MS = 520;
+function paintParams(m) {
+  return { r: m.color.r, g: m.color.g, b: m.color.b, rough: m.roughness ?? 0.5, metal: m.metalness ?? 0, cc: m.clearcoat || 0, ccr: m.clearcoatRoughness || 0, ir: m.iridescence || 0, env: m.envMapIntensity ?? 1, fl: m.normalMap === flakeTex && m.normalScale ? m.normalScale.x : 0 };
+}
+function paintSet(m, p) {
+  m.color.setRGB(p.r, p.g, p.b);
+  if (m.roughness != null) m.roughness = p.rough;
+  if (m.metalness != null) m.metalness = p.metal;
+  if (m.isMeshPhysicalMaterial) { m.clearcoat = p.cc; m.clearcoatRoughness = p.ccr; m.iridescence = p.ir; }
+  if (m.envMapIntensity != null) m.envMapIntensity = p.env;
+  if (m.normalMap === flakeTex && m.normalScale) m.normalScale.set(p.fl, p.fl);
+}
+function paintTwStep(now) {
+  paintTwRaf = 0; let live = false;
+  for (const [m, tw] of paintTw) {
+    const k = Math.min(1, (now - tw.t0) / tw.ms); const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    const p = {}; for (const key in tw.to) p[key] = tw.from[key] + (tw.to[key] - tw.from[key]) * e;
+    paintSet(m, p);
+    if (k >= 1) { paintTw.delete(m); if (tw.done) tw.done(m); } else live = true;
+  }
+  try { podiumInvalidate(60); } catch (_) {}
+  if (live) paintTwRaf = requestAnimationFrame(paintTwStep);
+}
+function paintTweenTo(m, to, done) {
+  const ms = (() => { try { return motionReduced() ? 0 : PAINT_TW_MS; } catch (_) { return PAINT_TW_MS; } })();
+  if (!ms) { paintSet(m, to); if (done) done(m); return; }
+  paintTw.set(m, { from: paintParams(m), to, t0: performance.now(), ms, done });
+  if (!paintTwRaf) paintTwRaf = requestAnimationFrame(paintTwStep);
+}
+
+/** Краска кузова: чистая замена цвета (без умножения на заводской атлас) + материал категории. */
+function applySolidBodyColor(mat, color, finish, hex) {
   rememberPaintOrig(mat);
-  // MUST strip baseColor/albedo map (factory hue lives there on Forza atlases)
-  mat.map = null;
+  mat.map = null; // MUST strip baseColor/albedo map (factory hue lives there on Forza atlases)
   if ('vertexColors' in mat) mat.vertexColors = false;
-  mat.color.copy(color);
   const fin = PAINT_FINISH_PRESETS[finish] || PAINT_FINISH_PRESETS.gloss;
-  if (mat.metalness != null) {
-    // Coloured/Paint atlases often ship metalness≈1; clamp to paint-like
-    if (mat.metalness > 0.35) mat.metalness = Math.min(0.12, fin.metalnessMax);
-    else mat.metalness = Math.min(mat.metalness, fin.metalnessMax);
-  }
-  if (mat.roughness != null) mat.roughness = fin.roughness;
+  const o = mat.userData.__paintOrig || {};
+  const flake = fin.flake ? paintFlakeTex() : null;
+  if (flake) { if (mat.normalMap !== flake) { mat.normalMap = flake; mat.normalScale?.set(0, 0); } }
+  else if (mat.normalMap === flakeTex) { mat.normalMap = o.normalMap || null; if (o.normalScale && mat.normalScale) mat.normalScale.copy(o.normalScale); }
   if (mat.isMeshPhysicalMaterial) {
-    mat.clearcoat = fin.clearcoat;
-    mat.clearcoatRoughness = fin.clearcoatRoughness;
+    const film = paintLookup(hex, finish)?.film || [220, 620];
+    mat.iridescenceIOR = 1.35; mat.iridescenceThicknessRange = film;
+    // кэнди: блик лака тонирован цветом — «глубина» как у тонированного прозрачного слоя
+    if (mat.specularColor) { if (finish === 'candy') mat.specularColor.copy(color).lerp(new THREE.Color(1, 1, 1), 0.35); else mat.specularColor.setRGB(1, 1, 1); }
+    mat.specularIntensity = fin.spec ?? 1; // мат/сатин — без «пластикового» блика
   }
-  if (mat.envMapIntensity != null) {
-    mat.envMapIntensity = Math.max(fin.envMin, Number(mat.envMapIntensity) || fin.envMin);
-  }
+  // v165: сцена шоурума светлая (ACES 1.2 + 5 источников) — без поправки любая краска «выцветает» к пастели. Альбедо × gain (линейно), хром — как есть.
+  const g = finish === 'chrome' ? 1 : (fin.gain ?? PAINT_GAIN.v);
+  const to = { r: color.r * g, g: color.g * g, b: color.b * g, rough: fin.roughness, metal: fin.metalness, cc: fin.clearcoat, ccr: fin.clearcoatRoughness, ir: fin.irid || 0, env: fin.env, fl: fin.flake || 0 };
+  if (!mat.isMeshPhysicalMaterial) { delete to.cc; delete to.ccr; delete to.ir; }
   mat.needsUpdate = true;
+  paintTweenTo(mat, to);
+}
+
+/* ===== Диски и суппорты ===== */
+const PARTS_LS_KEY = 'pitlane-parts-v1';
+const PART_RE = { wheels: /rim|wheel|felg|alloy/i, calipers: /calip|calliper/i };
+const PART_NOT = { wheels: /steer|disc|calip|calliper|seat|interior|_int_/i, calipers: /disc|light|emiss/i };
+function partsStoreAll() { try { return JSON.parse(localStorage.getItem(PARTS_LS_KEY) || '{}') || {}; } catch (_) { return {}; } }
+function partsFor(id) { const v = partsStoreAll()[id || podiumModelId || state.carId]; return (v && typeof v === 'object') ? v : {}; }
+function setPartColor(part, hex, id) {
+  const k = id || podiumModelId || state.carId; if (!k) return;
+  const s = partsStoreAll(); const v = { ...(s[k] || {}) };
+  if (hex) v[part] = hex; else delete v[part]; s[k] = v;
+  try { localStorage.setItem(PARTS_LS_KEY, JSON.stringify(s)); } catch (_) {}
+}
+function partMeshes(part) {
+  const out = []; if (!glbRoot) return out;
+  glbRoot.traverse((o) => {
+    if (!o.isMesh || isPitlanePlate(o)) return;
+    let n = o.name || ''; let p = o.parent; for (let i = 0; i < 4 && p; i++, p = p.parent) n += ' ' + (p.name || '');
+    const mats = (Array.isArray(o.material) ? o.material : [o.material]).map((m) => m?.name || '').join(' ');
+    const s = n + ' ' + mats;
+    if (PART_RE[part].test(s) && !PART_NOT[part].test(s) && !(Array.isArray(o.material) ? o.material : [o.material]).some((m) => m?.userData?.__isPaintClone || isGlassMat(m))) out.push(o);
+  });
+  return out;
+}
+/** Тонировка = цвет × родная текстура. Если текстура почти чёрная (чёрные диски), тон не виден — такую деталь не предлагаем (без «мёртвых» кнопок). */
+function texLuma(tex) {
+  if (!tex?.image) return 1; if (tex.userData.__luma != null) return tex.userData.__luma;
+  let L = 1;
+  try { const c = document.createElement('canvas'); c.width = c.height = 8; const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(tex.image, 0, 0, 8, 8); const d = g.getImageData(0, 0, 8, 8).data; let a = 0; for (let i = 0; i < d.length; i += 4) a += (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255; L = a / 64; } catch (_) {}
+  tex.userData.__luma = L; return L;
+}
+function partTintable(part) {
+  const ms = partMeshes(part); if (!ms.length) return false;
+  let ok = 0, n = 0;
+  ms.forEach((o) => (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (!m?.color) return; n++; const o0 = m.userData.__partOrig; const base = o0 ? Math.max(o0.r, o0.g, o0.b) : Math.max(m.color.r, m.color.g, m.color.b); if (!m.map || texLuma(m.map) * Math.max(base, 0.5) > 0.16) ok++; }));
+  return n > 0 && ok / n >= 0.5;
+}
+function applyPartColor(part, hex) {
+  if (!glbRoot || typeof THREE === 'undefined') return;
+  const want = hex === 'body' ? (paint.body || null) : hex;
+  let col = null; try { if (want) col = new THREE.Color(want); } catch (_) {}
+  partMeshes(part).forEach((o) => {
+    const isArr = Array.isArray(o.material); const mats = isArr ? o.material : [o.material];
+    const next = mats.map((m) => {
+      if (!m || !m.color) return m;
+      let d = m;
+      if (!m.userData.__partClone) { d = m.clone(); d.userData.__partClone = true; d.userData.__partOrig = { r: m.color.r, g: m.color.g, b: m.color.b, rough: m.roughness, metal: m.metalness }; }
+      const o0 = d.userData.__partOrig;
+      // тонируем «серебро» родной текстуры: цвет × карта; без карты — прямой цвет
+      const base = col ? { r: col.r, g: col.g, b: col.b } : { r: o0.r, g: o0.g, b: o0.b };
+      const metalPart = part === 'wheels';
+      const to = { r: base.r, g: base.g, b: base.b, rough: col ? (metalPart ? 0.32 : 0.38) : (o0.rough ?? 0.5), metal: col ? (metalPart ? 0.75 : 0.25) : (o0.metal ?? 0), cc: d.clearcoat || 0, ccr: d.clearcoatRoughness || 0, ir: 0, env: d.envMapIntensity ?? 1, fl: 0 };
+      if (!d.isMeshPhysicalMaterial) { delete to.cc; delete to.ccr; delete to.ir; }
+      paintTweenTo(d, to);
+      return d;
+    });
+    if (next.some((m, i) => m !== mats[i])) { if (o.userData.__partBackup === undefined) o.userData.__partBackup = o.material; o.material = isArr ? next : next[0]; }
+  });
+  try { podiumInvalidate(700, true); } catch (_) {}
+}
+function applyStoredParts() {
+  const p = partsFor();
+  ['wheels', 'calipers'].forEach((k) => { if (p[k] || glbRoot?.userData?.__partsTouched) applyPartColor(k, p[k] || null); });
+  if (glbRoot) glbRoot.userData.__partsTouched = !!(p.wheels || p.calipers);
 }
 
 /** Keep kidney/grille/black trim from taking body paint (M3 chrome mesh, etc.). */
@@ -8689,17 +8842,14 @@ function applyGlbBodyPaint(hex) {
       if (sc < 80) return mat;
       let dest = mat;
       if (!mat.userData.__isPaintClone) {
-        dest = mat.clone();
+        dest = toPhysicalPaint(mat); // v165: лак/перламутр/кэнди — нужен Physical
         dest.name = mat.name || '';
         dest.userData.__isPaintClone = true;
         delete dest.userData.__paintOrig;
         rememberPaintOrig(dest);
         mutated = true;
       }
-      applySolidBodyColor(dest, color, finish);
-      dest.map = null; // re-verify solid replace strips albedo (no color mix)
-      dest.color.copy(color);
-      dest.needsUpdate = true;
+      applySolidBodyColor(dest, color, finish, hex); // v165: плавный переход — цвет не копируем мгновенно
       return dest;
     });
     if (mutated) {
@@ -8709,10 +8859,7 @@ function applyGlbBodyPaint(hex) {
       // finish change on already-cloned paint mats
       next.forEach((mat) => {
         if (mat?.userData?.__isPaintClone) {
-          applySolidBodyColor(mat, color, finish);
-          mat.map = null;
-          mat.color.copy(color);
-          mat.needsUpdate = true;
+          applySolidBodyColor(mat, color, finish, hex);
         }
       });
     }
@@ -8720,64 +8867,106 @@ function applyGlbBodyPaint(hex) {
   try { forceBlackTrim(); } catch (_) {}
 }
 
-function syncPaintSwatches(hex) {
-  const bar = document.getElementById('colorBar');
-  if (!bar) return;
-  const custom = document.getElementById('paintCustom');
-  bar.querySelectorAll('button').forEach((b) => b.classList.remove('on'));
-  bar.querySelector('.paint-custom')?.classList.remove('on');
-  if (!hex) {
-    bar.querySelector('button[data-hex=""]')?.classList.add('on');
-    return;
-  }
-  const want = hex.toLowerCase();
-  let hit = false;
-  bar.querySelectorAll('button[data-hex]').forEach((b) => {
-    const h = (b.dataset.hex || '').toLowerCase();
-    if (h && h === want) { b.classList.add('on'); hit = true; }
-  });
-  if (!hit && custom) {
-    custom.value = want.startsWith('#') ? want : '#' + want;
-    custom.closest('.paint-custom')?.classList.add('on');
+/* v165: UI покраски — Кузов / Диски / Суппорты, категории как вкладки, квадратные образцы, имя краски под сеткой */
+const pl65 = { target: 'body', cat: null, avail: null, availRoot: null };
+function pl65Avail() {
+  if (pl65.availRoot === glbRoot && pl65.avail) return pl65.avail;
+  pl65.availRoot = glbRoot; pl65.avail = { body: true, wheels: !!glbRoot && partTintable('wheels'), calipers: !!glbRoot && partTintable('calipers') };
+  return pl65.avail;
+}
+function pl65Shade(hex, k) { // k>0 светлее, k<0 темнее
+  const [r, g, b] = hexToRgb(hex); const f = (v) => Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k));
+  return `rgb(${f(r)},${f(g)},${f(b)})`;
+}
+function pl65SwatchBg(hex, fin) {
+  if (!hex) return 'linear-gradient(135deg,#8a8a8a 0%,#3a3a3a 55%,#1a1a1a 100%)';
+  if (hex === 'body') return paint.body ? pl65SwatchBg(paint.body, currentPaintFinish()) : 'linear-gradient(135deg,#8a8a8a,#2a2a2a)';
+  switch (fin) {
+    case 'metallic': return `linear-gradient(135deg,${pl65Shade(hex, 0.32)} 0%,${hex} 45%,${pl65Shade(hex, -0.45)} 100%)`;
+    case 'pearl': { const [h, s, l] = rgbToHsl(...hexToRgb(hex)); const sh = hslToRgb((h + 0.18) % 1, Math.max(s, 0.45), Math.min(0.8, l + 0.15)).map(Math.round); return `linear-gradient(135deg,${hex} 0%,rgb(${sh.join(',')}) 55%,${pl65Shade(hex, -0.4)} 100%)`; }
+    case 'satin': return `linear-gradient(160deg,${pl65Shade(hex, 0.14)} 0%,${hex} 60%)`;
+    case 'chrome': return `linear-gradient(135deg,${pl65Shade(hex, 0.75)} 0%,${hex} 38%,${pl65Shade(hex, -0.6)} 62%,${pl65Shade(hex, 0.3)} 100%)`;
+    case 'candy': return `radial-gradient(circle at 32% 28%,${pl65Shade(hex, 0.45)} 0%,${hex} 45%,${pl65Shade(hex, -0.7)} 100%)`;
+    default: return hex;
   }
 }
-
-function syncPaintFinishUI(finish) {
-  const bar = document.getElementById('paintFinish');
-  if (!bar) return;
-  const f = (finish === 'matte' || finish === 'satin') ? finish : 'gloss';
-  bar.querySelectorAll('button[data-finish]').forEach((b) => {
-    const on = (b.dataset.finish || '') === f;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-pressed', on ? 'true' : 'false');
-  });
+function pl65Btn(hex, fin, name, on) {
+  const b = document.createElement('button'); b.type = 'button'; b.dataset.hex = hex || ''; if (fin) b.dataset.fin = fin;
+  b.title = name; b.setAttribute('aria-label', name); b.setAttribute('role', 'option'); b.setAttribute('aria-selected', on ? 'true' : 'false');
+  b.style.background = pl65SwatchBg(hex, fin); if (on) b.classList.add('on'); return b;
 }
+function renderPaintUI() {
+  const bar = document.getElementById('colorBar'); const finBar = document.getElementById('paintFinish'); if (!bar || !finBar) return;
+  const av = pl65Avail(); if (!av[pl65.target]) pl65.target = 'body';
+  const tb = document.getElementById('pl65Target');
+  if (tb) {
+    tb.hidden = !(av.wheels || av.calipers);
+    tb.querySelectorAll('button[data-target]').forEach((b) => { const k = b.dataset.target; b.hidden = !av[k]; const on = k === pl65.target; b.classList.toggle('on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+  }
+  const entry = getStoredPaintEntry(podiumModelId || state.carId);
+  const cat = pl65.cat || (entry.hex ? entry.finish : 'gloss') || 'gloss'; pl65.cat = PAINT_FIN_OK.has(cat) ? cat : 'gloss';
+  finBar.hidden = pl65.target !== 'body';
+  finBar.querySelectorAll('button[data-finish]').forEach((b) => { const on = b.dataset.finish === pl65.cat; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.classList.toggle('has', !!entry.hex && entry.finish === b.dataset.finish); });
+  const custom = bar.querySelector('.paint-custom');
+  bar.querySelectorAll('button').forEach((b) => b.remove());
+  const add = (b) => bar.insertBefore(b, custom || null);
+  let nm = '', sub = '';
+  if (pl65.target === 'body') {
+    const hex = (entry.hex || '').toLowerCase();
+    add(pl65Btn('', null, 'Заводской цвет', !hex));
+    let hit = !hex;
+    PAINT_LIB[pl65.cat].forEach(([n, h]) => { const on = hex === h && entry.finish === pl65.cat; if (on) hit = true; add(pl65Btn(h, pl65.cat, n, on)); });
+    if (custom) { custom.hidden = false; custom.classList.toggle('on', !!hex && !paintLookup(hex, entry.finish) && entry.finish === pl65.cat); }
+    const lk = hex ? paintLookup(hex, entry.finish) : null;
+    nm = !hex ? 'Заводской цвет' : (lk ? lk.name : 'Свой цвет'); sub = !hex ? 'как с завода' : (FIN_LABEL[entry.finish] || 'Солид') + (lk ? '' : ' · ' + hex.toUpperCase());
+    void hit;
+  } else {
+    const cur = partsFor()[pl65.target] || '';
+    add(pl65Btn('', null, 'Заводские', !cur));
+    PART_LIB[pl65.target].forEach(([n, h]) => add(pl65Btn(h, h === 'body' ? null : 'satin', n, cur === h)));
+    if (custom) custom.hidden = true;
+    const row = PART_LIB[pl65.target].find((p) => p[1] === cur);
+    nm = row ? row[0] : 'Заводские'; sub = PART_LABEL[pl65.target];
+  }
+  const n1 = document.getElementById('pl65N'); const n2 = document.getElementById('pl65S');
+  if (n1) n1.textContent = nm; if (n2) n2.textContent = sub;
+}
+function syncPaintSwatches() { try { renderPaintUI(); } catch (_) {} }
+function syncPaintFinishUI() { try { renderPaintUI(); } catch (_) {} }
 
 function applyStoredBodyPaint() {
   const entry = getStoredPaintEntry(podiumModelId || state.carId);
   paint.body = entry.hex;
   paint.finish = entry.finish || 'gloss';
-  syncPaintSwatches(entry.hex);
-  syncPaintFinishUI(paint.finish);
+  pl65.cat = entry.hex ? paint.finish : (pl65.cat || 'gloss');
   applyGlbBodyPaint(entry.hex);
+  try { applyStoredParts(); } catch (_) {}
+  syncPaintSwatches();
   try { applyPaint(); } catch (_) {}
 }
 
-function pickBodyPaint(hex) {
+function pickBodyPaint(hex, fin) {
   const clean = hex ? (hex.startsWith('#') ? hex : '#' + hex) : null;
+  if (fin && PAINT_FIN_OK.has(fin)) setStoredPaintFinish(fin, podiumModelId || state.carId);
   setStoredPaintHex(clean, podiumModelId || state.carId);
-  syncPaintSwatches(clean);
-  syncPaintFinishUI(paint.finish || getStoredPaintFinish());
   applyGlbBodyPaint(clean);
+  if (partsFor().wheels === 'body') { try { applyPartColor('wheels', 'body'); } catch (_) {} }
+  syncPaintSwatches();
   try { applyPaint(); } catch (_) {}
   try { hap(8); } catch (_) {}
 }
-
+function pickPartPaint(part, hex) {
+  setPartColor(part, hex || null);
+  applyPartColor(part, hex || null);
+  syncPaintSwatches();
+  try { hap(8); } catch (_) {}
+}
+/** Совместимость: старый вызов «сменить финиш» — перекрасить текущий цвет в другой категории */
 function pickPaintFinish(finish) {
   setStoredPaintFinish(finish, podiumModelId || state.carId);
-  syncPaintFinishUI(paint.finish);
-  // Re-apply on current podium model without reload
+  pl65.cat = currentPaintFinish();
   applyGlbBodyPaint(paint.body || getStoredPaintHex());
+  syncPaintSwatches();
   try { hap(6); } catch (_) {}
 }
 
@@ -8883,25 +9072,25 @@ function applyPaint() {
   if (!paint.body) { photo.src = base; return; }
   recolorSrc(base, paint.body).then((url) => { photo.src = url; });
 }
-document.querySelectorAll('#colorBar button').forEach((b) => {
-  b.addEventListener('click', () => {
-    paint.mb = b.dataset.paint || 'polar-white';
-    const hex = b.dataset.hex || null;
-    pickBodyPaint(hex || null);
-  });
+document.getElementById('colorBar')?.addEventListener('click', (e) => { // v165: образцы строятся динамически — делегирование
+  const b = e.target?.closest?.('button[data-hex]'); if (!b) return;
+  if (pl65.target !== 'body') { pickPartPaint(pl65.target, b.dataset.hex || null); return; }
+  paint.mb = b.dataset.paint || 'polar-white';
+  pickBodyPaint(b.dataset.hex || null, b.dataset.fin || pl65.cat);
 });
-document.getElementById('paintCustom')?.addEventListener('input', (e) => {
-  const v = e.target?.value;
-  if (v) pickBodyPaint(v);
+document.getElementById('paintCustom')?.addEventListener('input', (e) => { const v = e.target?.value; if (v) pickBodyPaint(v, pl65.cat); });
+document.getElementById('paintCustom')?.addEventListener('change', (e) => { const v = e.target?.value; if (v) pickBodyPaint(v, pl65.cat); });
+document.getElementById('paintFinish')?.addEventListener('click', (e) => { // v165: вкладка категории — показать палитру (не перекрашивает)
+  const btn = e.target?.closest?.('button[data-finish]'); if (!btn) return;
+  pl65.cat = btn.dataset.finish || 'gloss'; renderPaintUI(); try { hap(4); } catch (_) {}
+  try { btn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); } catch (_) {}
 });
-document.getElementById('paintCustom')?.addEventListener('change', (e) => {
-  const v = e.target?.value;
-  if (v) pickBodyPaint(v);
-});
-document.getElementById('paintFinish')?.addEventListener('click', (e) => {
-  const btn = e.target?.closest?.('button[data-finish]');
-  if (!btn) return;
-  pickPaintFinish(btn.dataset.finish || 'gloss');
+window.__pl65pre = PAINT_FINISH_PRESETS; window.__pl65g = PAINT_GAIN; // harness: подбор параметров
+window.__pl65mat = () => { const r = []; glbRoot?.traverse((o) => { if (!o.isMesh) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m?.userData?.__isPaintClone && r.length < 2) r.push({ t: m.type, c: m.color.getHexString(), rough: m.roughness, metal: m.metalness, cc: m.clearcoat, env: m.envMapIntensity, sp: m.specularIntensity, spc: m.specularColor?.getHexString(), sh: m.sheen, em: m.emissive?.getHexString(), emMap: !!m.emissiveMap, nm: !!m.normalMap, rm: !!m.roughnessMap, mm: !!m.metalnessMap, ao: !!m.aoMap, ir: m.iridescence, tr: m.transmission }); }); }); return r; };
+window.__pl65 = () => { try { return { ...pl65Avail(), target: pl65.target, cat: pl65.cat }; } catch (_) { return null; } };
+document.getElementById('pl65Target')?.addEventListener('click', (e) => {
+  const btn = e.target?.closest?.('button[data-target]'); if (!btn) return;
+  pl65.target = btn.dataset.target; renderPaintUI(); try { hap(4); } catch (_) {}
 });
 document.querySelectorAll('#wheelBar button').forEach((b) => {
   b.addEventListener('click', () => {
@@ -12615,7 +12804,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v164';
+const APP_VERSION = 'v165';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12791,7 +12980,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {

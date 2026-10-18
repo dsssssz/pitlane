@@ -1,0 +1,20 @@
+// v165: библиотека красок — 7 категорий со своими материалами, свои имена, диски/суппорты, плавный переход, квадраты 2px.
+import fs from 'fs';
+let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+const root = new URL('../../', import.meta.url); const rd = (f) => fs.readFileSync(new URL(f, root), 'utf8');
+const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const html = rd('index.html');
+ok(/const APP_VERSION = 'v1(6[5-9]|[7-9]\d)'/.test(app) && /const CACHE = 'pitlane-v1(6[5-9]|[7-9]\d)'/.test(sw) && /'v164', 'v165'/.test(app), 'версия v165');
+const cats = ['gloss', 'metallic', 'pearl', 'matte', 'satin', 'chrome', 'candy'];
+ok(cats.every((c) => html.includes(`data-finish="${c}"`)), 'в разметке 7 категорий');
+ok(cats.every((c) => new RegExp(`\\b${c}:\\s*\\{ roughness`).test(app)) && cats.every((c) => new RegExp(`\\b${c}: \\[\\['`).test(app)), 'у каждой категории — материал и палитра');
+ok(/irid: 1/.test(app) && /iridescenceThicknessRange = film/.test(app), 'перламутр/хамелеон — iridescence с толщиной плёнки на краску');
+ok(/flake: 0\.0\d/.test(app) && /function paintFlakeTex\(\)/.test(app), 'металлик — флейк нормалями');
+ok(/finish === 'candy'\) mat\.specularColor/.test(app), 'кэнди — тонированный блик лака');
+ok(/function toPhysicalPaint\(mat\)/.test(app) && /dest = toPhysicalPaint\(mat\)/.test(app), 'краска на MeshPhysicalMaterial');
+ok(/const PAINT_TW_MS = 520/.test(app) && /function paintTweenTo\(/.test(app) && !/applySolidBodyColor\(dest, color, finish, hex\);[^\n]*\n\s*dest\.color\.copy/.test(app), 'плавный переход цвета, без мгновенного copy');
+ok(/'Ночная Нева'/.test(app) && /'Хамелеон «Казань»'/.test(app) && /'Кэнди-рубин'/.test(app), 'свои имена красок');
+ok(/function partTintable\(part\)/.test(app) && /data-target="wheels"/.test(html) && /data-target="calipers"/.test(html), 'диски и суппорты — только где тон реально виден');
+ok(/#colorBar > button\.on[^{]*\{ outline: 2px solid var\(--ds-acc\)/.test(css), 'выбранный квадрат — обводка 2px');
+ok(/#paintFinish \{ display: flex !important;[^}]*overflow-x: auto/.test(css) && /#paintFinish button\.on::after \{ transform: scaleX\(1\)/.test(css), 'категории — вкладки с чертой');
+ok(/id="pl65N"/.test(html) && /function renderPaintUI\(\)/.test(app), 'имя выбранной краски под сеткой');
+if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v165 OK');
