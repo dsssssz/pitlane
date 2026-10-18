@@ -24,15 +24,23 @@ export const SHOP_STATUS = {
   out: { label: 'Нет в наличии', orderable: false },
 };
 
-/** Статусы заявки (меняет команда; покупатель видит их в приложении). */
+/** Статусы заказа (меняет Мага кнопками в боте; покупатель получает уведомление и видит статус в приложении и в боте). v182 */
 export const ORDER_STATUS = {
   new: 'Заявка принята — свяжемся в Telegram',
+  accepted: 'Принят',
+  assembling: 'Собирается',
+  shipped: 'Отправлен',
+  delivered: 'Доставлен',
+  canceled: 'Отменён',
+  // старые статусы (до v182) — только чтобы показывать прежние заявки
   contacted: 'Связались с вами',
   confirmed: 'Заказ подтверждён',
-  shipped: 'Отправлен',
-  done: 'Получен',
-  canceled: 'Отменён',
+  done: 'Доставлен',
 };
+/** Кнопки администратора в боте — порядок как на экране. */
+export const ORDER_ADMIN_STATUSES = ['accepted', 'assembling', 'shipped', 'delivered', 'canceled'];
+/** Коротко — для списков. */
+export const ORDER_SHORT = { new: 'Новая', accepted: 'Принят', assembling: 'Собирается', shipped: 'Отправлен', delivered: 'Доставлен', canceled: 'Отменён', contacted: 'На связи', confirmed: 'Подтверждён', done: 'Доставлен' };
 
 const IMG = (k) => ({ webp: `./img/shop/${k}-720.webp 720w, ./img/shop/${k}-1200.webp 1200w`, avif: `./img/shop/${k}-720.avif 720w, ./img/shop/${k}-1200.avif 1200w`, src: `./img/shop/${k}-720.webp` });
 

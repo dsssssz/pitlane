@@ -1,7 +1,7 @@
 /* v137: магазин PITLANE — шторка: витрина → карточка товара → заявка → «Заявка принята», плюс «Мои заявки».
  * Всё строится через DOM + textContent (без вставки HTML-строк). Оплаты онлайн нет (SHOP_CONFIG.payments=false). */
 import { flyShared } from './motion.js'; // v160: фото карточки перелетает в галерею товара
-import { SHOP_SUBS, SHOP_CONFIG, ORDER_STATUS, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal } from './shop-config.js';
+import { SHOP_SUBS, SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal } from './shop-config.js';
 
 let D = null; // deps from app.js: { api, currentUser, needLogin, hap, close }
 const st = { stack: [], orders: null, tg: undefined, busy: false, draft: {} };
@@ -77,7 +77,7 @@ function orderRow(o) {
   r.appendChild(el('span', 'shop-st shop-st-' + (o.status || 'new'), ORDER_STATUS[o.status] ? shortStatus(o.status) : shortStatus('new')));
   return r;
 }
-const shortStatus = (s) => ({ new: 'Принята', contacted: 'На связи', confirmed: 'Подтверждён', shipped: 'Отправлен', done: 'Получен', canceled: 'Отменён' }[s] || 'Принята');
+const shortStatus = (s) => ORDER_SHORT[s] || ORDER_SHORT.new; // v182: статусы как в боте
 async function loadOrders() {
   const r = await D.api.shopOrders();
   st.orders = r && r.ok && Array.isArray(r.orders) ? r.orders : [];

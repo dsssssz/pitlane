@@ -26,38 +26,38 @@ const DAY = 86400;
 export function msgChallenge({ duelId, fromName, type, disc, trackId, days, cls }) {
   const what = type === 'lap' ? 'круг · ' + trackTitle(trackId) : (disc || '0–100');
   return {
-    text: '<b>Тебя вызвали</b>\n' + esc(fromName) + ' зовёт на дуэль: ' + esc(what) + '\n' + RULE + '\n' +
+    text: '<b>Вас вызвали</b>\n' + esc(fromName) + ' зовёт на дуэль: ' + esc(what) + '\n' + RULE + '\n' +
       'Срок  ' + code((days || 7) + ' дн.') + (cls === 'c' ? '\nКласс: телефон (C)' : cls === 'ab' ? '\nКласс: внешний GPS (A/B)' : ''),
     keyboard: [[webAppBtn('Открыть дуэль', { startapp: 'duel_' + duelId })]],
-    line: esc(fromName) + ' вызвал(а) тебя на дуэль',
+    line: esc(fromName) + ' вызвал(а) вас на дуэль',
   };
 }
 export function msgOvertake({ boardTitle, rivalName, rivalT, myRank, open }) {
   return {
-    text: '<b>Тебя обогнали в топе</b>\n' + esc(boardTitle) + '\n' + RULE + '\n' +
-      esc(rivalName) + '  ' + code(rivalT) + '\n' + 'Ты теперь  ' + code('#' + myRank),
+    text: '<b>Вас обогнали в топе</b>\n' + esc(boardTitle) + '\n' + RULE + '\n' +
+      esc(rivalName) + '  ' + code(rivalT) + '\n' + 'Вы теперь  ' + code('#' + myRank),
     keyboard: [[webAppBtn('Открыть топ', open || { view: 'tops', skipIntro: '1' })]],
-    line: esc(rivalName) + ' обогнал(а) тебя: ' + esc(boardTitle) + ', ты #' + myRank,
+    line: esc(rivalName) + ' обогнал(а) вас: ' + esc(boardTitle) + ', вы #' + myRank,
   };
 }
 export function msgEnding({ duelId, rivalName, hoursLeft, trackId }) {
   return {
     text: '<b>Дуэль заканчивается</b>\n' + (rivalName ? 'Соперник: ' + esc(rivalName) + (trackId ? ' · ' + esc(trackTitle(trackId)) : '') + '\n' : '') + RULE + '\n' +
-      'Осталось около  ' + code(hoursLeft + ' ч') + '\nТвоей попытки ещё нет.',
+      'Осталось около  ' + code(hoursLeft + ' ч') + '\nВашей попытки ещё нет.',
     keyboard: [[webAppBtn('Открыть дуэль', { startapp: 'duel_' + duelId })]],
-    line: 'дуэль заканчивается через ~' + hoursLeft + ' ч, твоей попытки нет',
+    line: 'дуэль заканчивается через ~' + hoursLeft + ' ч, вашей попытки нет',
   };
 }
 export function msgDigest(lines) {
   const show = lines.slice(0, 6);
   return {
-    text: '<b>PITLANE · пока тебя не было</b>\n' + RULE + '\n' + show.map((l) => '• ' + l).join('\n') + (lines.length > show.length ? '\n…и ещё ' + (lines.length - show.length) : ''),
+    text: '<b>PITLANE · пока вас не было</b>\n' + RULE + '\n' + show.map((l) => '• ' + l).join('\n') + (lines.length > show.length ? '\n…и ещё ' + (lines.length - show.length) : ''),
     keyboard: [[webAppBtn('Открыть PITLANE', {})]],
   };
 }
 export const NOTIFY_BOT_TEXT = {
-  stopped: '<b>Уведомления выключены</b>\nБольше ничего не пришлю сам. Включить снова: /start_notify или в профиле PITLANE.',
-  started: '<b>Уведомления включены</b>\nПишу только по делу: вызов, обгон в топе, ответ на дуэль, конец дуэли, улучшения тех, на кого подписан. Не больше ' + NOTIFY_DAILY_MAX + ' в сутки. Выключить: /stop_notify.',
+  stopped: '<b>Уведомления выключены</b>\nСам бот больше ничего не пришлёт. Включить снова: /start_notify или в профиле PITLANE.',
+  started: '<b>Уведомления включены</b>\nТолько по делу: вызов, обгон в топе, ответ на дуэль, конец дуэли, улучшения тех, на кого вы подписаны. Не больше ' + NOTIFY_DAILY_MAX + ' в сутки. Выключить: /stop_notify.',
 };
 
 /* ——— KV ——— */

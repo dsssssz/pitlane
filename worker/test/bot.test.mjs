@@ -85,7 +85,7 @@ const d = (await call('POST', '/duel', { token: A.token, body: { type: 'lap', tr
 sent.length = 0;
 await call('POST', `/duel/${d.id}/run`, { token: B.token, body: { ...lap(122400), nick: 'Артём' } });
 let dm = sent.filter((x) => x.method === 'sendMessage');
-ok(dm.length === 1 && dm[0].body.chat_id === 7001 && /<b>Ответили на твою дуэль<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('<code>2:02.400</code>'), 'creator: «Ответили на твою дуэль» with rival time');
+ok(dm.length === 1 && dm[0].body.chat_id === 7001 && /<b>Ответили на вашу дуэль<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('<code>2:02.400</code>'), 'creator: «Ответили на твою дуэль» with rival time');
 sent.length = 0;
 await call('POST', `/duel/${d.id}/run`, { token: A.token, body: { ...lap(121900), nick: 'Мага' } });
 dm = sent.filter((x) => x.method === 'sendMessage');
@@ -95,7 +95,7 @@ await kv.delete('nlast:' + B.id);
 const DUEL_RESULT_DIRECT = C.msgDuelResult({ duelId: d.id, won: false, myT: '2:02.400', rivalName: 'Мага', rivalT: '2:01.900', delta: 500, trackId: 'sochi' });
 await rawWorker.scheduled({}, env, null);
 dm = sent.filter((x) => x.method === 'sendMessage');
-ok(dm.length === 1 && dm[0].body.chat_id === 7002 && /пока тебя не было/.test(dm[0].body.text) && /дуэль закрыта: победа за Мага/.test(dm[0].body.text), 'v121: cron digest delivers the queued result');
+ok(dm.length === 1 && dm[0].body.chat_id === 7002 && /пока вас не было/.test(dm[0].body.text) && /дуэль закрыта: победа за Мага/.test(dm[0].body.text), 'v121: cron digest delivers the queued result');
 dm = [{ body: { chat_id: 7002, text: DUEL_RESULT_DIRECT.text, reply_markup: { inline_keyboard: DUEL_RESULT_DIRECT.keyboard } } }];
 ok(dm.length === 1 && dm[0].body.chat_id === 7002 && /<b>Дуэль проиграна<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('Разница  <code>0.500</code>') && dm[0].body.reply_markup.inline_keyboard[0][0].web_app.url.endsWith('startapp=duel_' + d.id), 'challenger: result with delta + duel button');
 

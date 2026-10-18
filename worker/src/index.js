@@ -8,6 +8,7 @@ import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, lo
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
 import { gpsRoute, deleteAccountGps, GpsLive } from './gpslive.js';
 import { shopRoute, deleteAccountShop } from './shop.js';
+import { botCallback, botFlowMessage, botCommand, mainMenuRows } from './botshop.js';
 import { trackSuggestRoute, deleteAccountTrackSug } from './tracksug.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
@@ -1838,7 +1839,7 @@ function tgRoute(text, info) {
     return {
       cmd,
       method: 'sendPhoto',
-      payload: { photo: TG_BANNER_URL, caption, parse_mode: 'HTML', reply_markup: { inline_keyboard: startKeyboard(param) } },
+      payload: { photo: TG_BANNER_URL, caption, parse_mode: 'HTML', reply_markup: { inline_keyboard: mainMenuRows(param) } }, // v182: меню — приложение, PITLANE GPS, магазин, заказы, чип, вопросы
     };
   }
   const simple = simpleRoutes();
@@ -1903,6 +1904,17 @@ async function tgHandleMessage(env, msg) {
       return { cmd: nm[1].toLowerCase(), sent: !!r?.ok };
     }
   }
+  // v182: шаг оформления заказа / поддержки (текст или контакт) — до остальных ответов
+  if (typeof msg.text === 'string' || msg.contact) {
+    const fl = await botFlowMessage(env, msg, BOT_H);
+    if (fl) return fl;
+  }
+  // v182: экраны бота — магазин, мои заказы, чип, вопросы и поддержка, меню
+  {
+    const tx = typeof msg.text === 'string' ? msg.text.trim() : '';
+    const bm = tx.match(/^\/(shop|orders|chip|help|faq|menu|support)(?:@[A-Za-z0-9_]{3,64})?$/i) || (/^\/start(?:@\S+)?\s+(shop|orders|chip|faq)$/i.exec(tx));
+    if (bm) { const r = await botCommand(env, msg, bm[1].toLowerCase(), BOT_H); if (r) return r; }
+  }
   // v115: аудио → музыка в профиле автора сообщения
   const mus = await musicFromBot(env, msg, MUSIC_H);
   if (mus) {
@@ -1932,7 +1944,7 @@ async function tgSetup(env, origin) {
     out.setWebhook = await tgCall(env, 'setWebhook', {
       url: origin + '/tg/webhook/' + tgWebhookPath(secret),
       secret_token: secret,
-      allowed_updates: ['message', 'pre_checkout_query'],
+      allowed_updates: ['message', 'pre_checkout_query', 'callback_query'],
       max_connections: 20,
     });
   } else {
@@ -2731,6 +2743,13 @@ const SHOP_H = {
   get randB36() { return randB36; }, get tgCall() { return tgCall; }, get tgEsc() { return tgEsc; }, get tgChatOf() { return tgChatOf; }, get tgUsernameOf() { return tgUsernameOf; },
   get safeName() { return safeName; }, get moscowDateKey() { return moscowDateKey; }, get webAppBtn() { return webAppBtn; },
 };
+/** v182: helpers for ./botshop.js (бот: магазин, заказы, поддержка, статусы) */
+const BOT_H = {
+  get tgCall() { return tgCall; }, get tgEsc() { return tgEsc; }, get kvJson() { return kvJson; }, get kvListAll() { return kvListAll; }, get rateHit() { return rateHit; },
+  get cleanLabel() { return cleanLabel; }, get containsPhone() { return containsPhone; }, get randB36() { return randB36; }, get safeName() { return safeName; },
+  get tgChatOf() { return tgChatOf; }, get moscowDateKey() { return moscowDateKey; }, get webAppBtn() { return webAppBtn; }, get isPilotUuid() { return isPilotUuid; },
+  get ensurePilotForProvider() { return ensurePilotForProvider; },
+};
 /** v121: helpers for ./notify.js */
 const NOTIFY_H = {
   get kvJson() { return kvJson; }, get tgCall() { return tgCall; }, get tgChatOf() { return tgChatOf; }, get telegramConfig() { return telegramConfig; },
@@ -2873,6 +2892,12 @@ export default {
         if (upd && upd.pre_checkout_query) {
           const r = await roomsPreCheckout(env, upd.pre_checkout_query, ROOM_H);
           return json({ ok: true, precheckout: !!r?.ok }, 200, headers);
+        }
+        // v182: кнопки бота (магазин, оформление, мои заказы, статусы заказов для Маги)
+        if (upd && upd.callback_query) {
+          const r = await botCallback(env, upd.callback_query, BOT_H);
+          const { method: _m, ...rest } = r || {}; // тело ответа вебхука Telegram может трактовать как вызов метода — поля method не отдаём
+          return json({ ok: true, ...rest, cmd: rest.cmd || null }, 200, headers);
         }
         const msg = upd && (upd.message || null);
         if (msg && msg.successful_payment) {

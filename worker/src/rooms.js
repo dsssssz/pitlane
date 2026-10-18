@@ -233,16 +233,16 @@ function roomAdmitLap(room, trackId, h, now = Date.now()) {
 /** Telegram: make sure the webhook also receives pre_checkout_query (once; flag in KV). */
 export async function ensurePaymentUpdates(env, origin, h) {
   try {
-    if (await env.PITLANE.get('tg:wh:pay1')) return;
+    if (await env.PITLANE.get('tg:wh:pay2')) return; // v182: pay2 — подписка и на callback_query (кнопки бота); после деплоя переподписывается сам
     const secret = String(env.TG_WEBHOOK_SECRET || '');
     if (secret.length < 32) return;
     const r = await h.tgCall(env, 'setWebhook', {
       url: origin + '/tg/webhook/' + h.tgWebhookPath(secret),
       secret_token: secret,
-      allowed_updates: ['message', 'pre_checkout_query'],
+      allowed_updates: ['message', 'pre_checkout_query', 'callback_query'],
       max_connections: 20,
     });
-    if (r?.ok) await env.PITLANE.put('tg:wh:pay1', String(Date.now()));
+    if (r?.ok) await env.PITLANE.put('tg:wh:pay2', String(Date.now()));
   } catch (_) {}
 }
 

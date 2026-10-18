@@ -91,7 +91,7 @@ ok(sent[0]?.body.reply_markup?.inline_keyboard?.[0]?.[0]?.url === 'https://t.me/
 const ownerOther = sent[0]?.body.text;
 sent = [];
 r = await call('POST', '/shop/order', { token: B.token, body: base({ qty: 1, contact: { method: 'phone', value: '8 (900) 111-22-33' } }) });
-ok(r.status === 200 && r.data.order.contact === '+79001112233' && (sent[0]?.body.reply_markup?.inline_keyboard || []).length === 0 && /\+79001112233/.test(sent[0]?.body.text), 'телефон нормализован, без url-кнопки', r.data);
+ok(r.status === 200 && r.data.order.contact === '+79001112233' && !(sent[0]?.body.reply_markup?.inline_keyboard || []).flat().some((b) => b.url) && /\+79001112233/.test(sent[0]?.body.text), 'телефон нормализован, без url-кнопки', r.data);
 const ownerPhone = sent[0]?.body.text;
 // скрытый профиль: tg://user отвергнут → повтор без кнопки
 sent = []; tgFail = (b) => !!b.reply_markup?.inline_keyboard?.[0]?.[0]?.url?.startsWith('tg://');

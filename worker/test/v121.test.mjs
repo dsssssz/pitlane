@@ -62,7 +62,7 @@ sent = [];
 console.log('\n[«тебя обогнали в топе»]');
 r = await drag(A, 4.2); ok(r.status === 200 && r.data.stored, 'A 4.20 → #1');
 const toB = msgsTo(8002); const toC = msgsTo(8003);
-ok(toB.length === 1 && /<b>Тебя обогнали в топе<\/b>/.test(toB[0].body.text) && /Топ 0–100 · внешний GPS \(A\/B\)/.test(toB[0].body.text) && toB[0].body.text.includes('<code>#2</code>') && toB[0].body.text.includes('<code>4.20 с</code>'), 'B (#1 → #2) получил: доска, время, новое место', toB[0]?.body.text);
+ok(toB.length === 1 && /<b>Вас обогнали в топе<\/b>/.test(toB[0].body.text) && /Топ 0–100 · внешний GPS \(A\/B\)/.test(toB[0].body.text) && toB[0].body.text.includes('<code>#2</code>') && toB[0].body.text.includes('<code>4.20 с</code>'), 'B (#1 → #2) получил: доска, время, новое место', toB[0]?.body.text);
 ok(toC.length === 1 && toC[0].body.text.includes('<code>#4</code>'), 'C (#3 → #4) получил');
 ok(msgsTo(8004).length === 0, 'D сдвинут, но боту не писал → тишина');
 ok(msgsTo(8001).length === 0, 'автору зачёта — ничего');
@@ -86,7 +86,7 @@ ok(msgsTo(8001).length === 0, 'cron раньше 15 мин — не шлёт');
 await resetCoalesce();
 await rawWorker.scheduled({}, env, null);
 const dg = msgsTo(8001);
-ok(dg.length === 1 && /пока тебя не было/.test(dg[0].body.text) && /БезТГ обогнал\(а\) тебя/.test(dg[0].body.text) && !kv.m.has('nq:' + A.id), 'через 15 мин — одна сводка, копилка очищена');
+ok(dg.length === 1 && /пока вас не было/.test(dg[0].body.text) && /БезТГ обогнал\(а\) вас/.test(dg[0].body.text) && !kv.m.has('nq:' + A.id), 'через 15 мин — одна сводка, копилка очищена');
 
 console.log('\n[не больше N в сутки]');
 sent = []; await resetCoalesce();
@@ -125,7 +125,7 @@ r = await call('POST', '/duel', { token: A.token, body: { type: 'drag', createdB
 ok(r.status === 200 && r.data.to?.id === B.id && r.data.to?.name === 'Артём', 'дуэль создана с адресатом', r.data);
 const duelId = r.data.id;
 const ch = msgsTo(8002);
-ok(ch.length === 1 && /<b>Тебя вызвали<\/b>/.test(ch[0].body.text) && ch[0].body.text.includes('Мага') && ch[0].body.text.includes('<code>3 дн.</code>') && ch[0].body.reply_markup.inline_keyboard[0][0].web_app.url.endsWith('startapp=duel_' + duelId), 'B: «Тебя вызвали» + кнопка дуэли');
+ok(ch.length === 1 && /<b>Вас вызвали<\/b>/.test(ch[0].body.text) && ch[0].body.text.includes('Мага') && ch[0].body.text.includes('<code>3 дн.</code>') && ch[0].body.reply_markup.inline_keyboard[0][0].web_app.url.endsWith('startapp=duel_' + duelId), 'B: «Тебя вызвали» + кнопка дуэли');
 ok(JSON.parse(kv.m.get('duelidx:' + B.id).v).includes(duelId), 'дуэль видна у адресата во «Входящих»');
 ok((await call('POST', '/duel', { token: A.token, body: { type: 'drag', createdBy: 'Мага', to: A.id } })).status === 400, 'вызвать себя — 400');
 ok((await call('POST', '/duel', { token: A.token, body: { type: 'drag', createdBy: 'Мага', to: 'p_00000000-0000-4000-8000-000000000000' } })).status === 404, 'несуществующий пилот — 404');
@@ -138,7 +138,7 @@ console.log('\n[«ответили на дуэль» и итог — через 
 sent = []; await resetCoalesce();
 r = await call('POST', `/duel/${duelId}/run`, { token: B.token, body: { ...dragBody('0-100', 4.4, {}, { seed: 91 }), nick: 'Артём' } });
 ok(r.status === 200, 'B ответил', r.data);
-ok(msgsTo(8001).length === 1 && /<b>Ответили на твою дуэль<\/b>/.test(msgsTo(8001)[0].body.text), 'A: «Ответили на твою дуэль»');
+ok(msgsTo(8001).length === 1 && /<b>Ответили на вашу дуэль<\/b>/.test(msgsTo(8001)[0].body.text), 'A: «Ответили на твою дуэль»');
 
 console.log('\n[«дуэль заканчивается» — только дуэли v121, один раз]');
 sent = []; await resetCoalesce();

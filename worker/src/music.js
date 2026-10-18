@@ -33,12 +33,12 @@ export async function musicFromBot(env, msg, h) {
   if (!a) return null;
   const kv = env.PITLANE;
   const pid = await kv.get(h.providerKey('tg', String(msg.from?.id || '')));
-  if (!pid || !PID_RE.test(pid)) return { kind: 'nologin', text: '<b>Сначала вход</b>\nОткрой PITLANE кнопкой ниже и войди через Telegram — тогда трек привяжется к твоему профилю. Потом перешли аудио сюда ещё раз.' };
-  if (Number(a.file_size) > MUSIC_MAX_BYTES) return { kind: 'big', text: '<b>Файл больше 20 МБ</b>\nTelegram не даёт ботам забирать такие файлы. Пришли версию поменьше (например, mp3 до 20 МБ).' };
-  if (await h.rateHit(kv, 'rl:music:p:' + pid, 20, 86400)) return { kind: 'limited', text: 'Слишком много треков за сутки — попробуй завтра.' };
+  if (!pid || !PID_RE.test(pid)) return { kind: 'nologin', text: '<b>Сначала вход</b>\nОткройте PITLANE кнопкой ниже и войдите через Telegram — тогда трек привяжется к вашему профилю. Потом перешлите аудио сюда ещё раз.' };
+  if (Number(a.file_size) > MUSIC_MAX_BYTES) return { kind: 'big', text: '<b>Файл больше 20 МБ</b>\nTelegram не даёт ботам забирать такие файлы. Пришлите версию поменьше (например, mp3 до 20 МБ).' };
+  if (await h.rateHit(kv, 'rl:music:p:' + pid, 20, 86400)) return { kind: 'limited', text: 'Слишком много треков за сутки — попробуйте завтра.' };
   const tracks = await loadMusic(kv, pid, h);
-  if (tracks.some((t) => t.fu && t.fu === a.file_unique_id)) return { kind: 'dup', text: 'Этот трек уже в твоём профиле.' };
-  if (tracks.length >= MUSIC_MAX) return { kind: 'full', text: '<b>В профиле уже 3 трека</b>\nУдали один в PITLANE → Профиль → Музыка и пришли новый.' };
+  if (tracks.some((t) => t.fu && t.fu === a.file_unique_id)) return { kind: 'dup', text: 'Этот трек уже в вашем профиле.' };
+  if (tracks.length >= MUSIC_MAX) return { kind: 'full', text: '<b>В профиле уже 3 трека</b>\nУдалите один в PITLANE → Профиль → Музыка и пришлите новый.' };
   const base = String(a.file_name || '').replace(/\.[a-z0-9]{1,5}$/i, '');
   const title = h.cleanLabel(a.title || base, 80) || 'Без названия';
   const performer = h.cleanLabel(a.performer, 80);

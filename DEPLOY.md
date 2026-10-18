@@ -458,3 +458,16 @@ Deployed wrangler@3.114.17 from `worker/`: version `2135cb57-740d-4396-945e-cebb
   - `GET /tops/lap/:id?avatars=1`, `GET /pulse?top=day` (24 ч, по лайкам, без картинок — флаг `hasImg`).
   - `GET /pilot/:id` → `best.drag` по всем дисциплинам.
 - Тесты: `worker/test/v84.test.mjs`. Локальный смоук: `/workspace/perf-harness/home.mjs` (MemKV, тестовые данные только в памяти).
+
+## v182 — бот: магазин, предзаказ в чате, «Мои заказы», статусы для Маги
+
+Код — `worker/src/botshop.js` (экраны и шаги), `worker/src/shop.js` (общий `createOrder` / `setOrderStatus`), тексты — `worker/src/botcopy.js`.
+**Работает только после деплоя Worker** («выкатывай»): `cd worker && npx wrangler@3.114.17 deploy`.
+
+После деплоя:
+1. Ничего не делать — бот сам переподпишет webhook на `callback_query` при первом сообщении (флаг `tg:wh:pay2`), кнопки заработают.
+2. Чтобы обновить меню команд и описание бота: `node tools/tg-bot-setup.mjs --dry` (посмотреть) → `TGA=<TG_ADMIN_SECRET> node tools/tg-bot-setup.mjs` (= `POST /tg/setup`).
+   Проверка: `TGA=… node tools/tg-bot-setup.mjs --preview` — /start придёт только Маге.
+3. Статусы меняет тот, чей Telegram id в `FEEDBACK_CHAT_ID` (или `SHOP_CHAT_ID`, если это личный чат, или в `SHOP_ADMIN_IDS` через запятую).
+
+Команды: /start (меню), /shop, /orders, /chip, /help (вопросы и поддержка), /stop_notify. Заказы из бота и из приложения — одни и те же записи `shoporder:*`.

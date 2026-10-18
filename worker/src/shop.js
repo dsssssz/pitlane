@@ -11,7 +11,7 @@
  * Адресат заявок: env.SHOP_CHAT_ID, иначе env.FEEDBACK_CHAT_ID (владелец).
  * PAYMENTS: при SHOP_CONFIG.payments && legalReady() здесь появится ссылка на оплату (createInvoiceLink / провайдер) — сейчас выключено.
  */
-import { SHOP_CONFIG, ORDER_STATUS, productById, orderable, orderTotal, fmtRub, statusOf } from '../../shop-config.js';
+import { SHOP_CONFIG, ORDER_STATUS, ORDER_ADMIN_STATUSES, ORDER_SHORT, productById, orderable, orderTotal, fmtRub, statusOf } from '../../shop-config.js';
 import { legalReady } from '../../legal-config.js';
 
 export const SHOP_ORDERS_MAX = 20;
@@ -83,23 +83,53 @@ export function msgOrderOwner(o, buyer, h) {
   const url = o.contact.method === 'tg' ? (buyer.username ? 'https://t.me/' + buyer.username : (buyer.tgId ? 'tg://user?id=' + buyer.tgId : null))
     : o.contact.method === 'tg_other' ? 'https://t.me/' + o.contact.value.slice(1) : null;
   const keyboard = url ? [[{ text: 'Написать покупателю', url }]] : [];
-  return { text, keyboard };
+  return { text: text + statusFooter(o), keyboard: [...keyboard, ...adminStatusKeyboard(o)] };
+}
+
+/** v182: строка статуса под заявкой у Маги (после смены статуса сообщение перерисовывается). */
+function statusFooter(o) {
+  const st = ORDER_STATUS[o.status] ? o.status : 'new';
+  return '\n\nСтатус: <b>' + (ORDER_SHORT[st] || st) + '</b>';
+}
+/** v182: кнопки статуса для администратора — callback as:<id>:<status>; текущий отмечен точкой. */
+export function adminStatusKeyboard(o) {
+  const btn = (st) => ({ text: (o.status === st ? '· ' : '') + ORDER_SHORT[st], callback_data: 'as:' + o.id + ':' + st });
+  const [a, b, c, d, x] = ORDER_ADMIN_STATUSES;
+  return [[btn(a), btn(b)], [btn(c), btn(d)], [btn(x)]];
+}
+const BUYER_NOTE = {
+  accepted: 'Заказ принят в работу. Напишем, когда начнём сборку.',
+  assembling: 'Собираем и проверяем прибор. Обычно это занимает несколько дней.',
+  shipped: 'Заказ передан в доставку. Трек-номер пришлём в этом чате.',
+  delivered: 'Заказ доставлен. Если что-то не так — ответьте на это сообщение или откройте «Поддержка».',
+  canceled: 'Заказ отменён. Если это ошибка — напишите в «Поддержка».',
+};
+/** v182: уведомление покупателю о смене статуса. */
+export function msgOrderStatusBuyer(o, h) {
+  const e = h.tgEsc;
+  return [
+    '<b>Заказ ' + e(o.id) + ' · ' + e(ORDER_SHORT[o.status] || o.status) + '</b>',
+    e(o.title) + ' × ' + o.qty + (o.total != null ? ' · ' + e(fmtRub(o.total)) : ''),
+    '',
+    BUYER_NOTE[o.status] || '',
+  ].filter((l, i, a) => !(l === '' && i === a.length - 1)).join('\n');
 }
 
 export function msgOrderBuyer(o, h) {
   const e = h.tgEsc;
-  const sum = o.total != null ? ' на ' + fmtRub(o.total) : '';
+  const sum = o.total != null ? ' — ' + fmtRub(o.total) : '';
   return [
-    '<b>Заявка принята</b>',
+    '<b>Заявка принята · ' + e(o.id) + '</b>',
     '',
     e(o.title) + ' × ' + o.qty + e(sum) + ' · ' + e(statusOf(productById(o.productId)).label.toLowerCase()),
-    'Номер: ' + e(o.id),
+    'Город: ' + e(o.city),
     '',
-    'Мы свяжемся с вами ' + (o.contact.method === 'phone' ? 'по телефону' : 'в Telegram') + ', чтобы договориться об оплате и доставке. Онлайн-оплаты в приложении пока нет — заранее ничего платить не нужно.',
+    'Мы свяжемся с вами ' + (o.contact.method === 'phone' ? 'по телефону' : 'в Telegram') + ', чтобы подтвердить заказ, оплату и доставку. Онлайн-оплаты нет — платить ничего не нужно, пока мы не напишем.',
+    'Статусы заказа будут приходить в этот чат.',
   ].join('\n');
 }
 
-async function listOrders(kv, pid, h) {
+export async function listOrders(kv, pid, h) {
   const l = await h.kvJson(kv, ordersKey(pid));
   return Array.isArray(l) ? l.filter((o) => o && ID_RE.test(o.id)).slice(0, SHOP_ORDERS_MAX) : [];
 }
@@ -129,30 +159,67 @@ export async function shopRoute({ req, env, path, headers, ip, pilot, h }) {
       ['rl:shop:p:' + pilot.id, SHOP_RL.pilotDay, 86400], ['rl:shop:ip:' + ip, SHOP_RL.ipDay, 86400], ['rl:shop:day:' + h.moscowDateKey(), SHOP_RL.globalDay, 86400],
     ]);
     if (lim) return lim;
-    const o = { id: 'o' + h.randB36(12), at: Date.now(), pid: pilot.id, ...s.rec, status: 'new', payUrl: null };
-    // PAYMENTS: if (SHOP_CONFIG.payments && legalReady() && o.total) o.payUrl = await createPayment(env, o);  — провайдер не подключён
     const buyer = { pid: pilot.id, nick: h.safeName(pilot.name, ''), tgId: tgId || null, username: await h.tgUsernameOf(env, pilot.id) };
-    const owner = String(env.SHOP_CHAT_ID || env.FEEDBACK_CHAT_ID || '').trim();
-    if (/^-?\d{1,20}$/.test(owner)) {
-      const m = msgOrderOwner(o, buyer, h);
-      const r = await h.tgCall(env, 'sendMessage', { chat_id: owner, text: m.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: m.keyboard } });
-      o.forwarded = !!r?.ok;
-      if (!r?.ok && m.keyboard.length) { // tg://user?id= отвергается, если покупатель скрыл профиль → без кнопки
-        const r2 = await h.tgCall(env, 'sendMessage', { chat_id: owner, text: m.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true } });
-        o.forwarded = !!r2?.ok;
-      }
-    } else o.forwarded = false;
-    if (tgId) {
-      const r = await h.tgCall(env, 'sendMessage', { chat_id: tgId, text: msgOrderBuyer(o, h), parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: [[h.webAppBtn('Мои заявки', { screen: 'shop', skipIntro: '1' })]] } });
-      o.buyerNotified = !!r?.ok;
-    } else o.buyerNotified = false;
-    const t = ttl();
-    await kv.put(orderKey(o.id), JSON.stringify(o), { expirationTtl: t, metadata: { pid: pilot.id } });
-    await kv.put(ordersKey(pilot.id), JSON.stringify([o, ...mine].slice(0, SHOP_ORDERS_MAX)), { expirationTtl: t });
+    const o = await createOrder(env, buyer, s.rec, mine, h, { source: 'app' });
     return h.json({ ok: true, order: publicOrder(o), forwarded: o.forwarded, buyerNotified: o.buyerNotified }, 200, headers);
   }
   return h.json({ error: 'not found' }, 404, headers);
 }
+
+/** v182: общий путь создания заказа — Mini App (POST /shop/order) и бот (оформление в чате). Пишет KV, шлёт Маге и покупателю. */
+export async function createOrder(env, buyer, rec, mine, h, { source = 'app' } = {}) {
+  const kv = env.PITLANE;
+  const o = { id: 'o' + h.randB36(12), at: Date.now(), pid: buyer.pid, ...rec, status: 'new', payUrl: null, source,
+    buyer: { nick: buyer.nick || '', username: buyer.username || null, tgId: buyer.tgId || null }, history: [{ st: 'new', at: Date.now() }] };
+  // PAYMENTS: if (SHOP_CONFIG.payments && legalReady() && o.total) o.payUrl = await createPayment(env, o);  — провайдер не подключён
+  const owner = ownerChat(env);
+  if (owner) {
+    const m = msgOrderOwner(o, buyer, h);
+    const r = await h.tgCall(env, 'sendMessage', { chat_id: owner, text: m.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: m.keyboard } });
+    o.forwarded = !!r?.ok;
+    if (!r?.ok) { // tg://user?id= отвергается, если покупатель скрыл профиль → только кнопки статуса
+      const r2 = await h.tgCall(env, 'sendMessage', { chat_id: owner, text: m.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: adminStatusKeyboard(o) } });
+      o.forwarded = !!r2?.ok;
+    }
+  } else o.forwarded = false;
+  if (buyer.tgId) {
+    const r = await h.tgCall(env, 'sendMessage', { chat_id: buyer.tgId, text: msgOrderBuyer(o, h), parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: source === 'bot'
+      ? [[{ text: 'Мои заказы', callback_data: 'my' }], [h.webAppBtn('Открыть PITLANE', {})]]
+      : [[h.webAppBtn('Мои заявки', { screen: 'shop', skipIntro: '1' })]] } });
+    o.buyerNotified = !!r?.ok;
+  } else o.buyerNotified = false;
+  const t = ttl();
+  await kv.put(orderKey(o.id), JSON.stringify(o), { expirationTtl: t, metadata: { pid: buyer.pid } });
+  await kv.put(ordersKey(buyer.pid), JSON.stringify([o, ...(mine || [])].slice(0, SHOP_ORDERS_MAX)), { expirationTtl: t });
+  return o;
+}
+
+/** Куда идут заявки: SHOP_CHAT_ID, иначе владелец (FEEDBACK_CHAT_ID). */
+export function ownerChat(env) {
+  const v = String(env.SHOP_CHAT_ID || env.FEEDBACK_CHAT_ID || '').trim();
+  return /^-?\d{1,20}$/.test(v) ? v : null;
+}
+/** Кто может менять статусы: FEEDBACK_CHAT_ID (Мага), SHOP_CHAT_ID (если это личный чат), SHOP_ADMIN_IDS через запятую. */
+export function shopAdmins(env) {
+  const ids = [env.FEEDBACK_CHAT_ID, env.SHOP_CHAT_ID, ...String(env.SHOP_ADMIN_IDS || '').split(',')].map((x) => String(x || '').trim()).filter((x) => /^\d{1,20}$/.test(x));
+  return new Set(ids);
+}
+
+/** v182: смена статуса (только админ; проверка — у вызывающего). Обновляет обе копии в KV, историю; возвращает { o, changed }. */
+export async function setOrderStatus(env, id, st, h) {
+  if (!ID_RE.test(String(id || '')) || !ORDER_ADMIN_STATUSES.includes(st)) return { error: 'bad' };
+  const kv = env.PITLANE;
+  const o = await h.kvJson(kv, orderKey(id));
+  if (!o) return { error: 'not found' };
+  if (o.status === st) return { o, changed: false };
+  o.status = st; o.history = [...(Array.isArray(o.history) ? o.history : []), { st, at: Date.now() }].slice(-12);
+  const t = ttl();
+  await kv.put(orderKey(id), JSON.stringify(o), { expirationTtl: t, metadata: { pid: o.pid } });
+  const list = await listOrders(kv, o.pid, h);
+  await kv.put(ordersKey(o.pid), JSON.stringify(list.map((x) => (x.id === id ? { ...x, status: st, history: o.history } : x))), { expirationTtl: t });
+  return { o, changed: true };
+}
+export const getOrder = (env, id, h) => (ID_RE.test(String(id || '')) ? h.kvJson(env.PITLANE, orderKey(id)) : null);
 
 /** Удаление аккаунта: заявки и их копии для команды. */
 export async function deleteAccountShop(kv, pid, h) {
