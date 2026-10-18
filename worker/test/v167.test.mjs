@@ -12,6 +12,6 @@ const bad = files.filter((f) => MINT.test(fs.readFileSync(path.join(ROOT, f), 'u
 ok(bad.length === 0, 'старого мятного и неона нет ни в одном файле', bad.slice(0, 6).join(', '));
 ok(/--acc-rgb: 201, 198, 191;/.test(css) && /--ds-text: #f2efe9;/.test(css) && /--ds-bg-2: #141414; --ds-bg-3: #1c1c1e;/.test(css), 'токены: платина, тёплый белый, графит');
 ok(/--ds-good: #7fae8f; --ds-bad: #d0675c;/.test(css), 'дельты — приглушённые зелёный/красный');
-ok(/function degreenModel\(root\)/.test(app) && /degreenModel\(car\)/.test(app), '3D: зелёная ливрея → графит на лету (без правки .glb)');
+ok(/function degreenModel\(root\)/.test(app) && /degreenModel\(glbRoot\)/.test(app), '3D: зелёная ливрея → графит на лету (без правки .glb)');
 ok(!/'Мятный'|'Малахит'|'Кэнди-изумруд'/.test(app), 'в палитрах красок нет зелёных');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v167 OK');

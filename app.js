@@ -7602,7 +7602,7 @@ function fitGlb(obj, opts = {}) {
   controls.maxDistance = 16;
   controls.update();
   onResize();
-  try { degreenModel(car); } catch (err) { console.warn('degreen', err); } // v167: зелёная ливрея (GT3 RS) → графит
+  try { degreenModel(glbRoot); } catch (err) { console.warn('degreen', err); } // v167: зелёная ливрея (GT3 RS) → графит
   try { applyStoredBodyPaint(); } catch (err) { console.warn('paint after fitGlb', err); }
   podiumInvalidate(1200, true);
   if (qm.phase === 'sample' || qm.phase === 'warm') { qm.phase = 'warm'; qm.t0 = performance.now(); } // model swap hitch ≠ slow device
@@ -7610,7 +7610,7 @@ function fitGlb(obj, opts = {}) {
 }
 
 /* v167: палитра «чёрный + платина» — зелёные детали заводских текстур (полосы, диски, сиденья GT3 RS) перекрашиваются в графит на лету.
-   Сам .glb не трогаем: проверяем каждую карту цвета на 32×32, и только если зелёного заметно (> 0,3 %) — переписываем пиксели на канвасе. */
+   Сам .glb не трогаем: проверяем каждую карту цвета на 32×32, и только если зелёного заметно (≥ 3 пикселей из 64²) — переписываем пиксели на канвасе. */
 function degreenPixels(d, dark) {
   for (let i = 0; i < d.length; i += 4) {
     const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
@@ -7622,10 +7622,10 @@ function degreenPixels(d, dark) {
   }
 }
 function texGreenShare(img) {
-  const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d', { willReadFrequently: true });
-  g.drawImage(img, 0, 0, 32, 32); const d = g.getImageData(0, 0, 32, 32).data; let n = 0;
+  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, 64, 64); const d = g.getImageData(0, 0, 64, 64).data; let n = 0;
   for (let i = 0; i < d.length; i += 4) { const r = d[i], gg = d[i + 1], b = d[i + 2]; if (gg > r * 1.3 && gg > b * 1.12 && gg > 40) n++; }
-  return n / 1024;
+  return n / 4096;
 }
 function degreenModel(root) {
   if (!root) return; const seen = new Set();
@@ -7637,7 +7637,7 @@ function degreenModel(root) {
       ['map', 'emissiveMap'].forEach((k) => {
         const t = m[k]; if (!t?.image || seen.has(t)) return; seen.add(t);
         try {
-          if (texGreenShare(t.image) < 0.003) return;
+          if (texGreenShare(t.image) < 0.0007) return; // ≥ 3 пикселя из 64² — у дисков зелёный лишь маленький квадрат атласа
           const w = t.image.width, h = t.image.height; if (!w || !h) return;
           const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', { willReadFrequently: true });
           g.drawImage(t.image, 0, 0); const id = g.getImageData(0, 0, w, h); degreenPixels(id.data, k === 'map' ? 0.55 : 0.4); g.putImageData(id, 0, 0);
@@ -12845,7 +12845,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v167';
+const APP_VERSION = 'v168';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13021,7 +13021,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
