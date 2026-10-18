@@ -14,7 +14,7 @@ const sent = [];
 const env = {
   __salesForTests: true, // v108: продажи сезона в проде выключены до реквизитов — здесь проверяем саму механику
   PITLANE: kv, SMS_DEMO: '1', TELEGRAM_BOT_TOKEN: '123456:' + 'A'.repeat(30), TELEGRAM_BOT_USERNAME: 'pitlane_official_bot', TG_WEBHOOK_SECRET: SECRET,
-  __fetch: async (u, o) => { const method = String(u).split('/').pop(); sent.push({ method, body: JSON.parse(o?.body || '{}') }); return new Response(JSON.stringify({ ok: true, result: method === 'createInvoiceLink' ? 'https://t.me/$X' : { message_id: 1 } })); },
+  __fetch: async (u, o) => { const method = String(u).split('/').pop(); if (method !== 'deleteMessage') sent.push({ method, body: JSON.parse(o?.body || '{}') }); return new Response(JSON.stringify({ ok: true, result: method === 'createInvoiceLink' ? 'https://t.me/$X' : { message_id: 1 } })); },
 };
 const emojiCount = (s) => (String(s).match(/\p{Extended_Pictographic}/gu) || []).length;
 const tagsBalanced = (s) => { const st = []; for (const m of String(s).matchAll(/<(\/?)(b|i|code)>/g)) { if (!m[1]) st.push(m[2]); else if (st.pop() !== m[2]) return false; } return !st.length && !/<(?!\/?(b|i|code)>)/.test(String(s)); };

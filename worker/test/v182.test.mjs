@@ -21,7 +21,10 @@ let uid = 1;
 const from = (id, extra = {}) => ({ id, is_bot: false, first_name: 'Артём', username: 'artem_racer', ...extra });
 const say = (text, id = BUYER, extra = {}) => hookRaw({ update_id: uid++, message: { message_id: uid, chat: { id, type: 'private' }, from: from(id), text, ...extra } });
 const tap = (data, id = BUYER, msgId = 1, chatId = id) => hookRaw({ update_id: uid++, callback_query: { id: 'cq' + uid, from: from(id, id === OWNER ? { first_name: 'Мага', username: 'maga' } : {}), message: { message_id: msgId, chat: { id: chatId, type: 'private' } }, data } });
-const to = (id) => sent.filter((x) => (x.method === 'sendMessage' || x.method === 'sendPhoto') && String(x.body.chat_id) === String(id));
+// v183: экраны редактируются на месте — editMessageMedia/editMessageText считаются тем же экраном (нормализуются как sendPhoto/sendMessage)
+const norm = (x) => (x.method === 'editMessageMedia' ? { method: 'sendPhoto', edited: true, body: { ...x.body, photo: x.body.media?.media, caption: x.body.media?.caption, parse_mode: x.body.media?.parse_mode } }
+  : x.method === 'editMessageText' ? { method: 'sendMessage', edited: true, body: x.body } : x);
+const to = (id) => sent.filter((x) => /^(sendMessage|sendPhoto|editMessageText|editMessageMedia)$/.test(x.method) && String(x.body.chat_id) === String(id)).map(norm);
 const last = (id) => to(id).pop();
 const txt = (m) => (m?.body.text || m?.body.caption || '');
 const kbOf = (m) => (m?.body.reply_markup?.inline_keyboard || []);
@@ -40,18 +43,18 @@ ok(BOT_COMMANDS.map((c) => c.command).join() === 'start,shop,orders,chip,help,st
 
 console.log('\n[магазин и карточка]');
 await say('/shop'); m = last(BUYER); keep('shop', m);
-ok(/Магазин PITLANE/.test(txt(m)) && /6\u00a0800\u00a0₽/.test(txt(m)) && datas(m).includes('p:pitlane-gps') && datas(m).includes('my'), '/shop: витрина с ценой, кнопки товаров');
+ok(/Магазин PITLANE/.test(txt(m)) && /6\u00a0800\u00a0₽/.test(txt(m)) && datas(m).includes('p:pitlane-gps') && datas(m).some((d) => /^my(~|$)/.test(d)), '/shop: витрина с ценой, кнопки товаров');
 await tap('p:pitlane-gps'); m = last(BUYER); keep('product', m);
 ok(m.method === 'sendPhoto' && m.body.photo === 'https://dsssssz.github.io/pitlane/img/shop/tg/gps-hero.jpg' && fs.existsSync(path.join(process.cwd(), '..', 'img/shop/tg/gps-hero.jpg')), 'карточка: фото из репо (JPEG для Telegram)', m.body.photo);
 ok(/<b>6\u00a0800\u00a0₽<\/b> · Предзаказ/.test(m.body.caption) && /В комплекте/.test(m.body.caption) && productById('pitlane-gps').inBox.every((x) => m.body.caption.includes(x.replace(/&/g, '&amp;'))) && m.body.caption.length <= 1024, 'цена 6 800 ₽, «Предзаказ», состав комплекта, ≤ 1024 символов');
-ok(datas(m)[0] === 'ob:pitlane-gps' && datas(m).includes('pk:pitlane-gps') && datas(m).includes('chip'), 'кнопки: оформить предзаказ, характеристики, как работает чип');
+ok(datas(m)[0] === 'ob:pitlane-gps' && datas(m).includes('pk:pitlane-gps') && datas(m).some((d) => /^chip(~|$)/.test(d)), 'кнопки: оформить предзаказ, характеристики, как работает чип');
 ok(sent.some((x) => x.method === 'answerCallbackQuery'), 'каждое нажатие отвечено answerCallbackQuery');
 await tap('pk:pitlane-gps'); m = last(BUYER); keep('specs', m);
 ok(/u-blox NEO-M9N/.test(txt(m)) && /Корпус/.test(txt(m)), 'характеристики');
 await tap('chip'); m = last(BUYER); keep('chip', m);
 ok(/Как работает PITLANE GPS/.test(txt(m)) && /25 раз в секунду/.test(txt(m)) && /класс A или B/.test(txt(m)), '«Как работает чип»');
 await say('/help'); m = last(BUYER); keep('faq', m);
-ok(/Вопросы и ответы/.test(txt(m)) && /Онлайн-оплаты нет/.test(txt(m)) && datas(m)[0] === 'sup', '/help → вопросы и «Написать в поддержку»');
+ok(/Вопросы и ответы/.test(txt(m)) && /Онлайн-оплаты нет/.test(txt(m)) && /^sup(~|$)/.test(datas(m)[0]), '/help → вопросы и «Написать в поддержку»');
 
 console.log('\n[предзаказ по шагам]');
 await tap('ob:pitlane-gps'); m = last(BUYER); keep('step1_qty', m);
@@ -68,7 +71,7 @@ await say('', BUYER, { contact: { phone_number: '89001234567', user_id: BUYER } 
 ok(/Шаг 4 из 4 · Комментарий/.test(txt(m)) && to(BUYER).some((x) => x.body.reply_markup?.remove_keyboard), 'контакт принят, клавиатура убрана, шаг 4: комментарий');
 await say('Удобно после 18:00 & <i>в выходные</i>'); m = last(BUYER); keep('confirm', m);
 ok(/Проверьте заказ/.test(txt(m)) && /× 2 — <b>13\u00a0600\u00a0₽<\/b>/.test(txt(m)) && /Город: bКазань\/b|Город: Казань/.test(txt(m)) && /Телефон \+79001234567/.test(txt(m)) && txt(m).includes('&amp;') && !/<i>в/.test(txt(m)) && tagsOk(txt(m)), 'подтверждение: сумма 2 × 6 800, город, телефон, комментарий экранирован', txt(m));
-ok(datas(m).join() === 'ok,oe,ox', 'кнопки: подтвердить / изменить / отмена');
+ok(datas(m).join() === 'ok,oe,ox,bm,m', 'кнопки: подтвердить / изменить / отмена + «← Назад» / «Главное меню» (v183)');
 sent = [];
 let r = await tap('ok');
 ok(r.cmd === 'cb:ok' && r.forwarded === true && r.buyerNotified === true && /^o[a-z0-9]{12}$/.test(r.id), 'заказ создан, ушёл Маге и покупателю', r);

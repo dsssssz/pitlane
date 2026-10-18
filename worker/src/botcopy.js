@@ -6,6 +6,8 @@
  */
 export const APP_URL = 'https://dsssssz.github.io/pitlane/';
 export const RULE = '───────────────';
+/** Баннер бота (/start и главное меню). ?v= меняется вместе с картинкой — Telegram кэширует по URL. */
+export const TG_BANNER_URL = APP_URL + 'img/tg/banner.jpg?v=3';
 
 export function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

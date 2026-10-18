@@ -40,7 +40,7 @@ ok(fs.statSync(U('img/tg/banner.jpg')).size <= 159403 && fs.statSync(U('img/favi
 console.log('источники не вернут неон');
 ok(!/#5dff95|#1bb84f|#2ee56a|#39ff14/i.test(R('favicon.svg')), 'favicon.svg — мятный, без кислотного зелёного');
 ok(!/#39ff14|57,\s*255,\s*20/i.test(R('tools/tg-banner.mjs')), 'генератор баннера бота без #39FF14');
-ok(/banner\.jpg\?v=3/.test(R('worker/src/index.js')), 'URL баннера бота сменён (кэш Telegram)');
+ok(/banner\.jpg\?v=(\d+)/.test(R('worker/src/botcopy.js')) && Number(R('worker/src/botcopy.js').match(/banner\.jpg\?v=(\d+)/)[1]) >= 3, 'URL баннера бота сменён (кэш Telegram; v183: константа в botcopy.js)');
 ok(/podiumModel\?\.\(\) === x/.test(R('tools/car-thumbs.mjs')) && /DIRECT/.test(R('tools/car-thumbs.mjs')), 'car-thumbs ждёт нужную модель (765LT ≠ GT3 RS)');
 ok(/workers\\\.dev/.test(R('tools/car-thumbs.mjs')), 'car-thumbs не ходит в прод-API');
 const sw = R('sw.js'); const app = R('app.js');

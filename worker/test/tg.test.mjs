@@ -8,11 +8,11 @@ let fails = 0;
 const ok = (c, msg) => { if (c) console.log('  ✓', msg); else { fails++; console.log('  ✗', msg); } };
 const SECRET = 'a'.repeat(20) + 'b'.repeat(20) + 'c'.repeat(24);
 const ADMIN = 'z'.repeat(48);
-const sent = [];
+let sent = [];
 const fakeFetch = async (u, init) => {
   const method = String(u).split('/').pop();
   const body = JSON.parse(init.body || '{}');
-  sent.push({ method, body });
+  if (method !== 'deleteMessage') sent.push({ method, body }); // v183: удаление прошлого экрана и команды — отдельно (один экран)
   const results = {
     getMe: { id: 1, is_bot: true, first_name: 'Pitlane bot', username: 'pitlane_official_bot' },
     getWebhookInfo: { url: 'https://api.test/tg/webhook/' + tgWebhookPath(SECRET), pending_update_count: 0, allowed_updates: ['message'] },
@@ -43,10 +43,11 @@ ok(r.status === 404 && sent.length === 0, 'right header but wrong path → 404')
 r = await worker.fetch(new Request('https://api.test' + P, { method: 'POST', headers: { 'X-Telegram-Bot-Api-Secret-Token': 'short' }, body: '{}' }), { ...env, TG_WEBHOOK_SECRET: 'short' });
 ok(r.status === 404, 'short/unset secret disables the webhook');
 r = await hook('/start');
+sent = sent.filter((x) => x.method !== 'deleteMessage'); // v183: команда пользователя убирается (один экран)
 ok(r.status === 200 && sent.length === 2 && sent[0].method === 'setWebhook' && JSON.stringify(sent[0].body.allowed_updates) === '["message","pre_checkout_query","callback_query"]', 'first verified update self-heals payment updates (setWebhook once)');
 sent.shift();
 ok(sent.length === 1, 'valid secret + path → 200 and one reply');
-r = await hook('/help', 556); sent.pop();
+r = await hook('/help', 556); sent = sent.filter((x) => x.method !== 'deleteMessage' && String(x.body.chat_id) !== '556');
 ok(!sent.some((x) => x.method === 'setWebhook'), 'self-heal runs only once (KV flag)');
 
 console.log('\n[command routing]');

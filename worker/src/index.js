@@ -2,13 +2,13 @@ import { PulseHub, pulseOp, PULSE_CID_RE } from './pulsehub.js';
 import { runWeather, publicWx } from './wx.js';
 import { sanitizeCarPhoto, publicCarPhoto, carPhotoKey, PCAR_BODY, PCAR_MAX } from './carphoto.js';
 import { listFollows, setFollow, followImproveNotify, deleteFollowKeys, FOLLOW_MAX } from './follow.js';
-import { START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner, trackTitle } from './botcopy.js';
+import { TG_BANNER_URL, START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner, trackTitle } from './botcopy.js';
 import { seasonRoute, seasonRecord0100 } from './season.js';
 import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, loadPrefs, savePrefs, markStarted, setChatStop, chatState, deleteNotifyKeys, NOTIFY_TYPES, NOTIFY_LABELS, NOTIFY_DAILY_MAX, NOTIFY_BOT_TEXT } from './notify.js';
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
 import { gpsRoute, deleteAccountGps, GpsLive } from './gpslive.js';
 import { shopRoute, deleteAccountShop } from './shop.js';
-import { botCallback, botFlowMessage, botCommand, mainMenuRows } from './botshop.js';
+import { botCallback, botFlowMessage, botCommand, botStart, mainMenuRows } from './botshop.js';
 import { trackSuggestRoute, deleteAccountTrackSug } from './tracksug.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
@@ -1810,7 +1810,6 @@ async function prepareTmaShare(env, v, body) {
 /* ———————————————————— Telegram bot @pitlane_official_bot (v81) ———————————————————— */
 
 const APP_URL = 'https://dsssssz.github.io/pitlane/';
-const TG_BANNER_URL = APP_URL + 'img/tg/banner.jpg?v=3';
 
 /** Webhook URL path segment derived from the secret (so the URL alone is also unguessable). */
 function tgWebhookPath(secret) {
@@ -1923,6 +1922,8 @@ async function tgHandleMessage(env, msg) {
   }
   const text = typeof msg.text === 'string' ? msg.text.slice(0, 512) : '';
   const route = tgRoute(text, await startInfo(env, text));
+  // v183: /start — один экран: прошлое меню удаляется, приходит одно новое (и команда пользователя убирается)
+  if (route.cmd === 'start') return botStart(env, msg, route, BOT_H);
   let r = await tgCall(env, route.method, { chat_id: chatId, ...route.payload });
   if (!r?.ok && route.method === 'sendPhoto') {
     // banner unreachable → same text without the photo
@@ -2908,7 +2909,7 @@ export default {
           // payments self-heal: make sure pre_checkout_query is subscribed (one KV read once done)
           await defer(ensurePaymentUpdates(env, 'https://' + url.host, ROOM_H));
           const r = await tgHandleMessage(env, msg);
-          return json({ ok: true, cmd: r?.cmd || null }, 200, headers);
+          return json({ ok: true, cmd: r?.cmd || null, ...(r?.mode ? { mode: r.mode, mid: r.mid || null } : {}) }, 200, headers); // v183: режим экрана (fresh/edit/…) — для тестов и логов
         }
       } catch (err) {
         console.error('tg webhook', err && err.stack ? err.stack : err);

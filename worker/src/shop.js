@@ -167,7 +167,7 @@ export async function shopRoute({ req, env, path, headers, ip, pilot, h }) {
 }
 
 /** v182: общий путь создания заказа — Mini App (POST /shop/order) и бот (оформление в чате). Пишет KV, шлёт Маге и покупателю. */
-export async function createOrder(env, buyer, rec, mine, h, { source = 'app' } = {}) {
+export async function createOrder(env, buyer, rec, mine, h, { source = 'app', notifyBuyer = true } = {}) {
   const kv = env.PITLANE;
   const o = { id: 'o' + h.randB36(12), at: Date.now(), pid: buyer.pid, ...rec, status: 'new', payUrl: null, source,
     buyer: { nick: buyer.nick || '', username: buyer.username || null, tgId: buyer.tgId || null }, history: [{ st: 'new', at: Date.now() }] };
@@ -182,12 +182,13 @@ export async function createOrder(env, buyer, rec, mine, h, { source = 'app' } =
       o.forwarded = !!r2?.ok;
     }
   } else o.forwarded = false;
-  if (buyer.tgId) {
+  // v183: в боте подтверждение — сам экран «Заявка принята» (то же сообщение), отдельное сообщение не нужно
+  if (buyer.tgId && notifyBuyer) {
     const r = await h.tgCall(env, 'sendMessage', { chat_id: buyer.tgId, text: msgOrderBuyer(o, h), parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: source === 'bot'
-      ? [[{ text: 'Мои заказы', callback_data: 'my' }], [h.webAppBtn('Открыть PITLANE', {})]]
+      ? [[{ text: 'Мои заказы', callback_data: 'n:my' }], [h.webAppBtn('Открыть PITLANE', {})]]
       : [[h.webAppBtn('Мои заявки', { screen: 'shop', skipIntro: '1' })]] } });
     o.buyerNotified = !!r?.ok;
-  } else o.buyerNotified = false;
+  } else o.buyerNotified = notifyBuyer ? false : null;
   const t = ttl();
   await kv.put(orderKey(o.id), JSON.stringify(o), { expirationTtl: t, metadata: { pid: buyer.pid } });
   await kv.put(ordersKey(buyer.pid), JSON.stringify([o, ...(mine || [])].slice(0, SHOP_ORDERS_MAX)), { expirationTtl: t });
