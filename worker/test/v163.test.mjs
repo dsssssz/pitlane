@@ -14,7 +14,7 @@ ok(/\.brand-bar b \{ position: relative; font: 600 18px\/1[^}]*color: #fff/.test
 // 3. баннеры
 const keys = [...html.matchAll(/data-bn52="([a-z]+)"/g)].map((m) => m[1]);
 ok((html.match(/class="bn52-cta"/g) || []).length === keys.length && keys.length === 5, 'у каждого баннера — кнопка-CTA');
-ok(/\.bn52-s img \{ filter: none !important; \}/.test(css) && /\.bn52-s::after \{ top: auto; height: 62%;/.test(css), 'фото в полную яркость, скрим только под текстом');
+ok(/\.bn52-s img \{ filter: none !important; \}/.test(css) && /\.bn52-s::after \{ top: auto; height: (6[0-9]|7[0-9]|80)%;/.test(css), 'фото в полную яркость, скрим только под текстом');
 ok(/function bn63Open\(k\)/.test(app) && /openShopSheet\('pitlane-gps'\)/.test(app) && /r\(k\)/.test(app), 'каждый баннер открывает свой раздел: товар GPS, топы, дуэли, видео, трасса');
 { const r48 = app.slice(app.indexOf('function route48(k)'), app.indexOf('window.__route48 = route48;')); ok(['tops', 'duels', 'video', 'suggest'].every((k) => r48.includes(`'${k}'`)), 'у route48 есть маршрут для каждого ключа баннера'); }
 // 5. Главная

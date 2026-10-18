@@ -357,7 +357,7 @@
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
             <div class="z61-rows" role="group" aria-label="Параметры замера">
               <button type="button" class="ds-row" id="z61Gps" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="ds-row-v" data-gps61>Телефон</span></button>
-              <div class="ds-row z61-ghost"><span class="ds-row-k">Призрак</span><div class="ghost-pick" id="runGhostPick" data-scope="run"></div></div>
+              <button type="button" class="ds-row" id="z61Ghost" aria-haspopup="dialog" aria-controls="ghost74"><span class="ds-row-k">Призрак</span><span class="ds-row-v" id="z61GhostV">Без призрака</span></button>
               <button type="button" class="ds-row" data-view="history" data-jf="run"><span class="ds-row-k">Журнал замеров</span><span class="ds-row-v" id="z61Last">—</span></button>
             </div>
             <button type="button" class="v54-video" id="h54Video" aria-label="Старт с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>
@@ -1380,6 +1380,13 @@
           <button type="button" class="gfx64-o" role="radio" data-gfx="max"><span><b>Максимум</b><small>Полная плотность экрана до ×3, отражения, мягкие тени</small></span><i aria-hidden="true"></i></button>
           <p class="gfx64-note" id="gfx64Note"></p>
         </div>
+      </div>
+    </div>
+    <div class="ds-sheet hidden" id="ghost74" role="dialog" aria-modal="true" aria-label="Призрак" aria-hidden="true">
+      <div class="ds-sheet-scrim" data-close74></div>
+      <div class="ds-sheet-panel">
+        <header class="ds-sheet-hd"><b>Призрак</b><button type="button" class="ds-sheet-x" id="ghost74Close" data-close74 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+        <div class="ds-sheet-body"><p class="gh74-hint">С кем соревноваться в заезде — призрак едет рядом, дельта видна в реальном времени.</p><div class="ghost-pick gh74" id="runGhostPick" data-scope="run"></div></div>
       </div>
     </div>
     <div class="ds-sheet hidden" id="gps61" role="dialog" aria-modal="true" aria-label="Источник GPS" aria-hidden="true">

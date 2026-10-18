@@ -49,7 +49,7 @@ ok(/<section id="view-history" class="view jn61" aria-label="Журнал">/.tes
 { const h = html.slice(html.indexOf('<section id="view-history"'), html.indexOf('<!-- v158: Магазин'));
   ok(['lapAnalyticsCard', 'trackHistCard', 'sectorBattleCard', 'compareCard', 'trackDayList', 'lapList', 'btnShareRun', 'btnVideoRun', 'runHistory'].every((id) => h.includes(`id="${id}"`)), 'история, аналитика, битва секторов, сравнение, track-day, все круги и слипы — в Журнале'); }
 { const z = html.slice(html.indexOf('<section id="view-zamer"'), html.indexOf('<section id="view-garage"'));
-  ok(z.includes('id="runGhostPick"') && z.includes('id="z61Gps"') && z.includes('data-view="history" data-jf="run"'), 'Замер: строки «Источник GPS», «Призрак», «Журнал замеров»'); }
+  ok((z.includes('id="runGhostPick"') || z.includes('id="z61Ghost"')) && z.includes('id="z61Gps"') && z.includes('data-view="history" data-jf="run"'), 'Замер: строки «Источник GPS», «Призрак», «Журнал замеров»'); }
 ok(/<div class="ds-sheet hidden" id="gps61"[\s\S]{0,900}id="extGpsCard"/.test(html) && /\['gps61', 'gps61Close'\]/.test(app), 'источник GPS — шторка (Замер и Трек), закрывается BackButton');
 const J = await import(new URL('journal.js', root));
 { const L = (ms, at, extra = {}) => ({ ms, at, valid: true, how: 'gate', ...extra });

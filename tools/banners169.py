@@ -5,8 +5,9 @@ import os, re, subprocess, sys
 from PIL import Image, ImageFilter
 R = os.path.dirname(os.path.dirname(os.path.abspath(__file__))); os.chdir(R)
 K = ['gps', 'tops', 'duels', 'video', 'track']
+ONLY = [a for a in sys.argv[1:] if a in K] or K  # v174: можно пересобрать один баннер: banners169.py video
 OLD = {'gps': './img/shop/gps-hero-720.webp', 'tops': './img/banners/tracks-800.webp', 'duels': './img/banners/duels-800.webp', 'video': './img/banners/paddock-800.webp', 'track': './img/track-maps/auto-msk-full.webp'}
-for k in K:
+for k in ONLY:
     src = f'img/banners/raw/{k}.jpg'
     if not os.path.exists(src): sys.exit('нет ' + src)
     tmp = f'/tmp/bn-{k}-dg.png'; Image.open(src).convert('RGB').save(tmp)

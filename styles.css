@@ -6268,7 +6268,7 @@ html.v159:not(#_):not(#_) #view-home [hidden] { display: none !important; }
 html.v159:not(#_):not(#_) .bn52 { margin: 0 calc(-1 * var(--gutter)) var(--s3) !important; }
 html.v159:not(#_):not(#_) .bn52-track { padding: 0 var(--gutter) !important; scroll-padding-inline: var(--gutter) !important; gap: var(--s1) !important; }
 html.v159:not(#_):not(#_) .bn52-s { width: calc(100vw - 2 * var(--gutter)) !important; }
-html.v159:not(#_):not(#_) .bn52-s::after { top: auto; height: 62%; background: linear-gradient(0deg, rgba(0,0,0,.78) 0%, rgba(0,0,0,.5) 45%, rgba(0,0,0,0) 100%); } /* v163: скрим только под текстом, фото выше — в полную яркость */
+html.v159:not(#_):not(#_) .bn52-s::after { top: auto; height: 78%; background: linear-gradient(0deg, rgba(0,0,0,.84) 0%, rgba(0,0,0,.6) 42%, rgba(0,0,0,0) 100%); } /* v163: скрим только под текстом, фото выше — в полную яркость */
 html.v159:not(#_):not(#_) .bn52-s, html.v159:not(#_):not(#_) .bn52-track > * { border-radius: var(--r3) !important; box-shadow: none !important; }
 html.v159:not(#_):not(#_) .bn52-dot { background: var(--ds-line-2) !important; border-radius: 1px !important; height: 2px !important; width: 16px !important; box-shadow: none !important; }
 html.v159:not(#_):not(#_) .bn52-dot.on { background: var(--ds-text) !important; width: 24px !important; }
@@ -6738,7 +6738,7 @@ html.v159:not(#_):not(#_) .bn52-s img { filter: none !important; }
 html.v159:not(#_):not(#_) .bn52-s.b-chip img { object-position: 62% 50%; }
 html.v159:not(#_):not(#_) .bn52-s.b-tops img { object-position: 64% 50%; }
 html.v159:not(#_):not(#_) .bn52-s.b-duels img { object-position: 78% 50%; }
-html.v159:not(#_):not(#_) .bn52-s.b-video img { object-position: 40% 60%; }
+html.v159:not(#_):not(#_) .bn52-s.b-video img { object-position: 74% 28%; } /* v174: экран телефона (128 км/ч, время круга) справа сверху, не под текстом */
 html.v159:not(#_):not(#_) .bn52-s.b-track img { object-position: 60% 50%; }
 html.v159:not(#_):not(#_) .bn52-k { color: rgba(255,255,255,.82) !important; }
 html.v159:not(#_):not(#_) .bn52-t { font: 600 24px/28px var(--font-ui) !important; letter-spacing: -.01em !important; color: #fff !important; }
@@ -6966,3 +6966,30 @@ html.v159:not(#_):not(#_) .ds-row.z61-ghost .ghost-pick { min-width: 0; flex: 1 
 html.v159:not(#_):not(#_) .ghost-pick .gp-chips { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
 html.v159:not(#_):not(#_) #paintFinish button::before { content: ""; position: absolute; top: 0; bottom: 0; left: -9px; right: -9px; } /* нажимаемая зона короткой вкладки «Мат» ≥ 44px, подчёркивание прежнее */
 @media (max-width: 359px) { html.v159:not(#_):not(#_) #view-garage #colorBar { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; gap: 10px !important; } } /* SE: свотчи ≥ 34px вместо 25px */
+
+/* ===== v174: баннеры — текст и кнопка никогда не перекрываются: кнопка своей строкой под подписью, заголовок до 2 строк, слайд растёт по содержимому ===== */
+html.v159:not(#_):not(#_) .bn52-s { aspect-ratio: auto !important; min-height: calc((100vw - 2 * var(--gutter)) * .625); max-height: none; }
+@media (min-width: 680px) { html.v159:not(#_):not(#_) .bn52-s { min-height: 400px; } }
+html.v159:not(#_):not(#_) .bn52-t { max-width: 100%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+html.v159:not(#_):not(#_) .bn52-d { max-width: 100% !important; }
+html.v159:not(#_):not(#_) .bn52-cta { position: relative !important; right: auto !important; bottom: auto !important; align-self: flex-start; margin-top: 10px; flex: none; }
+
+/* ===== v174: «Призрак» — строка как остальные, выбор в шторке: сегмент дисциплины + список с радио, без обрезки ===== */
+html.v159:not(#_):not(#_) #z61GhostV { white-space: normal; text-align: right; overflow-wrap: anywhere; }
+html.v159:not(#_):not(#_) .gh74-hint { margin: 4px 0 12px; color: var(--ds-sub); font: 400 13px/1.4 var(--font-ui); }
+html.v159:not(#_):not(#_) .ghost-pick.gh74 { display: grid; gap: 12px; margin: 0; }
+html.v159:not(#_):not(#_) .gh74 .gp-head { display: block; min-height: 0; }
+html.v159:not(#_):not(#_) .gh74 .gp-title { display: none; }
+html.v159:not(#_):not(#_) .gh74 .gp-disc { display: grid; grid-template-columns: 1fr 1fr; width: 100%; box-sizing: border-box; padding: 3px; gap: 3px; border-radius: var(--r2); border: 1px solid var(--ds-line-2); background: var(--ds-bg-2); }
+html.v159:not(#_):not(#_) .gh74 .gp-disc-btn { min-height: 40px; padding: 0 12px; border-radius: var(--r1); font: 600 14px/1 var(--font-ui); white-space: nowrap; }
+html.v159:not(#_):not(#_) .gh74 .gp-disc-btn.on { background: var(--ds-text); color: #0a0a0a; }
+html.v159:not(#_):not(#_) .gh74 .gp-chips { display: grid !important; grid-template-columns: 1fr !important; gap: 0 !important; border-top: 1px solid var(--ds-line); }
+html.v159:not(#_):not(#_) .gh74 .gp-chip { display: grid !important; grid-template-columns: 22px 1fr auto; align-items: center; column-gap: 12px; min-height: 56px; padding: 8px 2px !important; border: 0 !important; border-bottom: 1px solid var(--ds-line) !important; border-radius: 0 !important; background: transparent !important; text-align: left; }
+html.v159:not(#_):not(#_) .gh74 .gp-chip b { font: 500 16px/1.25 var(--font-ui) !important; color: var(--ds-text); white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+html.v159:not(#_):not(#_) .gh74 .gp-chip small { font: 400 14px/1.25 var(--font-ui) !important; color: var(--ds-sub); white-space: nowrap !important; overflow: visible !important; text-overflow: clip !important; text-align: right; }
+html.v159:not(#_):not(#_) .gh74 .gh74-r { width: 20px; height: 20px; box-sizing: border-box; border-radius: 999px; border: 1.5px solid var(--ds-line-3); position: relative; }
+html.v159:not(#_):not(#_) .gh74 .gp-chip.on .gh74-r { border-color: var(--ds-text); }
+html.v159:not(#_):not(#_) .gh74 .gp-chip.on .gh74-r::after { content: ''; position: absolute; inset: 4px; border-radius: 999px; background: var(--ds-text); }
+html.v159:not(#_):not(#_) .gh74 .gp-chip:disabled { opacity: .45; }
+html.v159:not(#_):not(#_) .z61-rows .ds-row-v, html.v159:not(#_):not(#_) .t61-rows .ds-row-v { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; text-align: right; min-width: 0; }
+html.v159:not(#_):not(#_) .nw74 { white-space: nowrap; }

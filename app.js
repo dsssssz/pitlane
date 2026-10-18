@@ -7283,6 +7283,7 @@ if (isTMA) {
     ['bannerSheet', 'bannerClose'], ['ghostResult', 'ghostResultClose'],
     ['sessionSheet', 'sessionSheetClose'],
     ['vtSheet', 'vtClose'], ['shopSheet', 'shopClose'], // v147
+    ['ghost74', 'ghost74Close'], // v174
     ['tgSheet', 'tgSheetClose'], ['gps61', 'gps61Close'], // v161
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
@@ -11344,10 +11345,23 @@ function renderGhostPick(scope) {
       : o ? fmtGhostT(kind, o.tMs) + (id === 'leader' && /ты$/.test(o.who) ? ' · ты' : '')
       : (id === 'leader' ? 'пока нет' : 'нет записи');
     b.appendChild(padEl('small', '', sub));
+    if (scope === 'run') { b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', g.choice === id ? 'true' : 'false'); b.prepend(padEl('i', 'gh74-r')); }
     if (id !== 'none' && !o && !loading) b.disabled = true;
     row.appendChild(b);
   });
   box.appendChild(row);
+  if (scope === 'run') ghostRowValue74();
+}
+/** v174: строка «Призрак» на Замере — текущий выбор справа (без обрезки), шторка — полный список */
+function ghostRowValue74() {
+  const v = document.getElementById('z61GhostV'); if (!v) return;
+  const g = ghostRace.run; const kind = ghostScopeKind('run');
+  const lab = (GHOST_CHOICES.find(([id]) => id === g.choice) || [, 'Без призрака'])[1];
+  const o = g.choice !== 'none' ? g.opts[g.choice] : null;
+  const disc = (GHOST_DISCS.find(([id]) => id === g.disc) || [, ''])[1];
+  const t = g.choice === 'none' ? 'Без призрака' : (o ? lab + ' · ' + fmtGhostT(kind, o.tMs) : (g.status === 'loading' ? lab + ' · …' : lab + ' · нет записи'));
+  const parts = (g.choice === 'none' || !o ? t : t + ' · ' + disc).split(' · ');
+  v.replaceChildren(...parts.flatMap((x, i) => { const sp = document.createElement('span'); sp.className = 'nw74'; sp.textContent = x; return i ? [document.createTextNode(' · '), sp] : [sp]; })); // куски не рвутся посередине («0–100»)
 }
 function ghostPickClick(scope, e) {
   const g = ghostRace[scope];
@@ -11368,7 +11382,18 @@ function ghostPickClick(scope, e) {
   ghostSaveChoice();
   hap(8);
   ghostApplyChoice(scope);
+  if (scope === 'run') setTimeout(() => { try { window.__ghost74?.close(); } catch (_) {} }, 240);
 }
+// v174: шторка выбора призрака на Замере
+(() => {
+  const sh = document.getElementById('ghost74'); if (!sh) return;
+  const close = () => { sh.classList.add('hidden'); sh.setAttribute('aria-hidden', 'true'); };
+  const open = () => { try { hap(8); } catch (_) {} try { renderGhostPick('run'); } catch (_) {} sh.classList.remove('hidden'); sh.setAttribute('aria-hidden', 'false'); };
+  document.getElementById('z61Ghost')?.addEventListener('click', open);
+  sh.addEventListener('click', (e) => { if (e.target?.closest?.('[data-close74]')) close(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sh.classList.contains('hidden')) close(); });
+  window.__ghost74 = { open, close };
+})();
 document.getElementById('lapGhostPick')?.addEventListener('click', (e) => ghostPickClick('lap', e));
 document.getElementById('runGhostPick')?.addEventListener('click', (e) => ghostPickClick('run', e));
 
@@ -11814,7 +11839,7 @@ async function rideDuelGhost(d) {
     ghostRace.run.disc = ref === '402m' ? '402m' : '0-100';
     goToView('run', { sfx: false });
     void ghostLoad('run');
-    try { document.getElementById('runGhostPick')?.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+    try { window.__ghost74?.open(); } catch (_) {} // v174: выбор призрака — в шторке
   }
 }
 document.getElementById('duelRideGhost')?.addEventListener('click', () => { if (_activeDuel) void rideDuelGhost(_activeDuel); });
@@ -12884,7 +12909,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v173';
+const APP_VERSION = 'v174';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13060,7 +13085,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
