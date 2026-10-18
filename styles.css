@@ -6192,7 +6192,7 @@ html.v159:not(#_):not(#_) #view-home .home-rail { margin: 0 calc(-1 * var(--gutt
 html.v159:not(#_):not(#_) svg [stroke-width="1.8"], html.v159:not(#_):not(#_) svg [stroke-width="1.7"], html.v159:not(#_):not(#_) svg[stroke-width="1.8"], html.v159:not(#_):not(#_) svg[stroke-width="1.7"], html.v159:not(#_):not(#_) svg[stroke-width="2"] { stroke-width: 1.5; }
 
 /* — шапка — */
-html.v159:not(#_):not(#_) .brand-bar { min-height: 56px; padding: calc(8px + var(--sat)) var(--s2) 8px !important; background: rgba(0,0,0,.86) !important; backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); border-bottom: 1px solid var(--ds-line) !important; }
+html.v159:not(#_):not(#_) .brand-bar { min-height: 56px; padding: calc(8px + var(--sat)) var(--s2) 8px !important; background: rgba(10,10,10,.7) !important; backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); /* v169: жидкое стекло */ border-bottom: 1px solid var(--ds-line) !important; }
 html.v159:not(#_):not(#_) .brand-bar b { position: relative; font: 600 18px/1 var(--font-ui) !important; letter-spacing: .26em !important; color: #fff !important; padding-bottom: 7px; } /* v163: шильдик — крупнее, белый, полужирный */
 html.v159:not(#_):not(#_) .brand-bar b::after { content: ''; position: absolute; left: 0; bottom: 0; width: calc(100% - .26em); height: 1.5px; background: var(--ds-acc); transform-origin: 0 50%; } /* тонкая платиновая линия под знаком */
 html.v159:not(#_):not(#_) #btnMenu, html.v159:not(#_):not(#_) #btnProfile, html.v159:not(#_):not(#_) .brand-bar .bb-home { width: 40px !important; height: 40px !important; min-height: 40px !important; border: 1px solid var(--ds-line) !important; border-radius: var(--r2) !important; background: transparent !important; color: var(--ds-text) !important; transition: background var(--ds-t) var(--ds-ease); }
@@ -6201,7 +6201,7 @@ html.v159:not(#_):not(#_) #btnMenu:active, html.v159:not(#_):not(#_) #btnProfile
 html.v159:not(#_):not(#_) #btnMenu svg, html.v159:not(#_):not(#_) #btnProfile svg { width: 20px; height: 20px; stroke-width: 1.5; }
 
 /* — нижняя панель — */
-html.v159:not(#_):not(#_) .nav3 { background: rgba(0,0,0,.92) !important; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid var(--ds-line) !important; border-radius: 0 !important; }
+html.v159:not(#_):not(#_) .nav3 { background: rgba(10,10,10,.72) !important; backdrop-filter: blur(16px) saturate(1.5); -webkit-backdrop-filter: blur(16px) saturate(1.5); border-top: 1px solid var(--ds-line) !important; border-radius: 0 !important; }
 html.v159:not(#_):not(#_) .nav3-btn { position: relative; background: transparent !important; color: var(--ds-sub) !important; font: 500 11px/1 var(--font-ui) !important; letter-spacing: .02em !important; border-radius: 0 !important; transition: color var(--ds-t) var(--ds-ease); }
 html.v159:not(#_):not(#_) .nav3-btn svg { stroke-width: 1.5 !important; }
 html.v159:not(#_):not(#_) .nav3-btn.on { color: var(--ds-text) !important; }
@@ -6898,3 +6898,39 @@ html.v159:not(#_):not(#_) #view-settings .st66-row:active { background: var(--ds
 html.v159:not(#_):not(#_) #view-account .acc-crew-row[hidden], html.v159:not(#_):not(#_) #view-account #p48[hidden] { display: none !important; }
 html.v159:not(#_):not(#_) #view-account .st66-solo { display: flex !important; min-height: 52px !important; padding: 0 16px !important; margin: var(--s4) 0 0 !important; background: var(--ds-bg-1) !important; border: 1px solid var(--ds-line) !important; border-radius: var(--r3) !important; }
 html.v159:not(#_):not(#_) #view-settings .st66-g[hidden], html.v159:not(#_):not(#_) #view-account #accPhoneStatus[hidden] { display: none !important; }
+
+/* ===== v169: «candy»-полировка — жидкое стекло, пружинное нажатие, появление при скролле, ручка шторки, тост, хит-зоны ===== */
+html.v159:not(#_):not(#_) .pl-toast { background: rgba(28,28,30,.96) !important; }
+html.v159:not(#_):not(#_) .nav3 { border-top-color: rgba(242,239,233,.08) !important; }
+html.v159:not(#_):not(#_) .brand-bar { border-bottom-color: rgba(242,239,233,.07) !important; }
+/* пружинное нажатие: отдельное свойство scale, не трогает transform компонентов */
+html.v159:not(#_):not(#_) .hg-btn, html.v159:not(#_):not(#_) .st66-row, html.v159:not(#_):not(#_) .plm-item, html.v159:not(#_):not(#_) .plm a, html.v159:not(#_):not(#_) .nav3-btn, html.v159:not(#_):not(#_) .seg button, html.v159:not(#_):not(#_) .seg .chip, html.v159:not(#_):not(#_) .tchip, html.v159:not(#_):not(#_) .bn52-slide, html.v159:not(#_):not(#_) .pl65-sw, html.v159:not(#_):not(#_) #colorBar button, html.v159:not(#_):not(#_) #paintFinish button, html.v159:not(#_):not(#_) .ds-btn, html.v159:not(#_):not(#_) .btn, html.v159:not(#_):not(#_) .shop-card, html.v159:not(#_):not(#_) .card > button, html.v159:not(#_):not(#_) .lap-start-hero, html.v159:not(#_):not(#_) .h48-start {
+  transition-property: scale, background-color, border-color, color, opacity, transform !important;
+  transition-duration: 420ms, var(--ds-t), var(--ds-t), var(--ds-t), var(--ds-t), var(--ds-t) !important;
+  transition-timing-function: cubic-bezier(.34,1.56,.64,1), var(--ds-ease), var(--ds-ease), var(--ds-ease), var(--ds-ease), var(--ds-ease) !important;
+}
+html.v159:not(#_):not(#_) .hg-btn:active, html.v159:not(#_):not(#_) .st66-row:active, html.v159:not(#_):not(#_) .plm-item:active, html.v159:not(#_):not(#_) .plm a:active, html.v159:not(#_):not(#_) .nav3-btn:active, html.v159:not(#_):not(#_) .seg button:active, html.v159:not(#_):not(#_) .seg .chip:active, html.v159:not(#_):not(#_) .tchip:active, html.v159:not(#_):not(#_) .pl65-sw:active, html.v159:not(#_):not(#_) #colorBar button:active, html.v159:not(#_):not(#_) #paintFinish button:active, html.v159:not(#_):not(#_) .ds-btn:active, html.v159:not(#_):not(#_) .btn:active, html.v159:not(#_):not(#_) .shop-card:active, html.v159:not(#_):not(#_) .card > button:active, html.v159:not(#_):not(#_) .lap-start-hero:active, html.v159:not(#_):not(#_) .h48-start:active {
+  scale: .965; transition-duration: 90ms !important;
+}
+html.v159:not(#_):not(#_) .bn52-slide:active { scale: .985; transition-duration: 120ms !important; }
+/* появление карточек при прокрутке — только там, где браузер умеет scroll-driven animations (без JS, без нагрузки) */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    html.v159:not(#_):not(#_) .view.active .card, html.v159:not(#_):not(#_) .view.active .st66-g, html.v159:not(#_):not(#_) .view.active .shop-card, html.v159:not(#_):not(#_) .view.active .jn-item, html.v159:not(#_):not(#_) .view.active .p48-group {
+      animation: v169-rise linear both; animation-timeline: view(); animation-range: entry 0% entry 32%;
+    }
+  }
+}
+@keyframes v169-rise { from { opacity: .35; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+/* ручка шторки: подсказывает, что её можно смахнуть вниз */
+html.v159:not(#_):not(#_) .race-sheet-panel, html.v159:not(#_):not(#_) .ds-sheet-panel, html.v159:not(#_):not(#_) .crew-sheet-panel, html.v159:not(#_):not(#_) .tgs-panel { position: relative; }
+html.v159:not(#_):not(#_) .race-sheet-panel::before, html.v159:not(#_):not(#_) .ds-sheet-panel::before, html.v159:not(#_):not(#_) .crew-sheet-panel::before, html.v159:not(#_):not(#_) .tgs-panel::before { content: ''; position: absolute; top: 6px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 999px; background: rgba(242,239,233,.22); z-index: 3; pointer-events: none; }
+/* тост: платиновая тонкая рамка вместо оранжевой, пилюля, пружина */
+html.v159:not(#_):not(#_) .pl-toast { border: 1px solid rgba(201,198,191,.28) !important; border-radius: 999px !important; color: var(--ds-text) !important; font: 500 13px/1.35 var(--font-ui) !important; padding: 11px 18px !important; transition: opacity 220ms var(--ds-ease), transform 420ms cubic-bezier(.34,1.56,.64,1) !important; }
+/* хит-зоны точек каруселей: видимая точка та же, нажимаемая область ≥ 28px */
+html.v159:not(#_):not(#_) .bn52-dot, html.v159:not(#_):not(#_) .g63-dot { position: relative; }
+html.v159:not(#_):not(#_) .bn52-dot::after, html.v159:not(#_):not(#_) .g63-dot::after { content: ''; position: absolute; left: -4px; right: -4px; top: -13px; bottom: -13px; }
+/* скелетон: мягкая пульсация вместо пустоты (класс .pl-skel / [aria-busy=true]) */
+html.v159:not(#_):not(#_) .pl-skel, html.v159:not(#_):not(#_) [aria-busy="true"].card { animation: v169-pulse 1.4s ease-in-out infinite; background: var(--ds-bg-2) !important; color: transparent !important; border-radius: var(--r2); }
+@keyframes v169-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { html.v159:not(#_):not(#_) .pl-skel { animation: none; } }

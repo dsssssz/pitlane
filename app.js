@@ -8975,12 +8975,28 @@ function renderPaintUI() {
 function syncPaintSwatches() { try { renderPaintUI(); } catch (_) {} }
 function syncPaintFinishUI() { try { renderPaintUI(); } catch (_) {} }
 
+/** v169: мягкий отсвет пола шоурума берёт оттенок краски кузова (приглушённо, без неона) */
+function showroomTint(hex) {
+  try {
+    if (!showroomGlow || !showroomGlow.material) return;
+    const base = new THREE.Color(0xdfe6ee);
+    if (hex) {
+      const c = new THREE.Color(hex); const hsl = {}; c.getHSL(hsl);
+      c.setHSL(hsl.h, Math.min(hsl.s, 0.45), 0.72);
+      base.lerp(c, 0.38);
+    }
+    showroomGlow.material.color.copy(base);
+    if (typeof podiumInvalidate === 'function') podiumInvalidate();
+  } catch (_) {}
+}
+
 function applyStoredBodyPaint() {
   const entry = getStoredPaintEntry(podiumModelId || state.carId);
   paint.body = entry.hex;
   paint.finish = entry.finish || 'gloss';
   pl65.cat = entry.hex ? paint.finish : (pl65.cat || 'gloss');
   applyGlbBodyPaint(entry.hex);
+  showroomTint(entry.hex);
   try { applyStoredParts(); } catch (_) {}
   syncPaintSwatches();
   try { applyPaint(); } catch (_) {}
@@ -8991,6 +9007,7 @@ function pickBodyPaint(hex, fin) {
   if (fin && PAINT_FIN_OK.has(fin)) setStoredPaintFinish(fin, podiumModelId || state.carId);
   setStoredPaintHex(clean, podiumModelId || state.carId);
   applyGlbBodyPaint(clean);
+  showroomTint(clean);
   if (partsFor().wheels === 'body') { try { applyPartColor('wheels', 'body'); } catch (_) {} }
   syncPaintSwatches();
   try { applyPaint(); } catch (_) {}
@@ -12845,7 +12862,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v168';
+const APP_VERSION = 'v169';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13021,7 +13038,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -16774,4 +16791,45 @@ window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
   new MutationObserver(() => { if (v.classList.contains('active')) { who(); groups(); } }).observe(v, { attributes: true, attributeFilter: ['class'] });
   setTimeout(() => { try { groups(); dedupe(); } catch (_) {} }, 1500);
   who();
+})();
+
+/* v169: потянуть шторку вниз за верх — закрыть (iOS-жест). Работает поверх существующих кнопок закрытия, ничего не ломает. */
+(function sheetDrag169() {
+  const PANELS = '.race-sheet-panel, .ds-sheet-panel, .tgs-panel, .crew-sheet-panel, .rd50-sheet';
+  const CLOSE = '[data-close], .race-sheet-close, .ds-sheet-x, .tgs-close, .plm-close, button[aria-label="Закрыть"], button[aria-label="Close"]';
+  let g = null;
+  document.addEventListener('touchstart', (e) => {
+    const t = e.touches && e.touches[0]; if (!t || e.touches.length > 1) return;
+    const panel = e.target.closest && e.target.closest(PANELS); if (!panel) return;
+    if (e.target.closest('input, textarea, select, [type=range], canvas, .no-drag')) return;
+    const r = panel.getBoundingClientRect();
+    if (t.clientY - r.top > 72) return;
+    g = { panel, y0: t.clientY, dy: 0, t0: performance.now(), on: false };
+  }, { passive: true });
+  document.addEventListener('touchmove', (e) => {
+    if (!g) return; const t = e.touches[0]; const dy = t.clientY - g.y0;
+    if (!g.on && dy > 8) { g.on = true; g.panel.style.transition = 'none'; }
+    if (!g.on) return;
+    g.dy = Math.max(0, dy);
+    g.panel.style.transform = 'translate3d(0,' + (g.dy < 0 ? 0 : g.dy) + 'px,0)';
+  }, { passive: true });
+  const end = () => {
+    if (!g) return; const p = g.panel; const fast = g.dy / Math.max(1, performance.now() - g.t0) > 0.6;
+    const close = g.on && (g.dy > 110 || (fast && g.dy > 40));
+    p.style.transition = 'transform 320ms cubic-bezier(.32,.72,0,1)';
+    if (close) {
+      p.style.transform = 'translate3d(0,100%,0)';
+      const root = p.closest('.race-sheet, .ds-sheet, .crew-sheet, .tgs, [role=dialog]') || p.parentElement;
+      const btn = (root && root.querySelector(CLOSE)) || p.querySelector(CLOSE);
+      setTimeout(() => { try { if (btn) btn.click(); else { const sc = root && root.querySelector('.ds-sheet-scrim, .race-sheet-scrim, .crew-sheet-scrim'); if (sc) sc.click(); } } catch (_) {} setTimeout(() => { p.style.transform = ''; p.style.transition = ''; }, 60); }, 200);
+      try { hap(8); } catch (_) {}
+    } else {
+      p.style.transform = '';
+      setTimeout(() => { p.style.transition = ''; }, 340);
+    }
+    g = null;
+  };
+  document.addEventListener('touchend', end, { passive: true });
+  document.addEventListener('touchcancel', end, { passive: true });
+  window.__sd169 = true;
 })();
