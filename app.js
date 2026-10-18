@@ -7531,7 +7531,7 @@ const LITE_LIGHT_RE = /light|ligts|lamp|lens|indicator|drl|tail|head|bumper|emis
 const LITE_GLASS_RE = /glass|window|windscreen|windshield|panarama|panorama|glasses/i;
 let _liteGlassMat = null;
 /* v177: тонировка читается тёмной — база почти чёрная, отражения только бликами (слабый спекуляр/env, лак тонкий) */
-const GLASS177 = { clearcoat: 0.5, spec: 0.35, env: 0.7 };
+const GLASS177 = { clearcoat: 0.35, spec: 0.15, env: 0.45 }; // v179: ещё темнее — блики только по краю
 function liteGlassMat() {
   if (_liteGlassMat) return _liteGlassMat;
   _liteGlassMat = new THREE.MeshPhysicalMaterial({ name: 'pl75_dark_glass', color: 0x0b0c0e, metalness: 0, roughness: 0.06, clearcoat: GLASS177.clearcoat, clearcoatRoughness: 0.03, specularIntensity: GLASS177.spec, envMapIntensity: GLASS177.env, transparent: false, opacity: 1, transmission: 0, depthWrite: true, side: THREE.DoubleSide });
@@ -12989,7 +12989,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v178';
+const APP_VERSION = 'v179';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13165,7 +13165,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174', 'v175', 'v176', 'v177', 'v178');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174', 'v175', 'v176', 'v177', 'v178', 'v179');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
