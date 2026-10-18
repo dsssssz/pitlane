@@ -1805,6 +1805,21 @@ try { if (Q.tier === 'low') document.documentElement.classList.add('q-low'); } c
 const canvas = document.getElementById('view3d');
 /* v119: 3D-подиум строится лениво — при первом заходе в Бокс (three.js грузится dynamic import'ом, не на первом экране) */
 let renderer = null, scene = null, camera = null, controls = null, key = null, fill = null, rim = null, rim2 = null, bounce = null, contactShadow = null, ringGlow = null, ring = null, car = null;
+/* v163: шоурум — тёмный отражающий пол, мягкое пятно света, край пола растворяется в фоне (без постамента и колец) */
+const SHOWROOM_BG = 0x000000;
+let showroomGlow = null, showroomFade = null;
+/** Радиальная альфа-текстура: stops = [[r 0..1, alpha 0..1], …] (белый цвет, альфа — по радиусу). */
+function showroomRadialTex(stops, size = 256) {
+  const c = document.createElement('canvas'); c.width = c.height = size;
+  const g = c.getContext('2d'); const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  for (const [r, a] of stops) gr.addColorStop(r, `rgba(255,255,255,${a})`);
+  g.fillStyle = gr; g.fillRect(0, 0, size, size);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+}
+/** Для RingGeometry: UV идут по кругу, поэтому градиент — по радиусу через u/v от центра (как у CircleGeometry). inner = доля внутреннего радиуса. */
+function showroomRingFadeTex(inner, size = 256) {
+  return showroomRadialTex([[0, 0], [inner, 0], [inner + (1 - inner) * 0.45, 0.72], [inner + (1 - inner) * 0.8, 1], [1, 1]], size);
+}
 function build3dScene() {
   if (renderer || !THREE) return;
   gltfLoader = new GLTFLoader();
@@ -1815,7 +1830,7 @@ function build3dScene() {
     alpha: false,
     powerPreference: 'high-performance',
   });
-  renderer.setClearColor(0x1a1a1a, 1);
+  renderer.setClearColor(SHOWROOM_BG, 1); // v163: шоурум — чёрный фон сливается со страницей
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, qPreset().dprCap));
   if (!Q.gpu) {
     try {
@@ -1831,7 +1846,7 @@ function build3dScene() {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   if ('useLegacyLights' in renderer) renderer.useLegacyLights = false;
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a1a1a);
+  scene.background = new THREE.Color(SHOWROOM_BG);
   camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
   camera.position.set(5.4, 2.2, 5.8);
   controls = new OrbitControls(camera, canvas);
@@ -1889,15 +1904,17 @@ function build3dScene() {
     scene.add(softB);
     areaLights.push(softA, softB);
   } catch (_) { /* RectAreaLight optional on constrained GPUs */ }
-  contactShadow = new THREE.Mesh(
-    new THREE.CircleGeometry(2.4, 64),
+  contactShadow = new THREE.Mesh( // v163: мягкая тень-эллипс без жёсткого края (раньше — чёрный диск-«постамент»)
+    new THREE.CircleGeometry(2.9, 64),
     new THREE.MeshBasicMaterial({
       color: 0x000000,
+      map: showroomRadialTex([[0, 1], [0.42, 0.82], [0.75, 0.3], [1, 0]]),
       transparent: true,
-      opacity: 0.48,
+      opacity: 0.78,
       depthWrite: false,
     })
   );
+  contactShadow.scale.set(1, 0.62, 1);
   contactShadow.rotation.x = -Math.PI / 2;
   contactShadow.position.y = 0.006;
   scene.add(contactShadow);
@@ -1927,6 +1944,22 @@ function build3dScene() {
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.012;
   scene.add(ring);
+  // v163: шоурум вместо подиума — без колец; мягкое пятно света на полу и растворение края пола в темноте
+  ring.visible = false; ringGlow.visible = false;
+  showroomGlow = new THREE.Mesh(
+    new THREE.CircleGeometry(3.6, 72),
+    new THREE.MeshBasicMaterial({ color: 0xdfe6ee, map: showroomRadialTex([[0, 1], [0.35, 0.6], [0.7, 0.14], [1, 0]]), transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
+  );
+  showroomGlow.rotation.x = -Math.PI / 2;
+  showroomGlow.position.y = 0.0015; showroomGlow.renderOrder = 1;
+  scene.add(showroomGlow);
+  showroomFade = new THREE.Mesh(
+    new THREE.RingGeometry(1.7, 7.4, 96, 1),
+    new THREE.MeshBasicMaterial({ color: SHOWROOM_BG, map: showroomRingFadeTex(1.7 / 7.4), transparent: true, depthWrite: false, toneMapped: false })
+  );
+  showroomFade.rotation.x = -Math.PI / 2;
+  showroomFade.position.y = 0.0025; showroomFade.renderOrder = 2; // поверх пятна: дальний пол уходит в чёрное
+  scene.add(showroomFade);
   applyQualityTier(true);
   car = new THREE.Group();
   car.visible = false;
@@ -1975,7 +2008,7 @@ function createPodiumReflector() {
     clipBias: 0.003,
     textureWidth: res,
     textureHeight: res,
-    color: 0x1a1a1e,
+    color: 0x121215, // v163: тёмный пол — отражение лёгкое, не зеркало
     multisample: 0,
   });
   floor.rotation.x = -Math.PI / 2;
@@ -2533,7 +2566,7 @@ function clearDeepLinkUrl() {
 /* v161: запуск в духе бортовой системы — волосок из центра, панели расходятся, слово PITLANE,
    шапка/навигация/контент разъезжаются по местам от центральной линии. ~1,1 с, раз за сессию, тап — пропустить,
    reduced-motion / слабое железо — без анимации. Заменяет старую заставку (#intro). */
-const LN61 = { T: 1100, UI: 560 };
+const LN61 = { T: 1340, UI: 900 }; // v163: крупный знак держится ~0,8 с, затем панели расходятся (800 + 520 мс)
 (function setupLaunch() {
   const el = document.getElementById('launch');
   const root = document.documentElement;
@@ -7545,8 +7578,8 @@ function fitGlb(obj, opts = {}) {
   }
   car.visible = false;
   const h = Math.max(0.5, size.y);
-  controls.target.set(0, h * 0.35, 0);
-  camera.position.set(5.4, 2.1, 5.8);
+  controls.target.set(0, h * 0.36, 0); // v163: кадр шоурума — машина крупно по центру, пол с пятном света виден под ней
+  camera.position.set(4.6, 1.95, 5.4);
   controls.minDistance = 2.2;
   controls.maxDistance = 16;
   controls.update();
@@ -12565,7 +12598,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v162';
+const APP_VERSION = 'v163';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12741,7 +12774,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -12837,11 +12870,45 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
       if (document.getElementById('view-garage')?.classList.contains('active')) mountPodium('garage'); // v154: живая 3D-модель в карточке
       document.getElementById('g53Name').textContent = m.name;
       document.getElementById('g53Sub').textContent = [m.year, meta.cls].filter(Boolean).join(' · ');
+      g63Paint(list, m, meta);
       const mine = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
       const isMine = !!(mine && (mine.carId === m.id || mine.model === m.name));
       const mb = document.getElementById('g53Mine'); mb.textContent = isMine ? 'Моя машина' : 'Это моя машина'; mb.classList.toggle('on', isMine);
-      document.getElementById('g53List').innerHTML = list.filter((x) => x.id !== m.id).map((x) => `<button type="button" class="g53-car" role="listitem" data-g53="${esc(x.id)}"><span class="g53-th"><img src="${carThumbUrl(x.id)}" alt="" width="256" height="256" loading="lazy" decoding="async" /></span><span class="g53-cn">${esc(x.name)}</span></button>`).join('');
+      // v163: лента — все машины (текущая отмечена), студийные рендеры вместо снимков старого подиума
+      document.getElementById('g53List').innerHTML = list.map((x) => `<button type="button" class="g53-car${x.id === m.id ? ' on' : ''}" role="listitem" data-g53="${esc(x.id)}"${x.id === m.id ? ' aria-current="true"' : ''}><span class="g53-th"><img src="${STUDIO_IDS.has(x.id) ? `./img/cars/studio/${x.id}-780.webp` : carThumbUrl(x.id)}" alt="" width="780" height="488" loading="lazy" decoding="async" /></span><span class="g53-cn">${esc(x.name)}</span></button>`).join('');
+      try { document.querySelector('#g53List .g53-car.on')?.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (_) {}
     };
+    /* v163: имя крупно + тонкая строка характеристик (мощность, 0–100 завода, мой лучший) и точки-индикатор */
+    function g63Paint(list, m, meta) {
+      const specs = document.getElementById('g63Specs');
+      if (specs) {
+        let best = null; try { best = homeBest0100(m.id, null); } catch (_) {}
+        const cell = (k, v, u) => { const c = padEl('span', 'g63-s' + (v ? '' : ' is-empty')); c.setAttribute('role', 'listitem'); const b = padEl('b', 'g63-v', v || '—'); if (v && u) b.appendChild(padEl('small', '', u)); c.append(b, padEl('span', 'g63-k', k)); return c; };
+        specs.replaceChildren(cell('Мощность', meta.hp ? String(meta.hp) : '', 'л.с.'), cell('0–100', meta.v0100 ? Number(meta.v0100).toFixed(1) : '', 'с'), cell('Мой лучший', best ? best.t.toFixed(2) : '', 'с'));
+      }
+      const dots = document.getElementById('g63Dots');
+      if (dots) {
+        if (dots.childElementCount !== list.length) dots.innerHTML = list.map((x, i) => `<button type="button" class="g63-dot" role="tab" data-g53="${esc(x.id)}" aria-label="${esc(x.name)}"></button>`).join('');
+        dots.querySelectorAll('.g63-dot').forEach((d) => { const on = d.dataset.g53 === m.id; d.classList.toggle('on', on); d.setAttribute('aria-selected', on ? 'true' : 'false'); });
+      }
+    }
+    const g63Step = (d) => {
+      const list = MODEL_CATALOG; if (!list.length) return;
+      const i = Math.max(0, list.findIndex((x) => x.id === curId()));
+      try { pickPodiumCar(list[(i + d + list.length) % list.length].id); } catch (_) {}
+      render();
+    };
+    document.getElementById('g63Dots')?.addEventListener('click', (e) => { const b = e.target.closest('[data-g53]'); if (!b) return; try { pickPodiumCar(b.dataset.g53); } catch (_) {} render(); });
+    // свайп влево/вправо по имени и характеристикам — следующая/предыдущая машина (вращение 3D пальцем остаётся на самой модели)
+    (() => {
+      const z = document.getElementById('g63Info'); if (!z) return;
+      let x0 = 0, y0 = 0, on = false;
+      z.addEventListener('pointerdown', (e) => { on = true; x0 = e.clientX; y0 = e.clientY; }, { passive: true });
+      z.addEventListener('pointerup', (e) => { if (!on) return; on = false; const dx = e.clientX - x0, dy = e.clientY - y0; if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy) * 1.4) g63Step(dx < 0 ? 1 : -1); }, { passive: true });
+      z.addEventListener('pointercancel', () => { on = false; }, { passive: true });
+      z.style.touchAction = 'pan-y';
+    })();
+    window.__g63Step = g63Step;
     document.getElementById('g53List')?.addEventListener('click', (e) => {
       const b = e.target.closest('[data-g53]'); if (!b) return;
       try { pickPodiumCar(b.dataset.g53); } catch (_) {}
@@ -12887,10 +12954,17 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     }, 6000);
     track.addEventListener('click', (e) => {
       const b = e.target.closest('[data-bn52]'); if (!b) return;
-      const k = b.dataset.bn52;
-      if (k === 'shop') { try { openShopSheet(); } catch (_) {} return; }
-      document.querySelector(`#p48 [data-p48="${k}"]`)?.click(); // те же маршруты, что в Профиле
+      bn63Open(b.dataset.bn52);
     });
+    /* v163: раньше баннер кликал по строке Профиля #p48 [data-p48=k] — строк «video» и «suggest» там нет, и «Видео» / «Предложи трассу»
+       молча ничего не делали; «Чип 25 Гц» открывал витрину, а не сам товар. Теперь — прямой маршрут для каждого. */
+    function bn63Open(k) {
+      try { hap(8); } catch (_) {}
+      if (k === 'shop') { void openShopSheet('pitlane-gps'); return; } // сразу карточка PITLANE GPS
+      const r = window.__route48; if (typeof r !== 'function') return;
+      if (k === 'tops' || k === 'duels' || k === 'video' || k === 'suggest') r(k);
+    }
+    window.__bn63Open = bn63Open;
     window.__bn52 = { go: (i) => go(i) }; // скриншоты/отладка
   })();
   const renderH48 = () => {
@@ -14915,6 +14989,10 @@ function renderHwRecords(remote) {
   if (lap) rows.push(hwLine('Круг', fmtLapTime(lap.ms)));
   const btn = document.getElementById('hwRec'); if (btn) btn.dataset.empty = rows.length ? '0' : '1';
   hwSet('hwRecBody', rows.length ? rows : hwEmpty('Пока пусто', 'Первый замер появится здесь', 'Сделать замер'));
+  // v163: лучшие времена — крупными цифрами прямо в карточке моей машины (как на «Замере»: цифра, подпись, волосок)
+  const cell = (k, v) => { const c = padEl('span', 'h63-c' + (v ? '' : ' is-empty')); c.append(padEl('b', 'h63-v', v || '—'), padEl('span', 'h63-k', k)); return c; };
+  hwSet('hwCarStats', [cell('0–100', best ? best.t.toFixed(2) : ''), cell('¼ мили', q != null ? q.toFixed(2) : ''), cell('Круг', lap ? fmtLapTime(lap.ms) : '')]);
+  const hs = document.getElementById('hwCarStats'); if (hs) hs.dataset.any = (best || q != null || lap) ? '1' : '0';
 }
 let _hwDuelsAt = 0;
 async function renderHwDuels() {
@@ -15035,14 +15113,28 @@ function renderHwTop(remote) {
   const lead = board[0];
   const nodes = [];
   const l = padEl('span', 'hw-top-lead');
-  l.appendChild(padEl('i', 'hw-pos', '1'));
-  l.appendChild(padEl('span', 'hw-top-name', clipText(String(lead.name || 'пилот'), 16)));
-  l.appendChild(padEl('b', 'hw-top-t', Number(lead.t).toFixed(2) + ' с'));
+  l.appendChild(padEl('b', 'hw-top-t', Number(lead.t).toFixed(2))); // v163: время лидера — крупная цифра плитки
+  l.appendChild(padEl('span', 'hw-top-name', '1 · ' + clipText(String(lead.name || 'пилот'), 14)));
   nodes.push(l);
   const i = remote?.pid ? board.findIndex((r) => r.pilotId === remote.pid) : -1;
   nodes.push(padEl('span', 'hw-top-me' + (i >= 0 ? ' on' : ''), i >= 0 ? 'ты #' + (i + 1) + ' из ' + board.length : board.length + ' в зачёте'));
   hwSet('hwTopBody', nodes);
 }
+/* v163: Главная — ровная сетка плиток 2 × N. Нечётное число видимых — последняя во всю ширину (без дыр) */
+function h63Balance() {
+  const g = document.getElementById('homeWidgets'); if (!g) return;
+  const vis = (e) => !!e && !e.hidden && e.dataset.empty !== '1' && getComputedStyle(e).display !== 'none';
+  const tiles = [...g.querySelectorAll('.h63-tile')].filter(vis);
+  g.querySelectorAll('.h63-span').forEach((e) => e.classList.remove('h63-span'));
+  if (tiles.length % 2 === 1) tiles[tiles.length - 1].classList.add('h63-span');
+  g.dataset.tiles = String(tiles.length);
+}
+(() => {
+  const g = document.getElementById('homeWidgets'); if (!g) return;
+  ['hw58Place', 'hw58Week', 'hw58Last', 'hwDuels', 'hwTop', 'hwTeam', 'hwPad'].forEach((id) => document.getElementById(id)?.classList.add('h63-tile'));
+  let t = 0; new MutationObserver(() => { clearTimeout(t); t = setTimeout(() => { try { h63Balance(); } catch (_) {} }, 30); }).observe(g, { subtree: true, attributes: true, attributeFilter: ['hidden', 'data-empty'] });
+  setTimeout(() => { try { h63Balance(); } catch (_) {} }, 50);
+})();
 async function renderHomeWidgets() {
   if (!document.getElementById('homeWidgets')) return;
   renderHwCar(null); renderHwRecords(null); renderHwTop(null); try { renderHwStats(null); } catch (_) {}

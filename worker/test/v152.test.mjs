@@ -17,7 +17,7 @@ const keys = [...home.matchAll(/data-bn52="([a-z]+)"/g)].map((m) => m[1]);
 ok(keys.join(',') === 'shop,tops,duels,video,suggest', 'баннеры: чип → магазин, топы, дуэли, видео, трасса');
 ok((home.match(/class="bn52-dot( on)?"/g) || []).length === keys.length, 'точки по числу баннеров');
 ok(/scroll-snap-type: x mandatory/.test(css) && /}, 6000\);/.test(app) && /touchstart', hold/.test(app) && /prefers-reduced-motion: reduce/.test(app.slice(app.indexOf('v152: карусель'))), 'scroll-snap, авто 6 с, пауза на касании, reduced-motion');
-ok(/k === 'shop'\) \{ try \{ openShopSheet\(\); \}/.test(app) && /#p48 \[data-p48="\$\{k\}"\]/.test(app), 'баннеры ведут теми же маршрутами, что Профиль');
+ok(/k === 'shop'\) \{ void openShopSheet\('pitlane-gps'\)/.test(app) && /if \(k === 'tops' \|\| k === 'duels' \|\| k === 'video' \|\| k === 'suggest'\) r\(k\)/.test(app) && !/#p48 \[data-p48="\$\{k\}"\]/.test(app), 'баннеры: прямой маршрут route48 для каждого (v163: через #p48 «Видео» и «Трасса» не работали), чип — сразу товар');
 ok(/html\.v152 #homeWidgets \[data-empty="1"\] \{ display: none !important; \}/.test(css), 'пустые виджеты скрыты');
 ok(/act === 'zamer' \|\| act === 'run' \? 'zamer'/.test(app), 'вкладка «Замер» подсвечена и на экране замера');
 const c = css.slice(css.indexOf('/* ===== v152'));

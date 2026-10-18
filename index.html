@@ -148,28 +148,28 @@
         <div class="view-host" id="viewHost">
         <!-- v84: Главная — карусель разделов, моя машина, топ постов за сутки -->
         <section id="view-home" class="view active">
-          <!-- v152: на месте карточки «Замер» — карусель баннеров (scroll-snap, точки, авто 6 с, пауза на касании) -->
+          <!-- v152: карусель баннеров (scroll-snap, точки, авто 6 с, пауза на касании). v163: светлые фото, скрим только под текстом, CTA; каждый ведёт в свой раздел -->
           <section class="bn52" id="bn52" aria-roledescription="карусель" aria-label="Pitlane">
             <div class="bn52-track" id="bn52Track">
               <button type="button" class="bn52-s b-chip" data-bn52="shop" role="group" aria-roledescription="баннер" aria-label="Чип 25 Гц">
                 <img src="./img/shop/gps-hero-720.webp" alt="" loading="eager" decoding="async" />
-                <span class="bn52-k">PITLANE GPS</span><b class="bn52-t">Чип 25 Гц</b><span class="bn52-d">25 точек в секунду — точнее телефона</span><i class="bn52-go" aria-hidden="true"></i>
+                <span class="bn52-k">PITLANE GPS</span><b class="bn52-t">Чип 25 Гц</b><span class="bn52-d">25 точек в секунду — точнее телефона</span><span class="bn52-cta" aria-hidden="true">Подробнее</span>
               </button>
               <button type="button" class="bn52-s b-tops" data-bn52="tops" role="group" aria-roledescription="баннер" aria-label="Кто быстрее в Москве">
                 <img src="./img/banners/tracks-800.webp" alt="" loading="lazy" decoding="async" />
-                <span class="bn52-k">Топы города</span><b class="bn52-t">Кто быстрее в Москве</b><span class="bn52-d">Разгоны и круги по трассам</span><i class="bn52-go" aria-hidden="true"></i>
+                <span class="bn52-k">Топы города</span><b class="bn52-t">Кто быстрее в Москве</b><span class="bn52-d">Разгоны и круги по трассам</span><span class="bn52-cta" aria-hidden="true">Смотреть топ</span>
               </button>
               <button type="button" class="bn52-s b-duels" data-bn52="duels" role="group" aria-roledescription="баннер" aria-label="Брось вызов">
                 <img src="./img/banners/duels-800.webp" alt="" loading="lazy" decoding="async" />
-                <span class="bn52-k">Дуэли</span><b class="bn52-t">Брось вызов</b><span class="bn52-d">1 на 1 — разгон или круг</span><i class="bn52-go" aria-hidden="true"></i>
+                <span class="bn52-k">Дуэли</span><b class="bn52-t">Брось вызов</b><span class="bn52-d">1 на 1 — разгон или круг</span><span class="bn52-cta" aria-hidden="true">Вызвать</span>
               </button>
               <button type="button" class="bn52-s b-video" data-bn52="video" role="group" aria-roledescription="баннер" aria-label="С телеметрией">
                 <img src="./img/banners/paddock-800.webp" alt="" loading="lazy" decoding="async" />
-                <span class="bn52-k">Видео</span><b class="bn52-t">С телеметрией</b><span class="bn52-d">Скорость и время прямо на видео</span><i class="bn52-go" aria-hidden="true"></i>
+                <span class="bn52-k">Видео</span><b class="bn52-t">С телеметрией</b><span class="bn52-d">Скорость и время прямо на видео</span><span class="bn52-cta" aria-hidden="true">Снять</span>
               </button>
               <button type="button" class="bn52-s b-track" data-bn52="suggest" role="group" aria-roledescription="баннер" aria-label="Предложи трассу">
                 <img src="./img/track-maps/auto-msk-full.webp" alt="" loading="lazy" decoding="async" />
-                <span class="bn52-k">Трассы</span><b class="bn52-t">Предложи трассу</b><span class="bn52-d">Откалибруем и добавим в топы</span><i class="bn52-go" aria-hidden="true"></i>
+                <span class="bn52-k">Трассы</span><b class="bn52-t">Предложи трассу</b><span class="bn52-d">Откалибруем и добавим в топы</span><span class="bn52-cta" aria-hidden="true">Предложить</span>
               </button>
             </div>
             <div class="bn52-dots" id="bn52Dots" role="tablist" aria-label="Баннеры"><button type="button" class="bn52-dot on" data-i="0" role="tab" aria-label="Баннер 1"></button><button type="button" class="bn52-dot" data-i="1" role="tab" aria-label="Баннер 2"></button><button type="button" class="bn52-dot" data-i="2" role="tab" aria-label="Баннер 3"></button><button type="button" class="bn52-dot" data-i="3" role="tab" aria-label="Баннер 4"></button><button type="button" class="bn52-dot" data-i="4" role="tab" aria-label="Баннер 5"></button></div>
@@ -210,9 +210,10 @@
               <span class="hw-k hw-car-k">Моя машина</span>
               <span class="hw-car-txt"><span class="cb-row hw-car-row" id="hwCarRow"><b id="hwCarName" class="cb-name">—</b></span><span id="hwCarSub"></span></span>
               <span class="hw-car-chip" id="hwCarBest" hidden></span>
+              <span class="h63-stats" id="hwCarStats" aria-label="Лучшие времена"></span>
             </button>
-            <!-- v158: компактная строка статистики — место в топе, замеры за неделю, последняя сессия (только реальные данные; пусто — скрыта) -->
-            <button type="button" class="hw hw-wide hw-stats" id="hwStats" data-hw="stats" aria-label="Моя статистика — открыть мои замеры" hidden><span class="hw58-c" id="hw58Place" hidden><span class="hw58-k">Топ города</span><b class="hw58-v" id="hw58PlaceV">—</b><span class="hw58-s" id="hw58PlaceS"></span></span><span class="hw58-c" id="hw58Week" hidden><span class="hw58-k">За 7 дней</span><b class="hw58-v" id="hw58WeekV">—</b><span class="hw58-s" id="hw58WeekS"></span></span><span class="hw58-c" id="hw58Last" hidden><span class="hw58-k">Последняя</span><b class="hw58-v" id="hw58LastV">—</b><span class="hw58-s" id="hw58LastS"></span></span></button>
+            <!-- v158: статистика — место в топе, замеры за неделю, последняя сессия (только реальные данные; пусто — скрыто). v163: три равные плитки сетки -->
+            <div class="hw-stats" id="hwStats" data-hw="stats" role="group" aria-label="Моя статистика" hidden><button type="button" class="hw hw58-c" id="hw58Place" data-hw="tops" aria-label="Место в топе города — открыть топы" hidden><span class="hw58-k">Топ города</span><b class="hw58-v" id="hw58PlaceV">—</b><span class="hw58-s" id="hw58PlaceS"></span></button><button type="button" class="hw hw58-c" id="hw58Week" data-hw="stats" aria-label="Заезды за 7 дней — открыть Журнал" hidden><span class="hw58-k">За 7 дней</span><b class="hw58-v" id="hw58WeekV">—</b><span class="hw58-s" id="hw58WeekS"></span></button><button type="button" class="hw hw58-c" id="hw58Last" data-hw="stats" aria-label="Последний заезд — открыть Журнал" hidden><span class="hw58-k">Последняя</span><b class="hw58-v" id="hw58LastV">—</b><span class="hw58-s" id="hw58LastS"></span></button></div>
             <button type="button" class="hw" id="hwRec" data-hw="records"><span class="hw-k">Мои рекорды</span><span class="hw-body" id="hwRecBody"></span></button>
             <button type="button" class="hw" id="hwDuels" data-hw="duels"><span class="hw-k">Дуэли</span><span class="hw-body" id="hwDuelsBody"></span></button>
             <button type="button" class="hw hw-wide hw-chat" id="hwPad" data-hw="pulse" aria-label="Paddock — чат пилотов"><span class="hw-k">Paddock <span class="hw-k-sub">· чат пилотов</span></span><span class="hw-body" id="hwPadBody"></span></button>
@@ -366,16 +367,21 @@
         <section id="view-garage" class="view garage-hero">
           <!-- v153: Гараж — одна большая карточка текущей машины, остальные — компактной лентой ниже -->
           <section class="g53" id="g53" aria-label="Гараж">
+            <!-- v163: шоурум — тёмный пол с отражением и пятном света, машина крупно; имя, строка характеристик, свайп/точки, одна строка кнопок -->
             <article class="g53-hero" id="g53Hero">
               <div class="g53-ph" id="g53Art"><span class="p3d-wait" aria-hidden="true">3D загружается</span></div>
-              <h2 class="g53-name" id="g53Name">—</h2>
-              <p class="g53-sub" id="g53Sub"></p>
+              <div class="g63-dots" id="g63Dots" role="tablist" aria-label="Машины"></div>
+              <div class="g63-info" id="g63Info" aria-roledescription="листается свайпом">
+                <h2 class="g53-name" id="g53Name">—</h2>
+                <p class="g53-sub" id="g53Sub"></p>
+                <div class="g63-specs" id="g63Specs" role="list" aria-label="Характеристики"></div>
+              </div>
               <div class="g53-acts">
                 <button type="button" class="g53-mine" id="g53Mine">Это моя машина</button>
                 <button type="button" class="g53-3d" id="g53Studio" aria-expanded="false">Цвет и детали</button>
               </div>
             </article>
-            <p class="g53-cap">Другие машины</p>
+            <p class="g53-cap">Все машины</p>
             <div class="g53-list" id="g53List" role="list" aria-label="Другие машины"></div>
             <div class="g53-empty" id="g53Empty" hidden>
               <p class="g53-empty-t">Гараж пуст</p>

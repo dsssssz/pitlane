@@ -24,7 +24,7 @@ ok(/id="homeCarousel" hidden/.test(html) && /id="homeCarsSec" hidden/.test(html)
 ok(/const AUTO_TIPS = false/.test(tips) && /if \(!AUTO_TIPS\) return;/.test(tips), 'тур и подсказки сами не всплывают');
 ok(/\.cm-block \{ pointer-events: none !important; \}/.test(fs.readFileSync(R + 'styles.css', 'utf8')), 'подсказка не перехватывает тапы (вкладки работают)');
 ok(/finish\(true, true\); return; \}/.test(tips), 'тап мимо пузыря закрывает подсказку');
-ok(/const LN61 = \{ T: 1100, UI: 560 \}/.test(app) && /sessionStorage\.getItem\(KEY\)/.test(app) && /setTimeout\(finish, LN61\.T \/ sc \+ 60\)/.test(app), 'заставка (v161: запуск 1,1 с, раз за сессию) вместо 4 с');
+ok(/const LN61 = \{ T: 1340, UI: 900 \}/.test(app) && /sessionStorage\.getItem\(KEY\)/.test(app) && /setTimeout\(finish, LN61\.T \/ sc \+ 60\)/.test(app), 'заставка (v161: раз за запуск; v163: 1,34 с — крупный знак читается) вместо 4 с');
 ok(/<h2 class="race-sheet-title crew-title">Команда<\/h2>/.test(html) && /id="btnCrewOpen">Команда</.test(html), 'одна «Команда» (экипаж)');
 ok(/id="btnRoomsOpen" hidden/.test(html) && /id="btnRoomsAcc" hidden/.test(html), 'комнаты/команды скрыты по умолчанию');
 ok(/api\.listRooms\(\); \/\/ GET/.test(app) && /pitlane-room-active-v1/.test(app), 'у кого уже есть комната — кнопка «Мои комнаты» возвращается (GET /rooms)');
