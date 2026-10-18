@@ -34,7 +34,7 @@ export function drawOverlay(ctx, W, H, o) {
   ctx.fillText((o.label || 'ВРЕМЯ').toUpperCase(), W - pad, H - pad);
   const bw = W - pad * 2, by = H - pad - 190 * s;
   ctx.fillStyle = 'rgba(255,255,255,.14)'; ctx.fillRect(pad, by, bw, 3 * s);
-  ctx.fillStyle = 'rgb(158,205,176)'; ctx.fillRect(pad, by, bw * Math.min(1, (o.speed || 0) / 300), 3 * s);
+  ctx.fillStyle = 'rgb(201,198,191)'; ctx.fillRect(pad, by, bw * Math.min(1, (o.speed || 0) / 300), 3 * s);
   ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(244,244,242,.85)'; ctx.font = `700 ${20 * s}px "PL Sans", system-ui, sans-serif`;
   ctx.fillText('PITLANE', pad, pad + 20 * s);
   if (o.rec) { ctx.textAlign = 'right'; ctx.fillStyle = '#d49a9a'; ctx.font = `600 ${18 * s}px "PL Sans", system-ui, sans-serif`; ctx.fillText('● REC', W - pad, pad + 20 * s); }

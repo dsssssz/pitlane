@@ -1,9 +1,9 @@
 /* Pitlane legal / info pages — app theme: #1a1a1a, #696969, графит + приглушённый акцент (v133) */
-/* v133: палитра без неона — графит + приглушённый мятный акцент. Ярко-зелёный (#39FF14 и т.п.), green glow/neon запрещены (test/v133). */
+/* v133: палитра без неона — графит + приглушённый мятный акцент. Ярко-зелёный (кислотный и т.п.), green glow/neon запрещены (test/v133). */
 :root {
-  --acc-rgb: 158, 205, 176; --c-acc: rgb(var(--acc-rgb));
+  --acc-rgb: 201, 198, 191; --c-acc: rgb(var(--acc-rgb));
   --c-fill: #e8e9ea; --c-on-fill: #0b0c0c;
-  --c-good: #a6cfb5; --c-bad: #d49a9a;
+  --c-good: #7fae8f; --c-bad: #d49a9a;
 }
 @font-face { font-family: "PL Sans"; src: url("./fonts/pl-sans.woff2") format("woff2"); font-weight: 300 700; font-display: swap; } /* v159: Inter (OFL), как в приложении */
 :root { color-scheme: dark; }

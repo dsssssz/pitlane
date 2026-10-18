@@ -127,7 +127,7 @@ export function cleanSplits(o) {
  */
 export function drawSpeedChart(ctx, series, tags, opts) {
   const { w, h } = opts; const dpr = opts.dpr || 1;
-  const acc = opts.acc || '#9ECDB0'; // v133: приглушённый мятный, без неона
+  const acc = opts.acc || '#C9C6BF'; // v133: приглушённый мятный, без неона
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
   const padL = 30; const padR = 10; const padT = 14; const padB = 20;
@@ -164,7 +164,7 @@ export function drawSpeedChart(ctx, series, tags, opts) {
   if (series.length >= 2) {
     // заливка под кривой
     const g = ctx.createLinearGradient(0, padT, 0, h - padB);
-    g.addColorStop(0, 'rgba(158,205,176,.14)'); g.addColorStop(1, 'rgba(158,205,176,0)');
+    g.addColorStop(0, 'rgba(201,198,191,.14)'); g.addColorStop(1, 'rgba(201,198,191,0)');
     ctx.beginPath(); ctx.moveTo(X(series[0].x), Y(0));
     for (const p of series) ctx.lineTo(X(p.x), Y(p.v));
     ctx.lineTo(X(series[series.length - 1].x), Y(0)); ctx.closePath();
@@ -199,7 +199,7 @@ export function drawSpeedChart(ctx, series, tags, opts) {
     let ty = t.dist ? h - padB - 10 - (flip ? 16 : 0) : y - 13 - (flip ? 14 : 0);
     if (!t.dist && ty < padT) ty = y + 13;
     const tx = Math.max(padL + tw / 2, Math.min(w - padR - tw / 2, x));
-    ctx.fillStyle = t.dist ? 'rgba(255,255,255,.12)' : 'rgba(158,205,176,.14)';
+    ctx.fillStyle = t.dist ? 'rgba(255,255,255,.12)' : 'rgba(201,198,191,.14)';
     roundRect(ctx, tx - tw / 2, ty - 7, tw, 14, 4); ctx.fill();
     ctx.fillStyle = t.dist ? '#e8e8e8' : acc; ctx.textAlign = 'center';
     ctx.fillText(text, tx, ty + 0.5);

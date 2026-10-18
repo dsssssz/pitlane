@@ -1,16 +1,16 @@
 /* ===== v159 TOKENS — единая система PITLANE (одно место для цвета, шрифта, сетки, радиусов, движения) =====
    Шрифт: Inter (SIL OFL 1.1, fonts/Inter-OFL.txt), самохост, сабсет латиница+кириллица: PL Sans — текст (opsz 14, 300–700), PL Num — цифры (Display, opsz 32, 200–500).
-   Акцент: один — приглушённый мятный rgb(158,205,176), только для активного состояния (вкладка, выбор, «живой» индикатор, фокус).
+   Акцент: один — платиновый rgb(201,198,191), только для активного состояния (вкладка, выбор, «живой» индикатор, фокус).
    Зелёный/красный — только дельты (лучше/хуже). Сетка 8 px. Радиусы 4/6/8. Без градиентов, теней, свечения; blur — только функциональный (шторки, шапка). */
 @font-face { font-family: "PL Sans"; src: url("./fonts/pl-sans.woff2") format("woff2"); font-weight: 300 700; font-style: normal; font-display: swap; }
 @font-face { font-family: "PL Num"; src: url("./fonts/pl-num.woff2") format("woff2"); font-weight: 200 500; font-style: normal; font-display: swap; unicode-range: U+0020-003A, U+0025, U+002B, U+002D, U+00B0, U+00B7, U+00D7, U+2013, U+2014, U+2212; }
 :root {
   /* цвет */
-  --ds-bg: #000; --ds-bg-1: #0a0a0a; --ds-bg-2: #121212; --ds-fill: rgba(255,255,255,.04); --ds-fill-2: rgba(255,255,255,.07);
+  --ds-bg: #000; --ds-bg-1: #0a0a0a; --ds-bg-2: #141414; --ds-bg-3: #1c1c1e; --ds-fill: rgba(255,255,255,.04); --ds-fill-2: rgba(255,255,255,.07);
   --ds-line: rgba(255,255,255,.08); --ds-line-2: rgba(255,255,255,.16); --ds-line-3: rgba(255,255,255,.32);
-  --ds-text: #f5f5f5; --ds-sub: #8a8a8a; --ds-mute: #6b6b6b;
-  --acc-rgb: 158, 205, 176; --ds-acc: rgb(var(--acc-rgb));
-  --ds-good: #6cbf85; --ds-bad: #e0675c; --ds-on-light: #000; --ds-light: #f2f2f2;
+  --ds-text: #f2efe9; --ds-sub: #8a8a8a; --ds-mute: #6b6b6b;
+  --acc-rgb: 201, 198, 191; --ds-acc: rgb(var(--acc-rgb));
+  --ds-good: #7fae8f; --ds-bad: #d0675c; --ds-on-light: #000; --ds-light: #f2f2f2;
   /* сетка 8 px */
   --gutter: 24px; --s1: 8px; --s2: 16px; --s3: 24px; --s4: 32px; --s5: 40px; --s6: 48px; --s8: 64px;
   /* радиусы */
@@ -38,7 +38,7 @@ html.tma { --sat: max(env(safe-area-inset-top, 0px), var(--tma-top, 0px)); --sab
 body { font-variant-numeric: tabular-nums; }
 /* ——— v127: шрифт для цифр (самохост, Inter Display, SIL OFL 1.1 — fonts/Inter-OFL.txt); только цифры/пунктуация, буквы — Manrope ——— */
 /* Safe areas: device insets; inside the Telegram Mini App also Telegram's own header/controls (contentSafeAreaInset). */
-/* v133: палитра без неона — графит + приглушённый мятный акцент. Ярко-зелёный (#39FF14 и т.п.), green glow/neon запрещены (test/v133). */
+/* v133: палитра без неона — графит + платиновый акцент. Ярко-зелёный (кислотный и т.п.), green glow/neon запрещены (test/v133). */
 :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
 html.tma { --sat: max(env(safe-area-inset-top, 0px), var(--tma-top, 0px)); --sab: max(env(safe-area-inset-bottom, 0px), var(--tma-bottom, 0px)); }
 @keyframes carSlide {
@@ -4188,7 +4188,7 @@ html.q-low *, html.q-low *::before, html.q-low *::after { -webkit-backdrop-filte
 #app #topStraight li > strong { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 8px; max-width: none; font-size: 20px; white-space: nowrap; }
 
 /* ═══════════ v89: призраки, дуэли с призраком, баннеры профиля ═══════════
-   Стиль v86: #0c0c0c / #696969 / #39FF14, обводка 1px rgba, пилюли; без новых !important. */
+   Стиль v86: #0c0c0c / #696969 / кислотный зелёный, обводка 1px rgba, пилюли; без новых !important. */
 /* выбор призрака */
 .ghost-pick { display: grid; gap: 8px; margin: 2px 0 4px; }
 .ghost-pick:empty { display: none; }
@@ -4339,7 +4339,7 @@ body.run-drive-on .ghost-pick { pointer-events: none; }
 .banner-opt.on::after { content: ''; position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; border-radius: 50%; background: var(--c-fill) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a0a0a' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 14px no-repeat; box-shadow: none; }
 .banner-own { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; margin: 10px 0 0; padding: 12px 14px; border-radius: 8px; border: 1px dashed rgba(var(--acc-rgb), 0.4); background: rgba(255,255,255,0.016); cursor: pointer; }
 .banner-own.off { border-color: var(--h-line-2); background: rgba(255,255,255,.02); opacity: .7; }
-.banner-own-ico { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--h-line-2); background: rgba(255,255,255,.03) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239ECDB0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='6' width='18' height='13' rx='2.5'/%3E%3Ccircle cx='12' cy='12.5' r='3.2'/%3E%3Cpath d='M8.5 6l1.5-2h4l1.5 2'/%3E%3C/svg%3E") center / 18px no-repeat; }
+.banner-own-ico { width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--h-line-2); background: rgba(255,255,255,.03) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23c9c6bf' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='6' width='18' height='13' rx='2.5'/%3E%3Ccircle cx='12' cy='12.5' r='3.2'/%3E%3Cpath d='M8.5 6l1.5-2h4l1.5 2'/%3E%3C/svg%3E") center / 18px no-repeat; }
 .banner-own b { display: block; font: 700 14px/1.2 var(--font-ui); color: var(--h-text); }
 .banner-own small { display: block; margin-top: 3px; font: 500 12px/1.3 var(--font-ui); color: var(--h-sub); }
 #bannerMsg { min-height: 1.3em; margin: 10px 2px 0; color: var(--h-sub); }
@@ -4945,7 +4945,7 @@ body.run-sum-on .run-drive-actions > * { flex: 1 1 calc(50% - 10px); }
 .duel-badge.c { color: #9fd3ff; border-color: rgba(120,190,255,.45); background: rgba(120,190,255,.08); } /* v118 */
 .rd-table tr.off th, .rd-table tr.off td { opacity: .5; } /* v118: справочная отметка вне зачёта C */
 
-/* ——— v120: упрощение интерфейса (визуальный язык прежний: тёмные карточки, неон #39FF14, var(--font-num)) ——— */
+/* ——— v120: упрощение интерфейса (визуальный язык прежний: тёмные карточки, неон, var(--font-num)) ——— */
 .nav-btn.nav-off, .v120-off { display: none !important; }
 .tab-pill { transition: transform .32s var(--h-ease, ease), width .32s var(--h-ease, ease), opacity .2s ease; }
 /* подсказки не перехватывают тапы: затемнение — только визуально */
@@ -5211,7 +5211,7 @@ svg .ico-d { fill: currentColor !important; stroke: none !important; transform-b
 .pc-more { width: 26px; height: 26px; font-size: 10px !important; color: #bdbdbd !important; }
 .pc-status { display: inline-flex; align-items: center; gap: 6px; font: 500 12px/1 var(--font-ui); color: var(--h-mute, var(--ds-sub)); white-space: nowrap; }
 .pc-dot { width: 7px; height: 7px; border-radius: 50%; background: #5a5a5a; flex: none; }
-.pc-status.on { color: #cfe9c8; }
+.pc-status.on { color: #e6e2da; }
 .pc-status.on .pc-dot { background: var(--c-fill); box-shadow: none; animation: pcLive 2.4s ease-in-out infinite; }
 @keyframes pcLive { 50% { box-shadow: none; } }
 .pc-new { margin-left: auto; padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(var(--acc-rgb), 0.35); font: 700 11px/1 var(--font-ui); white-space: nowrap; }
@@ -5268,7 +5268,7 @@ svg .ico-d { fill: currentColor !important; stroke: none !important; transform-b
 
 /* ═══════════ v127: премиальная чистка — единые токены, один акцент на экран ═══════════ */
 :root {
-  /* цвет */ /* v133: сдержанный мятный акцент, без неона */
+  /* цвет */ /* v133: сдержанный платиновый акцент, без неона */
   /* радиусы */
   /* отступы */
   /* тени */
@@ -5502,7 +5502,7 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 
 /* ——— v134: разбор сессии — чёткие зелёный (лучше) и красный (хуже), как до v133, но без свечения.
  * Цвета живут только внутри #sessionSheet (тест-страж v133/v134 пускает их только сюда). ——— */
-#sessionSheet { --ss-good: #30d158; --ss-bad: #ff453a; --ss-bad-txt: #ff6961; }
+#sessionSheet { --ss-good: #7fae8f; --ss-bad: #d0675c; --ss-bad-txt: #d98a80; }
 #sessionSheet .ss-sec { stroke-width: 5; }
 #sessionSheet .ss-sec.best { stroke: var(--ss-good); }
 #sessionSheet .ss-sec.loss { stroke: var(--ss-bad); }
@@ -5539,7 +5539,7 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .pilot-car.cb-row { display: flex; }
 .pilot-car .cb-flag { width: 15px; height: 11.25px; border-radius: 2px; }
 
-/* ——— v137: магазин (графит, без неона и свечения; мятный — только тихий акцент) ——— */
+/* ——— v137: магазин (графит, без неона и свечения; платиновый — только тихий акцент) ——— */
 .shop-sheet-inner.race-sheet-inner { width: min(520px, 100%); max-height: min(92vh, 860px); padding: 12px 16px calc(20px + var(--sab, 0px)) !important; border-color: var(--ds-line) !important; background: #121313 !important; }
 .shop-body { display: flex; flex-direction: column; gap: 14px; color: var(--h-text, var(--ds-text)); font-family: var(--font-ui); }
 .shop-head { display: flex; align-items: center; gap: 10px; padding-right: 36px; min-height: 40px; }
@@ -5634,7 +5634,7 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .hud-zones .hz i { display: block; width: 100%; height: 2px; background: rgba(255,255,255,.08); border-radius: 2px; overflow: hidden; }
 .hud-zones .hz b { display: block; height: 100%; transform-origin: left; transform: scaleX(0); background: rgba(232,233,234,.55); transition: transform .25s ease-out; }
 .hud-zones .hz.done span { color: #d8d8d8; }
-.hud-zones .hz.done b { background: rgb(158,205,176); }
+.hud-zones .hz.done b { background: rgb(201,198,191); }
 .run-drive .hud-zones { max-width: 340px; width: 100%; }
 #btnArm.go-btn, #runDriveStop.go-btn {
   background: #ecebe8; color: #1c1c1d; border: 0; border-radius: 8px;
@@ -5662,12 +5662,12 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .lb-chips > span b { font: 600 10px/1 var(--font-ui); letter-spacing: .14em; color: #7d7d7d; }
 .lb-chips > span i { font-style: normal; font-size: 12px; color: var(--ds-sub); min-height: 12px; }
 .lb-chips > span[data-tone="better"] { border-color: rgba(48,209,88,.45); }
-.lb-chips > span[data-tone="better"] i { color: #30d158; }
+.lb-chips > span[data-tone="better"] i { color: #7fae8f; }
 .lb-chips > span[data-tone="worse"] { border-color: rgba(255,69,58,.45); }
-.lb-chips > span[data-tone="worse"] i { color: #ff453a; }
+.lb-chips > span[data-tone="worse"] i { color: #d0675c; }
 .lb-sec { stroke: transparent; transition: stroke .3s ease; }
-.lb-sec[data-tone="better"] { stroke: #30d158; }
-.lb-sec[data-tone="worse"] { stroke: #ff453a; }
+.lb-sec[data-tone="better"] { stroke: #7fae8f; }
+.lb-sec[data-tone="worse"] { stroke: #d0675c; }
 .lb-ghost { fill: rgba(232,233,234,.9); stroke: #1a1a1a; stroke-width: 1.5; }
 .ts-card .ts-det summary { cursor: pointer; list-style: none; margin-top: 14px; padding: 14px 18px; border-radius: 8px; background: #ecebe8; color: #1c1c1d; font: 600 14px/1 var(--font-ui); text-align: center; }
 .ts-card .ts-det summary::-webkit-details-marker { display: none; }
@@ -5689,7 +5689,7 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .la-legend { display: flex; gap: 16px; align-items: center; font: 500 12px var(--font-ui); color: #a9a9a9; }
 .la-legend span::before { content: ''; display: inline-block; width: 14px; height: 2px; margin-right: 6px; vertical-align: middle; border-radius: 2px; }
 .la-l-cur::before { background: #f0f0ee; }
-.la-l-ref::before { background: rgba(var(--acc-rgb), .75); }
+.la-l-ref::before { background: rgba(201,198,191,.75); }
 .la-demo { margin-left: auto; padding: 4px 10px; border-radius: 8px; border: 1px solid var(--ds-line); color: #8d8d8d; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; }
 .la-demo::before { display: none !important; }
 .la-delta { display: flex; align-items: baseline; gap: 10px; }
@@ -5700,7 +5700,7 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .la-chart figcaption span { font-weight: 500; letter-spacing: .06em; color: #6f6f6f; text-transform: none; }
 .la-svg { width: 100%; height: 110px; display: block; overflow: visible; }
 .la-cur { fill: none; stroke: #f0f0ee; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
-.la-ref { fill: none; stroke: rgba(var(--acc-rgb), .7); stroke-width: 1.3; vector-effect: non-scaling-stroke; }
+.la-ref { fill: none; stroke: rgba(201,198,191,.7); stroke-width: 1.3; vector-effect: non-scaling-stroke; }
 .la-sec { stroke: rgba(255,255,255,.07); stroke-width: 1; vector-effect: non-scaling-stroke; }
 .la-zero { stroke: rgba(255,255,255,.14); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
 .la-ax { justify-content: space-between; margin-top: 6px; font: 500 10px var(--font-ui); color: #5f5f5f; }
@@ -5713,7 +5713,7 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 .la-c-top b { font: 600 12px var(--font-ui); letter-spacing: .12em; color: #d8d8d8; }
 .la-c-d { font: 500 15px var(--font-num, var(--font-ui)), sans-serif; color: #e9e9e9; }
 .la-coach li[data-tone="worse"] .la-c-d { color: #d49a9a; }
-.la-coach li[data-tone="better"] .la-c-d { color: rgb(158,205,176); }
+.la-coach li[data-tone="better"] .la-c-d { color: rgb(201,198,191); }
 .la-demo-btn { margin-top: 18px; width: 100%; padding: 14px; border-radius: 8px; border: 1px solid var(--ds-line); background: transparent; color: #cfcfcf; font: 600 13.5px var(--font-ui); }
 .la-ax { position: relative; height: 12px; display: block; }
 .la-ax span { position: absolute; top: 0; transform: translateX(-50%); }
@@ -5789,7 +5789,7 @@ html, body, #app { background: var(--ds-bg-1) !important; }
 #runIdleCard .run-status { margin-top: 36px !important; }
 .run-drive .run-drive-speed { margin-top: 28px; }
 .run-drive .hud-gauge { margin-top: 36px; }
-.hgz-fill { stroke: rgba(var(--acc-rgb), .85) !important; }
+.hgz-fill { stroke: rgba(201,198,191,.85) !important; }
 /* 3. Плотность: карточки, отступы, иерархия */
 #app .card { background: #141518 !important; border: 1px solid var(--ds-line) !important; border-radius: 8px; padding: 24px 22px !important; box-shadow: none !important; }
 #view-home .hw-grid { gap: 14px !important; }
@@ -5847,7 +5847,7 @@ html.v148 .h48 { display: flex; flex-direction: column; align-items: center; jus
 .h48-car { margin: 44px 0 0; font: 500 15px/1.3 var(--font-ui); color: #c9cacd; }
 .h48-gps { margin: 10px 0 0; display: inline-flex; align-items: center; gap: 8px; font: 400 12.5px/1.3 var(--font-ui); color: #75787e; }
 .h48-gps i { width: 6px; height: 6px; border-radius: 50%; background: #55585e; }
-.h48-gps[data-q="good"] i { background: rgb(158,205,176); }
+.h48-gps[data-q="good"] i { background: rgb(201,198,191); }
 .h48-gps[data-q="mid"] i { background: #9a9da3; }
 .h48-gps[data-q="bad"] i { background: #d49a9a; }
 /* шапка: без меню и кнопки профиля (профиль — в нижней панели), бренд тихий */
@@ -5865,7 +5865,7 @@ html.v148 .brand-bar b { font-size: 13px; letter-spacing: .32em; font-weight: 60
 }
 .nav3-btn { all: unset; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: #6f7278; font: 500 11px/1 var(--font-ui); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color .2s ease-out; }
 .nav3-btn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.nav3-btn.on { color: rgb(158,205,176); }
+.nav3-btn.on { color: rgb(201,198,191); }
 /* Профиль: разделы, соревнования первыми */
 .p48 { margin: 28px 0 8px; }
 .p48-group { background: #141518; border: 1px solid var(--ds-line); border-radius: 8px; overflow: hidden; }
@@ -5878,7 +5878,7 @@ html.v148 .brand-bar b { font-size: 13px; letter-spacing: .32em; font-weight: 60
 .p48-big { padding: 24px 22px; }
 .p48-big b { font-size: 19px; font-weight: 500; color: #f1f1f2; }
 .p48-row > i { width: 8px; height: 8px; border-right: 1.5px solid #5d6066; border-top: 1.5px solid #5d6066; transform: rotate(45deg); flex: none; }
-.p48-badge { font-style: normal; min-width: 22px; height: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 8px; background: rgba(var(--acc-rgb), .16); color: rgb(158,205,176); font: 600 12px/22px var(--font-ui); text-align: center; }
+.p48-badge { font-style: normal; min-width: 22px; height: 22px; padding: 0 7px; box-sizing: border-box; border-radius: 8px; background: rgba(201,198,191,.16); color: rgb(201,198,191); font: 600 12px/22px var(--font-ui); text-align: center; }
 .p48-row:active { background: rgba(255,255,255,.025); }
 /* анимации: только старт замера и смена экранов; prefers-reduced-motion — без них */
 @keyframes rd48In { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
@@ -5958,7 +5958,7 @@ html.v152 .bn52 { display: block; margin: 4px -16px 18px; }
 .bn52-s:active { transform: scale(.985); }
 .bn52-dots { display: flex; justify-content: center; gap: 7px; margin-top: 14px; }
 .bn52-dot { width: 6px; height: 6px; min-height: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 3px !important; background: #3a3c40 !important; box-shadow: none !important; transition: width .25s ease-out, background-color .25s ease-out; cursor: pointer; }
-.bn52-dot.on { width: 18px; background: rgb(158,205,176) !important; }
+.bn52-dot.on { width: 18px; background: rgb(201,198,191) !important; }
 @media (prefers-reduced-motion: reduce) { .bn52-dot { transition: none; } .bn52-s:active { transform: none; } }
 /* 4 вкладки */
 html.v152 .nav3-btn { min-width: 0; }
@@ -5977,7 +5977,7 @@ html.v152 .nav3 { grid-template-columns: repeat(4, 1fr); }
 .g53-sub { margin: 8px 20px 0; font: 400 13px/1.35 var(--font-ui); color: #75787e; }
 .g53-acts { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 24px; }
 .g53-mine { min-height: 46px; padding: 0 24px !important; border: 0 !important; border-radius: 8px !important; background: #ecebe8 !important; color: #17181a !important; font: 500 14.5px/1 var(--font-ui) !important; text-transform: none !important; letter-spacing: 0 !important; box-shadow: none !important; }
-.g53-mine.on { background: #1b1d21 !important; color: rgb(158,205,176) !important; border: 1px solid var(--ds-line) !important; }
+.g53-mine.on { background: #1b1d21 !important; color: rgb(201,198,191) !important; border: 1px solid var(--ds-line) !important; }
 button.g53-3d { /* v164: было «.g53-3d» — тот же класс вешается на <html> при «Цвет и детали», и вся страница получала padding 14px и чужой шрифт */  min-height: 46px; padding: 0 14px !important; border: 0 !important; background: none !important; box-shadow: none !important; color: #8b8e93 !important; font: 400 14px/1 var(--font-ui) !important; text-transform: none !important; letter-spacing: 0 !important; }
 .g53-cap { margin: 34px 4px 14px; font: 500 11px/1 var(--font-ui); letter-spacing: .16em; text-transform: uppercase; color: #6f7278; }
 .g53-list { display: flex; gap: 12px; margin: 0 -16px; padding: 0 16px 6px; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 16px; scrollbar-width: none; }
@@ -6043,11 +6043,11 @@ html.v153 .run-drive[data-phase="final"] .rd-final:not(.hidden) { animation: rd5
 html.v153 .rd-hero.rd53-pb { position: relative; overflow: hidden; }
 html.v153 .rd-hero.rd53-pb .rd-hero-v { animation: rd53Pb 1.1s cubic-bezier(.2,.6,.2,1) both; }
 @keyframes rd53Pb { from { opacity: 0; letter-spacing: .08em; } to { opacity: 1; letter-spacing: normal; } }
-html.v153 .rd-hero.rd53-pb::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, rgba(var(--acc-rgb), 0), rgba(var(--acc-rgb), .9) 50%, rgba(var(--acc-rgb), 0)); transform: translateX(-100%); animation: rd53Sweep 1.2s cubic-bezier(.4,.1,.2,1) .35s forwards; pointer-events: none; }
+html.v153 .rd-hero.rd53-pb::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 1px; background: linear-gradient(90deg, rgba(201,198,191,0), rgba(201,198,191,.9) 50%, rgba(201,198,191,0)); transform: translateX(-100%); animation: rd53Sweep 1.2s cubic-bezier(.4,.1,.2,1) .35s forwards; pointer-events: none; }
 @keyframes rd53Sweep { from { transform: translateX(-100%); opacity: 1; } 85% { opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
 .tops-pilot-list li.t53-me, .tb-row.t53-me { position: relative; z-index: 1; }
 .tops-pilot-list li.t53-rise, .tb-row.t53-rise { animation: t53Hi 1.4s ease-out both; }
-@keyframes t53Hi { from { background-color: rgba(158,205,176,.14); } to { background-color: transparent; } }
+@keyframes t53Hi { from { background-color: rgba(201,198,191,.14); } to { background-color: transparent; } }
 @media (prefers-reduced-motion: reduce) {
   html.v153 .rd50-row.on b, html.v153 .run-drive[data-phase="final"] .rd-final:not(.hidden) { animation: rd53Fade .2s ease-out both; }
   html.v153 .rd-hero.rd53-pb .rd-hero-v { animation: rd53Fade .3s ease-out both; }
@@ -6093,7 +6093,7 @@ html.v154 #app #view-lap #btnAutodromesLap { display: inline-flex !important; al
 }
 /* v154 аудит: контраст приглушённых подписей (≥ 4.5:1 на #0b0c0e / #141518) */
 html.v154 .nav3-btn { color: #8a8d93; }
-html.v154 .nav3-btn.on { color: rgb(158,205,176); }
+html.v154 .nav3-btn.on { color: rgb(201,198,191); }
 html.v154 .hw-k, html.v154 .hw-k-sub, html.v154 .p48-row small, html.v154 #topsBoardSub, html.v154 #view-lap .lap-track-card h3, html.v154 #view-lap #lapGpsMsg, html.v154 #view-lap .lap-best, html.v154 .g53-sub, html.v154 .mycar-chip > span, html.v154 .pad-meta em, html.v154 .pad-meta time { color: #9a9da3 !important; }
 html.v154 .brand-bar b { color: #a3a6ab; }
 /* v154 аудит: тихие акценты вместо жёлтого/оранжевого */
@@ -6153,7 +6153,7 @@ html.v156 .h48-start.h56-wait::before { animation: s56Wait 2.4s ease-in-out infi
 html.v156 .h56-mode { display: inline-flex; gap: 2px; padding: 3px; margin-bottom: 30px; border-radius: 6px; background: rgba(255,255,255,.035); border: 1px solid var(--ds-line); }
 html.v156 .h56-mode button { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 6px; color: #9a9da3; font: 500 14px/1 var(--font-ui); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color .2s, color .2s; }
 html.v156 .h56-mode button[aria-checked="true"] { background: rgba(255,255,255,.08); color: #ecebe8; box-shadow: none; }
-html.v156 .h56-mode button:focus-visible { outline: 1px solid rgba(var(--acc-rgb), .8); outline-offset: 2px; }
+html.v156 .h56-mode button:focus-visible { outline: 1px solid rgba(201,198,191,.8); outline-offset: 2px; }
 /* переход «Старт» → спидометр: оверлей пре-смонтирован скрытым; только clip-path / opacity / transform */
 html.v156 #runDrive.rd56-pre { visibility: hidden; pointer-events: none; }
 html.v156 #runDrive.rd56-pre, html.v156 #runDrive.rd56-pre * { animation: none !important; transition: none !important; }
@@ -6194,7 +6194,7 @@ html.v159:not(#_):not(#_) svg [stroke-width="1.8"], html.v159:not(#_):not(#_) sv
 /* — шапка — */
 html.v159:not(#_):not(#_) .brand-bar { min-height: 56px; padding: calc(8px + var(--sat)) var(--s2) 8px !important; background: rgba(0,0,0,.86) !important; backdrop-filter: blur(16px) saturate(1.2); -webkit-backdrop-filter: blur(16px) saturate(1.2); border-bottom: 1px solid var(--ds-line) !important; }
 html.v159:not(#_):not(#_) .brand-bar b { position: relative; font: 600 18px/1 var(--font-ui) !important; letter-spacing: .26em !important; color: #fff !important; padding-bottom: 7px; } /* v163: шильдик — крупнее, белый, полужирный */
-html.v159:not(#_):not(#_) .brand-bar b::after { content: ''; position: absolute; left: 0; bottom: 0; width: calc(100% - .26em); height: 1.5px; background: var(--ds-acc); transform-origin: 0 50%; } /* тонкая мятная линия под знаком */
+html.v159:not(#_):not(#_) .brand-bar b::after { content: ''; position: absolute; left: 0; bottom: 0; width: calc(100% - .26em); height: 1.5px; background: var(--ds-acc); transform-origin: 0 50%; } /* тонкая платиновая линия под знаком */
 html.v159:not(#_):not(#_) #btnMenu, html.v159:not(#_):not(#_) #btnProfile, html.v159:not(#_):not(#_) .brand-bar .bb-home { width: 40px !important; height: 40px !important; min-height: 40px !important; border: 1px solid var(--ds-line) !important; border-radius: var(--r2) !important; background: transparent !important; color: var(--ds-text) !important; transition: background var(--ds-t) var(--ds-ease); }
 html.v159:not(#_):not(#_) #btnProfile { border-radius: 50% !important; }
 html.v159:not(#_):not(#_) #btnMenu:active, html.v159:not(#_):not(#_) #btnProfile:active { background: var(--ds-fill-2) !important; }
@@ -6810,7 +6810,7 @@ html.v159:not(#_):not(#_) #view-garage #btnMyCarGarage { flex: none; height: 40p
 /* цвет кузова: подпись слева, финиш — сегменты во всю ширину, образцы — квадраты ровной сеткой */
 html.v159:not(#_):not(#_) #view-garage .body-paint { padding: var(--s3) 0 !important; margin: 0 !important; border: 0 !important; border-bottom: 1px solid var(--ds-line) !important; background: transparent !important; text-align: left !important; }
 html.v159:not(#_):not(#_) #view-garage .paint-label { margin: 0 0 var(--s2) !important; text-align: left !important; font: var(--t-label) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: var(--ds-sub) !important; }
-/* v165: «Что красим» — сегмент; категории — прокручиваемые вкладки с мятной чертой (как у конфигуратора), имя краски под сеткой */
+/* v165: «Что красим» — сегмент; категории — прокручиваемые вкладки с платиновой чертой (как у конфигуратора), имя краски под сеткой */
 html.v159:not(#_):not(#_) #view-garage .pl65-head { display: flex; align-items: baseline; justify-content: space-between; }
 html.v159:not(#_):not(#_) #view-garage #pl65Target { display: grid !important; grid-auto-flow: column; grid-auto-columns: 1fr; width: 100% !important; margin: 0 0 var(--s2) !important; padding: 2px !important; gap: 2px !important; border: 1px solid var(--ds-line-2) !important; border-radius: var(--r2) !important; background: transparent !important; }
 html.v159:not(#_):not(#_) #view-garage #pl65Target[hidden], html.v159:not(#_):not(#_) #view-garage #pl65Target button[hidden], html.v159:not(#_):not(#_) #view-garage #paintFinish[hidden], html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom[hidden] { display: none !important; }
@@ -6841,7 +6841,7 @@ html.v159:not(#_):not(#_) #view-garage #btnDynoEdit { height: 40px !important; m
 html.v159:not(#_):not(#_) #view-garage .dyno-row { min-height: 48px; padding: 0 !important; border-bottom: 1px solid var(--ds-line) !important; background: transparent !important; }
 html.v159:not(#_):not(#_) #view-garage .dyno-row span { font: 400 14px/20px var(--font-ui) !important; color: var(--ds-sub) !important; text-transform: none !important; letter-spacing: 0 !important; }
 html.v159:not(#_):not(#_) #view-garage .dyno-row strong { font: 300 20px/1 var(--font-num) !important; color: var(--ds-text) !important; }
-/* шторка «Графика»: варианты строками с подсказкой, выбран — мятная точка */
+/* шторка «Графика»: варианты строками с подсказкой, выбран — платиновая точка */
 html.v159:not(#_):not(#_) .gfx64-list { display: flex; flex-direction: column; padding-top: var(--s1); }
 html.v159:not(#_):not(#_) .gfx64-o { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: 64px; padding: var(--s1) 0; border-bottom: 1px solid var(--ds-line); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 html.v159:not(#_):not(#_) .gfx64-o span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }

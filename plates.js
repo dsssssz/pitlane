@@ -85,7 +85,7 @@ export function drawPlateCanvas(canvas) {
   const ctx = canvas.getContext('2d');
   const px = W / FACE_W; // pixels per metre
   const b = Math.round(FRAME_B * px);
-  const NEON = '#9ECDB0'; // v133: приглушённый акцент
+  const NEON = '#C9C6BF'; // v133: приглушённый акцент
   // frame (black)
   ctx.fillStyle = '#0a0a0a';
   ctx.fillRect(0, 0, W, H);

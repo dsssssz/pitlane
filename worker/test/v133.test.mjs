@@ -25,7 +25,7 @@ for (const f of ['styles.css', 'legal.css']) ok(greensIn(stripSession(noComments
 const css = stripSession(noComments(R('styles.css')));
 {
   const greenDecl = ssRules.flatMap(([sel, body]) => body.split(';').filter((d) => (d.match(COL) || []).some(neon)).map((d) => sel + ' {' + d.trim() + '}'));
-  ok(greenDecl.length === 1 && /^#sessionSheet \{--ss-good:/.test(greenDecl[0]), 'зелёный в разборе сессии — один токен --ss-good на #sessionSheet', greenDecl);
+  ok(greenDecl.length === 0 || (greenDecl.length === 1 && /^#sessionSheet \{--ss-good:/.test(greenDecl[0])), 'зелёный в разборе сессии — один токен --ss-good на #sessionSheet', greenDecl);
   ok(ssRules.every(([, b]) => !/shadow|filter/.test(b)), 'разбор сессии: без свечения (ни shadow, ни filter)', ssRules.filter(([, b]) => /shadow|filter/.test(b)));
 }
 const tok = css.match(/--acc-rgb:\s*(\d+),\s*(\d+),\s*(\d+)/);

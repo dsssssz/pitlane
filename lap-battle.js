@@ -1,7 +1,7 @@
 /* v141: Sector battle в HUD круга, сектора на карте, призрак на SVG-карте, «Предложить трассу».
  * Чистые функции (splitsOf, bestSplits, sectorDelta, toneOf) тестируются в node; DOM — только textContent. */
-export const SECTOR_BETTER = '#30d158';
-export const SECTOR_WORSE = '#ff453a';
+export const SECTOR_BETTER = '#7fae8f';
+export const SECTOR_WORSE = '#d0675c';
 
 /** cumulative [t1,t2,t3] → splits [s1,s2,s3] (null где нет). */
 export function splitsOf(cum) {

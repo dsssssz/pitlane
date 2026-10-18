@@ -439,7 +439,7 @@ function drawTrack(id, elId, opts) {
     + '<line x1="-11" y1="-16" x2="-11" y2="16" stroke="#fff" stroke-width="2.2"/>'
     + '<rect x="-11" y="-16" width="9" height="9" fill="#111"/><rect x="-2" y="-16" width="9" height="9" fill="#eee"/>'
     + '<rect x="-11" y="-7" width="9" height="9" fill="#eee"/><rect x="-2" y="-7" width="9" height="9" fill="#111"/>'
-    + '<text x="16" y="4" fill="#9ECDB0" font-size="11" font-family="PL Sans,sans-serif" font-weight="700">С/Ф</text>'
+    + '<text x="16" y="4" fill="#C9C6BF" font-size="11" font-family="PL Sans,sans-serif" font-weight="700">С/Ф</text>'
     + '</g>';
   const car = live
     ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)">'
@@ -453,8 +453,8 @@ function drawTrack(id, elId, opts) {
     '<path class="track-apron" d="' + d + '" fill="none" stroke="#2c2c2c" stroke-width="28"' + join + '/>'
     + '<path class="track-asphalt" d="' + d + '" fill="none" stroke="#1a1a1a" stroke-width="16"' + join + '/>'
     + '<path class="track-curb" d="' + d + '" fill="none" stroke="rgba(240,240,240,.22)" stroke-width="16" stroke-dasharray="3 9"' + join + '/>'
-    + '<path class="track-edge" d="' + d + '" fill="none" stroke="rgba(158,205,176,.10)" stroke-width="10"' + join + '/>'
-    + '<path class="track-line" d="' + d + '" fill="none" stroke="#9ECDB0" stroke-width="3.2"' + join + '/>';
+    + '<path class="track-edge" d="' + d + '" fill="none" stroke="rgba(201,198,191,.10)" stroke-width="10"' + join + '/>'
+    + '<path class="track-line" d="' + d + '" fill="none" stroke="#C9C6BF" stroke-width="3.2"' + join + '/>';
   const svgInner = '<g class="track-scene">' + layers + sfMark + car + '</g>';
   const svg = '<svg viewBox="0 0 300 210" class="track-svg" ' + (live ? 'id="lapTrackSvg" ' : '')
     + 'preserveAspectRatio="xMidYMid meet">' + svgInner + '</svg>';
@@ -1934,7 +1934,7 @@ function build3dScene() {
   ringGlow = new THREE.Mesh(
     new THREE.RingGeometry(2.92, 3.48, 96),
     new THREE.MeshBasicMaterial({
-      color: 0x9ECDB0, // v133
+      color: 0xC9C6BF, // v133
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.04, // v133: без ореола
@@ -1947,7 +1947,7 @@ function build3dScene() {
   ring = new THREE.Mesh(
     new THREE.RingGeometry(3.1, 3.28, 96),
     new THREE.MeshBasicMaterial({
-      color: 0x9ECDB0, // v133
+      color: 0xC9C6BF, // v133
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 0.32,
@@ -2189,7 +2189,7 @@ function texRim() {
       ctx.lineTo(s / 2 + Math.cos(a) * s * 0.45, s / 2 + Math.sin(a) * s * 0.45);
       ctx.stroke();
     }
-    ctx.fillStyle = '#9ECDB0';
+    ctx.fillStyle = '#C9C6BF';
     ctx.beginPath();
     ctx.arc(s / 2, s / 2, s * 0.12, 0, Math.PI * 2);
     ctx.fill();
@@ -4104,7 +4104,7 @@ function rdDeltas() {
   const dt = p && isHero0100 ? pbDeltaText(p, true) : null;
   d.className = 'rd-delta' + (dt ? ' ' + dt.cls : '');
   d.textContent = dt ? dt.text : ''; d.hidden = !dt;
-  // v153: новый личный рекорд — число проявляется медленно, по герою один раз проходит тонкая мятная линия
+  // v153: новый личный рекорд — число проявляется медленно, по герою один раз проходит тонкая платиновая линия
   if (p && isHero0100 && Number.isFinite(p.pbD) && p.pbD <= -0.005 && run.pbAnimFor !== p) { run.pbAnimFor = p; rd53Pb(); }
   let sText = ''; let sCls = '';
   if (p && isHero0100 && Number.isFinite(p.stD) && p.stLab) { sText = stockDeltaText(p.stD, p.stLab); sCls = p.stD <= -0.005 ? 'faster' : (p.stD >= 0.005 ? 'slower' : 'even'); }
@@ -7602,10 +7602,50 @@ function fitGlb(obj, opts = {}) {
   controls.maxDistance = 16;
   controls.update();
   onResize();
+  try { degreenModel(car); } catch (err) { console.warn('degreen', err); } // v167: зелёная ливрея (GT3 RS) → графит
   try { applyStoredBodyPaint(); } catch (err) { console.warn('paint after fitGlb', err); }
   podiumInvalidate(1200, true);
   if (qm.phase === 'sample' || qm.phase === 'warm') { qm.phase = 'warm'; qm.t0 = performance.now(); } // model swap hitch ≠ slow device
   if (opts.driveIn) { try { startDriveIn(glbRoot, opts.modelId); } catch (err) { console.warn('drive-in', err); } }
+}
+
+/* v167: палитра «чёрный + платина» — зелёные детали заводских текстур (полосы, диски, сиденья GT3 RS) перекрашиваются в графит на лету.
+   Сам .glb не трогаем: проверяем каждую карту цвета на 32×32, и только если зелёного заметно (> 0,3 %) — переписываем пиксели на канвасе. */
+function degreenPixels(d, dark) {
+  for (let i = 0; i < d.length; i += 4) {
+    const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), dd = mx - mn; if (dd < 0.04 || mx !== g) continue;
+    const h = ((b - r) / dd + 2) * 60; const sat = dd / mx;
+    const w = Math.min(1, Math.max(0, (sat - 0.12) / 0.18)) * Math.min(1, Math.max(0, (62 - Math.abs(h - 122)) / 14)); if (w <= 0) continue;
+    const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) * dark;
+    d[i] = (r * (1 - w) + Math.min(1, L * 1.02) * w) * 255; d[i + 1] = (g * (1 - w) + Math.min(1, L * 1.005) * w) * 255; d[i + 2] = (b * (1 - w) + Math.min(1, L * 0.975) * w) * 255;
+  }
+}
+function texGreenShare(img) {
+  const c = document.createElement('canvas'); c.width = c.height = 32; const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(img, 0, 0, 32, 32); const d = g.getImageData(0, 0, 32, 32).data; let n = 0;
+  for (let i = 0; i < d.length; i += 4) { const r = d[i], gg = d[i + 1], b = d[i + 2]; if (gg > r * 1.3 && gg > b * 1.12 && gg > 40) n++; }
+  return n / 1024;
+}
+function degreenModel(root) {
+  if (!root) return; const seen = new Set();
+  root.traverse((o) => {
+    if (!o.isMesh) return;
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
+      if (!m) return;
+      if (m.color && !m.map) { const c = m.color; const mx = Math.max(c.r, c.g, c.b); if (mx === c.g && c.g > c.r * 1.3 && c.g > c.b * 1.12 && mx > 0.05) { const L = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; c.setRGB(L * 0.55, L * 0.55, L * 0.54); } }
+      ['map', 'emissiveMap'].forEach((k) => {
+        const t = m[k]; if (!t?.image || seen.has(t)) return; seen.add(t);
+        try {
+          if (texGreenShare(t.image) < 0.003) return;
+          const w = t.image.width, h = t.image.height; if (!w || !h) return;
+          const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', { willReadFrequently: true });
+          g.drawImage(t.image, 0, 0); const id = g.getImageData(0, 0, w, h); degreenPixels(id.data, k === 'map' ? 0.55 : 0.4); g.putImageData(id, 0, 0);
+          t.image = c; t.needsUpdate = true;
+        } catch (_) {}
+      });
+    });
+  });
 }
 
 /* ---- Drive-in animation (opt-in per model: MODEL_CATALOG[].driveIn) — DEPLOY.md §22 ----
@@ -8616,17 +8656,17 @@ const PAINT_FINISH_PRESETS = {
 /** [имя, hex, (для перламутра — толщина плёнки нм: шире = сильнее «хамелеон»)] */
 const PAINT_LIB = {
   gloss: [['Графит', '#2b2e33'], ['Мел', '#eeece6'], ['Сигнал', '#c8102e'], ['Гоночный жёлтый', '#f2c200'], ['Лазурь', '#1f6fd1'], ['Рыжий тигр', '#d4541c']],
-  metallic: [['Северное серебро', '#b9bdc3'], ['Ночная Нева', '#1b2a4a'], ['Ладога', '#2f5f80'], ['Малахит', '#1e5a46'], ['Коньяк', '#6a3a1f'], ['Тёмный титан', '#55595e']],
-  pearl: [['Белая ночь', '#f1efe8', [180, 420]], ['Опал', '#d9dde3', [260, 680]], ['Северное сияние', '#17534f', [380, 1100]], ['Аметист', '#4a2f73', [350, 900]], ['Хамелеон «Казань»', '#2a1f4f', [450, 1250]], ['Медный мираж', '#6b2f1a', [400, 1000]]],
+  metallic: [['Северное серебро', '#b9bdc3'], ['Ночная Нева', '#1b2a4a'], ['Ладога', '#2f5f80'], ['Антрацит-синий', '#27313d'], ['Коньяк', '#6a3a1f'], ['Тёмный титан', '#55595e']],
+  pearl: [['Белая ночь', '#f1efe8', [180, 420]], ['Опал', '#d9dde3', [260, 680]], ['Северное сияние', '#1f3a5a', [380, 1100]], ['Аметист', '#4a2f73', [350, 900]], ['Хамелеон «Казань»', '#2a1f4f', [450, 1250]], ['Медный мираж', '#6b2f1a', [400, 1000]]],
   matte: [['Мат-чёрный', '#141516'], ['Мат-графит', '#3b3e42'], ['Хаки', '#5a604c'], ['Песок', '#b5a584'], ['Мат-синий', '#2a3b57'], ['Мат-кармин', '#7a1c1c']],
   satin: [['Сатин-сталь', '#8b9097'], ['Бронза', '#7a6246'], ['Оливка', '#4b5240'], ['Сатин-белый', '#dcdad3'], ['Сатин-синий', '#24406b'], ['Сатин-бордо', '#5a1a26']],
   chrome: [['Зеркало', '#e6e8ea'], ['Золото', '#d4af37'], ['Розовое золото', '#d8a08a'], ['Хром-синий', '#3a6bd0'], ['Хром-бронза', '#8c6239'], ['Чёрный хром', '#2a2b2e']],
-  candy: [['Кэнди-рубин', '#7d0b1c'], ['Кэнди-кобальт', '#0d2a85'], ['Кэнди-изумруд', '#0a5236'], ['Кэнди-апельсин', '#b8400b'], ['Кэнди-фиолет', '#4a0f6b'], ['Кэнди-янтарь', '#a86a05']],
+  candy: [['Кэнди-рубин', '#7d0b1c'], ['Кэнди-кобальт', '#0d2a85'], ['Кэнди-вишня', '#5a0a2a'], ['Кэнди-апельсин', '#b8400b'], ['Кэнди-фиолет', '#4a0f6b'], ['Кэнди-янтарь', '#a86a05']],
 };
 /** Диски и суппорты — тонируются поверх родной текстуры (тёмная резина остаётся тёмной). */
 const PART_LIB = {
   wheels: [['Чёрный глянец', '#1c1c1d'], ['Антрацит', '#3c3f43'], ['Тёмное серебро', '#8c9096'], ['Бронза', '#8a6a3a'], ['Золото', '#c2a14a'], ['Белый', '#ececec'], ['В цвет кузова', 'body']],
-  calipers: [['Красный', '#c8102e'], ['Жёлтый', '#f2c200'], ['Синий', '#1f5fd1'], ['Мятный', '#4fae8f'], ['Чёрный', '#151515'], ['Серебро', '#b9bdc3'], ['Рыжий', '#d4541c']],
+  calipers: [['Красный', '#c8102e'], ['Жёлтый', '#f2c200'], ['Синий', '#1f5fd1'], ['Платина', '#c9c6bf'], ['Чёрный', '#151515'], ['Серебро', '#b9bdc3'], ['Рыжий', '#d4541c']],
 };
 const PART_LABEL = { body: 'Кузов', wheels: 'Диски', calipers: 'Суппорты' };
 const FIN_LABEL = Object.fromEntries(PAINT_CATS);
@@ -12805,7 +12845,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v166';
+const APP_VERSION = 'v167';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -12981,7 +13021,7 @@ document.getElementById('btnVideoRun')?.addEventListener('click', () => { void o
 document.getElementById('btnVideoLap')?.addEventListener('click', () => { void openVideoTele('lap'); });
 
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
-document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166');
+document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167');
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
@@ -15880,7 +15920,7 @@ async function seasonImageBlob() {
   const c = document.createElement('canvas'); c.width = W; c.height = H;
   const g = c.getContext('2d');
   g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, W, H);
-  const NEON = '#9ECDB0'; const TXT = '#f2f2f2'; const MUTE = '#8a8a8a';
+  const NEON = '#C9C6BF'; const TXT = '#f2f2f2'; const MUTE = '#8a8a8a';
   const font = (w, px) => `${w} ${px}px "PL Sans", system-ui, sans-serif`;
   g.fillStyle = MUTE; g.font = font(700, 30); g.fillText('P I T L A N E', 64, 90);
   g.fillStyle = TXT; g.font = font(700, 64); g.fillText('Сезон экипажей', 64, 180);

@@ -17,7 +17,7 @@ for (const k of ['history', 'pulse', 'team', 'suggest', 'shop']) ok(menu.include
 ok(/id="h54Video"/.test(html) && /id="l54Video"/.test(html) && /id="btnAutodromesLap"/.test(html), 'v154: видео — под стартом, трассы — во вкладке «Трек»');
 const c = css.slice(css.indexOf('v148: Старт / Гараж / Профиль'));
 ok(/html\.v148 main, html\.v148\.nav-widgets main \{ padding-bottom: calc\(var\(--n3-h\) \+ var\(--sab, 0px\) \+ 28px\) !important/.test(c), 'контент не уходит под нижнюю панель (высота + safe area)');
-ok(/\.nav3-btn\.on \{ color: rgb\(158,205,176\)/.test(c) && /\.h48-start \{[^}]*background: #ecebe8 !important[^}]*text-transform: none/.test(c), 'мята — активный пункт; «Старт» светлый, без капса');
+ok(/\.nav3-btn\.on \{ color: rgb\(201,198,191\)/.test(c) && /\.h48-start \{[^}]*background: #ecebe8 !important[^}]*text-transform: none/.test(c), 'мята — активный пункт; «Старт» светлый, без капса');
 ok(/rd48In \.25s/.test(c) && /prefers-reduced-motion: reduce/.test(c), 'анимация старта 250 мс + reduced-motion');
 ok(!/text-shadow|drop-shadow|#30d158|(?<!backdrop-filter: )blur\(|orange|#ff9/.test(c), 'без неона/оранжевого');
 ok(/html\.v148 \.mycar-bar\.is-empty \.mycar-bar-k \{ color: #75787e/.test(c) && /html\.v148 main > \.brand-bar \{ background: (#0b0c0e|var\(--ds-bg-1\))/.test(c), 'гараж без янтаря, шапка непрозрачная');

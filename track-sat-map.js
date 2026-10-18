@@ -226,10 +226,10 @@ export function mountLapSatMap(trackId, hostEl, opts) {
         Math.abs(latlngs[0][1] - latlngs[latlngs.length - 1][1]) < 1e-5);
     if (isClosed && o.quality === 'footprint') {
       state.outline = L.polygon(latlngs, {
-        color: '#9ECDB0',
+        color: '#C9C6BF',
         weight: 2.5,
         opacity: 0.95,
-        fillColor: '#9ECDB0',
+        fillColor: '#C9C6BF',
         fillOpacity: 0.08,
         lineJoin: 'round',
         interactive: false,
@@ -245,7 +245,7 @@ export function mountLapSatMap(trackId, hostEl, opts) {
         interactive: false,
       }).addTo(map);
       state.outline = L.polyline(latlngs, {
-        color: '#9ECDB0',
+        color: '#C9C6BF',
         weight: 3.2,
         opacity: 1,
         lineJoin: 'round',
