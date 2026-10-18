@@ -6959,3 +6959,10 @@ html.v159:not(#_):not(#_) .ask172 .ask172-in:focus { border-color: var(--ds-line
 html.v159:not(#_):not(#_) .ask172 .ask172-hint { margin: 0; color: var(--ds-sub); font: 400 13px/1.4 var(--font-ui); }
 html.v159:not(#_):not(#_) .ask172 .ask172-ok { width: 100%; min-height: 48px; margin-top: 12px; border: 0; border-radius: var(--r2); background: var(--ds-text); color: #0a0a0a; font: 600 15px/1 var(--font-ui); transition: scale 420ms cubic-bezier(.34,1.56,.64,1); }
 html.v159:not(#_):not(#_) .ask172 .ask172-ok:active { scale: .97; transition-duration: 90ms; }
+
+/* ===== v173: финальный QA — узкие экраны (iPhone SE 320), хит-зоны, параллакс не лезет под шапку ===== */
+html.v159:not(#_):not(#_) .ds-row.z61-ghost { flex-wrap: wrap; }
+html.v159:not(#_):not(#_) .ds-row.z61-ghost .ghost-pick { min-width: 0; flex: 1 1 220px; max-width: 100%; }
+html.v159:not(#_):not(#_) .ghost-pick .gp-chips { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
+html.v159:not(#_):not(#_) #paintFinish button::before { content: ""; position: absolute; top: 0; bottom: 0; left: -9px; right: -9px; } /* нажимаемая зона короткой вкладки «Мат» ≥ 44px, подчёркивание прежнее */
+@media (max-width: 359px) { html.v159:not(#_):not(#_) #view-garage #colorBar { grid-template-columns: repeat(6, minmax(0, 1fr)) !important; gap: 10px !important; } } /* SE: свотчи ≥ 34px вместо 25px */
