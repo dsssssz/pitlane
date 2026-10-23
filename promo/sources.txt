@@ -1,8 +1,10 @@
-PITLANE ad v4 — sound sources (all real recordings, nothing synthesized)
+PITLANE ad v5 — sound sources (all real recordings, nothing synthesized; BBC RemArc clips removed)
 Music: "W końcu się udało! gruwpad zrobił phonka!" — Wikimedia Commons, CC BY-SA 4.0
 Engine start: "2006 Porsche Cayman S engine sound" — Wikimedia Commons, CC BY-SA 3.0
+Porsche 992: "Porsche 992 - engine and exhaust sound (YouTube PqvY5ONBjxw)" — Wikimedia Commons, CC BY 3.0
+Supra: "Toyota Supra (A80) - engine and exhaust sound (YouTube YlRjnMnHRO4)" — Wikimedia Commons, CC BY 3.0
 GT3 RS: "GT3 RS Acceleration Sound - Sets Off Car Alarm" — Wikimedia Commons, CC BY 2.0
 Drag: "Konya Drag yarışı" — Wikimedia Commons, CC BY 3.0
 Drift: "2023 TCR World Tour at El Pinar - Drifting exhibition Video 01" — Wikimedia Commons, CC BY-SA 4.0
-BBC Sound Effects (RemArc licence, personal/educational/research use): 07027110 garage door up-and-over; 07055244 GP car start-up/revs; 07055250 1994 Silverstone GP car pass (flyby); 07045249 braking skid; 07022362 car skid
-URLs: https://commons.wikimedia.org (upload.wikimedia.org), https://sound-effects.bbcrewind.co.uk/<ID>
+URLs: https://commons.wikimedia.org (upload.wikimedia.org)
+Video: AI-generated footage, 60 fps motion-interpolated (ffmpeg minterpolate mci/aobmc/bidir).
