@@ -1,0 +1,14 @@
+PITLANE ad v10 — sound sources (real recordings, no BBC)
+Bed: v6 mix (music + engines) — see promo-v5/sources.txt (Wikimedia Commons); +bass, compressed.
+Launch: GT3 RS Acceleration Sound — Wikimedia Commons, CC BY 2.0 (low-shelf + compression)
+Tunnel engine: Porsche 992 (p992.wav) — see promo-v5/sources.txt (Wikimedia Commons)
+Helmet visor: "Clickick switch.ogg" — Commons, Public domain (+9 dB)
+Helmet buckle: "457456 rudmer-rotteveel karabiner-click-02.wav" — Commons, CC0 (+9 dB)
+USB click: "Success click sound.wav" — Commons, CC BY-SA 4.0 (+9 dB)
+START tap: "Computer Mouse Click.wav" — Commons, CC0 (+9 dB)
+Exhaust bang @26.167 s (first flash frame, auto-detected): "Ferrari 458 Speciale - engine and exhaust sound (YouTube nltPXKAN6BI).opus" — Commons, CC BY 3.0
+Low-end hit layer: "9 mm gunshot-mike-koenig-123.wav" low-passed 110 Hz — Commons, CC BY 3.0
+Exhaust tail: "Dio exhaust.wav" — Commons (see promo-v7)
+Loudness: -14.0 LUFS integrated, peak -1.5 dBFS sample.
+URLs: https://commons.wikimedia.org/wiki/File:<name>
+Video: AI-generated footage, 60 fps (ffmpeg minterpolate). Titles: Inter Bold/SemiBold.
