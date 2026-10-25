@@ -139,7 +139,7 @@ console.log('\n[M3/L8/L9: сайт — CSP, сторонние скрипты, i
   const v = R('hardware/pitlane-gps/web-flash/vendor/esp-web-tools-10.4.0/install-button.js');
   ok(!/(from|import\()\s*['"]https?:/.test(v), 'вендорный бандл не тянет модули со сторонних хостов');
   ok(!/cap\.innerHTML/.test(R('track-sat-map.js')), 'подпись спутниковой карты — без innerHTML');
-  ok(/APP_VERSION = 'v184'/.test(R('app.js')) && /pitlane-v184/.test(R('sw.js')) && /'v184'\);/.test(R('app.js')), 'версия v184 (APP_VERSION, кэш SW, класс)');
+  ok(/APP_VERSION = 'v18[4-9]'/.test(R('app.js')) && /pitlane-v18[4-9]'/.test(R('sw.js')) && /'v184'\);/.test(R('app.js')), 'версия v184 (APP_VERSION, кэш SW, класс)');
   ok(/RL_TGMSG/.test(R('worker/wrangler.toml')) && /RL_TGCB/.test(R('worker/wrangler.toml')), 'wrangler.toml: биндинги RL_TGMSG / RL_TGCB');
 }
 

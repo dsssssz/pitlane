@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v184';
+const CACHE = 'pitlane-v185';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -81,6 +81,7 @@ const CORE = [
   './img/carbon-twill.svg',
   './img/icon-192.png',
   './img/icon-512.png',
+  './img/icon-maskable-512.png',
   './img/emblem.svg',
   './img/cars/g87-m2.webp',
   // v155: студийные рендеры «Моя машина» (Главная)

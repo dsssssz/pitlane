@@ -13,7 +13,7 @@ ok(/color: 0x0b0c0e/.test(app) && /transmission: 0/.test(app), 'стекло п�
 ok(/card: \(\) =>/.test(app) && /glass: \(o\) =>/.test(app), 'QA-хуки card() и glass()');
 const html = rd('index.html'); const css = rd('styles.css');
 const red = (t) => (t.match(/#e12323/gi) || []).length;
-ok(/fill="#e12323" d="M66 -37/.test(rd('img/logo/pitlane-logo.svg')) && /fill="#e12323" d="M66 -37/.test(rd('img/logo/pitlane-icon.svg')) && /fill="#e12323" d="M66 -37/.test(rd('favicon.svg')), 'дуга логотипа красная #e12323 в SVG-файлах и favicon');
+ok(/fill="#e12323" d="M66 -37/.test(rd('img/logo/pitlane-logo.svg')) && /fill="#e12323" d="M66 -37/.test(rd('img/logo/pitlane-icon.svg')) && /fill="#e12323"/.test(rd('favicon.svg')), 'дуга логотипа красная #e12323 в SVG-файлах, favicon — красная пятка P');
 ok(/class="lg-arc" fill="#e12323"/.test(html) && /class="ln61-arc" fill="#e12323"/.test(html) && red(html) === 2, 'шапка и запуск: красная только дуга');
 ok(red(css) === 1 && /--accent-signal: #e12323;/.test(css) && red(app) === 0 && !/#e12323[^"]*"\s*filter|drop-shadow\([^)]*e12323/i.test(html), 'красный нигде больше (стили/скрипт), без свечения');
 ok(/fill="#f2efe9"/.test(rd('img/logo/pitlane-logo.svg')), 'буквы остаются #f2efe9');
