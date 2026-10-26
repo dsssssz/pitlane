@@ -45,7 +45,7 @@ ok(new Set(SHOP_PRODUCTS.map((p) => p.id)).size === SHOP_PRODUCTS.length, 'id т
 for (const g of P.gallery) for (const f of [...g.webp.split(','), ...g.avif.split(',')].map((x) => x.trim().split(' ')[0])) {
   const pth = new URL('../../' + f.replace(/^\.\//, ''), import.meta.url); ok(fs.existsSync(pth) && fs.statSync(pth).size < 40000, 'картинка галереи есть и лёгкая: ' + f);
 }
-ok(P.specs.some(([k, v]) => /NEO-M9N/.test(v) && /25 Гц/.test(v)) && P.specs.some(([, v]) => /режим модема/.test(v)) && P.specs.some(([, v]) => /100 \/ 200 \/ 300/.test(v)) && P.specs.some(([, v]) => /магнит/.test(v)) && P.specs.some(([, v]) => /76 × 46 × 15/.test(v)), 'честные характеристики на месте');
+ok(P.specs.some(([k, v]) => /до 25 Гц/.test(v)) && P.specs.some(([, v]) => /Wi-Fi и Bluetooth/.test(v)) && P.specs.some(([, v]) => /100 \/ 200 \/ 300/.test(v)) && P.specs.some(([, v]) => /магнит/.test(v)) && P.specs.some(([, v]) => /76 × 46 × 15/.test(v)), 'честные характеристики на месте');
 
 console.log('\n[POST /shop/order]');
 const A = await login('Мага Тест', 913701, 'maga_buyer'); const B = await login('Без ТГ'); const C = await login('Скрытый', 913703);

@@ -3228,7 +3228,7 @@ function resetSpeedFilter() {
 function kmhFromCoords(coords, ts) {
   const s = GpsFusion.ingestGps(coords, ts);
   if (coords && coords.ext && coords.speed != null && Number.isFinite(coords.speed)) {
-    // Внешний GNSS (PITLANE GPS): доплеровская скорость u-blox точнее фильтра телефона — берём её напрямую,
+    // Внешний GNSS (PITLANE GPS): доплеровская скорость чипа точнее фильтра телефона — берём её напрямую,
     // фильтр используем только для координат/дистанции.
     filtV = coords.speed * 3.6;
     filtShow = filtV;
@@ -4392,7 +4392,7 @@ function initExtGps() {
     try {
       const ok = await extGps.setRate(r);
       if (!ok) extGpsMsg('Приёмник не поддерживает смену частоты');
-      else if (r === 25) extGpsMsg('25 Гц: только GPS (одно созвездие), нужен NEO-M9N. На MAX-M10S останется 10 Гц.');
+      else if (r === 25) extGpsMsg('25 Гц: только GPS (одно созвездие). На части приборов останется 10 Гц.');
       else extGpsMsg('');
     } catch (e) { extGpsMsg(`Ошибка: ${e?.message || e}`); }
   }));
@@ -14541,7 +14541,7 @@ function sochiChaseFeedGps(lat, lon, vKmh, extra = {}) {
   }
   const p = sochiProject(lat, lon);
   if (!p) return;
-  // speed: Doppler (coords.speed, phone or u-blox chip) → filtered speed → (null) regression inside the matcher
+  // speed: Doppler (coords.speed, phone or chip) → filtered speed → (null) regression inside the matcher
   let speedMs = null;
   const dop = extra.speed;
   if (dop != null && Number.isFinite(Number(dop)) && Number(dop) >= 0) speedMs = Number(dop);

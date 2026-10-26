@@ -1,5 +1,5 @@
 /**
- * PITLANE GPS — внешний GNSS-приёмник (u-blox M9N/M10 + ESP32) по Web Bluetooth
+ * PITLANE GPS — внешний GNSS-приёмник по Web Bluetooth
  * и (v116) по Wi-Fi: чип → режим модема телефона → Worker (Durable Object) → WebSocket сюда.
  * Протокол: hardware/pitlane-gps/src/protocol.h (20-байтный NAV-PVT пакет + 8-байтный статус).
  * Модуль ничего не знает о замерах: отдаёт точки в формате GeolocationPosition через onPoint.

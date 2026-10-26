@@ -42,8 +42,8 @@ const pic = (photo, cap, kb) => (photo && cap.length <= 1024
 export const IMG = {
   banner: TG_BANNER_URL,
   gps: APP_URL + 'img/shop/tg/gps-hero.jpg',
-  specs: APP_URL + 'img/shop/tg/gps-section.jpg',
-  chip: APP_URL + 'img/shop/tg/gps-exploded.jpg',
+  specs: APP_URL + 'img/shop/tg/gps-top.jpg',
+  chip: APP_URL + 'img/shop/tg/gps-hand.jpg',
 };
 export const BACK = '← Назад';
 export const HOME = 'Главное меню';
@@ -78,7 +78,7 @@ export function screenShop() {
 
 export function productCaption(p) {
   const kit = (p.inBox || []).map((x) => '— ' + esc(x)).join('\n');
-  const short = (p.specs || []).filter(([k]) => /Приёмник|Системы|Связь/.test(k)).map(([, v]) => esc(v)).join('\n');
+  const short = (p.specs || []).filter(([k]) => /Частота|Спутники|Связь/.test(k)).map(([, v]) => esc(v)).join('\n');
   const cap = [
     '<b>' + esc(p.title) + '</b>',
     esc(p.subtitle || ''),
@@ -109,7 +109,7 @@ export function screenSpecs(p) {
 export const CHIP_TEXT =
   '<b>Как работает PITLANE GPS</b>\n' + RULE + '\n' +
   '<b>1. Установка.</b> Прибор ставится на торпеду у лобового стекла — антенне нужно небо. Держится на магнитах, питание — USB от машины.\n' +
-  '<b>2. Точность.</b> Приёмник u-blox NEO-M9N считает позицию 25 раз в секунду по GPS, ГЛОНАСС, Galileo и BeiDou. Телефон — обычно 1 раз в секунду.\n' +
+  '<b>2. Точность.</b> Чип считает позицию 25 раз в секунду по GPS, ГЛОНАСС, Galileo и BeiDou. Телефон — обычно 1 раз в секунду.\n' +
   '<b>3. Связь.</b> iPhone — по Wi-Fi через режим модема, Android — по Bluetooth или Wi-Fi. Скорость и отсечки видно в приложении в реальном времени.\n' +
   '<b>4. Зачёт.</b> Сервер проверяет трек заезда и ставит класс A или B — с ним результат попадает в топ внешнего GPS.\n' + RULE + '\n' +
   'Первый холодный старт под открытым небом — до минуты. Атермальное стекло может ослаблять сигнал.';

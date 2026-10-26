@@ -50,7 +50,7 @@ ok(/<b>6\u00a0800\u00a0₽<\/b> · Предзаказ/.test(m.body.caption) && /
 ok(datas(m)[0] === 'ob:pitlane-gps' && datas(m).includes('pk:pitlane-gps') && datas(m).some((d) => /^chip(~|$)/.test(d)), 'кнопки: оформить предзаказ, характеристики, как работает чип');
 ok(sent.some((x) => x.method === 'answerCallbackQuery'), 'каждое нажатие отвечено answerCallbackQuery');
 await tap('pk:pitlane-gps'); m = last(BUYER); keep('specs', m);
-ok(/u-blox NEO-M9N/.test(txt(m)) && /Корпус/.test(txt(m)), 'характеристики');
+ok(/до 25 Гц/.test(txt(m)) && /Корпус/.test(txt(m)), 'характеристики');
 await tap('chip'); m = last(BUYER); keep('chip', m);
 ok(/Как работает PITLANE GPS/.test(txt(m)) && /25 раз в секунду/.test(txt(m)) && /класс A или B/.test(txt(m)), '«Как работает чип»');
 await say('/help'); m = last(BUYER); keep('faq', m);
