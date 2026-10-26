@@ -16994,7 +16994,7 @@ window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
     try { ht.checked = localStorage.getItem('pitlane-hap-off') !== '1'; } catch (_) {}
     ht.addEventListener('change', () => { try { if (ht.checked) localStorage.removeItem('pitlane-hap-off'); else localStorage.setItem('pitlane-hap-off', '1'); } catch (_) {} if (ht.checked) hap(10); });
   }
-  const ver = document.getElementById('st66Ver'); if (ver) ver.textContent = 'PITLANE ' + APP_VERSION;
+  const ver = document.getElementById('st66Ver'); if (ver) ver.textContent = 'PITLANE 1.0 beta';
   const who = () => {
     const nick = (document.getElementById('accNick')?.value || '').trim(); const ph = (document.getElementById('accPhone')?.textContent || '').trim();
     const t = nick || (ph && ph !== 'не вошли' ? ph : 'не вошли'); const el = document.getElementById('st66Who'); if (el && el.textContent !== t) el.textContent = t;
