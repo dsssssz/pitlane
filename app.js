@@ -2897,11 +2897,14 @@ const GpsFusion = (() => {
     st.showV = 0;
     st.speedBuf.length = 0;
     st.sv = st.sa = 0; st.sp00 = 1; st.sp01 = 0; st.sp11 = 4; st.svTs = 0; st.svReady = false;
-    st.prevFix = null; st.lastKey = ''; st.recvAt = 0; st.imuStillMs = 0;
+    st.prevFix = null; st.lastKey = ''; st.recvAt = 0; st.speedAt = 0; st.fixWin = []; st.imuStillMs = 0;
   }
 
   // v188: скорость как в навигаторе — доплер напрямую через лёгкий Калман (без окна-медианы), учёт точности
   function speedUpdate(coords, ts, acc) {
+    // v195: тот же фикс с новым временем (кеш iOS) — не измерение, иначе старая скорость «держится» вечно
+    const pf = st.prevFix;
+    if (pf && pf.lat === coords.latitude && pf.lon === coords.longitude && pf.sp === coords.speed) return;
     const dt = st.svTs ? clamp((ts - st.svTs) / 1000, 0.04, 3) : 1;
     let z = null; let sig = null;
     const sp = coords.speed;
@@ -2915,11 +2918,23 @@ const GpsFusion = (() => {
       const dE = (coords.longitude - st.prevFix.lon) * mPerDegLon(coords.latitude);
       z = Math.hypot(dE, dN) / dts;
       sig = (1.2 * (acc + st.prevFix.acc) / 2) / dts + 0.4;
-      if (z < sig) z = 0; // смещение в пределах шума — стоим
+      if (z < sig) { z = 0; sig = 0.25; } // v195: смещение в пределах шума — стоим, и это уверенный ноль
     }
-    st.prevFix = { lat: coords.latitude, lon: coords.longitude, acc, ts };
+    st.prevFix = { lat: coords.latitude, lon: coords.longitude, acc, ts, sp: coords.speed };
+    // v195: детектор стоянки по окну ~2.5 с — все точки внутри круга accuracy → 0 (iOS на стоянке шлёт speed=-1 и дрожание ±5 м)
+    const w = st.fixWin || (st.fixWin = []);
+    w.push({ lat: coords.latitude, lon: coords.longitude, acc, ts });
+    while (w.length > 2 && ts - w[0].ts > 2500) w.shift();
+    if (!(sp != null && Number.isFinite(sp) && sp >= 0.8) && w.length >= 2 && ts - w[0].ts >= 1500) {
+      const r = Math.max(6, Math.min(25, 1.2 * Math.min(...w.map((f) => f.acc))));
+      const a0 = w[0]; const mL = mPerDegLon(a0.lat);
+      const far = w.some((f) => Math.hypot((f.lat - a0.lat) * M_PER_DEG_LAT, (f.lon - a0.lon) * mL) > r);
+      if (!far) { z = 0; sig = 0.2; }
+    }
     if (z == null) return;
-    const Rm = sig * sig;
+    st.speedAt = st.recvAt; // v195: время последнего измерения скорости (для затухания)
+    let Rm = sig * sig;
+    if (st.svReady && z < st.sv && sp != null && sp >= 0) Rm *= 0.35; // v195: асимметрия — торможение ловим быстрее разгона
     if (!st.svReady) { st.sv = z; st.sa = 0; st.sp00 = Rm; st.sp01 = 0; st.sp11 = 4; st.svReady = true; st.svTs = ts; return; }
     // predict (constant acceleration, jerk noise q)
     const q = 6;
@@ -2940,8 +2955,12 @@ const GpsFusion = (() => {
   /** v188: скорость для показа «сейчас»: экстраполяция от последнего фикса по ускорению (≤1 с) + акселерометр. */
   function displayKmhAt(now) {
     if (!st.ready || !st.svReady) return 0;
-    const age = clamp(((now || Date.now()) - st.recvAt) / 1000, 0, 1);
-    let v = st.sv + st.sa * age;
+    const rawAge = ((now || Date.now()) - (st.speedAt || st.recvAt)) / 1000;
+    const age = clamp(rawAge, 0, 1);
+    let v = st.sv + Math.min(0, st.sa) * age + Math.max(0, st.sa) * Math.min(age, 0.5);
+    // v195: точек нет >1.5 с (iOS на стоянке перестаёт слать) — гасим к нулю за ~1 с, после 3 с — 0
+    if (rawAge > 1.5) v *= Math.exp(-(rawAge - 1.5) / 0.45);
+    if (rawAge > 3) v = 0;
     if (st.imuOn && st.sa < -0.5 && st.imuLin > -st.sa && st.imuLin < 12) v = Math.min(v, st.sv - st.imuLin * age); // торможение по акселерометру
     if (st.imuOn && st.imuStillMs > 500 && st.sv * 3.6 < 25) v = 0; // акселерометр: машина стоит
     if (st.sv === 0 && st.sa === 0) v = 0;
@@ -2950,7 +2969,7 @@ const GpsFusion = (() => {
     const tn = now || Date.now();
     const dtd = st.dispTs ? clamp((tn - st.dispTs) / 1000, 0, 0.5) : 1;
     st.dispTs = tn;
-    st.dispV = v === 0 ? 0 : (st.dispV || 0) + (v - (st.dispV || 0)) * (1 - Math.exp(-dtd / 0.25));
+    { const pv = st.dispV || 0; const tau = v < pv ? 0.15 : 0.25; st.dispV = v < 0.3 ? 0 : pv + (v - pv) * (1 - Math.exp(-dtd / tau)); }
     const k = st.dispV * 3.6;
     return k < 0.5 ? 0 : k;
   }
@@ -2976,6 +2995,8 @@ const GpsFusion = (() => {
 
     // Soft/hard reject by accuracy (v188: >40 м — фикс не берём, ни в позицию, ни в скорость)
     if (acc > 40) {
+      // v195: доплер iOS валиден и при плохой accuracy — скорость обновляем (иначе на стоянке у остановки держалась старая)
+      if (coords.speed != null && Number.isFinite(coords.speed) && coords.speed >= 0) speedUpdate(coords, ts, acc);
       // ignore measurement; still tick-coast if ready
       if (st.ready) {
         const dt = st.lastGpsTs ? clamp((ts - st.lastGpsTs) / 1000, 0.05, 2.5) : 0.3;
