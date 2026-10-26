@@ -9,23 +9,23 @@ const WEEK = 7 * 86400000;
 export const PASS_STARS = 149;
 const A = './img/awards/';
 export const AWARDS = {
-  p1: { n: 'Podium P1', d: 'P1 недели на трассе' },
-  p2: { n: 'Podium P2', d: 'P2 недели на трассе' },
-  p3: { n: 'Podium P3', d: 'P3 недели на трассе' },
-  purple: { n: 'Purple Lap', d: 'быстрейший круг недели' },
-  pole: { n: 'Pole', d: 'рекорд трассы за всё время' },
-  stint: { n: 'Stint', d: 'недель подряд в топ-10' },
-  ring: { n: 'Ring Plaque', d: 'круг в пределах 107% рекорда' },
-  master: { n: 'Track Master', d: '50 кругов на одной трассе' },
-  km: { n: 'Mileage', d: '100 км кругов за неделю' },
-  laurel: { n: 'Season Laurel', d: 'P1 трассы за месяц-сезон' },
-  champ: { n: 'Champion', d: 'больше всех лавров за сезон' },
+  p1: { n: 'Подиум P1', d: 'P1 недели на трассе' },
+  p2: { n: 'Подиум P2', d: 'P2 недели на трассе' },
+  p3: { n: 'Подиум P3', d: 'P3 недели на трассе' },
+  purple: { n: 'Фиолетовый круг', d: 'быстрейший круг недели' },
+  pole: { n: 'Поул', d: 'рекорд трассы за всё время' },
+  stint: { n: 'Стинт', d: 'недель подряд в топ-10' },
+  ring: { n: 'Плакетка 107%', d: 'круг в пределах 107% рекорда' },
+  master: { n: 'Мастер трассы', d: '50 кругов на одной трассе' },
+  km: { n: 'Пробег', d: '100 км кругов за неделю' },
+  laurel: { n: 'Лавр сезона', d: 'P1 трассы за месяц-сезон' },
+  champ: { n: 'Чемпион', d: 'больше всех лавров за сезон' },
 };
 export const PASS_ITEMS = [
-  ['number', 'Race Number', 'свой номер 0–99 у ника'],
-  ['carbon', 'Carbon', 'карбоновый знак'],
-  ['helmet', 'Helmet Pin', 'пин-шлем у ника'],
-  ['wheel', 'Wheel Pin', 'пин-руль у ника'],
+  ['number', 'Гоночный номер', 'свой номер 0–99 у ника'],
+  ['carbon', 'Карбон', 'карбоновый знак'],
+  ['helmet', 'Пин-шлем', 'пин-шлем у ника'],
+  ['wheel', 'Пин-руль', 'пин-руль у ника'],
 ];
 export const CROP_CARS = new Set(['g87-m2', 'gt3rs', 'mclaren-765lt', 'g63', 'm4', 'm3', 'x6', 'isf', 'c63-ed507', 'spark']);
 export function awardImg(k, small) { return A + k + (small ? '_s' : '') + '.webp'; }
@@ -162,7 +162,7 @@ export function renderShowcase(root, { car, carName, nick, res, pass }) {
   if (src) hero.appendChild(im(src, 'sc-car', carName || ''));
   else hero.appendChild(h('p', 'tiny muted sc-nocar', 'Выбери машину в «Моя машина» — она встанет на витрину'));
   const cap = h('div', 'sc-cap');
-  cap.appendChild(h('b', '', nick || 'пилот'));
+  cap.appendChild(h('b', '', nick || 'Пилот'));
   if (pass?.active && pass.number != null) cap.appendChild(h('span', 'sc-num', '#' + pass.number));
   if (carName) cap.appendChild(h('small', '', carName));
   hero.appendChild(cap);

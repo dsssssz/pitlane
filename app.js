@@ -9796,8 +9796,10 @@ function padEl(tag, cls, text) {
 const PAD_IMG_RE = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i;
 const PAD_AVA_RE = /^https:\/\/([\w-]+\.)*(telegram\.org|t\.me|telesco\.pe)\/[^"'<>\s]+$/i;
 const isPublicPilot = (id) => /^p_[0-9a-f-]{36}$/.test(String(id || ''));
+/** v194: ник без видимых букв/цифр (одни комбинирующие знаки, пробелы) → «Пилот» */
+function padName(n) { const t = String(n || '').replace(/[\p{M}\p{Cf}\p{Cc}]/gu, '').replace(/\s+/g, ' ').trim(); return /[\p{L}\p{N}]/u.test(t) ? t : 'Пилот'; }
 function padInitials(name) {
-  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  const parts = padName(name).trim().split(/\s+/).filter(Boolean);
   const s = parts.length > 1 ? parts[0][0] + parts[1][0] : (parts[0] || 'P').slice(0, 2);
   return s.toUpperCase();
 }
@@ -9845,6 +9847,7 @@ function padCount(n) {
 }
 /** Author chip (avatar + nick + meta); a button opening the public profile when the id is an account. */
 function padAuthor({ name, pilotId, avatar, meta, size = 40 }) {
+  name = padName(name);
   const clickable = isPublicPilot(pilotId);
   const el = padEl(clickable ? 'button' : 'div', 'pad-author');
   if (clickable) { el.type = 'button'; el.dataset.pilot = pilotId; el.setAttribute('aria-label', 'Профиль: ' + (name || 'Пилот')); }
@@ -13499,7 +13502,7 @@ function openFeedbackSheet() {
   if (contact) {
     let logged = false;
     try { logged = !!accountPilotId(); } catch (_) {}
-    contact.placeholder = logged ? '@telegram или e-mail (необязательно)' : '@telegram или e-mail — чтобы мы могли ответить';
+    contact.placeholder = logged ? '@telegram или e-mail (необязательно)' : '@telegram или e-mail для ответа';
   }
 }
 
@@ -15499,12 +15502,12 @@ async function padChatData(force = false) {
   _padChatP = (async () => {
     let rows = []; try { rows = await api.listPulseRecent(); } catch (_) { rows = []; }
     rows = (Array.isArray(rows) ? rows : []).filter((p) => p && p.id && (p.text || p.hasImg)).sort((x, y) => (Number(y.at) || 0) - (Number(x.at) || 0));
-    const items = rows.map((p) => ({ kind: 'post', id: p.id, who: String(p.who || 'Пилот'), pilotId: p.pilotId || '', ava: p.ava || '', text: String(p.text || '').trim() || (p.hasImg ? 'фото' : ''), at: Number(p.at) || 0, cc: Number(p.commentCount) || 0 }));
+    const items = rows.map((p) => ({ kind: 'post', id: p.id, who: padName(p.who), pilotId: p.pilotId || '', ava: p.ava || '', text: String(p.text || '').trim() || (p.hasImg ? 'фото' : ''), at: Number(p.at) || 0, cc: Number(p.commentCount) || 0 }));
     // ответы: GET комментариев только у 2 самых свежих постов, где они есть (лимит запросов)
     const withCom = rows.filter((p) => Number(p.commentCount) > 0).slice(0, 2);
     for (const p of withCom) {
       try { const r = await api.listComments(p.id); const list = Array.isArray(r?.comments) ? r.comments : [];
-        for (const c of list.slice(-6)) if (c && c.text) items.push({ kind: 'reply', id: p.id, who: String(c.who || 'Пилот'), pilotId: c.pilotId || '', ava: c.ava || '', text: String(c.text), at: Number(c.at) || 0 });
+        for (const c of list.slice(-6)) if (c && c.text) items.push({ kind: 'reply', id: p.id, who: padName(c.who), pilotId: c.pilotId || '', ava: c.ava || '', text: String(c.text), at: Number(c.at) || 0 });
       } catch (_) {}
     }
     items.sort((x, y) => y.at - x.at);

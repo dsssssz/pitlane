@@ -7198,3 +7198,15 @@ html.tv2-open { overflow: hidden; }
 .tv2-sk b { display: block; height: 44px; margin: 10px 14px; border-radius: 10px; background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.08), rgba(255,255,255,.04)); background-size: 200% 100%; animation: tv2sk 1.2s linear infinite; }
 @keyframes tv2sk { to { background-position: -200% 0; } }
 @media (prefers-reduced-motion: reduce) { .tv2-sk b { animation: none; } }
+/* v194: виджет «Чат» на главной — последняя реплика одной строкой вместо пустого места */
+html.v159:not(#_):not(#_) #view-home #hwPad .pc-list { display: flex !important; margin-top: 2px; }
+html.v159:not(#_):not(#_) #view-home #hwPad .pc-msg-2, html.v159:not(#_):not(#_) #view-home #hwPad .pc-msg .pad-ava { display: none !important; }
+html.v159:not(#_):not(#_) #view-home #hwPad .pc-bub { display: flex !important; gap: 6px; min-width: 0; background: none !important; padding: 0 !important; border: 0 !important; font: 400 13px/18px var(--font-ui); }
+html.v159:not(#_):not(#_) #view-home #hwPad .pc-bh { flex: none; } html.v159:not(#_):not(#_) #view-home #hwPad .pc-bh time, html.v159:not(#_):not(#_) #view-home #hwPad .pc-bh em { display: none; }
+html.v159:not(#_):not(#_) #view-home #hwPad .pc-bh b { font-weight: 500; color: var(--ds-text); }
+html.v159:not(#_):not(#_) #view-home #hwPad .pc-bt { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ds-sub); }
+.tb-empty > b::first-letter, .pc-empty-t b::first-letter { text-transform: uppercase; }
+/* v194: аудит 360px — кнопки гаража в одну строку, шапка витрины наград */
+html.v159:not(#_):not(#_) .g53-mine, html.v159:not(#_):not(#_) .g53-3d { white-space: nowrap; padding-left: 12px !important; padding-right: 12px !important; }
+.sc-head { flex-wrap: wrap; gap: 2px 10px; }
+.sc-head h3 { white-space: nowrap; }
