@@ -590,25 +590,13 @@
 
         <section id="view-lap" class="view">
           <h2 data-i18n="lap.title">Трек</h2>
-          <!-- v158: выбор трассы — карточки с силуэтом, длиной, вашим лучшим и рекордом трассы -->
-          <div class="tk58" id="tk58" role="listbox" aria-label="Трасса" aria-orientation="horizontal"></div>
           <!-- v190: список трасс с контурами OSM и карточка трассы (2D-карта) -->
-          <div class="tv2" id="tv2"></div>
+          <div class="tv2" id="tv2"><div class="tv2-sk" aria-hidden="true"><i></i><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></div></div>
           <div class="grid-2 lap-grid">
             <article class="card lap-track-card">
-              <h3 data-i18n="lap.track">Трасса</h3>
               <select id="trackSelect" class="sr-select"></select>
-              <div class="wheel" id="trackWheel"></div>
-              <!-- v96/v100: 3D chase-навигатор (Сочи) — машина едет строго по GPS; «сверху» = классическая карта -->
-              <div class="lt-mode seg-control hidden" id="lapTrackMode" role="group" aria-label="Вид трассы">
-                <button type="button" class="seg-btn on" data-lt-mode="chase" aria-pressed="true">сзади</button>
-                <button type="button" class="seg-btn" data-lt-mode="top" aria-pressed="false">сверху</button>
-              </div>
-              <div class="lt-chase hidden" id="lapTrackChase" aria-hidden="true"><span class="chase-tag">нет GPS</span><div class="chase-hud" aria-live="off"><span class="chase-v"><b data-chase-v>0</b><i>км/ч</i></span><span class="chase-acc" data-chase-acc>GPS —</span></div><p class="chase-note hidden" data-chase-note></p><div class="chase-acts"><button type="button" class="chase-btn chase-btn-gps hidden" data-chase-act="gps">Включить GPS</button><button type="button" class="chase-btn hidden" data-chase-act="demo" aria-pressed="false">Демо</button></div></div>
-              <div class="track-map" id="trackMap"></div>
               <button type="button" class="ad-linkish" id="btnAutodromesLap">Автодромы · справочник</button>
               <button type="button" class="vt-open vt-open-lap" id="btnVideoLap">Видео с телеметрией</button>
-              <p class="lap-best">ваш лучший <strong id="trackMine">—</strong></p>
               <button type="button" class="mycar-chip" id="btnMyCarLap"><span>машина для зачёта</span><b data-mycar-line>не выбрана</b><i class="mycar-chip-go" aria-hidden="true">выбрать</i></button>
               <!-- v161: сессия как в Track Precision — трасса выбрана карточкой, ниже параметры сессии строками, затем «Начать сессию» -->
               <div class="t61-sess" role="group" aria-label="Параметры сессии">

@@ -16864,12 +16864,15 @@ function ls58Close() { const box = document.getElementById('ls58'); if (!box) re
   if (lv) new MutationObserver(() => { if (lv.classList.contains('active')) { tk58Render(); tk58Pick(document.getElementById('trackSelect')?.value || TRACKS[0].id, { instant: true }); } }).observe(lv, { attributes: true, attributeFilter: ['class'] });
   setTimeout(() => { try { tk58Render(); } catch (_) {} }, 900);
   // v189: новый «Трек» — список 16 трасс + карточка/3D (модуль грузится лениво при открытии вкладки)
-  let tv2Booted = false;
+  let tv2Booted = false; let tv2P = null;
+  // v193: модуль предзагружается заранее, пока грузится — скелетон в #tv2 (старое меню трека удалено)
+  const tv2Mod = () => (tv2P ||= import('./track-v2/tv2.js?v=190').catch((e) => { tv2P = null; throw e; }));
+  (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => { tv2Mod().catch(() => {}); });
   const tv2Boot = () => { if (tv2Booted) return; const host = document.getElementById('tv2'); if (!host) return; tv2Booted = true;
     const B = { tracks: TRACKS, myBest: tk58MyBest, laps: tk58Laps, fmt: fmtLapTime, theo: lh58Theo, full: lh58Full,
       pick: (id) => { try { tk58Pick(id, {}); } catch (_) {} },
       record: async (id) => { TK58.recAt[id] = 0; await tk58Record(id); return TK58.rec[id] || null; } };
-    import('./track-v2/tv2.js?v=190').then((m) => m.mountList(host, B)).catch((e) => { tv2Booted = false; console.warn('tv2', e); }); };
+    tv2Mod().then((m) => m.mountList(host, B)).catch((e) => { tv2Booted = false; console.warn('tv2', e); }); };
   if (lv) { new MutationObserver(() => { if (lv.classList.contains('active')) tv2Boot(); }).observe(lv, { attributes: true, attributeFilter: ['class'] }); if (lv.classList.contains('active')) tv2Boot(); }
   document.getElementById('ls58')?.addEventListener('click', (e) => { if (e.target?.id === 'ls58') ls58Close(); });
   window.__v160 = { gauge: (v) => hudZones(v, false), bar: lh60Bar, enter: lh60Enter }; window.__tk58 = { pick: tk58Pick, flash: (l) => lh58Flash(l, lapRun.trackId), summary: ls58Open, tick: lh58Tick, lapRun, lapSession }; // скриншоты/отладка

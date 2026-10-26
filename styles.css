@@ -7192,3 +7192,9 @@ html.tv2-open { overflow: hidden; }
 .pp-msg { margin: 8px 0 0; }
 .lb92-num, .sc-num { background: #f2efe9; color: #0b0c0e !important; }
 .sc-bar i { background: #cfcfcf; }
+/* v193: скелетон списка трасс, пока грузится модуль tv2 */
+.tv2-sk { border: 1px solid rgba(255,255,255,.08); border-radius: 18px; background: #111; padding: 6px 0; margin-top: 22px; }
+.tv2-sk i { display: block; height: 10px; width: 140px; margin: 10px 14px 8px; border-radius: 4px; background: rgba(255,255,255,.06); }
+.tv2-sk b { display: block; height: 44px; margin: 10px 14px; border-radius: 10px; background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.08), rgba(255,255,255,.04)); background-size: 200% 100%; animation: tv2sk 1.2s linear infinite; }
+@keyframes tv2sk { to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .tv2-sk b { animation: none; } }

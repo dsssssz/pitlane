@@ -39,7 +39,7 @@ export const PLATE_CONFIG = {
   spark: { front: { mesh: /bumper_F_plateholder/i }, rear: { y: 1.06 } },
 };
 
-/** Baked placements (tools/plates-smoke.html ?bake) — [end, pos, quat, scale, hiddenMesh] in glbRoot-local units.
+/** Baked placements (?bake (dev-скрипт удалён в v193, см. git history)) — [end, pos, quat, scale, hiddenMesh] in glbRoot-local units.
  *  Runtime uses these (zero raycast cost on switch); PLATE_CONFIG + raycast is the fallback / re-bake source. */
 // v110: m4 + spark rear re-baked into the stock recesses (trunk lid / tailgate)
 const PLATE_BAKED = {
