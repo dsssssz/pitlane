@@ -8,7 +8,7 @@
   /* цвет */
   --ds-bg: #000; --ds-bg-1: #0a0a0a; --ds-bg-2: #141414; --ds-bg-3: #1c1c1e; --ds-fill: rgba(255,255,255,.04); --ds-fill-2: rgba(255,255,255,.07);
   --ds-line: rgba(255,255,255,.08); --ds-line-2: rgba(255,255,255,.16); --ds-line-3: rgba(255,255,255,.32);
-  --ds-text: #f2efe9; --ds-sub: #8a8a8a; --ds-mute: #6b6b6b;
+  --ds-text: #f2efe9; --ds-sub: #9a9a9a; --ds-mute: #7a7a7a;
   --acc-rgb: 201, 198, 191; --ds-acc: rgb(var(--acc-rgb));
   --ds-good: #7fae8f; --ds-bad: #d0675c; --accent-signal: #e12323; --carbon: url('img/carbon-twill.svg'); /* v181: карбон 2/2 саржа, 2 КБ SVG-плитка, белым на 2–5 % */ /* v177: сигнальный красный (как дуга логотипа) — только индикаторы, ~5% акцентов; дельты остаются приглушённым #d0675c */ --ds-on-light: #000; --ds-light: #f2f2f2;
   /* сетка 8 px */
@@ -7029,3 +7029,15 @@ html.v159:not(#_):not(#_) .prof-banner { background-color: #101010 !important; b
 html.v159:not(#_):not(#_) #rdFinal .rd-hero { background-color: var(--ds-bg-1); background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; border: 1px solid var(--ds-line); border-radius: var(--r3); padding: var(--s3) var(--s2) !important; }
 html.v159:not(#_):not(#_) #view-shop .shop-card-hero { background-color: var(--ds-bg-1); background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; border: 1px solid var(--ds-line) !important; border-radius: var(--r3) !important; padding: var(--s2) !important; }
 html.v159:not(#_):not(#_) #view-garage #g63Specs { background-color: var(--ds-bg-1); background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; border: 1px solid var(--ds-line); border-radius: var(--r3); padding: var(--s2) !important; }
+
+/* v187: фиксы по аудиту */
+html.v159:not(#_):not(#_) #view-home #hwCar { aspect-ratio: auto !important; height: auto !important; }
+html.v159:not(#_):not(#_) #view-home.view { grid-auto-rows: max-content !important; align-content: start; }
+html.v159:not(#_):not(#_) .bn52-s { width: 100% !important; max-width: none !important; }
+html.v159:not(#_):not(#_) .bn52-dot { position: relative; overflow: visible; }
+html.v159:not(#_):not(#_) .bn52-dot::after { content: ''; position: absolute; left: -4px; right: -4px; top: -21px; bottom: -21px; }
+html.v159:not(#_):not(#_) #btnMenu, html.v159:not(#_):not(#_) #btnProfile { width: 44px !important; height: 44px !important; min-height: 44px !important; }
+.web-hero { display: flex; align-items: center; gap: 12px; margin: 0 0 var(--s3, 16px); padding: 12px 14px; border: 1px solid var(--ds-line); border-radius: var(--r3, 8px); background: #101111; }
+.web-hero[hidden] { display: none; }
+.web-hero-t { flex: 1; margin: 0; font: 400 13px/1.4 var(--font-ui); color: var(--ds-sub); }
+.web-hero-btn, .web-hero-btn:visited { flex: none; color: #0b0b0b !important; display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 8px; background: var(--ds-text); color: #0b0b0b; font: 600 14px/1 var(--font-ui); text-decoration: none; }

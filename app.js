@@ -2298,7 +2298,8 @@ function mkStoredDoors(root) {
 }
 
 function paintCar(cfg) {
-  applyPaint();
+  // v187: paint (const ниже по модулю) ещё в TDZ при раннем вызове — откладываем до конца инициализации модуля
+  queueMicrotask(() => { try { applyPaint(); } catch (e) { console.warn('paintCar', e); } });
   return;
   /* legacy 3d */
 
@@ -12989,7 +12990,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v186';
+const APP_VERSION = 'v187';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -17029,3 +17030,7 @@ window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
   q();
   window.__c171 = { tick }; window.__skel171 = skel171;
 })();
+
+/* v187: inline onsubmit убраны (CSP) + строка «что это» только вне Telegram */
+['authForm', 'feedbackForm'].forEach((id) => document.getElementById(id)?.addEventListener('submit', (e) => e.preventDefault()));
+if (!tmaInitData && !isTMA) { const h = document.getElementById('webHero'); if (h) h.hidden = false; }

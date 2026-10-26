@@ -162,6 +162,11 @@
         <div class="view-host" id="viewHost">
         <!-- v84: Главная — карусель разделов, моя машина, топ постов за сутки -->
         <section id="view-home" class="view active">
+          <!-- v187: только вне Telegram — что это + кнопка в бота -->
+          <div class="web-hero" id="webHero" hidden>
+            <p class="web-hero-t">Замеры 0–100 и круги по GPS. Работает в Telegram.</p>
+            <a class="web-hero-btn" href="https://t.me/pitlane_official_bot" target="_blank" rel="noopener">Открыть в Telegram</a>
+          </div>
           <!-- v152: карусель баннеров (scroll-snap, точки, авто 6 с, пауза на касании). v163: светлые фото, скрим только под текстом, CTA; каждый ведёт в свой раздел -->
           <section class="bn52" id="bn52" aria-roledescription="карусель" aria-label="Pitlane">
             <div class="bn52-track" id="bn52Track">
@@ -408,7 +413,7 @@
           </div>
           <div id="emptyGarage" class="empty-garage hidden" aria-hidden="true">
             <div class="empty-sil-stage" aria-hidden="true">
-              <img id="emptySil" class="empty-sil empty-sil-dotted" src="./img/sil/empty-car.png" alt="" />
+              <picture><source srcset="./img/sil/empty-car.webp" type="image/webp"><img id="emptySil" class="empty-sil empty-sil-dotted" src="./img/sil/empty-car.png" alt="" /></picture>
             </div>
             <h2 data-i18n="garage.empty">Гараж пока пуст</h2>
             <p class="muted" data-i18n="garage.hint">Добавьте машину — и замеры будут сохраняться за ней.</p>
@@ -904,7 +909,7 @@
           
           
           <!-- Audio: JaimeLopes «Lambo Start Up Sound» Freesound #564373 — CC0 -->
-          <form id="authForm" class="card auth-card" onsubmit="event.preventDefault();">
+          <form id="authForm" class="card auth-card">
             <h3 data-i18n="acc.login">Вход</h3>
             <p class="muted" data-i18n="acc.hint">Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.</p>
             <div id="authProviders" class="auth-providers">
@@ -1589,7 +1594,7 @@
           <h2 class="race-sheet-title crew-title">Обратная связь</h2>
           <p class="race-sheet-sub crew-lead">Ошибка, идея или жалоба — сообщение уйдёт команде Pitlane</p>
         </header>
-        <form id="feedbackForm" class="race-sheet-body" novalidate onsubmit="event.preventDefault();">
+        <form id="feedbackForm" class="race-sheet-body" novalidate>
           <div class="seg-control fb-types" role="radiogroup" aria-label="Тип обращения">
             <button type="button" class="seg-btn on" role="radio" aria-checked="true" data-fb-type="bug">Ошибка</button>
             <button type="button" class="seg-btn" role="radio" aria-checked="false" data-fb-type="idea">Идея</button>

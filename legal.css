@@ -77,3 +77,8 @@ html, body { background: #000; color: #f5f5f5; }
 .legal .back { color: #8a8a8a; font: 500 11px/16px "PL Sans", system-ui, sans-serif; letter-spacing: .08em; }
 .btn { border-radius: 4px; background: #f2f2f2; color: #000; border: 1px solid #f2f2f2; font: 600 15px/1 "PL Sans", system-ui, sans-serif; }
 .field input { border-radius: 4px; background: transparent; border: 1px solid rgba(255,255,255,.16); }
+
+/* v187: заголовки разделов 13px, чуть светлее серый */
+.legal h2 { font-size: 13px !important; line-height: 18px !important; color: #a0a0a0 !important; }
+.legal .meta, .legal footer, .muted { color: #9a9a9a !important; }
+.legal .back { font-size: 13px !important; }
