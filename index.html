@@ -149,7 +149,7 @@
 
         <div class="view-host" id="viewHost">
         <!-- v84: Главная — карусель разделов, моя машина, топ постов за сутки -->
-        <section id="view-home" class="view active">
+        <section id="view-home" class="view">
           <!-- v187: только вне Telegram — что это + кнопка в бота -->
           <div class="web-hero" id="webHero" hidden>
             <p class="web-hero-t">Замеры 0–100 и круги по GPS. Работает в Telegram.</p>
@@ -215,6 +215,7 @@
               <span class="hw-car-chip" id="hwCarBest" hidden></span>
               <span class="h63-stats" id="hwCarStats" aria-label="Лучшие времена"></span>
             </button>
+            <button type="button" class="hw hw-wide z202-addcar" id="hwAddCar" hidden><span class="z202-add-ico" aria-hidden="true">+</span><span><b>Добавь свою машину</b><small>Рекорды и место в топе — под твоей машиной</small></span></button>
             <!-- v158: статистика — место в топе, замеры за неделю, последняя сессия (только реальные данные; пусто — скрыто). v163: три равные плитки сетки -->
             <div class="hw-stats" id="hwStats" data-hw="stats" role="group" aria-label="Моя статистика" hidden><button type="button" class="hw hw58-c" id="hw58Place" data-hw="tops" aria-label="Место в топе города — открыть топы" hidden><span class="hw58-k">Топ города</span><b class="hw58-v" id="hw58PlaceV">—</b><span class="hw58-s" id="hw58PlaceS"></span></button><button type="button" class="hw hw58-c" id="hw58Week" data-hw="stats" aria-label="Заезды за 7 дней — открыть Журнал" hidden><span class="hw58-k">За 7 дней</span><b class="hw58-v" id="hw58WeekV">—</b><span class="hw58-s" id="hw58WeekS"></span></button><button type="button" class="hw hw58-c" id="hw58Last" data-hw="stats" aria-label="Последний заезд — открыть Журнал" hidden><span class="hw58-k">Последняя</span><b class="hw58-v" id="hw58LastV">—</b><span class="hw58-s" id="hw58LastS"></span></button></div>
             <button type="button" class="hw" id="hwRec" data-hw="records"><span class="hw-k">Мои рекорды</span><span class="hw-body" id="hwRecBody"></span></button>
@@ -328,19 +329,21 @@
           </section>
         </section>
 
-        <section id="view-zamer" class="view">
+        <section id="view-zamer" class="view active">
           <!-- v152: вкладка «Замер» — одна кнопка «Старт», под ней машина и GPS -->
           <section class="h48" id="h48" aria-label="Замер">
             <div class="h56-mode" id="h56Mode" role="radiogroup" aria-label="Режим старта"><button type="button" role="radio" data-as56="0" aria-checked="true">Вручную</button><button type="button" role="radio" data-as56="1" aria-checked="false">Автостарт</button></div>
             <button type="button" class="h48-start" id="h48Start">Старт<small class="h56-sub" id="h56Sub"></small></button>
             <p class="h48-car" id="h48Car">Машина не выбрана</p>
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
+            <p class="z202-hint" id="z202Hint">Сядь в машину и нажми Старт</p>
             <div class="z61-rows" role="group" aria-label="Параметры замера">
               <button type="button" class="ds-row" id="z61Gps" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="ds-row-v" data-gps61>Телефон</span></button>
               <button type="button" class="ds-row" id="z61Ghost" aria-haspopup="dialog" aria-controls="ghost74"><span class="ds-row-k">Призрак</span><span class="ds-row-v" id="z61GhostV">Без призрака</span></button>
               <button type="button" class="ds-row" data-view="history" data-jf="run"><span class="ds-row-k">Журнал замеров</span><span class="ds-row-v" id="z61Last">—</span></button>
             </div>
             <button type="button" class="v54-video" id="h54Video" aria-label="Старт с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>
+            <button type="button" class="z202-top" id="z202Top" data-view="tops" hidden><span class="z202-top-k">Топ 0–100</span><ol class="z202-top-l" id="z202TopL"></ol></button>
           </section>
         </section>
 
@@ -984,8 +987,8 @@
         </div>
       <!-- v148: нижняя панель — Замер / Гараж / Профиль -->
       <nav class="nav3" id="nav3" aria-label="Разделы">
-        <button type="button" class="nav3-btn on" data-n3="home" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-6h4v6"/></svg><span>Главная</span></button>
-        <button type="button" class="nav3-btn" data-n3="zamer"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Замер</span></button>
+        <button type="button" class="nav3-btn on" data-n3="zamer" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Замер</span></button>
+        <button type="button" class="nav3-btn" data-n3="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-6h4v6"/></svg><span>Главная</span></button>
         <button type="button" class="nav3-btn" data-n3="lap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18c0-4 2.5-5.5 5.5-5.5S15 11 15 8s2.2-3.5 4.5-2.5"/><circle cx="5" cy="18" r="1.6"/><path d="M15.5 18h4M17.5 16v4"/></svg><span>Трек</span></button>
         <button type="button" class="nav3-btn" data-n3="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 15.5l1.6-4.4A2 2 0 0 1 7 9.8h10a2 2 0 0 1 1.9 1.3l1.6 4.4"/><path d="M3.5 15.5h17v2.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1h-10v1a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r=".6"/><circle cx="16.5" cy="15.5" r=".6"/></svg><span>Гараж</span></button>
       </nav>

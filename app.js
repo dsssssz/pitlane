@@ -10841,7 +10841,20 @@ setInterval(() => {
 /* -------- PWA deep link / home-screen shortcuts -------- */
 (function bootDeepLinkView() {
   const deep = getDeepLinkView();
-  if (!deep.view) return;
+  if (!deep.view) {
+    // v202: по умолчанию приложение открывается на «Замере»; ссылки (#r=/#s=, startapp, ?screen=) ведут куда указывают
+    let sp = '';
+    try { sp = String(window.Telegram?.WebApp?.initDataUnsafe?.start_param || new URLSearchParams(location.search).get('tgWebAppStartParam') || ''); } catch (_) {}
+    const hasLink = !!sp || /^#([rs]|duel|crew|view)=/i.test(location.hash || '') || /[?&](screen|startapp|r|s)=/i.test(location.search || '');
+    if (!hasLink) {
+      const z = () => { try { if (document.querySelector('.view.active')?.id !== 'view-zamer') goToView('zamer'); } catch (_) {} try { void renderZamerTop202(); } catch (_) {} };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(z, 0)); else setTimeout(z, 0);
+    } else if (document.querySelector('.view.active')?.id === 'view-zamer' && !deep.view) {
+      // ссылка без view: прежнее поведение — стартуем с главной, обработчик ссылки откроет нужное
+      try { goToView('home'); } catch (_) {}
+    }
+    return;
+  }
   const apply = () => {
     try { goToView(deep.view); } catch (_) {}
     clearDeepLinkUrl();
@@ -15456,6 +15469,13 @@ function homeBest0100(carId, remote) {
   return c > 0 ? { t: c, cls: 'c' } : null;
 }
 function renderHwCar(remote) {
+  // v202: гостю/новичку без своей машины — не демо-BMW с прочерками, а приглашение добавить машину
+  try {
+    const guest = !(Array.isArray(state.garage) && state.garage.length);
+    const hc = document.getElementById('hwCar'); if (hc) hc.hidden = guest;
+    const ad = document.getElementById('hwAddCar'); if (ad) ad.hidden = !guest;
+    if (guest) return;
+  } catch (_) {}
   const id = homeHeroCarId();
   const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0];
   if (!m) return;
@@ -17226,3 +17246,30 @@ function closePassSheet() { const sh = document.getElementById('passSheet'); if 
 document.getElementById('btnPass')?.addEventListener('click', () => openPassSheet());
 document.getElementById('passClose')?.addEventListener('click', () => closePassSheet());
 document.getElementById('passSheet')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closePassSheet(); });
+
+/* v202: компактный топ 0–100 под «Стартом» — экран «Замер» не пустой у гостя */
+let _z202At = 0;
+async function renderZamerTop202() {
+  const box = document.getElementById('z202Top'); const ol = document.getElementById('z202TopL');
+  if (!box || !ol || Date.now() - _z202At < 60000) return;
+  _z202At = Date.now();
+  let rows = [];
+  try { if (isRemoteApi()) rows = (await api.listDrag('0-100', {})) || []; } catch (_) { rows = []; }
+  try { rows = filterTopRows(rows, {}); } catch (_) {}
+  rows = rows.filter((r) => r && Number(r.t) > 0).sort((a, b) => Number(a.t) - Number(b.t)).slice(0, 3);
+  ol.replaceChildren();
+  if (!rows.length) {
+    const li = document.createElement('li'); li.className = 'z202-empty';
+    li.textContent = 'Первое место свободно — займи его';
+    ol.appendChild(li);
+  } else rows.forEach((r, i) => {
+    const li = document.createElement('li');
+    const n = document.createElement('span'); n.className = 'z202-n'; n.textContent = String(i + 1);
+    const nm = document.createElement('span'); nm.className = 'z202-nm'; nm.textContent = String(r.name || r.nick || 'Пилот').slice(0, 24);
+    const t = document.createElement('b'); t.textContent = Number(r.t).toFixed(2) + ' с';
+    li.append(n, nm, t); ol.appendChild(li);
+  });
+  box.hidden = false;
+}
+document.getElementById('hwAddCar')?.addEventListener('click', () => { try { openMyCarSheet({}); } catch (_) { goToView('garage'); } });
+document.querySelector('[data-n3="zamer"]')?.addEventListener('click', () => { try { void renderZamerTop202(); } catch (_) {} });

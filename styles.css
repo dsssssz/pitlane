@@ -7257,3 +7257,23 @@ html .pp-pill { display: inline-flex; align-items: center; gap: 5px; height: 34p
 .ps-buy:disabled { cursor: default; color: #8a8a8f; background: rgba(255,255,255,.06); box-shadow: none; }
 .ps-msg { text-align: center; margin: 10px 0 0; }
 @media (min-width: 900px) { .pass-sheet .pass-inner { max-width: 440px; margin-left: auto; margin-right: auto; } }
+
+/* v202: Замер первым — подсказка, компактный топ; гость без машины на Главной */
+.z202-hint { display: none; margin: 14px 0 0; font: 500 13px/1.35 var(--font-ui); letter-spacing: .02em; color: #a9abb0; }
+.h48-gps[data-q="idle"] ~ .z202-hint { display: block; }
+.z202-top { display: block; width: 100%; margin: 18px 0 0; padding: 12px 14px; text-align: left; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.07); border-radius: 14px; color: inherit; font: inherit; min-height: 0; }
+.z202-top[hidden] { display: none; }
+.z202-top-k { display: block; font: 600 10.5px/1 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: #75787e; margin-bottom: 8px; }
+.z202-top-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.z202-top-l li { display: flex; align-items: center; gap: 10px; font: 400 13px/1.3 var(--font-ui); color: #c9cacd; }
+.z202-n { width: 16px; color: #75787e; font-variant-numeric: tabular-nums; }
+.z202-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.z202-top-l b { font: 600 13px/1 var(--font-ui); font-variant-numeric: tabular-nums; color: #ecebe7; }
+.z202-empty { color: #9a9da3 !important; }
+.z202-addcar { display: flex; align-items: center; gap: 14px; padding: 16px; text-align: left; }
+.z202-addcar[hidden] { display: none; }
+.z202-add-ico { flex: none; width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(255,255,255,.16); display: grid; place-items: center; font: 300 22px/1 var(--font-ui); color: #ecebe7; }
+.z202-addcar b { display: block; font: 600 15px/1.25 var(--font-ui); color: #ecebe7; }
+.z202-addcar small { display: block; margin-top: 3px; font: 400 12px/1.3 var(--font-ui); color: #8a8d93; }
+html .hw.z202-addcar { flex-direction: row; align-items: center; justify-content: flex-start; min-height: 0; padding: 16px 18px; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.08); border-radius: 18px; }
+html .hw.z202-addcar > span:last-child { display: block; }
