@@ -16837,7 +16837,7 @@ function ls58Close() { const box = document.getElementById('ls58'); if (!box) re
     const B = { tracks: TRACKS, myBest: tk58MyBest, laps: tk58Laps, fmt: fmtLapTime, theo: lh58Theo, full: lh58Full,
       pick: (id) => { try { tk58Pick(id, {}); } catch (_) {} },
       record: async (id) => { TK58.recAt[id] = 0; await tk58Record(id); return TK58.rec[id] || null; } };
-    import('./track-v2/tv2.js?v=189').then((m) => m.mountList(host, B)).catch((e) => { tv2Booted = false; console.warn('tv2', e); }); };
+    import('./track-v2/tv2.js?v=190').then((m) => m.mountList(host, B)).catch((e) => { tv2Booted = false; console.warn('tv2', e); }); };
   if (lv) { new MutationObserver(() => { if (lv.classList.contains('active')) tv2Boot(); }).observe(lv, { attributes: true, attributeFilter: ['class'] }); if (lv.classList.contains('active')) tv2Boot(); }
   document.getElementById('ls58')?.addEventListener('click', (e) => { if (e.target?.id === 'ls58') ls58Close(); });
   window.__v160 = { gauge: (v) => hudZones(v, false), bar: lh60Bar, enter: lh60Enter }; window.__tk58 = { pick: tk58Pick, flash: (l) => lh58Flash(l, lapRun.trackId), summary: ls58Open, tick: lh58Tick, lapRun, lapSession }; // скриншоты/отладка
