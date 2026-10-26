@@ -52,7 +52,7 @@ export const SHOP_PRODUCTS = [
     subtitle: 'Внешний GPS 25 Гц для трека',
     // Себестоимость комплекта на 1 прибор — до 5 450 ₽ (верхняя граница BOM, hardware/pitlane-gps/docs/kit),
     // наценка 25 %: 5 450 × 1,25 = 6 812,5 → 6 800 ₽.
-    price: 6800,
+    price: 7500,
     status: 'preorder',
     maxQty: 5,
     gallery: [
