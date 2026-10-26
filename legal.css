@@ -82,3 +82,12 @@ html, body { background: #000; color: #f5f5f5; }
 .legal h2 { font-size: 13px !important; line-height: 18px !important; color: #a0a0a0 !important; }
 .legal .meta, .legal footer, .muted { color: #9a9a9a !important; }
 .legal .back { font-size: 13px !important; }
+/* docs.html (Robokassa): карточка товара, красный акцент */
+.docs-page h1 { color: #f0f0f0; }
+.docs-page h1::after { content: ""; display: block; width: 44px; height: 3px; margin-top: 10px; background: #d23c3c; border-radius: 2px; }
+.docs-page .toc a { color: #e8e8e8; text-decoration: none; border: 1px solid rgba(255,255,255,.12); padding: 4px 10px; border-radius: 999px; }
+.docs-page .doc-card { background: #222; border: 1px solid rgba(255,255,255,.08); border-left: 3px solid #d23c3c; border-radius: 12px; padding: 14px; margin: 8px 0 14px; }
+.docs-page .doc-card-t { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.docs-page .doc-price { color: #fff; font-weight: 800; font-size: 18px; }
+.docs-page .doc-tag { color: #d23c3c; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin: 0; }
+.docs-page th { width: 34%; }

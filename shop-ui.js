@@ -57,6 +57,7 @@ function viewList() {
   }
   f.appendChild(ordersBlock());
   f.appendChild(el('p', 'shop-foot', 'Онлайн-оплаты пока нет: оформляете заявку — мы пишем вам в Telegram и договариваемся об оплате и доставке.'));
+  { const d = el('a', 'shop-docs-link', 'Продавец, доставка, возврат и оферта →'); d.href = './docs.html'; f.appendChild(d); }
   return f;
 }
 function ordersBlock() {

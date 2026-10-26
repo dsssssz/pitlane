@@ -7,9 +7,9 @@
  */
 export const LEGAL_CONFIG = {
   operatorName: '', // ФИО самозанятого / название
-  inn: '',          // ИНН
-  email: '',        // e-mail для обращений
-  taxStatus: '',    // например: 'плательщик налога на профессиональный доход (самозанятый)'
+  inn: '',          // ИНН — вставить сюда (и в docs.html вместо {{INN}}); ВНИМАНИЕ: operatorName+inn+email вместе включают продажу Pro (legalReady)
+  email: 'rashidlyubomirsky@yandex.com',        // e-mail для обращений
+  taxStatus: 'плательщик налога на профессиональный доход (самозанятый)',    // например: 'плательщик налога на профессиональный доход (самозанятый)'
 };
 export const LEGAL_REVISION = '11.10.2026'; // v137: + заявки магазина
 export const LEGAL_CONTACT_BOT = 'pitlane_official_bot';
