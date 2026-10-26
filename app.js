@@ -153,7 +153,7 @@ const TRACKS = [
   { id: 'nring', name: 'NRING Нижний Новгород', cult: true, km: '3.12', turns: '12' , corners: 'Короткое кольцо, плотная нарезка, мало времени на ошибку.'},
   { id: 'adm', name: 'ADM Raceway Мячково', cult: true, km: '3.25', turns: '16' , corners: 'Мячково: старое кольцо, короткие прямые, много направления.'},
   { id: 'grozny', name: 'Fort Grozny Autodrom', cult: true, km: '3.08', turns: '11' , corners: 'Крепость: относительно короткое GP, понятные зоны торможения.'},
-  { id: 'redring', name: 'Красное Кольцо Красноярск', cult: true, km: '2.80', turns: '10' , corners: 'Компактное кольцо, меньше поворотов, акцент на ритм.'},
+  { id: 'redring', name: 'Красное Кольцо Красноярск', cult: true, km: '2.16', turns: '13' , corners: 'Компактное кольцо, меньше поворотов, акцент на ритм.'},
   { id: 'spb', name: 'Автодром Санкт-Петербург', km: '2.90', turns: '9' , corners: 'Городской/короткий профиль, тесные связки.'},
   { id: 'tlt', name: 'Тольятти Ринг', km: '2.96', turns: '10' , corners: 'Кольцо с средней длиной прямых.'},
   { id: 'lipetsk', name: 'Липецкий автодром', km: '2.87', turns: '8' , corners: 'Короткий автодром, стоп-энд-гоу.'},
@@ -16597,7 +16597,7 @@ async function tk58Record(trackId) {
   if (TK58.recAt[trackId] && Date.now() - TK58.recAt[trackId] < 300000) return;
   TK58.recAt[trackId] = Date.now();
   let rows = []; try { rows = isRemoteApi() ? await api.listLap(trackId) : []; } catch (_) { rows = []; }
-  let best = null; for (const r of (Array.isArray(rows) ? rows : [])) { const ms = tk58RowMs(r); if (ms && (!best || ms < best.ms)) best = { ms, name: String(r.name || 'пилот') }; }
+  let best = null; for (const r of (Array.isArray(rows) ? rows : [])) { const ms = tk58RowMs(r); if (ms && (!best || ms < best.ms)) best = { ms, name: String(r.name || 'пилот'), car: r.car ? String(r.car) : '', at: r.at || null }; }
   TK58.rec[trackId] = best; tk58Paint();
 }
 function tk58Render() {
@@ -16831,6 +16831,14 @@ function ls58Close() { const box = document.getElementById('ls58'); if (!box) re
   const lv = document.getElementById('view-lap');
   if (lv) new MutationObserver(() => { if (lv.classList.contains('active')) { tk58Render(); tk58Pick(document.getElementById('trackSelect')?.value || TRACKS[0].id, { instant: true }); } }).observe(lv, { attributes: true, attributeFilter: ['class'] });
   setTimeout(() => { try { tk58Render(); } catch (_) {} }, 900);
+  // v189: новый «Трек» — список 16 трасс + карточка/3D (модуль грузится лениво при открытии вкладки)
+  let tv2Booted = false;
+  const tv2Boot = () => { if (tv2Booted) return; const host = document.getElementById('tv2'); if (!host) return; tv2Booted = true;
+    const B = { tracks: TRACKS, myBest: tk58MyBest, laps: tk58Laps, fmt: fmtLapTime, theo: lh58Theo, full: lh58Full,
+      pick: (id) => { try { tk58Pick(id, {}); } catch (_) {} },
+      record: async (id) => { TK58.recAt[id] = 0; await tk58Record(id); return TK58.rec[id] || null; } };
+    import('./track-v2/tv2.js?v=189').then((m) => m.mountList(host, B)).catch((e) => { tv2Booted = false; console.warn('tv2', e); }); };
+  if (lv) { new MutationObserver(() => { if (lv.classList.contains('active')) tv2Boot(); }).observe(lv, { attributes: true, attributeFilter: ['class'] }); if (lv.classList.contains('active')) tv2Boot(); }
   document.getElementById('ls58')?.addEventListener('click', (e) => { if (e.target?.id === 'ls58') ls58Close(); });
   window.__v160 = { gauge: (v) => hudZones(v, false), bar: lh60Bar, enter: lh60Enter }; window.__tk58 = { pick: tk58Pick, flash: (l) => lh58Flash(l, lapRun.trackId), summary: ls58Open, tick: lh58Tick, lapRun, lapSession }; // скриншоты/отладка
 })();

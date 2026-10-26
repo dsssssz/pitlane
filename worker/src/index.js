@@ -750,7 +750,7 @@ const LAP_MAX_MS = 60 * 60_000; // 1 h (Nordschleife tourist laps are ~8–12 mi
  * LAP_MAX_AVG_KMH — faster than the F1 lap record on any of these tracks — is impossible for a road/track car. */
 const TRACK_KM = {
   sochi: 5.85, moscow: 3.93, igora: 5.18, kazan: 3.48, smolensk: 3.36, nring: 3.12, adm: 3.25, grozny: 3.08,
-  redring: 2.80, spb: 2.90, tlt: 2.96, lipetsk: 2.87, 'auto-msk': 2.94, neva: 2.88, ufa: 2.97, don: 2.92,
+  redring: 2.16, spb: 2.90, tlt: 2.96, lipetsk: 2.87, 'auto-msk': 2.94, neva: 2.88, ufa: 2.97, don: 2.92,
 };
 const LAP_MAX_AVG_KMH = 260;
 const SECTOR_MIN_MS = 3000;
