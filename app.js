@@ -2957,10 +2957,14 @@ const GpsFusion = (() => {
     if (!st.ready || !st.svReady) return 0;
     const rawAge = ((now || Date.now()) - (st.speedAt || st.recvAt)) / 1000;
     const age = clamp(rawAge, 0, 1);
-    let v = st.sv + Math.min(0, st.sa) * age + Math.max(0, st.sa) * Math.min(age, 0.5);
-    // v195: точек нет >1.5 с (iOS на стоянке перестаёт слать) — гасим к нулю за ~1 с, после 3 с — 0
-    if (rawAge > 1.5) v *= Math.exp(-(rawAge - 1.5) / 0.45);
-    if (rawAge > 3) v = 0;
+    const saX = Math.abs(st.sa) < 0.6 ? 0 : st.sa; let v = st.sv + saX * age; // v196 (мёртвая зона 0.6 м/с² — круиз без дрожания): экстраполяция по ускорению на весь интервал до точки (≤1 с) — без отставания на разгоне
+    // v196: тоннель/потеря GPS на ходу — как в навигаторах держим последнюю скорость (dead reckoning, без ускорения) до 12 с;
+    // если перед пропаданием тормозили или ехали медленно (<30 км/ч) — это остановка: гасим к 0 (v195)
+    const cruising = st.sv > 8.3 && st.sa > -0.8 && !(st.imuOn && st.imuStillMs > 500);
+    if (cruising && rawAge > 1) v = st.sv; // держим последнюю скорость
+    const fadeFrom = cruising ? 12 : 1.5;
+    if (rawAge > fadeFrom) v *= Math.exp(-(rawAge - fadeFrom) / 0.45);
+    if (rawAge > fadeFrom + 1.5) v = 0;
     if (st.imuOn && st.sa < -0.5 && st.imuLin > -st.sa && st.imuLin < 12) v = Math.min(v, st.sv - st.imuLin * age); // торможение по акселерометру
     if (st.imuOn && st.imuStillMs > 500 && st.sv * 3.6 < 25) v = 0; // акселерометр: машина стоит
     if (st.sv === 0 && st.sa === 0) v = 0;
