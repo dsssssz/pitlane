@@ -794,6 +794,10 @@ export const api = {
     const q = new URLSearchParams({ track: track || '', model: model || '', tyre: tyre || '' });
     return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/top?' + q.toString());
   },
+  // v192: Paddock Pass (Stars, только внешний вид). Без деплоя воркера → { ok:false, status:404 }
+  async mePass() { return await remoteKeep('/me/pass'); },
+  async passInvoice() { return await remoteKeep('/me/pass/invoice', { method: 'POST', body: JSON.stringify({ via: 'link' }) }); },
+  async putPassCosmetics(c) { return await remoteKeep('/me/pass/cosmetics', { method: 'PUT', body: JSON.stringify(c || {}) }); },
   async roomInvoice(id, via) { return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/invoice', { method: 'POST', body: JSON.stringify({ via: via || 'link' }) }); },
   // v98: teams (public profile + feed; private part = rooms above)
   async listTeams(q) { return await remoteKeep('/teams' + (q ? '?q=' + encodeURIComponent(q) : '')); },

@@ -1,4 +1,5 @@
 import { PulseHub, pulseOp, PULSE_CID_RE } from './pulsehub.js';
+import { passRoute, passPreCheckout, passSuccessfulPayment, isPassPayload, attachPass } from './paddock.js'; // v192 Paddock Pass
 import { runWeather, publicWx } from './wx.js';
 import { sanitizeCarPhoto, publicCarPhoto, carPhotoKey, PCAR_BODY, PCAR_MAX } from './carphoto.js';
 import { listFollows, setFollow, followImproveNotify, deleteFollowKeys, FOLLOW_MAX } from './follow.js';
@@ -528,7 +529,7 @@ function sanitizeWeather(v) {
 const PUBLIC_ROW_FIELDS = [
   'car', 't', 'gps', 'valid', 'gpsQ', 'src', 'n', 'avgAcc', 'hz', 'weather', 'wx', 'track',
   'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost', 'tyre',
-  'prep', 'tyreT', 'cls', 'asC',
+  'prep', 'tyreT', 'cls', 'asC', 'pp',
 ];
 
 /** Whitelisted public tops row (straight / lap / sector / duel run). No phone, ever. */
@@ -2902,6 +2903,10 @@ export default {
       try {
         const upd = await readJson(req, 64 * 1024);
         // v97: Telegram Stars — season per crew room
+        if (upd && upd.pre_checkout_query && isPassPayload(upd.pre_checkout_query.invoice_payload)) { // v192
+          const r = await passPreCheckout(env, upd.pre_checkout_query, ROOM_H);
+          return json({ ok: true, precheckout: !!r?.ok }, 200, headers);
+        }
         if (upd && upd.pre_checkout_query) {
           const r = await roomsPreCheckout(env, upd.pre_checkout_query, ROOM_H);
           return json({ ok: true, precheckout: !!r?.ok }, 200, headers);
@@ -2916,6 +2921,10 @@ export default {
         if (msg && msg.refunded_payment) { // v184: возврат Stars → откатить продление сезона (раньше не обрабатывался)
           const r = await roomsRefundedPayment(env, msg, ROOM_H);
           return json({ ok: true, refunded: !!r?.ok, duplicate: !!r?.duplicate }, 200, headers);
+        }
+        if (msg && msg.successful_payment && isPassPayload(msg.successful_payment.invoice_payload)) { // v192
+          const r = await passSuccessfulPayment(env, msg);
+          return json({ ok: true, paid: !!r?.ok, duplicate: !!r?.duplicate }, 200, headers);
         }
         if (msg && msg.successful_payment) {
           const r = await roomsSuccessfulPayment(env, msg, ROOM_H);
@@ -3426,6 +3435,7 @@ export default {
         if (url.searchParams.get('avatars') === '1') {
           rows.sort((a, b) => (parseLapMs(a.t) ?? 1e12) - (parseLapMs(b.t) ?? 1e12));
           await enrichAvatars(env.PITLANE, rows, 40);
+          await attachPass(env.PITLANE, rows, 40); // v192
         }
         return json(publicRows(rows), 200, headers);
       }
@@ -4196,6 +4206,7 @@ export default {
       // —— v137: магазин (заявки, без онлайн-оплаты) ——
       // —— v141: предложить / откалибровать трассу (модерация через бота) ——
       { const tsr = await trackSuggestRoute({ req, env, path, headers, ip, pilot, h: SHOP_H }); if (tsr) return tsr; }
+      { const ppr = await passRoute({ req, env, path, pilot, headers, h: ROOM_H }); if (ppr) return ppr; } // v192
       { const shr = await shopRoute({ req, env, path, headers, ip, pilot, h: SHOP_H }); if (shr) return shr; }
 
       // —— v97: «Это моя машина» + комнаты экипажей (+ Stars season) ——

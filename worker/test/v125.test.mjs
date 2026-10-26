@@ -41,7 +41,7 @@ ok(/Тут пилоты обсуждают заезды/.test(app) && /'pc-write
 ok(/listPulseRecent\(\) \{\s*const rows = await remote\('\/pulse\?recent=1'\)/.test(api), 'api.listPulseRecent');
 console.log('[шторка]');
 ok(/tgsPark\(cmp, panel\); cmp\.classList\.add\('pc-foot'\)/.test(app) && /\.pulse-compose\.pc-foot \{[^}]*margin-bottom: calc\(76px \+ var\(--sab, 0px\)\)/.test(css), 'поле ввода закреплено снизу шторки, над панелью');
-ok(/'pad\.ph':'Написать в Paddock…'/.test(app) && /placeholder="Написать в Paddock…"/.test(html), '«Написать в Paddock…»');
+ok(/'pad\.ph':'Написать в чат…'/.test(app) && /placeholder="Написать в чат…"/.test(html), '«Написать в чат…»');
 ok(/function padComLabel\(n\)/.test(app) && /\.pad-comment\.has \{/.test(css), 'счётчик ответов заметнее («2 ответа»)');
 ok(/id="pulseLive"/.test(html) && /function renderPadLive\(d\)/.test(app), 'живая строка: кто в чате, активно');
 ok(/maxlength="280"/.test(html) && /text: text\.slice\(0, 280\)/.test(app), 'лимиты поста сохранены');

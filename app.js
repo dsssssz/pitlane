@@ -72,6 +72,7 @@ import { GRID as RM_GRID, LABEL as RM_LABEL, DIST_KEYS as RM_DIST, createRunMark
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ, withSpeed as coreWithSpeed, launchTime as coreLaunchTime, speedCross as coreSpeedCross, distCross as coreDistCross } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
 import { legalReady } from './legal-config.js';
+import { computeAwards, rowBadge, framedAvatar, carCropSrc, fmtGap, awardImg, renderShowcase, renderPassCard, weekStart as awWeekStart, AWARDS as AW_LIST } from './awards.js'; // v192
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -1651,6 +1652,7 @@ function goToView(id, opts = {}) {
 
   // v83: Paddock feed renders on every entry (also ?view=pulse deep links, which used to show an empty feed)
   if (id === 'pulse') setTimeout(() => { try { void renderPulse(); } catch (_) {} }, 0);
+  if (id === 'account') setTimeout(() => { try { void renderAwards92(); } catch (_) {} }, 0); // v192
   if (id === 'account') setTimeout(() => { try { void renderNotifyCard(); } catch (_) {} try { void renderFollowsCard(); } catch (_) {} try { void renderCarPhotoCard(); } catch (_) {} }, 0); // v121, v131, v132
   if (already) {
     try { onResize(); } catch (_) {}
@@ -9674,39 +9676,39 @@ document.getElementById('btnRemoveCar')?.addEventListener('click', () => {
 
 const I18N = {
   ru: {
-    'nav.home':'Главная','nav.duels':'Дуэли','nav.ride':'Заезд','nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Paddock','nav.park':'Парк',
+    'nav.home':'Главная','nav.duels':'Дуэли','nav.ride':'Заезд','nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Чат','nav.park':'Парк',
     'garage.empty':'Гараж пока пуст','garage.hint':'Добавьте машину — и замеры будут сохраняться за ней.','garage.add':'Добавить машину','garage.reset':'сброс',
     'run.title':'Замер','run.hint':'Старт, остановка, газ. Времена появятся по ходу.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Трек','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Начать сессию','lap.finish':'Финиш круга',
-    'top.title':'Топы','pad.title':'Paddock','pad.send':'Опубликовать','pad.ph':'Написать в Paddock…','pad.empty':'Пока тихо — напиши первым.',
+    'top.title':'Топы','pad.title':'Чат','pad.send':'Опубликовать','pad.ph':'Написать в чат…','pad.empty':'Пока тихо — напиши первым.',
     'acc.title':'Профиль','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
-    'nav.home':'Home','nav.duels':'Duels','nav.ride':'Drive','nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Paddock','nav.park':'Park',
+    'nav.home':'Home','nav.duels':'Duels','nav.ride':'Drive','nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Chat','nav.park':'Park',
     'garage.empty':'Garage is empty','garage.hint':'Add your car — make, body, year, engine.','garage.add':'Add car','garage.reset':'reset',
     'run.title':'Run','run.hint':'Start, stop, launch. Times appear as you go.','run.start':'Start',
     'dyno.title':'Dynamics sheet','dyno.hint':'Acceleration figures appear only after your own run.','dyno.acc':'Acceleration','dyno.mass':'Mass and output',
     'lap.title':'Track','lap.track':'Track','lap.gps':'GPS lap','lap.sess':'Sessions','lap.start':'Start session','lap.finish':'Finish lap',
-    'top.title':'Leaderboards','pad.title':'Paddock','pad.send':'Post','pad.ph':'Write to Paddock…','pad.empty':'Quiet for now. Sign in and write the first post.',
+    'top.title':'Leaderboards','pad.title':'Chat','pad.send':'Post','pad.ph':'Write in Chat…','pad.empty':'Quiet for now. Sign in and write the first post.',
     'acc.title':'Profile','acc.login':'Sign in','acc.hint':'Telegram sign-in is needed for leaderboards, duels, teams and posts. Runs, garage and history work without it, on this device.','acc.in':'Sign in','acc.reg':'Sign up','acc.nick':'nickname'
   },
   zh: {
-    'nav.home':'首页','nav.duels':'对决','nav.ride':'驾驶','nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单','nav.paddock':'Paddock',
+    'nav.home':'首页','nav.duels':'对决','nav.ride':'驾驶','nav.box':'车库','nav.dyno':'参数','nav.run':'加速','nav.lap':'圈速','nav.top':'榜单','nav.paddock':'聊天',
     'garage.empty':'车库是空的','garage.hint':'添加车辆：品牌、车身、年份、发动机。','garage.add':'添加车辆','garage.reset':'重置',
     'run.title':'加速测试','run.hint':'点开始，先几乎停住再加速。车速下降后成绩会保存。','run.start':'开始测试',
     'dyno.title':'动态档案','dyno.hint':'加速数据只在你自己测完后出现。','dyno.acc':'加速','dyno.mass':'重量与功率',
     'lap.title':'圈速','lap.track':'赛道','lap.gps':'GPS圈速','lap.sess':'记录','lap.start':'发车','lap.finish':'完圈',
-    'top.title':'榜单','pad.title':'Paddock','pad.send':'发布','pad.ph':'你对车做了什么…','pad.empty':'还没有帖子。登录后发第一条。',
+    'top.title':'榜单','pad.title':'聊天','pad.send':'发布','pad.ph':'你对车做了什么…','pad.empty':'还没有帖子。登录后发第一条。',
     'acc.title':'账户','acc.login':'登录','acc.hint':'手机号和密码。','acc.in':'登录','acc.reg':'注册','acc.nick':'昵称'
   },
   es: {
-    'nav.home':'Inicio','nav.duels':'Duelos','nav.ride':'Pista','nav.box':'Box','nav.dyno':'Ficha','nav.run':'Medición','nav.lap':'Vuelta','nav.top':'Ranking','nav.paddock':'Paddock',
+    'nav.home':'Inicio','nav.duels':'Duelos','nav.ride':'Pista','nav.box':'Box','nav.dyno':'Ficha','nav.run':'Medición','nav.lap':'Vuelta','nav.top':'Ranking','nav.paddock':'Chat',
     'garage.empty':'Garaje vacío','garage.hint':'Añade tu coche: marca, carrocería, año, motor.','garage.add':'Añadir coche','garage.reset':'reset',
     'run.title':'Medición','run.hint':'Pulsa inicio, casi párate y acelera. Al bajar la velocidad se guarda.','run.start':'Iniciar',
     'dyno.title':'Ficha de dinámica','dyno.hint':'Las cifras de aceleración salen solo tras tu propia medición.','dyno.acc':'Aceleración','dyno.mass':'Masa y potencia',
     'lap.title':'Vuelta','lap.track':'Circuito','lap.gps':'Vuelta GPS','lap.sess':'Sesiones','lap.start':'Salida','lap.finish':'Meta',
-    'top.title':'Clasificaciones','pad.title':'Paddock','pad.send':'Publicar','pad.ph':'Qué le hiciste al coche…','pad.empty':'Aún no hay posts. Entra y escribe el primero.',
+    'top.title':'Clasificaciones','pad.title':'Chat','pad.send':'Publicar','pad.ph':'Qué le hiciste al coche…','pad.empty':'Aún no hay posts. Entra y escribe el primero.',
     'acc.title':'Cuenta','acc.login':'Entrar','acc.hint':'Teléfono y contraseña.','acc.in':'Entrar','acc.reg':'Registro','acc.nick':'nick'
   }
 };
@@ -10279,7 +10281,7 @@ function renderPilotProfile(pr) {
   }
   body.appendChild(secRuns);
 
-  const secPosts = padSection('Посты в Паддоке');
+  const secPosts = padSection('Посты в чате');
   const posts = Array.isArray(pr.posts) ? pr.posts : [];
   if (!posts.length) secPosts.appendChild(padEmptyLine('Пилот ещё ничего не публиковал.'));
   const wrap = padEl('div', 'pulse-feed pilot-posts');
@@ -10744,7 +10746,7 @@ pulseText?.addEventListener('input', () => {
 let _padSendLock = 0;
 async function padSendFromComposer() {
   const msg = document.getElementById('pulseMsg');
-  if (needLogin('Войди, чтобы писать в Paddock.')) return;
+  if (needLogin('Войди, чтобы писать в чат.')) return;
   const text = (pulseText?.value || '').trim();
   if (!text) { padSyncSendBtn(); return; }
   if (_padSendLock && Date.now() - _padSendLock < 600) return; // двойной тап
@@ -12079,7 +12081,7 @@ const PROFILE_BANNERS = [
   ['neon-sochi', 'Сочи · неон'], ['neon-moscow', 'Moscow · неон'], ['neon-nring', 'NRING · неон'],
   ['telemetry', 'Телеметрия'], ['carbon', 'Карбон'], ['asphalt', 'Асфальт'],
   ['stripes', 'Полосы'], ['sunset', 'Закат'], ['ice', 'Лёд'],
-  ['photo-duels', 'Дуэль'], ['photo-tracks', 'Трасса'], ['photo-paddock', 'Паддок'],
+  ['photo-duels', 'Дуэль'], ['photo-tracks', 'Трасса'], ['photo-paddock', 'Чат'],
 ];
 const BANNER_IDS = new Set(PROFILE_BANNERS.map((b) => b[0]));
 const MY_BANNER_LS = 'pitlane-banner-v1';
@@ -14087,7 +14089,7 @@ async function renderHomeTopPosts(force = false) {
     const e = padEl('div', 'home-empty');
     e.appendChild(padEl('b', '', 'За сутки постов пока нет'));
     e.appendChild(padEl('span', '', 'Поделись сборкой или заездом — лучший пост дня появится здесь.'));
-    const go = padEl('button', 'home-link', 'Открыть Паддок');
+    const go = padEl('button', 'home-link', 'Открыть чат');
     go.type = 'button';
     go.dataset.view = 'pulse';
     e.appendChild(go);
@@ -15768,7 +15770,7 @@ function tgsFill(kind) {
     document.getElementById('autodromeListPane')?.removeAttribute('hidden'); document.getElementById('autodromeDetailPane')?.setAttribute('hidden', '');
     if (tr) { tr.hidden = false; body.appendChild(tr); }
   }
-  document.getElementById('tgSheet')?.setAttribute('aria-label', kind === 'duels' ? 'Дуэли' : kind === 'pulse' ? 'Paddock' : 'Трассы');
+  document.getElementById('tgSheet')?.setAttribute('aria-label', kind === 'duels' ? 'Дуэли' : kind === 'pulse' ? 'Чат' : 'Трассы');
 }
 function tgsSetTab(kind) {
   const btn = kind ? document.querySelector(`.sheet-tab[data-sheet="${kind}"]`) : null;
@@ -16355,7 +16357,7 @@ function lapMs(t) {
   if (!m) return Infinity;
   return (+m[1] * 60 + +m[2]) * 1000 + (m[3] ? +m[3].padEnd(3, '0') : 0);
 }
-function buildTopsRow(r, i, sel) {
+function buildTopsRow(r, i, sel, ctx) {
   const li = padEl('li', 'tb-row' + (i < 3 ? ' podium p' + (i + 1) : ''));
   const pid = r.pilotId && isPublicPilot(r.pilotId) ? r.pilotId : '';
   if (pid) {
@@ -16365,9 +16367,21 @@ function buildTopsRow(r, i, sel) {
     li.setAttribute('role', 'button');
   }
   li.appendChild(padEl('span', 'tb-n', String(i + 1)));
-  li.appendChild(padAvatar(r.name || 'P', r.avatar, 28));
+  const lb = sel.kind === 'lap' && ctx; // v192: строка лидерборда v11 — рамка, значок у ника, отрыв, рендер машины
+  if (lb) {
+    li.classList.add('lb92');
+    const pp = r.pp && typeof r.pp === 'object' ? r.pp : null;
+    const fr = i < 3 ? ['gold', 'silver', 'bronze'][i] : (pp && (pp.frame === 'carbon' || pp.frame === 'chequer') ? pp.frame : '');
+    li.appendChild(framedAvatar(padAvatar(r.name || 'P', r.avatar, 32), fr, 32));
+  } else li.appendChild(padAvatar(r.name || 'P', r.avatar, 28));
   const nick = padEl('span', 'tb-nick', clipText(r.name || 'пилот', 12));
   if ((r.name || '').length > 12) nick.title = r.name;
+  if (lb) {
+    const bk = rowBadge(ctx.raw, r);
+    const pin = r.pp && ['helmet', 'wheel', 'carbon'].includes(r.pp.pin) ? r.pp.pin : '';
+    if (r.pp && Number.isInteger(r.pp.number)) nick.appendChild(padEl('i', 'lb92-num', String(r.pp.number)));
+    for (const k of [bk, pin].filter(Boolean)) { const b = document.createElement('img'); b.className = 'lb92-b'; b.alt = ''; b.src = awardImg(k, true); b.title = AW_LIST[k]?.n || k; nick.appendChild(b); }
+  }
   li.appendChild(nick);
   const carEl = padEl('span', 'tb-car', shortCarName(r.car, r.carId) || '');
   // v113: бейдж класса (со слов пилота); старые заезды — «класс не указан»
@@ -16377,12 +16391,15 @@ function buildTopsRow(r, i, sel) {
   carEl.appendChild(cb);
   li.appendChild(carEl);
   const ic = padEl('span', 'tb-ic');
-  if (sel.kind === 'lap') ic.appendChild(trackSilhouetteSvg(sel.id, 26));
+  const crop = lb ? carCropSrc(r.carId) : '';
+  if (crop) { ic.classList.add('lb92-car'); const ci = document.createElement('img'); ci.alt = ''; ci.loading = 'lazy'; ci.decoding = 'async'; ci.src = crop; ic.appendChild(ci); }
+  else if (sel.kind === 'lap') ic.appendChild(trackSilhouetteSvg(sel.id, 26));
   else ic.appendChild(discTag(sel.id));
   li.appendChild(ic);
   const time = sel.kind === 'lap' ? String(r.t) : Number(r.t).toFixed(2);
   const tm = padEl('span', 'tb-t', time);
   if (r.gpsQ) tm.dataset.q = r.gpsQ;
+  if (lb && i > 0 && ctx.leadMs) tm.appendChild(padEl('small', 'lb92-gap', fmtGap((r._ms ?? lapMs(r.t)) - ctx.leadMs)));
   li.appendChild(tm);
   if (isMyPilotId(r.pilotId)) li.classList.add('me');
   return li;
@@ -16414,6 +16431,16 @@ document.getElementById('topPrepChips')?.addEventListener('click', (e) => {
 });
 document.getElementById('topMyCarOnly')?.addEventListener('change', () => { void renderTopsBoard(); });
 let _topsBoardSeq = 0;
+/* v192: Неделя / Всё время (только круги) */
+let _topsPeriod = (() => { try { return localStorage.getItem('pitlane-tops-period') === 'week' ? 'week' : 'all'; } catch (_) { return 'all'; } })();
+function syncTopsPeriod() { document.querySelectorAll('#topsPeriod [data-per]').forEach((b) => { const on = b.dataset.per === _topsPeriod; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); }); }
+document.getElementById('topsPeriod')?.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('[data-per]'); if (!b) return;
+  _topsPeriod = b.dataset.per === 'week' ? 'week' : 'all';
+  try { localStorage.setItem('pitlane-tops-period', _topsPeriod); } catch (_) {}
+  syncTopsPeriod(); hap(6); void renderTopsBoard();
+});
+syncTopsPeriod();
 /* v118: класс зачёта в топах — A/B (внешний GPS) или C (телефон). Доски разные, строки не смешиваются. */
 const TOPS_CLS_KEY = 'pitlane-tops-cls-v1';
 // v120: переключатель класса теперь в меню «Фильтры» — без явного выбора открываем класс, в котором пилот ездит (нет A/B-результатов → C · телефон)
@@ -16476,6 +16503,8 @@ async function renderTopsBoard() {
   }
   ol.setAttribute('aria-busy', 'true');
   let rows = [];
+  let lapRaw = [];
+  const per = document.getElementById('topsPeriod'); if (per) per.hidden = sel.kind !== 'lap';
   if (cls === 'c' && sel.kind !== 'lap' && PHONE_NO_DISCS.includes(sel.id)) {
     ol.replaceChildren();
     ol.removeAttribute('aria-busy');
@@ -16487,7 +16516,9 @@ async function renderTopsBoard() {
   }
   try {
     if (sel.kind === 'lap') {
-      const raw = ((await api.listLapBoard(sel.id, wx, cls)) || []).filter(topsClassPass);
+      lapRaw = ((await api.listLapBoard(sel.id, wx, cls)) || []).filter(topsClassPass);
+      const ws = _topsPeriod === 'week' ? awWeekStart() : 0;
+      const raw = ws ? lapRaw.filter((r) => Number(r.at) >= ws) : lapRaw;
       const best = new Map();
       raw.forEach((r) => {
         const k = r.pilotId || ('n:' + (r.name || '') + ':' + (r.car || ''));
@@ -16514,7 +16545,7 @@ async function renderTopsBoard() {
   if (!rows.length) {
     const li = padEl('li', 'tb-empty');
     const filtered = _topsPrep !== 'all' || document.getElementById('topMyCarOnly')?.checked;
-    li.appendChild(padEl('b', '', filtered ? 'в этом срезе пока нет заездов' : 'пока нет валидных заездов'));
+    li.appendChild(padEl('b', '', filtered ? 'в этом срезе пока нет заездов' : (sel.kind === 'lap' && _topsPeriod === 'week' ? 'на этой неделе кругов пока нет' : 'пока нет валидных заездов')));
     li.appendChild(padEl('span', '', cls === 'c'
       ? (sel.kind === 'lap' ? 'Проедь круг с телефоном по линии С/Ф — он попадёт в зачёт C.' : 'Сделай замер телефоном — лучший результат попадёт в зачёт C.')
       : (sel.kind === 'lap' ? 'Проедь валидный круг с GPS A/B — и займи первую строку.' : 'Сделай замер с GPS A/B — лучший результат попадёт сюда.')));
@@ -16526,7 +16557,8 @@ async function renderTopsBoard() {
     return;
   }
   const frag = document.createDocumentFragment();
-  rows.slice(0, 100).forEach((r, i) => frag.appendChild(buildTopsRow(r, i, sel)));
+  const lctx = sel.kind === 'lap' ? { raw: lapRaw, leadMs: rows[0] ? (rows[0]._ms ?? lapMs(rows[0].t)) : 0 } : null;
+  rows.slice(0, 100).forEach((r, i) => frag.appendChild(buildTopsRow(r, i, sel, lctx)));
   ol.appendChild(frag);
   try { topsRise(ol, `${sel.kind}:${cls}:${sel.id}:${model || ''}:${_topsPrep}`); } catch (_) {} // v153: подъём в топе
 }
@@ -17093,3 +17125,48 @@ window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
 /* v187: inline onsubmit убраны (CSP) + строка «что это» только вне Telegram */
 ['authForm', 'feedbackForm'].forEach((id) => document.getElementById(id)?.addEventListener('submit', (e) => e.preventDefault()));
 if (!tmaInitData && !isTMA) { const h = document.getElementById('webHero'); if (h) h.hidden = false; }
+
+/* ——— v192: витрина наград + Paddock Pass в Профиле (макеты v11). Награды — только из реальных топов и своих кругов. ——— */
+const AW92 = { boards: null, at: 0, busy: false };
+async function aw92Boards() {
+  if (AW92.boards && Date.now() - AW92.at < 600000) return AW92.boards;
+  const out = {};
+  if (isRemoteApi()) {
+    await Promise.all(TRACKS.map(async (t) => { try { const r = await api.listLapBoard(t.id, 'all', 'ab'); if (Array.isArray(r) && r.length) out[t.id] = r; } catch (_) {} }));
+  }
+  AW92.boards = out; AW92.at = Date.now();
+  return out;
+}
+async function renderAwards92() {
+  const sc = document.getElementById('sc92'); const pp = document.getElementById('pp92');
+  if (!sc || AW92.busy) return;
+  AW92.busy = true;
+  try {
+    const mc = myCarLocal();
+    const nick = document.getElementById('accNick')?.value || '';
+    const pid = (() => { try { return actingPilotId() || accountPilotId() || devicePilotId(); } catch (_) { return ''; } })();
+    let pass = null;
+    const pr = isRemoteApi() && getSessionToken() ? await api.mePass().catch(() => null) : null;
+    const available = !!(pr && pr.ok !== false && pr.sales === true);
+    if (pr && pr.ok !== false) pass = pr.pass || null;
+    const base = { car: mc?.carId || '', carName: mc ? shortCarName(mc.model, mc.carId) : '', nick, pass };
+    renderShowcase(sc, { ...base, res: computeAwards({ boards: {}, laps: state.laps, tracks: TRACKS, pid }) });
+    const boards = await aw92Boards();
+    renderShowcase(sc, { ...base, res: computeAwards({ boards, laps: state.laps, tracks: TRACKS, pid }) });
+    if (pp) renderPassCard(pp, {
+      pass, available,
+      onBuy: async () => {
+        const r = await api.passInvoice();
+        if (!r || r.ok === false || !r.link) return 'Оплата недоступна: ' + (r?.error || 'сеть');
+        const TG = window.Telegram?.WebApp;
+        if (TG && typeof TG.openInvoice === 'function') {
+          TG.openInvoice(r.link, (st) => { if (st === 'paid') setTimeout(() => { void renderAwards92(); }, 1500); });
+          return 'Счёт открыт';
+        }
+        window.open(r.link, '_blank', 'noopener');
+        return 'Счёт открыт в Telegram. После оплаты вернись в профиль.';
+      },
+      onSave: async (c) => { const r = await api.putPassCosmetics(c); if (!r || r.ok === false) return 'Не сохранилось: ' + (r?.error || 'сеть'); AW92.at = 0; void renderAwards92(); return 'Сохранено'; },
+    });
+  } finally { AW92.busy = false; }
+}
