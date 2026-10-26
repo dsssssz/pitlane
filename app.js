@@ -2719,6 +2719,9 @@ const GpsFusion = (() => {
     // HUD slew
     showV: 0,
     speedBuf: [],
+    // v188: скалярный Калман скорости [v, a] по доплеру coords.speed (фолбэк — дистанция/время)
+    sv: 0, sa: 0, sp00: 1, sp01: 0, sp11: 4, svTs: 0, svReady: false, prevFix: null, lastKey: '', recvAt: 0,
+    imuLin: 0, imuStillMs: 0,
     // process / meas noise knobs
     qPos: 0.8,
     qVel: 6,
@@ -2808,10 +2811,12 @@ const GpsFusion = (() => {
 
   function applyZupt(dt) {
     const spd = Math.hypot(st.vE, st.vN);
-    const stillGps = spd < 0.45; // ~1.6 км/ч
+    const stillGps = spd < 0.45 && (!st.svReady || st.sv < 0.45); // ~1.6 км/ч
     const stillImu = st.imuOn ? st.accelVar < 0.12 : stillGps;
     if (stillGps && stillImu) {
       st.stillMs += dt * 1000;
+    } else if (st.svReady && st.sv >= 0.45) {
+      st.stillMs = 0; // v188: доплер говорит «едем» — сразу снимаем ZUPT
     } else {
       st.stillMs = Math.max(0, st.stillMs - dt * 600);
     }
@@ -2819,6 +2824,7 @@ const GpsFusion = (() => {
       st.zupt = true;
       st.vE = 0;
       st.vN = 0;
+      st.sv = 0; st.sa = 0;
       st.P[2] = Math.min(st.P[2], 2);
       st.P[3] = Math.min(st.P[3], 2);
       // freeze drift: lightly pull pos variance down
@@ -2840,14 +2846,7 @@ const GpsFusion = (() => {
         st.vN = Math.cos(h) * spd;
       }
     }
-    // Integrate horizontal accel (already roughly world-framed if orientation known)
-    const ax = clamp(st.ax, -8, 8);
-    const ay = clamp(st.ay, -8, 8);
-    if (Math.hypot(ax, ay) > 0.35) {
-      st.vE += ax * dt;
-      st.vN += ay * dt;
-      return true;
-    }
+    // v188: сырое ускорение больше не интегрируем — ориентация телефона в держателе неизвестна, это давало дрейф скорости
     return false;
   }
 
@@ -2855,7 +2854,7 @@ const GpsFusion = (() => {
     const ll = fromEnu(st.e, st.n);
     st.lat = ll.lat;
     st.lon = ll.lon;
-    st.vKmh = speedKmh();
+    st.vKmh = st.svReady ? st.sv * 3.6 : speedKmh();
     if (st.vKmh < 0.4) st.vKmh = 0;
     if (st.vKmh > 360) st.vKmh = 360;
     st.heading = headingFromV();
@@ -2866,15 +2865,8 @@ const GpsFusion = (() => {
       : pM;
     st.quality = gradeQuality(st.accEst, st.innov, st.zupt);
     st.healthy = st.ready && st.accEst != null && st.accEst < 45 && st.innov < 14;
-    // HUD median + slew (responsive on accel, calm when steady)
-    st.speedBuf.push(st.vKmh);
-    while (st.speedBuf.length > 5) st.speedBuf.shift();
-    const sorted = st.speedBuf.slice().sort((a, b) => a - b);
-    const med = sorted[Math.floor(sorted.length / 2)];
-    const accelerating = Math.abs(med - st.showV) > 4;
-    const maxStep = accelerating ? 9 : 5.2;
-    const d = med - st.showV;
-    st.showV += Math.sign(d) * Math.min(Math.abs(d), maxStep);
+    // v188: без медианы по окну и ограничения шага — они и давали «держит 30, потом прыгает на 6»
+    st.showV = st.vKmh;
     if (st.showV < 0.4) st.showV = 0;
   }
 
@@ -2902,12 +2894,74 @@ const GpsFusion = (() => {
     st.zupt = false;
     st.showV = 0;
     st.speedBuf.length = 0;
+    st.sv = st.sa = 0; st.sp00 = 1; st.sp01 = 0; st.sp11 = 4; st.svTs = 0; st.svReady = false;
+    st.prevFix = null; st.lastKey = ''; st.recvAt = 0; st.imuStillMs = 0;
   }
 
-  function ingestGps(coords, ts) {
+  // v188: скорость как в навигаторе — доплер напрямую через лёгкий Калман (без окна-медианы), учёт точности
+  function speedUpdate(coords, ts, acc) {
+    const dt = st.svTs ? clamp((ts - st.svTs) / 1000, 0.04, 3) : 1;
+    let z = null; let sig = null;
+    const sp = coords.speed;
+    if (sp != null && Number.isFinite(sp) && sp >= 0) {
+      z = sp;
+      const sa = Number(coords.speedAccuracy);
+      sig = Number.isFinite(sa) && sa > 0 ? Math.max(0.15, sa) : 0.35 + 0.02 * acc;
+    } else if (st.prevFix && ts > st.prevFix.ts) {
+      const dts = (ts - st.prevFix.ts) / 1000;
+      const dN = (coords.latitude - st.prevFix.lat) * M_PER_DEG_LAT;
+      const dE = (coords.longitude - st.prevFix.lon) * mPerDegLon(coords.latitude);
+      z = Math.hypot(dE, dN) / dts;
+      sig = (1.2 * (acc + st.prevFix.acc) / 2) / dts + 0.4;
+      if (z < sig) z = 0; // смещение в пределах шума — стоим
+    }
+    st.prevFix = { lat: coords.latitude, lon: coords.longitude, acc, ts };
+    if (z == null) return;
+    const Rm = sig * sig;
+    if (!st.svReady) { st.sv = z; st.sa = 0; st.sp00 = Rm; st.sp01 = 0; st.sp11 = 4; st.svReady = true; st.svTs = ts; return; }
+    // predict (constant acceleration, jerk noise q)
+    const q = 6;
+    st.sv += st.sa * dt;
+    st.sp00 += dt * (2 * st.sp01 + dt * st.sp11) + q * dt * dt * dt / 3;
+    st.sp01 += dt * st.sp11 + q * dt * dt / 2;
+    st.sp11 += q * dt;
+    // update
+    const S = st.sp00 + Rm; const k0 = st.sp00 / S; const k1 = st.sp01 / S; const y = z - st.sv;
+    st.sv += k0 * y; st.sa += k1 * y;
+    st.sp11 -= k1 * st.sp01; st.sp01 *= (1 - k0); st.sp00 *= (1 - k0);
+    st.sa = clamp(st.sa, -12, 10);
+    if (st.sv < 0) st.sv = 0;
+    if (z < 0.3 && st.sv < 0.7) { st.sv = 0; st.sa = 0; } // остановка — сразу 0
+    st.svTs = ts;
+  }
+
+  /** v188: скорость для показа «сейчас»: экстраполяция от последнего фикса по ускорению (≤1 с) + акселерометр. */
+  function displayKmhAt(now) {
+    if (!st.ready || !st.svReady) return 0;
+    const age = clamp(((now || Date.now()) - st.recvAt) / 1000, 0, 1);
+    let v = st.sv + st.sa * age;
+    if (st.imuOn && st.sa < -0.5 && st.imuLin > -st.sa && st.imuLin < 12) v = Math.min(v, st.sv - st.imuLin * age); // торможение по акселерометру
+    if (st.imuOn && st.imuStillMs > 500 && st.sv * 3.6 < 25) v = 0; // акселерометр: машина стоит
+    if (st.sv === 0 && st.sa === 0) v = 0;
+    v = clamp(v, 0, 100);
+    // мягкое догоняние цели (τ≈0.25 с) — без ступенек на кадре; 0 показываем сразу
+    const tn = now || Date.now();
+    const dtd = st.dispTs ? clamp((tn - st.dispTs) / 1000, 0, 0.5) : 1;
+    st.dispTs = tn;
+    st.dispV = v === 0 ? 0 : (st.dispV || 0) + (v - (st.dispV || 0)) * (1 - Math.exp(-dtd / 0.25));
+    const k = st.dispV * 3.6;
+    return k < 0.5 ? 0 : k;
+  }
+
+  function ingestGps(coords, ts, recvAt) {
     if (!coords || coords.latitude == null || coords.longitude == null) {
       return getState();
     }
+    // v188: watchPosition + опрос getCurrentPosition отдают тот же фикс повторно — в фильтр только один раз
+    const key = ts + ':' + coords.latitude + ':' + coords.longitude;
+    if (key === st.lastKey) return getState();
+    st.lastKey = key;
+    st.recvAt = recvAt || Date.now();
     const acc = coords.accuracy != null && Number.isFinite(coords.accuracy) ? Number(coords.accuracy) : 25;
     st.lastRaw = {
       lat: coords.latitude,
@@ -2918,8 +2972,8 @@ const GpsFusion = (() => {
       t: ts,
     };
 
-    // Soft/hard reject by accuracy
-    if (acc > 60) {
+    // Soft/hard reject by accuracy (v188: >40 м — фикс не берём, ни в позицию, ни в скорость)
+    if (acc > 40) {
       // ignore measurement; still tick-coast if ready
       if (st.ready) {
         const dt = st.lastGpsTs ? clamp((ts - st.lastGpsTs) / 1000, 0.05, 2.5) : 0.3;
@@ -2930,6 +2984,9 @@ const GpsFusion = (() => {
       }
       return getState();
     }
+
+    // v188: скорость обновляем по каждому годному фиксу, даже если позицию гейт отклонил
+    speedUpdate(coords, ts, acc);
 
     // v89: a filter that rejected 6+ good fixes in a row has diverged (e.g. a hairpin while coasting) → re-anchor
     if (st.ready && (st.rejN || 0) >= 6 && acc <= 25) { st.ready = false; st.rejN = 0; }
@@ -2983,39 +3040,15 @@ const GpsFusion = (() => {
 
     const up = updatePos(en.e, en.n, R);
     st.rejN = up.accept ? 0 : (st.rejN || 0) + 1;
-    if (up.accept) {
-      // Optional Doppler velocity from speed+heading
-      const hasSpd = coords.speed != null && Number.isFinite(coords.speed) && coords.speed >= 0;
-      const hasHdg = coords.heading != null && Number.isFinite(coords.heading);
-      if (hasSpd && hasHdg && coords.speed < 95) {
-        const hdg = coords.heading * DEG;
-        const vE = Math.sin(hdg) * coords.speed;
-        const vN = Math.cos(hdg) * coords.speed;
-        let Rv = 4 + (acc > 20 ? 12 : 3);
-        if (acc > 35) Rv *= 3;
-        updateVel(vE, vN, Rv);
-      } else if (hasSpd && dt > 0.08) {
-        // speed-only: pull magnitude toward Doppler, keep heading from filter
-        const want = coords.speed;
-        const cur = Math.hypot(st.vE, st.vN);
-        if (cur > 0.2) {
-          const k = 0.35;
-          const scale = (1 - k) + k * (want / cur);
-          st.vE *= scale;
-          st.vN *= scale;
-        } else if (want > 0.5 && st.heading != null) {
-          const hdg = st.heading * DEG;
-          st.vE = Math.sin(hdg) * want;
-          st.vN = Math.cos(hdg) * want;
-        }
-      } else if (st.lastRaw && dt > 0.12) {
-        // light haversine velocity assist when no Doppler
-        const prev = toEnu(st.lastRaw.lat, st.lastRaw.lon);
-        // lastRaw already overwritten — use pre-update position delta via en vs predict residual
-        // skip; position update already applied
-      }
+    // v188: скорость — из отдельного Калмана по доплеру; направление — курс GPS, иначе текущее направление фильтра
+    {
+      const hasHdg = coords.heading != null && Number.isFinite(coords.heading) && coords.heading >= 0;
+      let h = null;
+      if (hasHdg && st.sv > 1) h = coords.heading * DEG;
+      else if (Math.hypot(st.vE, st.vN) > 0.2) h = Math.atan2(st.vE, st.vN);
+      else if (st.heading != null) h = st.heading * DEG;
+      if (h != null) { st.vE = Math.sin(h) * st.sv; st.vN = Math.cos(h) * st.sv; } else if (st.sv === 0) { st.vE = 0; st.vN = 0; }
     }
-
     applyZupt(dt);
     publish(acc);
     st.lastGpsTs = ts;
@@ -3063,17 +3096,11 @@ const GpsFusion = (() => {
     try {
       const DOM = typeof DeviceOrientationEvent !== 'undefined' ? DeviceOrientationEvent : null;
       const DME = typeof DeviceMotionEvent !== 'undefined' ? DeviceMotionEvent : null;
-      if (DOM && typeof DOM.requestPermission === 'function') {
-        const r = await DOM.requestPermission();
-        if (r !== 'granted') {
-          st.imuDenied = true;
-          st.imuOn = false;
-          return false;
-        }
-      }
-      if (DME && typeof DME.requestPermission === 'function') {
-        const r2 = await DME.requestPermission();
-        if (r2 !== 'granted') {
+      // v188: iOS — оба запроса синхронно в одном жесте (второй после await терял жест и падал)
+      const needs = [DME, DOM].filter((X) => X && typeof X.requestPermission === 'function');
+      if (needs.length) {
+        const rs = await Promise.all(needs.map((X) => X.requestPermission().catch(() => 'denied')));
+        if (rs[0] !== 'granted') {
           st.imuDenied = true;
           st.imuOn = false;
           return false;
@@ -3116,6 +3143,11 @@ const GpsFusion = (() => {
     st.ax = wx;
     st.ay = wy;
     const mag = Math.hypot(ax, ay, az);
+    // v188: линейное ускорение (без g) для торможения/остановки
+    st.imuLin += (mag - st.imuLin) * 0.25;
+    const iv = Number(e.interval);
+    const ims = Number.isFinite(iv) && iv > 0 ? (iv < 1 ? iv * 1000 : iv) : 16;
+    if (st.accelVar < 0.05 && st.imuLin < 0.25) st.imuStillMs += ims; else st.imuStillMs = 0;
     _abuf.push(mag);
     while (_abuf.length > 12) _abuf.shift();
     if (_abuf.length >= 4) {
@@ -3147,6 +3179,7 @@ const GpsFusion = (() => {
     enableImu,
     onDeviceMotion,
     onDeviceOrientation,
+    displayKmhAt,
     get quality() { return st.quality; },
   };
 })();
@@ -3181,9 +3214,26 @@ function kmhFromCoords(coords, ts) {
 var extSpeedTs = 0;
 function displayKmh() {
   if (extGps?.active() && extSpeedTs && Date.now() - extSpeedTs < 1500) return Math.round(filtShow || filtV || 0);
-  const s = GpsFusion.getState();
-  return Math.round(s.showKmh || s.vKmh || filtShow || filtV || 0);
+  if (!GpsFusion.getState().ready) return Math.round(filtShow || filtV || 0);
+  return Math.round(GpsFusion.displayKmhAt(Date.now()));
 }
+/* v188: спидометр между фиксами — плавно, по requestAnimationFrame (экстраполяция ≤1 с, тайминг не трогает) */
+let _spdRaf = 0; let _spdLast = -1;
+function speedLoop() {
+  _spdRaf = 0;
+  if (document.hidden || (run.watchId == null && !extGps?.active?.())) return;
+  const v = displayKmh();
+  if (v !== _spdLast) {
+    _spdLast = v;
+    setRunText('liveSpeed', String(v));
+    hudZones(v);
+    setRunText('boxLive', String(v));
+    if (document.body.classList.contains('run-drive-on')) setRunText('runDriveSpeed', String(v));
+    if (lapDrive.open) { const el = document.getElementById('lapDriveSpeed'); if (el) el.textContent = String(v); }
+  }
+  _spdRaf = requestAnimationFrame(speedLoop);
+}
+function kickSpeedLoop() { if (!_spdRaf) _spdRaf = requestAnimationFrame(speedLoop); }
 
 var hudPeak = 0;
 /* v145: тонкая дуга-шкала под цифрами (0–200, при >200 — 0–300), мелкие риски, подписи 0 / середина / максимум */
@@ -3643,6 +3693,7 @@ function onGpsPoint(pos) {
   pushRawFix(pos, now);
   GpsFusion.tick(now);
   const v = kmhFromCoords(pos.coords, now);
+  kickSpeedLoop();
   const fus = GpsFusion.getState();
   // v100: Sochi chase (lap HUD or «Трек» card) follows the real GPS fix — phone, BLE chip or simulator
   if ((lapDrive.open && lapRun.trackId === 'sochi') || (sochiChase.curView === 'lap' && lapCardTrackId() === 'sochi')) {
@@ -12990,7 +13041,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v187';
+const APP_VERSION = 'v188';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
