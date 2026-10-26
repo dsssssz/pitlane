@@ -219,3 +219,47 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
   }
   root.appendChild(msg);
 }
+
+/** v200: шторка Paddock Pass — герой, что входит (только то, что уже работает), цена, одна кнопка */
+export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
+  root.replaceChildren();
+  const hero = h('div', 'ps-hero');
+  hero.appendChild(im(awardImg('pass'), 'ps-ic', ''));
+  hero.appendChild(h('span', 'ps-k', 'PITLANE'));
+  hero.appendChild(h('h2', 'ps-t', 'Paddock Pass'));
+  hero.appendChild(h('p', 'ps-d', pass?.active ? 'Активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'Твой стиль в паддоке: номер, пины и рамка у ника'));
+  root.appendChild(hero);
+  const ul = h('ul', 'ps-list');
+  const perks = [
+    ['number', 'Гоночный номер', 'Свой номер 0–99 рядом с ником и на витрине'],
+    ['helmet', 'Пины у ника', 'Шлем, руль или карбон'],
+    ['fcarbon', 'Рамка аватара', 'Карбон или клетчатый флаг'],
+  ];
+  for (const [k, n, d] of perks) {
+    const li = h('li', 'ps-it');
+    li.appendChild(im(k[0] === 'f' && k.length > 4 ? A + k + '.webp' : awardImg(k), 'ps-it-i', ''));
+    const t = h('div'); t.appendChild(h('b', '', n)); t.appendChild(h('small', '', d)); li.appendChild(t);
+    ul.appendChild(li);
+  }
+  root.appendChild(ul);
+  root.appendChild(h('p', 'ps-note', 'Только внешний вид. Награды и места в топах не продаются — их дают только за время на трассе.'));
+  const msg = h('p', 'tiny muted ps-msg');
+  if (pass?.active) {
+    const row = h('div', 'pp-cos');
+    const num = h('input'); num.type = 'number'; num.min = '0'; num.max = '99'; num.placeholder = 'номер'; num.value = pass.number ?? '';
+    const pin = h('select'); [['', 'без пина'], ['helmet', 'шлем'], ['wheel', 'руль'], ['carbon', 'карбон']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.pin === v) o.selected = true; pin.appendChild(o); });
+    const fr = h('select'); [['', 'без рамки'], ['carbon', 'карбон'], ['chequer', 'клетка']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.frame === v) o.selected = true; fr.appendChild(o); });
+    const sv = h('button', 'go-btn', 'Сохранить'); sv.type = 'button';
+    sv.addEventListener('click', async () => { sv.disabled = true; msg.textContent = await onSave({ number: num.value === '' ? null : Math.max(0, Math.min(99, Math.round(Number(num.value)))), pin: pin.value, frame: fr.value }); sv.disabled = false; });
+    row.append(num, pin, fr, sv); root.appendChild(row);
+  } else {
+    const price = h('div', 'ps-price'); price.appendChild(h('b', '', PASS_STARS + ' ★')); price.appendChild(h('span', '', 'в месяц · Telegram Stars'));
+    root.appendChild(price);
+    const b = h('button', 'ps-buy', available ? `Купить за ${PASS_STARS} ★` : 'Скоро'); b.type = 'button';
+    b.disabled = !available;
+    b.addEventListener('click', async () => { b.disabled = true; msg.textContent = await onBuy(); b.disabled = false; });
+    root.appendChild(b);
+    msg.textContent = available ? 'Отменить можно в Telegram в любой момент.' : 'Продажи откроются после обновления сервера.';
+  }
+  root.appendChild(msg);
+}

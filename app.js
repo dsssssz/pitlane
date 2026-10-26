@@ -74,7 +74,7 @@ import { GRID as RM_GRID, LABEL as RM_LABEL, DIST_KEYS as RM_DIST, createRunMark
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ, withSpeed as coreWithSpeed, launchTime as coreLaunchTime, speedCross as coreSpeedCross, distCross as coreDistCross } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
 import { legalReady } from './legal-config.js';
-import { computeAwards, rowBadge, framedAvatar, carCropSrc, fmtGap, awardImg, renderShowcase, renderPassCard, weekStart as awWeekStart, AWARDS as AW_LIST } from './awards.js'; // v192
+import { computeAwards, rowBadge, framedAvatar, carCropSrc, fmtGap, awardImg, renderShowcase, renderPassCard, renderPassSheet, weekStart as awWeekStart, AWARDS as AW_LIST } from './awards.js'; // v192
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -7368,7 +7368,7 @@ if (isTMA) {
     ['plMenu', 'plMenuClose'], ['safetySheet', 'safetyCancel'], ['deleteSheet', 'deleteClose'], ['pitHelpSheet', 'pitHelpClose'],
     ['shareCard', 'shareCardClose'], ['duelSheet', 'duelSheetClose'], ['crewSheet', 'crewSheetClose'],
     ['autodromeSheet', 'autodromeSheetClose'], ['carPickerSheet', 'carPickerClose'],
-    ['feedbackSheet', 'feedbackClose'], ['padCommentsSheet', 'padCommentsClose'], ['pilotSheet', 'pilotClose'],
+    ['passSheet', 'passClose'], ['feedbackSheet', 'feedbackClose'], ['padCommentsSheet', 'padCommentsClose'], ['pilotSheet', 'pilotClose'],
     ['bannerSheet', 'bannerClose'], ['ghostResult', 'ghostResultClose'],
     ['sessionSheet', 'sessionSheetClose'],
     ['vtSheet', 'vtClose'], ['shopSheet', 'shopClose'], // v147
@@ -17181,7 +17181,7 @@ async function aw92Boards() {
   return out;
 }
 async function renderAwards92() {
-  const sc = document.getElementById('sc92'); const pp = document.getElementById('pp92');
+  const sc = document.getElementById('sc92'); const pp = document.getElementById('passBody'); // v200: Pass — в своей шторке
   if (!sc || AW92.busy) return;
   AW92.busy = true;
   try {
@@ -17196,7 +17196,7 @@ async function renderAwards92() {
     renderShowcase(sc, { ...base, res: computeAwards({ boards: {}, laps: state.laps, tracks: TRACKS, pid }) });
     const boards = await aw92Boards();
     renderShowcase(sc, { ...base, res: computeAwards({ boards, laps: state.laps, tracks: TRACKS, pid }) });
-    if (pp) renderPassCard(pp, {
+    if (pp) renderPassSheet(pp, {
       pass, available,
       onBuy: async () => {
         const r = await api.passInvoice();
@@ -17213,3 +17213,16 @@ async function renderAwards92() {
     });
   } finally { AW92.busy = false; }
 }
+
+/* v200: Paddock Pass — пилюля в шапке → отдельная шторка */
+function openPassSheet() {
+  const sh = document.getElementById('passSheet'); if (!sh) return;
+  const body = document.getElementById('passBody');
+  if (body && !body.childElementCount) { try { renderPassSheet(body, { pass: null, available: false, onBuy: async () => '', onSave: async () => '' }); } catch (_) {} }
+  sh.classList.remove('hidden'); sh.setAttribute('aria-hidden', 'false');
+  try { void renderAwards92(); } catch (_) {}
+}
+function closePassSheet() { const sh = document.getElementById('passSheet'); if (!sh) return; sh.classList.add('hidden'); sh.setAttribute('aria-hidden', 'true'); }
+document.getElementById('btnPass')?.addEventListener('click', () => openPassSheet());
+document.getElementById('passClose')?.addEventListener('click', () => closePassSheet());
+document.getElementById('passSheet')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closePassSheet(); });
