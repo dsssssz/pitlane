@@ -22,7 +22,7 @@ export const SCENARIOS = {
     { target: nav('zamer'), title: 'Замер', text: '0–100 и ¼ мили по GPS. Одна кнопка «Старт».' },
     { target: nav('lap'), title: 'Трек', text: 'Выберите трассу и начните сессию. Старт, финиш и сектора ловятся сами.' },
     { target: nav('garage'), title: 'Гараж', text: 'Машина в 3D — цвет, детали и «Это моя машина».' },
-    { target: '#btnMenu', title: 'Меню', text: 'Журнал, Paddock, команда, магазин и настройки.' },
+    { target: '#btnMenu', title: 'Меню', text: 'Журнал, Paddock, магазин и настройки.' },
   ],
   home: [{ target: '#hwCarImg, #homeHero', title: 'Главная', text: 'Твоя машина и главное за день. Тап по машине — в Гараж.' }],
   garage: [
@@ -30,7 +30,7 @@ export const SCENARIOS = {
     { target: '#g53List, #btnCarPicker', title: 'Весь гараж', text: 'Остальные машины — лентой ниже. Тап — на подиум.' },
   ],
   zamer: [{ target: '#h48Start', title: 'Замер', text: 'Встань, дождись точности GPS и жми «Старт». Разгон ловится сам.' }],
-  history: [{ target: '#jnHost .jn-seg', title: 'Журнал', text: 'Замеры, сессии и дуэли в одном месте. Фильтр — сверху, тап по строке — детали.' }],
+  history: [{ target: '#jnHost .jn-seg', title: 'Журнал', text: 'Замеры и сессии в одном месте. Фильтр — сверху, тап по строке — детали.' }],
   lap: [
     { target: '#tk58', title: 'Трасса', text: 'Листайте карточки и выберите автодром.' },
     { target: '#btnMyCarLap', title: 'Машина для зачёта', text: 'На эту машину запишется круг. Тап — сменить.' },
@@ -38,12 +38,10 @@ export const SCENARIOS = {
   ],
   tops: [
     { target: '#topsChips', title: 'Топ', text: 'Выбери трассу или замер — увидишь лучшие честные заезды.' },
-    { target: '#btnTopsMenu', title: 'Фильтры', text: 'Класс зачёта, погода, модель и «Команда» — здесь.' },
+    { target: '#btnTopsMenu', title: 'Фильтры', text: 'Класс зачёта, погода и модель — здесь.' },
   ],
-  duels: [{ target: '#btnDuelOpen', title: 'Дуэли', text: 'Брось вызов по ссылке. Побеждает лучший GPS-заезд за срок.' }],
   pulse: [{ target: '#pulseText', title: 'Paddock', text: 'Лента сообщества. Поделись заездом или фото.' }],
-  account: [{ target: '#btnMyCarAcc', title: 'Профиль', text: 'Вход через Telegram хранит результаты. Здесь же — машина и команды.' }],
-  teams: [{ target: '#teamSheet:not(.hidden) .race-sheet-head, #roomSheet:not(.hidden) .race-sheet-head', title: 'Команды', text: 'Публичная страница и лента. Дуэли, топ и сезон — только для своих.' }],
+  account: [{ target: '#btnMyCarAcc', title: 'Профиль', text: 'Вход через Telegram хранит результаты. Здесь же — машина и настройки.' }],
   // first time the «Это моя машина» sheet opens
   mycar: [
     { target: '#myCarModels', title: 'Шаг 1 · Машина', text: 'Выбери, на чём едешь сегодня.', tap: 'stay' },

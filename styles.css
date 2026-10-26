@@ -3585,7 +3585,7 @@ html.h-rv-on #view-home .h-rv:not(.in) * { animation-play-state: paused !importa
 #view-home .hh-btn-go:active { background: var(--c-fill); }
 
 /* ——— быстрые действия — иконки-плитки ——— */
-#view-home .home-quick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0 0 32px; }
+#view-home .home-quick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0 0 32px; }
 #view-home .hq-btn { display: grid; justify-items: center; align-content: center; gap: 10px; min-height: 92px; padding: 14px 4px 12px; border-radius: 8px; border: 1px solid var(--h-line); background: var(--h-card); color: #d9d9d9; font: 600 12px/1 var(--font-ui); letter-spacing: .01em; transition: transform .18s var(--h-ease), border-color .2s; }
 #view-home .hq-btn:active { transform: scale(.95); border-color: var(--h-line-2); }
 #view-home .hq-ico { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 8px; border: 1px solid var(--h-line-2); box-shadow: none; }
@@ -6591,7 +6591,7 @@ html.v159:not(#_):not(#_) #view-lap .t61-suggest summary, html.v159:not(#_):not(
 
 /* — Журнал — */
 html.v159:not(#_):not(#_) .jn61 > h2 { margin-bottom: var(--s2); }
-html.v159:not(#_):not(#_) .jn-sum { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--ds-line); border-bottom: 1px solid var(--ds-line); margin-bottom: var(--s2); }
+html.v159:not(#_):not(#_) .jn-sum { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-top: 1px solid var(--ds-line); border-bottom: 1px solid var(--ds-line); margin-bottom: var(--s2); }
 html.v159:not(#_):not(#_) .jn-sum-c { all: unset; box-sizing: border-box; display: flex; flex-direction: column; gap: var(--s1); padding: var(--s2) var(--s2) var(--s2) var(--s2); border-left: 1px solid var(--ds-line); cursor: pointer; }
 html.v159:not(#_):not(#_) .jn-sum-c:first-child { border-left: 0; padding-left: 0; }
 html.v159:not(#_):not(#_) .jn-sum-c b { font: var(--n-m); letter-spacing: -.02em; color: var(--ds-text); }

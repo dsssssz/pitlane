@@ -2,7 +2,7 @@
  * Сессия = как в Track Precision: трасса, число кругов, лучший круг; тап — итог сессии / разбор / аналитика.
  * Модуль грузится при первом входе в Журнал. Только textContent — данные не попадают в разметку. */
 const GAP = 45 * 60 * 1000; // круги без сохранённой сессии — склеиваем, если между ними < 45 мин
-const KINDS = [['all', 'Все'], ['run', 'Замеры'], ['lap', 'Круги'], ['duel', 'Дуэли']];
+const KINDS = [['all', 'Все'], ['run', 'Замеры'], ['lap', 'Круги']];
 const FKEY = 'pitlane-journal-f';
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; };
 const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; };
@@ -52,7 +52,7 @@ export function buildEntries(D, duels = []) {
   out.filter((e) => e.kind === 'lap' && e.okMs != null).forEach((e) => { if (bestBy[e.trackId] == null || e.okMs < bestBy[e.trackId]) bestBy[e.trackId] = e.okMs; });
   out.forEach((e) => { if (e.kind === 'lap' && e.okMs != null && e.okMs === bestBy[e.trackId]) e.pb = true; }); // ручной финиш и «не в зачёт» рекордом не считаются
   // дуэли
-  duels.forEach((d) => {
+  if (false) duels.forEach((d) => { // v197: дуэли убраны
     if (!d || !d.id) return;
     out.push({ kind: 'duel', at: Number(d.createdAt) || 0, title: D.duelType ? D.duelType(d) : 'Дуэль', label: D.duelStatus ? D.duelStatus(d) : '', main: '', unit: '',
       sub: D.duelVs ? D.duelVs(d) : '', id: d.id, done: d.status === 'ready' || d.status === 'expired' });
@@ -85,7 +85,7 @@ export function renderJournal(host, D, entries, filter) {
   const cnt = { run: 0, lap: 0, duel: 0 }; entries.forEach((e) => { cnt[e.kind]++; });
   // сводка — три прибора, они же фильтры
   const sum = el('div', 'jn-sum');
-  [['run', 'замеры', cnt.run], ['lap', 'сессии', cnt.lap], ['duel', 'дуэли', cnt.duel]].forEach(([k, l, n]) => {
+  [['run', 'замеры', cnt.run], ['lap', 'сессии', cnt.lap]].forEach(([k, l, n]) => {
     const b = el('button', 'jn-sum-c'); b.type = 'button'; b.dataset.jf = k; b.setAttribute('aria-pressed', String(filter === k));
     b.append(el('b', '', n), el('span', '', l)); sum.appendChild(b);
   });
@@ -93,12 +93,12 @@ export function renderJournal(host, D, entries, filter) {
   const seg = el('div', 'jn-seg'); seg.setAttribute('role', 'tablist'); seg.setAttribute('aria-label', 'Фильтр журнала');
   KINDS.forEach(([k, l]) => { const b = el('button', 'jn-f', l); b.type = 'button'; b.dataset.jf = k; b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', String(filter === k)); seg.appendChild(b); });
   host.appendChild(seg);
-  const list = entries.filter((e) => filter === 'all' || e.kind === filter);
+  if (filter === 'duel') filter = 'all';
+  const list = entries.filter((e) => e.kind !== 'duel' && (filter === 'all' || e.kind === filter));
   if (!list.length) {
     const e = el('div', 'jn-empty');
     const msg = filter === 'lap' ? ['Сессий пока нет', 'Выберите трассу на вкладке «Трек» и начните сессию.', 'Трек', 'lap']
-      : filter === 'duel' ? ['Дуэлей пока нет', 'Вызов 1 на 1 — разгон или круг.', 'Вызвать', 'duel']
-        : ['Журнал пуст', 'Первый замер — на вкладке «Замер». Здесь появятся замеры, сессии и дуэли.', 'Замер', 'run'];
+        : ['Журнал пуст', 'Первый замер — на вкладке «Замер». Здесь появятся замеры и сессии.', 'Замер', 'run'];
     e.append(el('b', '', msg[0]), el('span', '', msg[1]));
     const go = el('button', 'jn-go', msg[2]); go.type = 'button'; go.dataset.jgo = msg[3]; e.appendChild(go);
     host.appendChild(e); return;

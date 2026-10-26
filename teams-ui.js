@@ -1,3 +1,4 @@
+const TEAMS_OFF = true; // v198: команды/экипажи убраны
 /**
  * v98: команды — публичная страница (профиль + лента), список/поиск, редактор капитана.
  * Приватная часть (круги, дуэли, топ комнаты, сезон) остаётся в crew-rooms.js (только участники).
@@ -100,6 +101,7 @@ function filePicker(onFile) {
 
 /* ——— list / search ——— */
 export async function openTeamsList() {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   openSheet();
   const search = el('input', 'room-input team-search'); search.type = 'search'; search.maxLength = 40; search.placeholder = 'поиск команды'; search.value = st.q;
   const mine = el('div', 'team-mine');
@@ -116,7 +118,7 @@ export async function openTeamsList() {
   let tmr = 0;
   search.addEventListener('input', () => { clearTimeout(tmr); tmr = setTimeout(run, 300); });
   render([
-    head('Команды', 'Публичные страницы: профиль и лента. Дуэли, топ и сезон — только внутри'),
+    head('Команды', 'Публичные страницы: профиль и лента. Топ и сезон — только внутри'),
     search,
     mine,
     el('h3', 'race-list-title', 'Все команды'),
@@ -148,6 +150,7 @@ function teamRow(t) {
 
 /* ——— public page ——— */
 export async function openTeamPage(id) {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   openSheet();
   render([head('Команда', ''), el('p', 'room-empty', 'Загрузка…')]);
   const t = await api.getTeam(id);
@@ -164,7 +167,7 @@ export async function openTeamPage(id) {
   const acts = el('div', 'team-actions');
   const msg = el('p', 'tiny room-msg');
   if (t.viewer.member) {
-    acts.appendChild(btn('go-btn race-cta', 'Внутри: дуэли, топ, сезон', () => { closeSheet(); D.openRooms({ roomId: t.id }); }));
+    acts.appendChild(btn('go-btn race-cta', 'Внутри: круги, топ, сезон', () => { closeSheet(); D.openRooms({ roomId: t.id }); }));
     if (t.viewer.role === 'captain') acts.appendChild(btn('btn-secondary', 'Редактировать', () => void openTeamEditor(t.id)));
   } else if (t.viewer.requested) {
     acts.appendChild(btn('btn-secondary', 'Заявка отправлена · отменить', async () => { await api.cancelTeamRequest(t.id); void openTeamPage(t.id); }));
@@ -194,7 +197,7 @@ async function loadFeed(t, ul, before) {
   const posts = r?.posts || [];
   if (!before) ul.replaceChildren();
   if (!posts.length && !before) { ul.appendChild(el('li', 'room-empty', 'В ленте пока тихо.')); return; }
-  posts.forEach((p) => ul.appendChild(postRow(t, p)));
+  posts.filter((p) => p.kind !== 'duel').forEach((p) => ul.appendChild(postRow(t, p)));
   if (r?.more) {
     const more = el('li', 'team-more');
     more.appendChild(btn('btn-ghost', 'Показать ещё', () => { more.remove(); void loadFeed(t, ul, posts[posts.length - 1].at); }));
@@ -217,7 +220,7 @@ function postRow(t, p) {
     c.appendChild(el('span', 'team-auto-sub', trackName(p.meta.trackId) + ' · ' + p.meta.model + ' · ' + p.meta.tyre));
     if (p.meta.prevNick && Number.isFinite(p.meta.delta)) c.appendChild(el('span', 'team-auto-gap', 'прежний рекорд: ' + p.meta.prevNick + ' · −' + fmtDelta(p.meta.delta)));
     li.appendChild(c);
-  } else if (p.kind === 'duel' && p.meta) {
+  } else if (false && p.kind === 'duel' && p.meta) { // v197: дуэли убраны
     const c = el('div', 'team-auto');
     c.appendChild(el('span', 'team-auto-k', 'Выиграл дуэль'));
     c.appendChild(el('b', 'team-auto-t', p.meta.t + '  vs  ' + p.meta.vsT));
@@ -276,6 +279,7 @@ function composer(t) {
 
 /* ——— captain editor ——— */
 export async function openTeamEditor(id) {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   openSheet();
   const [t, room] = await Promise.all([api.getTeam(id), api.getRoom(id)]);
   if (!t || t.ok === false || !room || room.ok === false || room.role !== 'captain') { render([head('Редактор', ''), el('p', 'room-empty', 'Редактировать может только капитан.'), btn('btn-secondary', 'Назад', () => void openTeamPage(id))]); return; }

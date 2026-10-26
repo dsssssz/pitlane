@@ -1,3 +1,4 @@
+const TEAMS_OFF = true; // v198: команды/экипажи убраны
 /**
  * v97: «Это моя машина» + комнаты экипажей (private) + оплата сезона на комнату (Telegram Stars).
  * All user text → textContent. The server decides membership and the paywall; this file only renders.
@@ -271,7 +272,7 @@ export function openMyCarSheet(opts = {}) {
     } else {
       // v103: keep the choice locally so the bar / lap gate work even before Telegram login;
       // tops & rooms still require an account (server). Sync to server on the next login.
-      msg.textContent = 'Сохранено на этом устройстве. Для топа и команд войди через Telegram в Профиле.';
+      msg.textContent = 'Сохранено на этом устройстве. Для топа войди через Telegram в Профиле.';
     }
     save.disabled = false;
     cacheCar(car);
@@ -349,6 +350,7 @@ export async function requireCar(fn, reason) {
 
 /** After a finished lap: also save it into the active crew room (server binds car + tyre). */
 export async function pushLapToActiveRoom(lap) {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   const rid = activeRoomId();
   if (!rid || !loggedIn()) return null;
   const r = await api.postRoomLap(rid, { ...lap, public: teamLapsPublic(rid) });
@@ -393,13 +395,13 @@ function quotaBadge(q) {
 async function showList() {
   st.room = null;
   if (!loggedIn()) {
-    render([head('Мои команды', 'Внутри: круги, дуэли и топ — только для своих'),
+    render([head('Мои команды', 'Внутри: круги и топ — только для своих'),
       el('p', 'room-empty', 'Войди через Telegram в «Профиле» — комнаты привязаны к аккаунту.'),
       btn('go-btn race-cta', 'Войти', () => { closeSheet('roomSheet'); D.goToView('account'); })]);
     return;
   }
   await loadMyCar();
-  render([head('Мои команды', 'Внутри: круги, дуэли и топ — только для своих'), carLine(), el('p', 'room-empty', 'Загрузка…')]);
+  render([head('Мои команды', 'Внутри: круги и топ — только для своих'), carLine(), el('p', 'room-empty', 'Загрузка…')]);
   const r = await api.listRooms();
   st.rooms = Array.isArray(r) ? r : [];
   const list = el('ul', 'room-list race-list');
@@ -428,7 +430,7 @@ async function showList() {
   const join = btn('btn-secondary', 'Вступить', () => { if (code.value.trim()) void showInvite(code.value.trim().toUpperCase()); });
   const joinRow = el('div', 'room-join'); joinRow.append(code, join);
   render([
-    head('Мои команды', 'Внутри: круги, дуэли и топ — только для своих'),
+    head('Мои команды', 'Внутри: круги и топ — только для своих'),
     carLine(),
     st.rooms.length ? el('h3', 'race-list-title', 'Мои комнаты') : el('p', 'room-empty', 'Пока ни одной комнаты. Создай свою или вступи по ссылке.'),
     st.rooms.length ? list : null,
@@ -453,7 +455,7 @@ async function showInvite(code) {
   render([
     head('Тебя зовут в экипаж', ''),
     el('p', 'room-invite-name', p.name),
-    el('p', 'room-empty', p.memberCount + ' в экипаже · внутри дуэли и топ только для участников'),
+    el('p', 'room-empty', p.memberCount + ' в экипаже · внутри круги и топ только для участников'),
     btn('go-btn race-cta', 'Вступить', async () => {
       const r = await api.joinRoom(code);
       if (!r || r.ok === false) { msg.textContent = r?.error === 'room full' ? 'Комната заполнена' : 'Не вышло: ' + (r?.error || 'сеть'); return; }
@@ -474,10 +476,10 @@ function paywallCard(pw, room) {
   card.appendChild(el('div', 'room-paywall-ico', '⭐'));
   card.appendChild(el('h3', '', 'Экипаж оплачивает сезон'));
   const why = pw?.reason === 'track' ? 'Бесплатно — 1 трек на комнату. Новый трек открывает сезон.'
-    : 'Бесплатные 3 сессии закончились — новые круги, дуэли и топ в комнате на паузе.';
+    : 'Бесплатные 3 сессии закончились — новые круги и топ в комнате на паузе.';
   card.appendChild(el('p', '', why));
   const ul = el('ul', 'room-paywall-list');
-  ['Одна оплата на всю комнату — доступ у всех участников', `Сезон ${price.days} дней: круги, дуэли, топ без лимитов`, 'Старые круги видны всегда', 'Общий рекорд бота — бесплатно'].forEach((t) => ul.appendChild(el('li', '', t)));
+  ['Одна оплата на всю комнату — доступ у всех участников', `Сезон ${price.days} дней: круги, топ без лимитов`, 'Старые круги видны всегда', 'Общий рекорд бота — бесплатно'].forEach((t) => ul.appendChild(el('li', '', t)));
   card.appendChild(ul);
   const msg = el('p', 'tiny room-msg');
   const pay = btn('go-btn race-cta room-pay', `Оплатить сезон · ${price.stars} ⭐`, async () => {
@@ -555,7 +557,7 @@ async function showRoom(id, tab) {
   }
   // tabs
   const tabs = el('div', 'room-tabs seg-control');
-  [['laps', 'Круги'], ['duel', 'Дуэль'], ['top', 'Топ']].forEach(([k, t]) => {
+  [['laps', 'Круги'], ['top', 'Топ']].forEach(([k, t]) => {
     const b = btn('seg-btn' + (st.tab === k ? ' on' : ''), t, () => void showRoom(room.id, k));
     tabs.appendChild(b);
   });
@@ -568,8 +570,8 @@ async function showRoom(id, tab) {
     await api.leaveRoom(room.id); if (activeRoomId() === room.id) setActiveRoom(''); void showList();
   }));
   render(nodes);
-  if (st.tab === 'duel') await renderDuel(pane, room);
-  else if (st.tab === 'top') await renderTop(pane, room);
+  if (st.tab === 'duel') st.tab = 'laps';
+  if (st.tab === 'top') await renderTop(pane, room);
   else await renderLaps(pane, room);
 }
 
@@ -703,6 +705,7 @@ async function renderTop(pane, room) {
 }
 
 export function openRoomSheet(opts = {}) {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   openSheet('roomSheet');
   if (opts.invite) void showInvite(opts.invite);
   else if (opts.roomId) void showRoom(opts.roomId);

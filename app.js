@@ -1,3 +1,5 @@
+const DUELS_OFF = true; // v197: дуэли полностью убраны с сайта (код сервера не трогаем)
+const TEAMS_OFF = true; // v198: команды/экипажи/комнаты убраны с сайта
 import {
   isTMA, WebApp as TG, tmaInitData, tmaAtLeast, telegramDeviceClass, START_ROUTE, setupTmaChrome,
   setBackHandler, showBack, setClosingGuard, tmaHaptic, canOpenLocationSettings, openLocationSettings,
@@ -1621,6 +1623,7 @@ function playEngineStart() {
 const VIEW_ALIAS61 = { run: 'zamer', cars: 'garage', journal: 'history', measure: 'zamer', track: 'lap' };
 function goToView(id, opts = {}) {
   id = VIEW_ALIAS61[id] || id;
+  if (DUELS_OFF && id === 'duels') id = 'home'; // v197: дуэли убраны
   const next = document.getElementById('view-' + id);
   if (!next) return;
   try { if (typeof TGS !== 'undefined' && TGS.open) closeTgSheet({ instant: true }); } catch (_) {}
@@ -2548,7 +2551,7 @@ try {
 } catch (_) {}
 
 
-const DEEP_VIEWS = new Set(['home', 'garage', 'run', 'lap', 'tops', 'duels', 'pulse', 'account', 'cars', 'zamer', 'history', 'journal']); // v161: run/cars — алиасы новых экранов
+const DEEP_VIEWS = new Set(['home', 'garage', 'run', 'lap', 'tops', 'pulse', 'account', 'cars', 'zamer', 'history', 'journal']); // v161: run/cars — алиасы новых экранов
 /** v81: ?screen=duel|crew|feedback|autodromes — opens a sheet (used by the Telegram bot's web_app buttons). */
 const DEEP_SCREENS = { shop: 'home', duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account', mycar: 'lap', rooms: 'tops', teams: 'tops' };
 const SCREEN_PARAM = (() => {
@@ -3682,14 +3685,14 @@ function packTrace(pts) {
 
 /** v104: коды отказа сервера → понятный русский текст (пороги не раскрываем). */
 const REJECT_TEXT = {
-  no_account: 'В топ, дуэли и команды — только с аккаунтом. Войдите через Telegram; замер сохранён на устройстве.',
+  no_account: 'В топ — только с аккаунтом. Войдите через Telegram; замер сохранён на устройстве.',
   gps_c: 'GPS слабый (класс C) — замер сохранён у вас, в топ не идёт.',
   manual_finish: 'Ручной финиш — круг только в личной истории. В топ идёт авто-пересечение линии С/Ф.',
   teleport: 'В треке скачок координат — замер не принят в топ.',
   speed_flag: 'Скорость или ускорение в треке физически невозможны — замер не принят в топ.',
   pause: 'В треке разрыв (GPS пропадал) — замер не принят в топ.',
   too_short: 'Дистанция не набрана или трек обрезан — замер не принят в топ.',
-  simulator: 'Симулятор — только для проверки, в топ и дуэли не идёт.',
+  simulator: 'Симулятор — только для проверки, в топ не идёт.',
   track_uncalibrated: 'Трасса ещё не откалибрована — круг только в личной истории.',
   phone_source: 'Замер телефоном идёт в зачёт C (свой топ), а не в A/B.',
   low_hz: 'GPS обновлялся реже раза в секунду — замер не принят.',
@@ -3698,7 +3701,7 @@ const REJECT_TEXT = {
   crew_ab_only: 'Борд экипажа и сезон — только A/B (внешний GPS). Круг телефоном — в топе «C · телефон».',
   stale: 'Замер слишком старый — отправьте свежий.',
   no_trace: 'Нет сырых точек GPS — обновите приложение и повторите замер.',
-  duplicate: 'Этот трек уже зачтён другому аккаунту (или обе стороны дуэли с одного устройства) — не принят.',
+  duplicate: 'Этот трек уже зачтён другому аккаунту — не принят.',
   not_verified: 'Призрак принимается только к зачтённому сервером результату.',
   session_expired: 'Сессия закончилась — войдите через Telegram ещё раз.',
   offline: 'Нет связи с сервером — замер сохранён на устройстве.',
@@ -6532,7 +6535,7 @@ function shareTextRu(p) {
   if (PREP_LABEL[p.prep]) lines.push('Класс: ' + classLine(p) + ' (со слов пилота)');
   if (Number.isFinite(p.stD) && p.stLab) lines.push(stockDeltaText(p.stD, p.stLab));
   { const sl = sectorLossText(p, false).replace(' к своему лучшему', ' к моему лучшему').replace('своих лучших', 'моих лучших'); if (sl) lines.push(sl); }
-  if (p.duelId) lines.push('Принять вызов: ' + publicLinkFor('duel_' + p.duelId, duelPublicUrl(p.duelId)));
+  if (p.duelId && !DUELS_OFF) lines.push('Принять вызов: ' + publicLinkFor('duel_' + p.duelId, duelPublicUrl(p.duelId)));
   if (p.src === 'sim') lines.push('симулятор · не в топ');
   else if (p.src === 'phone') lines.push(p.valid === false ? 'телефон · зачёт C · не принят' : 'телефон · зачёт C');
   else if (p.valid === false || p.gpsQ === 'C') lines.push('не в публичный топ');
@@ -9701,13 +9704,13 @@ document.getElementById('btnRemoveCar')?.addEventListener('click', () => {
 
 const I18N = {
   ru: {
-    'nav.home':'Главная','nav.duels':'Дуэли','nav.ride':'Заезд','nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Чат','nav.park':'Парк',
+    'nav.home':'Главная','nav.ride':'Заезд','nav.box':'Бокс','nav.dyno':'Паспорт','nav.run':'Замер','nav.lap':'Круг','nav.top':'Топ','nav.paddock':'Чат','nav.park':'Парк',
     'garage.empty':'Гараж пока пуст','garage.hint':'Добавьте машину — и замеры будут сохраняться за ней.','garage.add':'Добавить машину','garage.reset':'сброс',
     'run.title':'Замер','run.hint':'Старт, остановка, газ. Времена появятся по ходу.','run.start':'Старт',
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Трек','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Начать сессию','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Чат','pad.send':'Опубликовать','pad.ph':'Написать в чат…','pad.empty':'Пока тихо — напиши первым.',
-    'acc.title':'Профиль','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа, дуэлей, команд и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
+    'acc.title':'Профиль','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
     'nav.home':'Home','nav.duels':'Duels','nav.ride':'Drive','nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Chat','nav.park':'Park',
@@ -10351,6 +10354,7 @@ async function openPilotProfile(pid) {
 }
 /* v121: «Вызвать на дуэль» из профиля пилота — адресная дуэль */
 function appendChallengeButton(body, pid, res) {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   if (!body || !pid || isMyPilotId(pid) || !/^p_[0-9a-f-]{36}$/.test(String(pid))) return;
   const name = String(res?.nick || res?.pilot?.nick || res?.name || 'пилот').slice(0, 48);
   const btn = padEl('button', 'go-btn pilot-challenge-btn', 'Вызвать на дуэль');
@@ -10536,7 +10540,7 @@ async function renderFollowsCard() {
   if (!r) { card.hidden = true; return; }
   card.hidden = false;
   const list = document.getElementById('accFollowList'); list.replaceChildren();
-  for (const x of r.items || []) {
+  for (const x of (r.items || []).filter((y) => !(TEAMS_OFF && y.kind === 'team'))) {
     const li = padEl('li', 'follow-item');
     li.appendChild(padAvatar(x.name, '', 34));
     const t = padEl('div', 'follow-t'); t.append(padEl('b', '', x.name), padEl('span', '', x.kind === 'team' ? 'команда' : 'пилот'));
@@ -10552,7 +10556,7 @@ document.getElementById('accFollowList')?.addEventListener('click', (e) => { con
 function renderFollowNote() {
   const n = _follows?.items?.length || 0;
   const el = document.getElementById('accFollowNote');
-  if (el) el.textContent = n ? `${n} из ${_follows.max || 30}` : 'Пока ни на кого. В профиле пилота или команды — «Следить».';
+  if (el) el.textContent = n ? `${n} из ${_follows.max || 30}` : 'Пока ни на кого. В профиле пилота — «Следить».';
 }
 /* v121: профиль → «Уведомления в Telegram» (типы по отдельности; без входа карточки нет) */
 let _notifySeq = 0;
@@ -10887,6 +10891,7 @@ let _lastRunTrace = null;
 let _topSubmitP = Promise.resolve();
 
 function rememberDuelCandidateFromShare(payload) {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   if (!payload) return;
   const isLap = payload.type === 'lap' || payload.type === 'круг';
   const gpsQ = payload.gpsQ;
@@ -10983,6 +10988,7 @@ function setDuelType(type) {
 // v121: вызов конкретному пилоту (из его профиля) — ему придёт «Тебя вызвали», если он включил уведомления
 let _duelTo = null;
 function openDuelSheet(opts = {}) {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   const sheet = document.getElementById('duelSheet');
   if (!sheet) return;
   _duelTo = opts.to && opts.to.id ? { id: String(opts.to.id), name: String(opts.to.name || 'пилот').slice(0, 48) } : null;
@@ -11062,6 +11068,7 @@ function renderDuelSides(d) {
 }
 
 async function showDuelView(id) {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   const d = await api.getDuel(id);
   if (!d || !d.id) {
     const hint = document.getElementById('duelHint');
@@ -11150,6 +11157,7 @@ async function refreshDuelList() {
 }
 
 async function createDuelFromUi() {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   if (!currentUser()) { const h = document.getElementById('duelHint'); if (h) h.textContent = REJECT_TEXT.no_account; return; }
   if (!isRemoteApi()) {
     const hint = document.getElementById('duelHint');
@@ -11208,6 +11216,7 @@ async function createDuelFromUi() {
 }
 
 async function submitMyRunToActiveDuel() {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   if (!currentUser()) { const h = document.getElementById('duelHint'); if (h) h.textContent = REJECT_TEXT.no_account; return; }
   const d = _activeDuel;
   if (!d?.id) return;
@@ -11251,6 +11260,7 @@ async function submitMyRunToActiveDuel() {
 }
 
 async function bootDuelFromUrl() {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   try {
     const params = new URLSearchParams(location.search);
     const hash = location.hash || '';
@@ -11326,6 +11336,7 @@ document.getElementById('duelPasteOpen')?.addEventListener('click', async () => 
  */
 let _shareDuelBusy = null;
 async function ensureShareDuel(p) {
+  if (DUELS_OFF) return null; // v197: дуэли убраны
   if (!p) return null;
   if (p.duelId) return p.duelId;
   const cand = _shareCand;
@@ -11975,6 +11986,7 @@ function ghostSimRouteOff() {
 
 /* —— duel: ride against the creator's ghost —— */
 async function rideDuelGhost(d) {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   const hint = document.getElementById('duelGhostHint');
   if (!d?.ghostId) return;
   const btn = document.getElementById('duelRideGhost');
@@ -12109,7 +12121,7 @@ const PROFILE_BANNERS = [
   ['neon-sochi', 'Сочи · неон'], ['neon-moscow', 'Moscow · неон'], ['neon-nring', 'NRING · неон'],
   ['telemetry', 'Телеметрия'], ['carbon', 'Карбон'], ['asphalt', 'Асфальт'],
   ['stripes', 'Полосы'], ['sunset', 'Закат'], ['ice', 'Лёд'],
-  ['photo-duels', 'Дуэль'], ['photo-tracks', 'Трасса'], ['photo-paddock', 'Чат'],
+  ['photo-tracks', 'Трасса'], ['photo-paddock', 'Чат'],
 ];
 const BANNER_IDS = new Set(PROFILE_BANNERS.map((b) => b[0]));
 const MY_BANNER_LS = 'pitlane-banner-v1';
@@ -12214,7 +12226,7 @@ async function pickBanner(id) {
     const res = await api.setBanner({ id: next ? next.id : null });
     if (!res || res.ok === false || res.error) { bannerMsg('Не сохранилось: ' + String(res?.error || 'нет связи').slice(0, 80)); return; }
     setMyBannerLocal(res.banner ?? next);
-    bannerMsg('Готово — баннер виден в профиле и дуэлях');
+    bannerMsg('Готово — баннер виден в профиле');
   } else {
     setMyBannerLocal(next);
     bannerMsg('Сохранено на устройстве. Войди — и баннер увидят все.');
@@ -12333,6 +12345,7 @@ function fillCrewTrackSelect() {
 }
 
 function openCrewSheet(opts = {}) {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   const sheet = document.getElementById('crewSheet');
   if (!sheet) return;
   const nick = document.getElementById('crewNick');
@@ -12369,6 +12382,7 @@ function fmtAvgLap(ms) {
 }
 
 async function showCrewView(id) {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   const crew = await api.getCrew(id);
   if (!crew || !crew.id) {
     const hint = document.getElementById('crewHint');
@@ -12428,6 +12442,7 @@ async function showCrewView(id) {
 }
 
 async function refreshCrewList() {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   const ul = document.getElementById('crewList');
   if (!ul) return;
   const rows = await api.listMyCrews(crewPilotId());
@@ -12444,6 +12459,7 @@ async function refreshCrewList() {
 }
 
 async function createCrewFromUi() {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   if (!currentUser()) { const h = document.getElementById('crewHint'); if (h) h.textContent = REJECT_TEXT.no_account; return; }
   if (!isRemoteApi()) {
     const hint = document.getElementById('crewHint');
@@ -12488,6 +12504,7 @@ async function createCrewFromUi() {
 }
 
 async function joinCrewByCodeUi() {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   const code = (document.getElementById('crewJoinCode')?.value || '').trim();
   if (!code) return;
   const nick = (document.getElementById('crewNick')?.value || '').trim() || crewPilotNick();
@@ -12506,6 +12523,7 @@ async function joinCrewByCodeUi() {
 }
 
 async function joinActiveCrew() {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   if (!currentUser()) { const h = document.getElementById('crewHint'); if (h) h.textContent = REJECT_TEXT.no_account; return; }
   const c = _activeCrew;
   if (!c?.id) return;
@@ -12523,6 +12541,7 @@ async function joinActiveCrew() {
 }
 
 async function pushCrewBestAfterLap(trackId, row) {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   if (!trackId || !row?.t) return;
   const q = row.gpsQ || row.gpsQ;
   if (q !== 'A' && q !== 'B') return;
@@ -12561,6 +12580,7 @@ async function pushCrewBestAfterLap(trackId, row) {
 }
 
 async function bootCrewFromUrl() {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   try {
     const params = new URLSearchParams(location.search);
     const hash = location.hash || '';
@@ -12919,6 +12939,7 @@ function applyLegacyRooms(on) {
   ['btnRoomsOpen', 'btnRoomsAcc'].forEach((id) => showWhen(id, !!on));
 }
 async function checkLegacyRooms() {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   let on = false;
   try { on = localStorage.getItem(LEGACY_ROOMS_KEY) === '1' || !!localStorage.getItem('pitlane-room-active-v1'); } catch (_) {}
   applyLegacyRooms(on);
@@ -12966,22 +12987,6 @@ try {
 
 /* -------- Feature help (i) — reuse session-day «i» look -------- */
 const FEATURE_HELP = {
-  duel: {
-    title: 'Дуэль',
-    lines: [
-      'Личный вызов 1 на 1: <strong>0–100</strong> или <strong>круг</strong> на выбранном треке.',
-      '<strong>Как:</strong> создай дуэль → скопируй ссылку другу → оба прикрепляют свой заезд, проверенный сервером. Класс задаёт первый заезд: внешний GPS → A/B, телефон → зачёт C. Телефон против A/B несопоставим.',
-      '<strong>Где:</strong> Топы → «Дуэль». Список своих — внизу этого листа. Из карточки результата — «Вызвать на дуэль».',
-    ],
-  },
-  crew: {
-    title: 'Экипаж',
-    lines: [
-      'Команда <strong>3–10</strong> пилотов. Месячный борд — лучший валидный круг A/B на треке сезона экипажа.',
-      '<strong>Как:</strong> создай экипаж или вступи по коду/ссылке. После круга A/B на треке экипажа результат попадает на борд сам.',
-      '<strong>Где:</strong> Топы → «Экипаж». Код и ссылка — в карточке экипажа.',
-    ],
-  },
   autodrome: {
     title: 'Автодромы',
     lines: [
@@ -14311,6 +14316,7 @@ async function renderHomeHero() {
 }
 
 async function fetchMyDuels() {
+  if (DUELS_OFF) return []; // v197: дуэли убраны
   if (!isRemoteApi()) return [];
   let rows = [];
   try { rows = (await api.listMyDuels(duelPilotId())) || []; } catch (_) { rows = []; }
@@ -14321,6 +14327,7 @@ async function fetchMyDuels() {
   return rows.filter((d) => d && d.id);
 }
 async function renderHomeDuels() {
+  if (DUELS_OFF) { const sec = document.getElementById('homeDuelsSec'); if (sec) sec.hidden = true; return; } // v197
   const box = document.getElementById('homeDuels');
   if (!box) return;
   let rows = [];
@@ -15385,7 +15392,6 @@ function homeQuick(kind) {
   hap(8);
   if (kind === 'run') goToView('run');
   else if (kind === 'lap') goToView('lap');
-  else if (kind === 'duel') { goToView('duels'); openDuelSheet({ createOnly: true }); }
   else if (kind === 'garage') goToView('garage');
   else if (kind === 'team') openCrewSheet();
   else if (kind === 'post') {
@@ -15499,6 +15505,7 @@ function renderHwRecords(remote) {
 }
 let _hwDuelsAt = 0;
 async function renderHwDuels() {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   if (Date.now() - _hwDuelsAt < 30000 && document.getElementById('hwDuelsBody')?.childElementCount) return;
   _hwDuelsAt = Date.now();
   let rows = []; try { rows = await fetchMyDuels(); } catch (_) { rows = []; }
@@ -15600,6 +15607,7 @@ function renderPadLive(d) {
 }
 let _hwTeamAt = 0;
 async function renderHwTeam() {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   if (Date.now() - _hwTeamAt < 60000 && document.getElementById('hwTeamBody')?.childElementCount) return;
   _hwTeamAt = Date.now();
   let rows = null; try { rows = isRemoteApi() && currentUser() ? await api.listMyCrews(crewPilotId()) : null; } catch (_) { rows = null; }
@@ -15798,7 +15806,7 @@ function tgsFill(kind) {
     document.getElementById('autodromeListPane')?.removeAttribute('hidden'); document.getElementById('autodromeDetailPane')?.setAttribute('hidden', '');
     if (tr) { tr.hidden = false; body.appendChild(tr); }
   }
-  document.getElementById('tgSheet')?.setAttribute('aria-label', kind === 'duels' ? 'Дуэли' : kind === 'pulse' ? 'Чат' : 'Трассы');
+  document.getElementById('tgSheet')?.setAttribute('aria-label', kind === 'pulse' ? 'Чат' : 'Трассы');
 }
 function tgsSetTab(kind) {
   const btn = kind ? document.querySelector(`.sheet-tab[data-sheet="${kind}"]`) : null;
@@ -15807,6 +15815,7 @@ function tgsSetTab(kind) {
 }
 function tgsBgOrigin() { const vh = document.getElementById('viewHost'); if (vh) vh.style.transformOrigin = `50% ${Math.round(window.scrollY + window.innerHeight * 0.35)}px`; }
 function openTgSheet(kind) {
+  if (DUELS_OFF && kind === 'duels') { goToView('home'); return; } // v197
   const sh = document.getElementById('tgSheet'); const panel = document.getElementById('tgSheetPanel'); if (!sh || !panel) return;
   if (TGS.open === kind) { closeTgSheet(); return; } // повторное нажатие на активный пункт — закрыть
   try { plMenuClose(); } catch (_) {}
@@ -16104,6 +16113,7 @@ function seasonRow(i, team, sub, time, need) {
   return li;
 }
 async function renderCrewSeason() {
+  if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   const card = document.getElementById('seasonCard');
   if (!card) return;
   const sel = document.getElementById('seasonTrack');
@@ -16235,6 +16245,7 @@ document.getElementById('seasonShareImg')?.addEventListener('click', async () =>
 });
 
 async function renderDuelsView() {
+  if (DUELS_OFF) return; // v197: дуэли убраны
   try { void renderCrewSeason(); } catch (_) {}
   const list = document.getElementById('duelsList');
   if (!list || _duelsLoading) return;
@@ -16297,6 +16308,7 @@ document.getElementById('duelsPaste')?.addEventListener('click', () => {
 /* VS-анимация: пилоты съезжаются, неоновое VS, вспышка, вибрация. */
 let _vsFxBusy = false;
 function playDuelVsFx(left, right, caption) {
+  if (DUELS_OFF) return Promise.resolve(); // v197: дуэли убраны
   const fx = document.getElementById('duelVsFx');
   if (!fx || _vsFxBusy) return Promise.resolve();
   _vsFxBusy = true;
