@@ -9,6 +9,22 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const body = () => document.getElementById('shopBody');
 const rid = () => { const a = new Uint8Array(12); crypto.getRandomValues(a); return [...a].map((b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join(''); };
 
+function soonPh(cls) {
+  const d = el('div', 'shop-ph ' + cls); d.setAttribute('role', 'img'); d.setAttribute('aria-label', 'Скоро');
+  d.appendChild(el('span', 'shop-ph-k', 'PITLANE')); d.appendChild(el('b', 'shop-ph-t', 'Скоро')); return d;
+}
+/* v198: «Что внутри» — разбор с цифрами-выносками и легендой, разрез, короткие строки */
+function insideBlock(x) {
+  const s = el('section', 'shop-sec shop-in'); s.appendChild(el('h3', 'shop-h3', 'Что внутри'));
+  s.appendChild(el('p', 'shop-in-lead', 'Внутри нет ничего лишнего: GPS-модуль с антенной, процессор и светодиод.'));
+  const fig = el('figure', 'shop-in-fig'); fig.appendChild(picture(x.img, 'shop-in-img', false));
+  for (const [l, t, n] of x.pins) { const b = el('span', 'shop-in-pin', String(n)); b.style.left = l + '%'; b.style.top = t + '%'; b.setAttribute('aria-hidden', 'true'); fig.appendChild(b); }
+  s.appendChild(fig);
+  const ol = el('ol', 'shop-in-parts'); x.parts.forEach(([k, v], i) => { const li = el('li'); li.appendChild(el('i', '', String(i + 1))); const t = el('div'); t.appendChild(el('b', '', k)); t.appendChild(el('span', '', v)); li.appendChild(t); ol.appendChild(li); }); s.appendChild(ol);
+  if (x.section) { const f2 = el('figure', 'shop-in-fig shop-in-sec'); f2.appendChild(picture(x.section, 'shop-in-img', false)); f2.appendChild(el('figcaption', '', 'Разрез: антенна сразу под крышкой и смотрит в небо')); s.appendChild(f2); }
+  if (x.rows?.length) { const g = el('div', 'shop-in-rows'); for (const [k, v] of x.rows) { const c = el('div'); c.appendChild(el('span', '', k)); c.appendChild(el('b', '', v)); g.appendChild(c); } s.appendChild(g); }
+  return s;
+}
 function picture(g, cls, eager) {
   const p = el('picture', cls);
   const s = document.createElement('source'); s.type = 'image/avif'; s.srcset = g.avif; s.sizes = '(max-width: 560px) 100vw, 520px'; p.appendChild(s);
@@ -37,10 +53,10 @@ function viewList() {
   visibleProducts().forEach((p, i) => {
     const c = el('article', 'shop-card' + (i === 0 ? ' shop-card-hero' : '')); c.dataset.product = p.id;
     const open = el('button', 'shop-card-open'); open.type = 'button'; open.setAttribute('aria-label', p.title + ' — подробнее');
-    if (p.gallery?.[0]) open.appendChild(picture(p.gallery[0], 'shop-card-img', i < 3));
+    if (p.gallery?.[0]) open.appendChild(picture(p.gallery[0], 'shop-card-img', i < 3)); else open.appendChild(soonPh('shop-card-img'));
     const t = el('span', 'shop-card-txt');
     t.appendChild(el('b', 'shop-card-title', p.title)); t.appendChild(el('span', 'shop-card-sub', p.subtitle || ''));
-    t.appendChild(el('span', 'shop-price', Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу'));
+    t.appendChild(el('span', 'shop-price', p.status === 'soon' ? 'Скоро' : Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу'));
     open.appendChild(t);
     open.addEventListener('click', () => { D.hap?.(6); const img = open.querySelector('img'); const from = img ? { el: img.cloneNode(true), rect: img.getBoundingClientRect() } : null; push({ k: 'product', id: p.id }); if (from && D.page) requestAnimationFrame(() => { try { flyShared(from, document.querySelector('#shopBody .shop-gal-slide img'), { dur: 420 }); } catch (_) {} }); });
     c.appendChild(open);
@@ -94,12 +110,13 @@ function viewProduct(v) {
   const gal = el('div', 'shop-gal'); gal.setAttribute('role', 'region'); gal.setAttribute('aria-label', 'Фото');
   const track = el('div', 'shop-gal-track');
   p.gallery.forEach((g, i) => { const s = el('div', 'shop-gal-slide'); s.appendChild(picture(g, '', i === 0)); track.appendChild(s); });
+  if (!p.gallery.length) { const s = el('div', 'shop-gal-slide'); s.appendChild(soonPh('')); track.appendChild(s); }
   const dots = el('div', 'shop-gal-dots'); p.gallery.forEach((_, i) => { const d = el('i', i === 0 ? 'on' : ''); dots.appendChild(d); });
   track.addEventListener('scroll', () => { const i = Math.round(track.scrollLeft / Math.max(1, track.clientWidth)); [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i)); }, { passive: true });
   gal.appendChild(track); gal.appendChild(dots); f.appendChild(gal);
   const buy = el('div', 'shop-buy');
   const pl = el('div', 'shop-buy-p');
-  pl.appendChild(el('b', 'shop-buy-price', Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу'));
+  pl.appendChild(el('b', 'shop-buy-price', p.status === 'soon' ? 'Скоро в продаже' : Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу'));
   pl.appendChild(el('span', 'shop-badge', statusOf(p).label));
   buy.appendChild(pl);
   const cta = el('button', 'shop-cta', orderable(p) ? (p.status === 'preorder' ? 'Заказать · предзаказ' : 'Заказать') : statusOf(p).label);
@@ -107,6 +124,7 @@ function viewProduct(v) {
   cta.addEventListener('click', async () => { D.hap?.(8); if (!D.currentUser()) { D.close?.(); D.needLogin('Чтобы оформить заявку, войдите — так мы сможем с вами связаться'); return; } if (st.tg === undefined) { cta.disabled = true; await loadOrders(); cta.disabled = false; } push({ k: 'form', id: p.id }); });
   buy.appendChild(cta); f.appendChild(buy);
   if (!SHOP_CONFIG.payments) f.appendChild(el('p', 'shop-muted shop-pay-note', 'Без предоплаты в приложении: после заявки напишем в Telegram, договоримся об оплате и доставке.'));
+  if (p.inside) f.appendChild(insideBlock(p.inside));
   const sp = el('section', 'shop-sec'); sp.appendChild(el('h3', 'shop-h3', 'Характеристики'));
   const dl = el('dl', 'shop-specs'); for (const [k, val] of (p.specs || [])) { dl.appendChild(el('dt', '', k)); dl.appendChild(el('dd', '', val)); } sp.appendChild(dl); f.appendChild(sp);
   if (p.inBox?.length) { const s = el('section', 'shop-sec'); s.appendChild(el('h3', 'shop-h3', 'В комплекте')); const ul = el('ul', 'shop-list'); p.inBox.forEach((x) => ul.appendChild(el('li', '', x))); s.appendChild(ul); f.appendChild(s); }

@@ -5948,7 +5948,7 @@ html.v152 .bn52 { display: block; margin: 4px -16px 18px; }
 .bn52-track::-webkit-scrollbar { display: none; }
 .bn52-s { position: relative; flex: none; width: calc(100vw - 32px); max-width: 640px; aspect-ratio: 16 / 9; scroll-snap-align: start; scroll-snap-stop: always; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 6px; padding: 20px 22px !important; border-radius: 8px !important; border: 1px solid var(--ds-line) !important; background: #141518 !important; box-shadow: none !important; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .bn52-s img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: grayscale(1) brightness(.5) contrast(1.08); }
-.bn52-s.b-chip img { filter: grayscale(1) brightness(.42) contrast(1.15); object-position: 60% 50%; }
+.bn52-s.b-chip img { filter: grayscale(1) brightness(.6) contrast(1.12); object-position: 62% 45%; }
 .bn52-s.b-video img { object-position: 50% 62%; }
 .bn52-s::after { content: ''; position: absolute; inset: 0; }
 .bn52-s > span, .bn52-s > b, .bn52-s > i { position: relative; z-index: 1; }
@@ -7210,3 +7210,26 @@ html.v159:not(#_):not(#_) #view-home #hwPad .pc-bt { min-width: 0; white-space: 
 html.v159:not(#_):not(#_) .g53-mine, html.v159:not(#_):not(#_) .g53-3d { white-space: nowrap; padding-left: 12px !important; padding-right: 12px !important; }
 .sc-head { flex-wrap: wrap; gap: 2px 10px; }
 .sc-head h3 { white-space: nowrap; }
+
+/* v198: магазин — заглушка «Скоро» и блок «Что внутри» */
+.shop-ph { position: relative; display: grid; place-content: center; gap: 6px; text-align: center; aspect-ratio: 3 / 2; width: 100%; border-radius: inherit; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 0%, #1d1e21 0%, #0c0d0f 55%, #060607 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.shop-ph::after { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(135deg, rgba(255,255,255,.018) 0 2px, transparent 2px 6px); pointer-events: none; }
+.shop-ph-k { font: 600 10px/1 var(--font-ui); letter-spacing: .32em; color: #6f7176; }
+.shop-ph-t { font: 600 22px/1.1 var(--font-ui); letter-spacing: .02em; color: #e9e9ea; }
+.shop-in-lead { margin: 0 0 12px; font: 500 14px/1.4 var(--font-ui); color: var(--ds-text); }
+.shop-in-fig { position: relative; margin: 0 0 12px; border-radius: 14px; overflow: hidden; background: #111214; }
+.shop-in-img img { display: block; width: 100%; height: auto; aspect-ratio: 3 / 2; object-fit: cover; }
+.shop-in-pin { position: absolute; transform: translate(-50%, -50%); width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center;
+  font: 700 11px/1 var(--font-ui); color: #0b0b0c; background: #f2f2f2; box-shadow: 0 0 0 4px rgba(242,242,242,.18), 0 2px 8px rgba(0,0,0,.45); }
+.shop-in-parts { list-style: none; margin: 0 0 14px; padding: 0; display: grid; gap: 10px; }
+.shop-in-parts li { display: grid; grid-template-columns: 22px 1fr; gap: 10px; align-items: start; }
+.shop-in-parts i { font: 700 11px/22px var(--font-ui); font-style: normal; text-align: center; width: 22px; height: 22px; border-radius: 50%; background: rgba(255,255,255,.08); color: #e9e9ea; }
+.shop-in-parts b { display: block; font: 600 14px/1.3 var(--font-ui); color: var(--ds-text); }
+.shop-in-parts span { display: block; font: 500 12.5px/1.35 var(--font-ui); color: #8d8d8d; }
+.shop-in-sec figcaption { position: absolute; left: 12px; right: 12px; bottom: 10px; font: 500 12px/1.3 var(--font-ui); color: #d6d6d8; text-shadow: 0 1px 6px rgba(0,0,0,.7); }
+.shop-in-rows { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.shop-in-rows > div { padding: 10px 12px; border-radius: 12px; background: rgba(255,255,255,.04); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+.shop-in-rows span { display: block; font: 500 10.5px/1 var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: #8d8d8d; margin-bottom: 6px; }
+.shop-in-rows b { display: block; font: 600 13px/1.3 var(--font-ui); color: var(--ds-text); }
+@media (min-width: 900px) { .shop-in-pin { width: 26px; height: 26px; font-size: 12px; } }
