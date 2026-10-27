@@ -24,7 +24,9 @@ static bool portalOn = false, portalSaved = false;
 static uint32_t portalUntil = 0, portalStopAt = 0;
 static WebSocketsClient ws;
 static bool wsStarted = false, wsOpen = false, gotHello = false;
-static bool pairErr = false, tokenErr = false, timeSet = false;
+static bool pairErr = false, tokenErr = false, timeSet = false, ntpStarted = false;
+static uint32_t lastTimeLog = 0;
+static bool timeValid() { return time(nullptr) > 1700000000; }
 static uint32_t lastBatch = 0, lastStatus = 0, claimAt = 0, claimBackoff = 4000;
 static NetBuf buf;
 static marks::Tracker tracker;
@@ -282,7 +284,7 @@ void begin(const char* name, const char* fw) {
 void onPvt(const NavPvt& p, uint32_t now) {
   int64_t t = pvtEpochMs(p);
   if (t < 0) return;   // время ещё не решено — в сеть не шлём
-  if (!timeSet) { struct timeval tv{(time_t)(t / 1000), (suseconds_t)((t % 1000) * 1000)}; settimeofday(&tv, nullptr); timeSet = true; } // TLS: даты сертификатов
+  if (!timeSet && !timeValid()) { struct timeval tv{(time_t)(t / 1000), (suseconds_t)((t % 1000) * 1000)}; settimeofday(&tv, nullptr); timeSet = true; Serial.println("[pitlane-gps] время: из GPS"); } // TLS: даты сертификатов
   uint16_t vcm = (uint16_t)min<int32_t>(max<int32_t>((p.gSpeed + 5) / 10, 0), 15000);
   bool fixOk = p.gnssFixOK && p.fixType >= 3;
   stSv = p.numSV; stFix = (p.fixType & 7) | (p.gnssFixOK ? 8 : 0);
@@ -309,8 +311,16 @@ void loop(uint32_t now) {
   }
   if (!ssid.length()) return;
   bool wifi = WiFi.status() == WL_CONNECTED;
-  if (wifi && !token.length() && code.length()) tryClaim(now);
-  if (wifi && token.length() && !wsStarted) startWs();
+  // время для TLS: из GPS (onPvt) или из интернета (SNTP) — чип без GPS-модуля тоже привязывается
+  if (wifi && !ntpStarted) {
+    configTime(0, 0, "pool.ntp.org", "time.google.com", "time.cloudflare.com");
+    ntpStarted = true;
+    Serial.println("[pitlane-gps] время: запрос NTP");
+  }
+  if (!timeSet && timeValid()) { timeSet = true; Serial.printf("[pitlane-gps] время: получено (%ld)\n", (long)time(nullptr)); }
+  if (wifi && !timeSet && now - lastTimeLog > 5000) { lastTimeLog = now; Serial.println("[pitlane-gps] время: ждём NTP/GPS — привязка отложена"); }
+  if (wifi && timeSet && !token.length() && code.length()) tryClaim(now);
+  if (wifi && timeSet && token.length() && !wsStarted) startWs();
   if (wsStarted) ws.loop();
   if (!(wsOpen && gotHello)) return;
   if (now - lastBatch >= PL_BATCH_MS) {

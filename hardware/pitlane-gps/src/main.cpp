@@ -9,7 +9,7 @@
 #include "netlink.h"
 #include <Preferences.h>
 
-#define FW_VERSION "2.1.0"
+#define FW_VERSION "2.1.1"
 
 #ifndef GPS_RX_PIN
 #define GPS_RX_PIN 20
@@ -251,9 +251,16 @@ void loop() {
     Serial.printf("  leds: %s | Wi-Fi: %s, в буфере %lu, потеряно %lu | heap %lu\n", lights::modeName(lights::mode()),
                   netlink::stateName(netlink::state()), (unsigned long)netlink::bufferedPoints(), (unsigned long)netlink::droppedPoints(),
                   (unsigned long)ESP.getFreeHeap());
-    static uint32_t silentSec = 0;
-    silentSec = (now - lastPvtMs > 3000) ? silentSec + 1 : 0;
-    if (silentSec >= 5) { silentSec = 0; gps.begin(GPS_RX_PIN, GPS_TX_PIN, gps.rate()); }
+    // GPS молчит — переинициализация. gps.begin() блокирует ~5 с (перебор скоростей), поэтому
+    // без модуля повторяем всё реже (8 → 60 с), иначе светодиод «замирает» и сеть подтормаживает
+    static uint32_t silentSec = 0, reinitAfter = 5;
+    if (now - lastPvtMs > 3000) silentSec++; else { silentSec = 0; reinitAfter = 5; }
+    if (silentSec >= reinitAfter) {
+      silentSec = 0;
+      bool ok = gps.begin(GPS_RX_PIN, GPS_TX_PIN, gps.rate());
+      reinitAfter = ok ? 5 : min<uint32_t>(reinitAfter * 2, 60);
+      if (!ok) Serial.printf("[pitlane-gps] GNSS не отвечает, следующая попытка через %lu с\n", (unsigned long)reinitAfter);
+    }
   }
   ledTask(now);
 #if PL_TRIPLE_POWER_PORTAL

@@ -1,7 +1,7 @@
 # PITLANE GPS — комплект C «USB от машины» (для сборщика)
 
 Полный пакет: **PITLANE-GPS-kit.pdf** + **PITLANE-GPS-kit.zip** (собирает `python3 docs/kit/build_kit.py`).
-Прошивка 2.1.0, env `esp32c3kit`. Корпус — [`../../enclosure/kit/`](../../enclosure/kit/), схема — [`pitlane-gps-kit-wiring.svg`](pitlane-gps-kit-wiring.svg).
+Прошивка 2.1.1, env `esp32c3kit`. Корпус — [`../../enclosure/kit/`](../../enclosure/kit/), схема — [`pitlane-gps-kit-wiring.svg`](pitlane-gps-kit-wiring.svg).
 
 ![корпус](../../enclosure/kit/renders-jpg/C_hero_34.jpg)
 
