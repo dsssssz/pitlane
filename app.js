@@ -1623,6 +1623,8 @@ function playEngineStart() {
 const VIEW_ALIAS61 = { run: 'zamer', cars: 'garage', journal: 'history', measure: 'zamer', track: 'lap' };
 function goToView(id, opts = {}) {
   id = VIEW_ALIAS61[id] || id;
+  if (id === 'pulse') { openChatPage(); return; } // v205: Чат — отдельная полноэкранная страница
+  if (CP.open) closeChatPage({ instant: true });
   if (DUELS_OFF && id === 'duels') id = 'home'; // v197: дуэли убраны
   const next = document.getElementById('view-' + id);
   if (!next) return;
@@ -7374,6 +7376,7 @@ if (isTMA) {
     ['vtSheet', 'vtClose'], ['shopSheet', 'shopClose'], // v147
     ['ghost74', 'ghost74Close'], // v174
     ['tgSheet', 'tgSheetClose'], ['gps61', 'gps61Close'], // v161
+    ['chatPage', 'chatBack'], // v205: полноэкранный Чат
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
   const closeSheet = (id, btnId) => {
@@ -9874,19 +9877,29 @@ function padCount(n) {
   return String(n);
 }
 /** Author chip (avatar + nick + meta); a button opening the public profile when the id is an account. */
-function padAuthor({ name, pilotId, avatar, meta, size = 40 }) {
+function padAuthor({ name, pilotId, avatar, meta, size = 40, pp = null }) {
   name = padName(name);
   const clickable = isPublicPilot(pilotId);
   const el = padEl(clickable ? 'button' : 'div', 'pad-author');
   if (clickable) { el.type = 'button'; el.dataset.pilot = pilotId; el.setAttribute('aria-label', 'Профиль: ' + (name || 'Пилот')); }
-  el.appendChild(padAvatar(name, avatar, size));
+  // v205: Pass-косметика у ника (рамка аватарки, номер, пин) — только если сервер её отдал
+  const fr = pp && (pp.frame === 'carbon' || pp.frame === 'chequer') ? pp.frame : '';
+  let ava = padAvatar(name, avatar, size);
+  if (fr) { try { ava = framedAvatar(ava, fr, size); } catch (_) {} }
+  el.appendChild(ava);
   const who = padEl('span', 'pad-who');
-  who.appendChild(padEl('span', 'pad-nick', name || 'Пилот'));
+  const nk = padEl('span', 'pad-nick', name || 'Пилот');
+  if (pp && Number.isInteger(pp.number)) nk.appendChild(padEl('i', 'lb92-num pad-num', String(pp.number)));
+  if (pp && ['helmet', 'wheel', 'carbon'].includes(pp.pin)) { try { const b = document.createElement('img'); b.className = 'lb92-b pad-pin'; b.alt = ''; b.src = awardImg(pp.pin, true); nk.appendChild(b); } catch (_) {} }
+  who.appendChild(nk);
   if (meta) who.appendChild(padEl('span', 'pad-meta', meta));
   el.appendChild(who);
   return el;
 }
 
+/** v205: раздел чата и трасса (вкладка «Треки») */
+var CP = { ch: 'gen', trk: '', open: false, all: [] };
+function cpChOf(p) { return ['runs', 'tracks', 'q'].includes(p && p.ch) ? p.ch : 'gen'; }
 const _padPosts = new Map(); // id → public post (shared by feed + profile)
 const _padLikeSeq = new Map();
 
@@ -9927,7 +9940,7 @@ function buildPostCard(p, { compact = false } = {}) {
   card.dataset.post = p.id;
   const head = padEl('header', 'pad-head');
   const meta = [p.car, padAgo(p.at)].filter(Boolean).join(' · ');
-  head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, avatar: padAvaUrl(p.pilotId, p.ava), meta }));
+  head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, avatar: padAvaUrl(p.pilotId, p.ava), meta, pp: p.pp || null }));
   const myPid = accountPilotId();
   if (p.pilotId && myPid && p.pilotId === myPid) {
     const del = padEl('button', 'pad-act pad-del');
@@ -9938,6 +9951,7 @@ function buildPostCard(p, { compact = false } = {}) {
     head.appendChild(del);
   }
   card.appendChild(head);
+  if (!compact && p.ch === 'tracks' && p.trk) { const tg = padEl('button', 'pad-trk', trackShortName(p.trk)); tg.type = 'button'; tg.dataset.trk = p.trk; card.appendChild(tg); }
   if (p.text) card.appendChild(padEl('p', 'pad-text', p.text));
   if (p.img && PAD_IMG_RE.test(String(p.img))) {
     const img = document.createElement('img');
@@ -9974,11 +9988,15 @@ function renderPulseRows(rows0) {
   _padOut = _padOut.filter((it) => !(it.status === 'sent' && (has(it) || now - (it.sentAt || 0) > PAD_SENT_KEEP_MS)));
   const late = _padOut.filter((it) => it.status === 'sent' && it.post).map((it) => it.post);
   if (late.length) rows = [...late, ...rows];
+  CP.all = rows;
+  try { cpPaintCounts(); } catch (_) {}
+  rows = rows.filter((p) => p && cpChOf(p) === CP.ch && (CP.ch !== 'tracks' || !CP.trk || p.trk === CP.trk));
+  try { cpPaintPin(); } catch (_) {}
   feed.replaceChildren();
-  if (!rows.length && !_padOut.some((x) => x.status !== 'sent')) {
+  if (!rows.length && !_padOut.some((x) => x.status !== 'sent' && (x.ch || 'gen') === CP.ch)) {
     const empty = padEl('div', 'pad-empty');
     empty.appendChild(padIcon('bubble', 'pad-empty-ico'));
-    empty.appendChild(padEl('p', '', 'Пока тихо — напиши первым.'));
+    empty.appendChild(padEl('p', '', cpEmptyText()));
     feed.appendChild(empty);
     return;
   }
@@ -10738,7 +10756,7 @@ function padPaintOut() {
   const feed = document.getElementById('pulseFeed');
   if (!feed) return;
   feed.querySelectorAll('.pad-out').forEach((c) => { if (!_padOut.some((x) => x.cid === c.dataset.cid && x.status !== 'sent')) c.remove(); });
-  const live = _padOut.filter((x) => x.status !== 'sent');
+  const live = _padOut.filter((x) => x.status !== 'sent' && (x.ch || 'gen') === CP.ch);
   if (live.length) feed.querySelector('.pad-empty')?.remove();
   for (const it of live.slice().reverse()) {
     const old = feed.querySelector(`.pad-out[data-cid="${it.cid}"]`);
@@ -10752,7 +10770,7 @@ function padSyncSendBtn() {
 }
 async function padDeliver(it) {
   it.status = 'sending'; it.kind = ''; padOutSave(); padPaintOut();
-  const r = await api.sendPulse({ cid: it.cid, id: 'p' + it.at, who: pulseWho(), text: it.text, img: it.img || null, at: it.at, likes: [], car: it.car || '' });
+  const r = await api.sendPulse({ cid: it.cid, id: 'p' + it.at, who: pulseWho(), text: it.text, img: it.img || null, at: it.at, likes: [], car: it.car || '', ch: it.ch || 'gen', ...(it.trk ? { trk: it.trk } : {}) });
   if (r.ok) {
     it.status = 'sent';
     it.post = (r.rows || []).find((p) => p && (p.cid === it.cid || (r.id && p.id === r.id))) || null;
@@ -10791,9 +10809,10 @@ async function padSendFromComposer() {
   if (inp) inp.value = '';
   if (msg) msg.textContent = '';
   padSyncSendBtn();
-  const it = { cid: padNewCid(), text: text.slice(0, 280), img: null, at: Date.now(), car: currentCar()?.name || '', status: 'sending' };
+  const it = { cid: padNewCid(), text: text.slice(0, 280), img: null, at: Date.now(), car: currentCar()?.name || '', status: 'sending', ch: CP.ch, ...(CP.ch === 'tracks' && CP.trk ? { trk: CP.trk } : {}) };
   _padOut.push(it); padOutSave(); padPaintOut();
   document.getElementById('tgSheetBody')?.scrollTo?.({ top: 0, behavior: 'smooth' });
+  document.getElementById('chatBody')?.scrollTo?.({ top: 0, behavior: 'smooth' });
   if (f) { it.img = await compressPulseImg(f); padPaintOut(); }
   await padDeliver(it);
 }
@@ -13089,7 +13108,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v188';
+const APP_VERSION = 'v205';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -15836,6 +15855,7 @@ function tgsSetTab(kind) {
 function tgsBgOrigin() { const vh = document.getElementById('viewHost'); if (vh) vh.style.transformOrigin = `50% ${Math.round(window.scrollY + window.innerHeight * 0.35)}px`; }
 function openTgSheet(kind) {
   if (DUELS_OFF && kind === 'duels') { goToView('home'); return; } // v197
+  if (kind === 'pulse') { closeTgSheet({ instant: true }); openChatPage(); return; } // v205
   const sh = document.getElementById('tgSheet'); const panel = document.getElementById('tgSheetPanel'); if (!sh || !panel) return;
   if (TGS.open === kind) { closeTgSheet(); return; } // повторное нажатие на активный пункт — закрыть
   try { plMenuClose(); } catch (_) {}
@@ -16436,8 +16456,8 @@ function buildTopsRow(r, i, sel, ctx) {
   } else li.appendChild(padAvatar(r.name || 'P', r.avatar, 28));
   const nick = padEl('span', 'tb-nick', clipText(r.name || 'пилот', 12));
   if ((r.name || '').length > 12) nick.title = r.name;
-  if (lb) {
-    const bk = rowBadge(ctx.raw, r);
+  if (lb || (r.pp && typeof r.pp === 'object')) { // v205: Pass-косметика и в топах разгона
+    const bk = lb ? rowBadge(ctx.raw, r) : '';
     const pin = r.pp && ['helmet', 'wheel', 'carbon'].includes(r.pp.pin) ? r.pp.pin : '';
     if (r.pp && Number.isInteger(r.pp.number)) nick.appendChild(padEl('i', 'lb92-num', String(r.pp.number)));
     for (const k of [bk, pin].filter(Boolean)) { const b = document.createElement('img'); b.className = 'lb92-b'; b.alt = ''; b.src = awardImg(k, true); b.title = AW_LIST[k]?.n || k; nick.appendChild(b); }
@@ -17273,3 +17293,145 @@ async function renderZamerTop202() {
 }
 document.getElementById('hwAddCar')?.addEventListener('click', () => { try { openMyCarSheet({}); } catch (_) { goToView('garage'); } });
 document.querySelector('[data-n3="zamer"]')?.addEventListener('click', () => { try { void renderZamerTop202(); } catch (_) {} });
+
+/* ——— v205: Чат — полноэкранная страница Mini App ———
+   Вкладки = поле ch у сообщения на Worker (gen|runs|tracks|q; старые сообщения — «Общий»). «Треки» — фильтр
+   и привязка сообщения к трассе (trk). Шапка/композер учитывают safe areas Telegram и клавиатуру iOS (--kb).
+   Назад — Telegram BackButton (через общий список SHEETS) или ‹ в шапке. */
+const CP_TABS = { gen: 'Общий', runs: 'Замеры', tracks: 'Треки', q: 'Вопросы' };
+const CP_TO = { gen: 'в Общий', runs: 'в Замеры', tracks: 'в Треки', q: 'в Вопросы' };
+const CP_PH = { gen: 'Написать в чат…', runs: 'Время, машина, условия…', tracks: 'Трасса, настройки, впечатления…', q: 'Спроси пилотов…' };
+function cpEmptyText() {
+  if (CP.ch === 'runs') return 'Замеров пока нет — поделись своим 0–100 или ¼ мили.';
+  if (CP.ch === 'tracks') return CP.trk ? 'По трассе «' + trackShortName(CP.trk) + '» пока пусто — напиши первым.' : 'Про трассы пока тихо — выбери трассу и напиши.';
+  if (CP.ch === 'q') return 'Вопросов пока нет — спроси первым.';
+  return 'Пока тихо — напиши первым.';
+}
+function cpPaintCounts() {
+  const n = { gen: 0, runs: 0, tracks: 0, q: 0 };
+  const wk = Date.now() - 7 * 86400e3;
+  for (const p of CP.all || []) if (p && Number(p.at) >= wk) n[cpChOf(p)]++;
+  document.querySelectorAll('#cpTabs [data-ch]').forEach((b) => { const i = b.querySelector('i'); if (i) i.textContent = n[b.dataset.ch] ? String(n[b.dataset.ch] > 99 ? '99+' : n[b.dataset.ch]) : ''; });
+  const pilots = new Set((CP.all || []).filter((p) => p && p.pilotId).map((p) => p.pilotId)).size;
+  const sub = document.getElementById('cpSub');
+  if (sub) sub.textContent = (CP.all || []).length ? (pilots || 1) + ' ' + padRu(pilots || 1, 'пилот', 'пилота', 'пилотов') + ' · ' + (CP.all || []).length + ' ' + padRu((CP.all || []).length, 'сообщение', 'сообщения', 'сообщений') : 'пилоты Pitlane';
+}
+let _cpTopSeq = 0;
+function cpPaintPin() {
+  const pin = document.getElementById('cpPin'); if (!pin) return;
+  const key = CP.ch + ':' + CP.trk + ':' + (CP.all || []).length;
+  if (pin.dataset.key === key) return;
+  pin.dataset.key = key;
+  pin.replaceChildren();
+  const head = (t, s) => { const h = padEl('div', 'cp-sec'); h.append(padEl('b', '', t)); if (s) h.append(padEl('span', '', s)); return h; };
+  if (CP.ch === 'tracks') {
+    const used = new Map();
+    for (const p of CP.all || []) if (p && p.ch === 'tracks' && p.trk) used.set(p.trk, (used.get(p.trk) || 0) + 1);
+    const list = [...TRACKS].sort((a, b) => (used.get(b.id) || 0) - (used.get(a.id) || 0) || (b.cult ? 1 : 0) - (a.cult ? 1 : 0));
+    const row = padEl('div', 'cp-chips'); row.setAttribute('data-no-sheet-drag', '');
+    const chip = (id, label, cnt) => { const c = padEl('button', 'cp-chip' + (CP.trk === id ? ' on' : '')); c.type = 'button'; c.dataset.trk = id; c.append(padEl('span', '', label)); if (cnt) c.append(padEl('i', '', String(cnt))); return c; };
+    row.append(chip('', 'Все трассы', 0));
+    for (const t of list) row.append(chip(t.id, trackShortName(t.id), used.get(t.id) || 0));
+    pin.append(row);
+    if (CP.trk) { const tr = TRACKS.find((t) => t.id === CP.trk); pin.append(head(trackShortName(CP.trk), [tr?.km ? tr.km + ' км' : '', tr?.turns ? tr.turns + ' поворотов' : ''].filter(Boolean).join(' · '))); }
+    requestAnimationFrame(() => row.querySelector('.cp-chip.on')?.scrollIntoView?.({ inline: 'center', block: 'nearest' }));
+    return;
+  }
+  if (CP.ch === 'runs') {
+    const box = padEl('div', 'cp-board');
+    box.append(head('Лучшие 0–100', 'GPS A/B · все машины'));
+    const ol = padEl('ol', 'cp-mini'); box.append(ol);
+    const go = padEl('button', 'cp-link', 'Все топы'); go.type = 'button'; go.dataset.go = 'tops'; box.append(go);
+    pin.append(box);
+    const seq = ++_cpTopSeq;
+    void Promise.resolve(api.listDrag('0-100', {})).then((rows) => {
+      if (seq !== _cpTopSeq) return;
+      rows = (rows || []).filter((r) => r && Number.isFinite(Number(r.t))).sort((a, b) => a.t - b.t).slice(0, 3);
+      if (!rows.length) { ol.replaceWith(padEl('p', 'cp-note', 'В топе пока пусто — первый валидный замер займёт П1.')); return; }
+      rows.forEach((r, i) => {
+        const li = padEl('li', 'cp-mrow p' + (i + 1));
+        li.append(padEl('span', 'cp-pos', 'P' + (i + 1)));
+        li.append(padAuthor({ name: r.name, pilotId: r.pilotId, avatar: r.avatar || '', meta: shortCarName(r.car, r.carId) || '', size: 28, pp: r.pp || null }));
+        li.append(padEl('b', 'cp-time', Number(r.t).toFixed(2) + ' с'));
+        ol.append(li);
+      });
+    }).catch(() => {});
+    return;
+  }
+  if (CP.ch === 'q') { pin.append(head('Вопросы пилотам', 'настройка, резина, трассы, замеры — отвечают в комментариях')); return; }
+  // Общий: закреп — самое обсуждаемое за неделю (реальные лайки + ответы)
+  const wk = Date.now() - 7 * 86400e3;
+  const best = (CP.all || []).filter((p) => p && cpChOf(p) === 'gen' && Number(p.at) >= wk && ((p.likeCount || 0) + (p.commentCount || 0)) > 0)
+    .sort((a, b) => ((b.likeCount || 0) + (b.commentCount || 0)) - ((a.likeCount || 0) + (a.commentCount || 0)))[0];
+  if (best) {
+    const c = padEl('button', 'cp-top'); c.type = 'button'; c.dataset.jump = best.id;
+    c.append(padEl('span', 'cp-top-k', 'Обсуждают на неделе'));
+    c.append(padEl('span', 'cp-top-t', String(best.text || '').slice(0, 120)));
+    c.append(padEl('span', 'cp-top-m', padName(best.who) + ' · ♥ ' + (best.likeCount || 0) + (best.commentCount ? ' · ' + best.commentCount + ' ' + padComLabel(best.commentCount) : '')));
+    pin.append(c);
+  }
+}
+function cpSetTab(ch, { trk } = {}) {
+  if (!CP_TABS[ch]) ch = 'gen';
+  CP.ch = ch; if (trk !== undefined) CP.trk = trk;
+  try { localStorage.setItem('pitlane-chat-tab', ch); } catch (_) {}
+  const tabs = document.getElementById('cpTabs');
+  tabs?.querySelectorAll('[data-ch]').forEach((b, i) => {
+    const on = b.dataset.ch === ch; b.setAttribute('aria-selected', on ? 'true' : 'false');
+    if (on) tabs.style.setProperty('--ink-i', String(i));
+  });
+  const t = document.getElementById('pulseText'); if (t) t.placeholder = CP_PH[ch];
+  const to = document.getElementById('cpTo');
+  if (to) { to.textContent = ch === 'tracks' && CP.trk ? 'в Треки · ' + trackShortName(CP.trk) : CP_TO[ch]; }
+  const pin = document.getElementById('cpPin'); if (pin) pin.dataset.key = '';
+  renderPulseRows(CP.all);
+  document.getElementById('chatBody')?.scrollTo?.({ top: 0 });
+}
+function openChatPage() {
+  const pg = document.getElementById('chatPage'); const v = document.getElementById('view-pulse');
+  if (!pg || !v) return;
+  try { plMenuClose(); } catch (_) {}
+  if (!CP.open) {
+    try { const s = localStorage.getItem('pitlane-chat-tab'); if (CP_TABS[s]) CP.ch = s; } catch (_) {}
+    document.getElementById('chatSlot')?.appendChild(v);
+    v.classList.add('in-chat');
+    const cmp = v.querySelector('.pulse-compose') || document.querySelector('.pulse-compose');
+    if (cmp) { document.getElementById('chatFoot')?.appendChild(cmp); cmp.classList.add('pc-foot'); }
+    CP.open = true;
+    pg.classList.remove('hidden'); pg.setAttribute('aria-hidden', 'false');
+    document.documentElement.classList.add('chat-open');
+    requestAnimationFrame(() => requestAnimationFrame(() => pg.classList.add('on')));
+  }
+  document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.sheet === 'pulse'));
+  cpSetTab(CP.ch);
+  void renderPulse();
+  try { localStorage.setItem(PULSE_SEEN_KEY, String(Date.now())); } catch (_) {}
+  try { setBadge('sbBadgePulse', 0); } catch (_) {}
+  if (typeof _padChat !== 'undefined' && _padChat) { _padChat.fresh = 0; _hwPadAt = 0; }
+}
+function closeChatPage(opts = {}) {
+  const pg = document.getElementById('chatPage'); if (!pg || !CP.open) return;
+  CP.open = false;
+  try { document.activeElement?.blur?.(); } catch (_) {}
+  pg.classList.remove('on'); pg.setAttribute('aria-hidden', 'true');
+  document.documentElement.classList.remove('chat-open');
+  document.querySelectorAll('.nav-btn.sheet-tab').forEach((b) => { if (b.dataset.sheet === 'pulse') b.classList.remove('active'); });
+  const done = () => { if (!CP.open) pg.classList.add('hidden'); };
+  if (opts.instant || tgsReduce()) done(); else setTimeout(done, 300);
+}
+document.getElementById('chatBack')?.addEventListener('click', () => { hap(6); closeChatPage(); });
+document.getElementById('cpTabs')?.addEventListener('click', (e) => {
+  const b = e.target?.closest?.('[data-ch]'); if (!b || b.dataset.ch === CP.ch) return;
+  hap(6); cpSetTab(b.dataset.ch);
+});
+document.getElementById('cpPin')?.addEventListener('click', (e) => {
+  const c = e.target?.closest?.('[data-trk]');
+  if (c) { hap(6); cpSetTab('tracks', { trk: c.dataset.trk }); return; }
+  const j = e.target?.closest?.('[data-jump]');
+  if (j) { const el = [...document.querySelectorAll('#pulseFeed [data-post]')].find((x) => x.dataset.post === j.dataset.jump); el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }); el?.classList.add('flash'); setTimeout(() => el?.classList.remove('flash'), 1400); return; }
+  if (e.target?.closest?.('[data-go="tops"]')) { closeChatPage({ instant: true }); goToView('tops'); }
+});
+document.getElementById('pulseFeed')?.addEventListener('click', (e) => {
+  const t = e.target?.closest?.('.pad-trk'); if (t && CP.open) { e.stopPropagation(); cpSetTab('tracks', { trk: t.dataset.trk }); }
+}, true);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && CP.open && !document.querySelector('.pad-sheet:not(.hidden)')) closeChatPage(); });

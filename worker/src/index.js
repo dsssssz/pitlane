@@ -928,6 +928,7 @@ async function enrichSectorAvatars(kv, rows) {
   return rows;
 }
 
+const PULSE_CH = ['gen', 'runs', 'tracks', 'q'];
 function sanitizePulse(body, pilot) {
   const text = cleanText(body?.text, 280);
   if (!text) return null;
@@ -945,6 +946,9 @@ function sanitizePulse(body, pilot) {
     likes: [],
     cc: 0,
     pilotId: pilot.id || null,
+    // v205: раздел чата (gen|runs|tracks|q) и трасса для «Треки»; старые посты без поля → «Общий»
+    ...(PULSE_CH.includes(body?.ch) && body.ch !== 'gen' ? { ch: body.ch } : {}),
+    ...(body?.ch === 'tracks' && slugOk(body?.trk) ? { trk: String(body.trk) } : {}),
     // v134: клиентский id сообщения — для безопасного повтора (дубль не создаётся); виден только автору
     ...(PULSE_CID_RE.test(String(body?.cid || '')) ? { cid: String(body.cid) } : {}),
   };
@@ -969,6 +973,9 @@ function publicPulse(p, viewer = '') {
     liked: !!(viewer && likes.includes(viewer)),
     commentCount: Math.max(0, Number(p.cc) || 0),
     pilotId: pubId(p.pilotId),
+    ch: PULSE_CH.includes(p.ch) ? p.ch : 'gen',
+    ...(p.ch === 'tracks' && typeof p.trk === 'string' && slugOk(p.trk) ? { trk: p.trk } : {}),
+    ...(p.pp && typeof p.pp === 'object' ? { pp: p.pp } : {}),
     ...(typeof p._ava === 'string' ? { ava: p._ava } : {}),
     ...(viewer && p.cid && p.pilotId === viewer ? { cid: p.cid } : {}),
   };
@@ -3506,6 +3513,7 @@ export default {
           rows = rows.filter(prepFilter(url.searchParams.get('prep')));
           rows = rows.slice(0, 100);
           await enrichAvatars(env.PITLANE, rows, 40);
+          await attachPass(env.PITLANE, rows, 40); // v205: Pass-косметика и в топах разгона
           return json(publicRows(rows), 200, headers);
         }
         if (req.method === 'POST') {
@@ -3592,7 +3600,9 @@ export default {
           if (url.searchParams.get('recent') === '1') {
             return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 12)), viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
           }
-          return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30), viewer), 200, headers);
+          const full = await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30);
+          await attachPass(env.PITLANE, full, 30); // v205: номер/рамка/пин Pass у ников в чате
+          return json(publicPulseList(full, viewer), 200, headers);
         }
         if (req.method === 'POST') {
           const denied = requireAuth(pilot, headers);

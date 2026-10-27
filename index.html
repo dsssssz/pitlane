@@ -993,6 +993,30 @@
         <button type="button" class="nav3-btn" data-n3="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 15.5l1.6-4.4A2 2 0 0 1 7 9.8h10a2 2 0 0 1 1.9 1.3l1.6 4.4"/><path d="M3.5 15.5h17v2.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1h-10v1a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r=".6"/><circle cx="16.5" cy="15.5" r=".6"/></svg><span>Гараж</span></button>
       </nav>
       </main>
+      <!-- v205: Чат — полноэкранная страница Mini App (вкладки-разделы, шапка, композер снизу) -->
+      <div class="chat-page hidden" id="chatPage" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Чат">
+        <header class="cp-head">
+          <div class="cp-bar">
+            <button type="button" class="cp-back" id="chatBack" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <div class="cp-title"><b>Чат</b><span id="cpSub">пилоты Pitlane</span></div>
+            <span class="cp-live" id="cpLive" hidden><i></i><span></span></span>
+          </div>
+          <nav class="cp-tabs" id="cpTabs" role="tablist" aria-label="Разделы чата">
+            <button type="button" role="tab" data-ch="gen" aria-selected="true">Общий<i></i></button>
+            <button type="button" role="tab" data-ch="runs" aria-selected="false">Замеры<i></i></button>
+            <button type="button" role="tab" data-ch="tracks" aria-selected="false">Треки<i></i></button>
+            <button type="button" role="tab" data-ch="q" aria-selected="false">Вопросы<i></i></button>
+            <span class="cp-ink" aria-hidden="true"></span>
+          </nav>
+        </header>
+        <div class="cp-body" id="chatBody">
+          <div class="cp-pin" id="cpPin"></div>
+          <div class="cp-slot" id="chatSlot"></div>
+        </div>
+        <div class="cp-foot" id="chatFoot">
+          <div class="cp-to" id="cpTo"></div>
+        </div>
+      </div>
       <!-- v124: шторка в стиле Telegram (снизу, граббер, затемнение, лёгкое уменьшение фона, свайп вниз) -->
       <div class="tgs hidden" id="tgSheet" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Раздел">
         <div class="tgs-scrim" id="tgSheetScrim"></div>
