@@ -7235,13 +7235,20 @@ html.v159:not(#_):not(#_) .g53-mine, html.v159:not(#_):not(#_) .g53-3d { white-s
 @media (min-width: 900px) { .shop-in-pin { width: 26px; height: 26px; font-size: 12px; } }
 
 /* v200: Paddock Pass — пилюля в шапке + шторка */
-html .pp-pill { display: inline-flex; align-items: center; gap: 5px; height: 34px; min-height: 34px; min-width: 0; padding: 0 11px 0 7px; border-radius: 999px; border: 1px solid rgba(232,196,120,.45); background: linear-gradient(135deg, rgba(232,196,120,.16), rgba(232,196,120,.04)); color: #f1d9a4; font: 700 12px/1 inherit; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; white-space: nowrap; box-shadow: inset 0 1px 0 rgba(255,255,255,.08); transition: background .2s, border-color .2s; }
-.pp-pill img { width: 18px; height: 18px; display: block; }
-.pp-pill:hover, .pp-pill:focus-visible { border-color: rgba(232,196,120,.8); background: linear-gradient(135deg, rgba(232,196,120,.26), rgba(232,196,120,.08)); }
+html .pp-pill { position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 6px; height: 32px; min-height: 32px; min-width: 0; padding: 0 12px 0 8px; border-radius: 999px; border: 0; background: linear-gradient(180deg, #26262a 0%, #141416 55%, #0d0d0f 100%); color: #e9d6aa; font: 600 11px/1 -apple-system, "SF Pro Text", Inter, system-ui, sans-serif; letter-spacing: .22em; text-transform: uppercase; cursor: pointer; white-space: nowrap; box-shadow: inset 0 0 0 .5px rgba(214,182,118,.75), inset 0 1px 0 rgba(255,255,255,.09), 0 4px 14px rgba(0,0,0,.45); transition: box-shadow .25s, transform .15s; }
+html .pp-pill::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: repeating-linear-gradient(45deg, rgba(255,255,255,.025) 0 2px, transparent 2px 4px); pointer-events: none; }
+html .pp-pill::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255,240,205,.16), transparent); transform: skewX(-18deg); animation: ppSheen 6s ease-in-out infinite; pointer-events: none; }
+@keyframes ppSheen { 0%, 70% { left: -60%; } 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) { html .pp-pill::after { animation: none; display: none; } }
+.pp-pill img { position: relative; width: 16px; height: 16px; display: block; filter: drop-shadow(0 0 4px rgba(214,182,118,.35)); }
+.pp-pill span { position: relative; margin-right: -.22em; background: linear-gradient(180deg, #f6e7c4, #c9a463); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.pp-pill:hover, .pp-pill:focus-visible { box-shadow: inset 0 0 0 .5px rgba(236,206,140,1), inset 0 1px 0 rgba(255,255,255,.12), 0 4px 18px rgba(214,182,118,.18); }
+.pp-pill:active { transform: scale(.96); }
+.ps-credit { text-align: center; margin: 18px 0 2px; font-size: 10.5px; color: #55555b; letter-spacing: .02em; }
 .pass-inner { background: radial-gradient(120% 60% at 50% 0%, rgba(232,196,120,.14), transparent 60%), #0b0b0c; }
 .pass-body { padding: 8px 20px 22px; }
 .ps-hero { text-align: center; padding: 18px 0 14px; }
-.ps-ic { width: 96px; height: 96px; display: block; margin: 0 auto 8px; filter: drop-shadow(0 10px 30px rgba(232,196,120,.35)); }
+.ps-ic { width: 132px; height: 132px; display: block; margin: 0 auto 8px; filter: drop-shadow(0 10px 30px rgba(232,196,120,.35)); }
 .ps-k { display: block; font-size: 11px; letter-spacing: .3em; color: #c9a866; }
 .ps-t { margin: 4px 0 6px; font-size: 30px; line-height: 1.1; color: #fff; font-weight: 800; }
 .ps-d { margin: 0 auto; max-width: 300px; color: #a9a9ad; font-size: 14px; line-height: 1.4; }

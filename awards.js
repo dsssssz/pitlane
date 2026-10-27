@@ -224,7 +224,7 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
 export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
   root.replaceChildren();
   const hero = h('div', 'ps-hero');
-  hero.appendChild(im(awardImg('pass'), 'ps-ic', ''));
+  hero.appendChild(im('./img/pass/pass-emblem-360.webp', 'ps-ic', ''));
   hero.appendChild(h('span', 'ps-k', 'PITLANE'));
   hero.appendChild(h('h2', 'ps-t', 'Paddock Pass'));
   hero.appendChild(h('p', 'ps-d', pass?.active ? 'Активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'Твой стиль в паддоке: номер, пины и рамка у ника'));
@@ -237,7 +237,7 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
   ];
   for (const [k, n, d] of perks) {
     const li = h('li', 'ps-it');
-    li.appendChild(im(k[0] === 'f' && k.length > 4 ? A + k + '.webp' : awardImg(k), 'ps-it-i', ''));
+    li.appendChild(im(k === 'helmet' ? './img/pass/helmet-360.webp' : k[0] === 'f' && k.length > 4 ? A + k + '.webp' : awardImg(k), 'ps-it-i', ''));
     const t = h('div'); t.appendChild(h('b', '', n)); t.appendChild(h('small', '', d)); li.appendChild(t);
     ul.appendChild(li);
   }
@@ -262,4 +262,5 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
     msg.textContent = available ? 'Отменить можно в Telegram в любой момент.' : 'Продажи откроются после обновления сервера.';
   }
   root.appendChild(msg);
+  root.appendChild(h('p', 'ps-credit', 'Модель шлема: VTX, CC BY-NC-SA 4.0'));
 }
