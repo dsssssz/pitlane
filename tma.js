@@ -70,7 +70,7 @@ function readStartParam() {
 }
 
 export function parseStartParam(p) {
-  const m = String(p || '').match(/^(duel|crew|room|team|lap|run|s|track|tops)_([A-Za-z0-9_-]{1,56})$/);
+  const m = String(p || '').match(/^(lap|run|s|track|tops)_([A-Za-z0-9_-]{1,56})$/);
   if (!m) return null;
   const kind = m[1] === 'lap' || m[1] === 'run' ? 's' : m[1];
   return { kind, id: m[2], raw: p };

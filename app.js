@@ -1625,7 +1625,8 @@ function goToView(id, opts = {}) {
   id = VIEW_ALIAS61[id] || id;
   if (id === 'pulse') { openChatPage(); return; } // v205: Чат — отдельная полноэкранная страница
   if (CP.open) closeChatPage({ instant: true });
-  if (DUELS_OFF && id === 'duels') id = 'home'; // v197: дуэли убраны
+  if (DUELS_OFF && id === 'duels') id = 'home';
+  if (['duels', 'crews', 'crew', 'rooms', 'teams'].includes(id)) id = 'zamer'; // v206: убранные разделы // v197: дуэли убраны
   const next = document.getElementById('view-' + id);
   if (!next) return;
   try { if (typeof TGS !== 'undefined' && TGS.open) closeTgSheet({ instant: true }); } catch (_) {}
@@ -7377,6 +7378,7 @@ if (isTMA) {
     ['ghost74', 'ghost74Close'], // v174
     ['tgSheet', 'tgSheetClose'], ['gps61', 'gps61Close'], // v161
     ['chatPage', 'chatBack'], // v205: полноэкранный Чат
+    ['pfEdit', 'pfeCancel'], // v206
   ];
   const visible = (id) => { const el = document.getElementById(id); return !!(el && !el.classList.contains('hidden')); };
   const closeSheet = (id, btnId) => {
@@ -7392,7 +7394,10 @@ if (isTMA) {
     if (visible('runDrive')) return run.armed ? null : () => closeRunDrive();
     if (visible('lapDrive')) return () => document.getElementById('lapDriveCancel')?.click();
     const active = document.querySelector('.view.active');
-    if (active && active.id !== 'view-home') return () => goToView('home');
+    // v206: корни вкладок — без «Назад»; подстраницы профиля — назад в профиль
+    const vid = active?.id?.replace('view-', '') || '';
+    if (['garage', 'settings', 'history', 'cars', 'shop'].includes(vid)) return () => { goToView('account'); window.scrollTo(0, 0); };
+    if (vid === 'home') return () => goToView('zamer');
     return null;
   };
   setBackHandler(() => { const fn = backTarget(); if (fn) fn(); syncTmaChrome(); });
@@ -10222,9 +10227,9 @@ function renderPilotProfile(pr) {
   paintBannerImg(ban, pr.banner, pr.pilotId, 1200);
   body.appendChild(ban);
   const head = padEl('div', 'pilot-head' + (ban.classList.contains('has-banner') ? ' on-banner' : ''));
-  head.appendChild(padAvatar(pr.nick, pr.avatar, 84));
+  { let av = padAvatar(pr.nick, pr.avatar, 84); if (pr.pp?.frame) { try { av = framedAvatar(av, pr.pp.frame, 84); } catch (_) {} } head.appendChild(av); } // v206
   const who = padEl('div', 'pilot-who');
-  who.appendChild(padEl('h2', 'pilot-nick', pr.nick || 'Пилот'));
+  { const h = padEl('h2', 'pilot-nick'); h.append(pf6NameRow(pr.nick || 'Пилот', pr.pp || null)); who.appendChild(h); } // v206
   who.appendChild(pr.car && brandOf(pr.car) ? carNameRow(pr.car, { rowTag: 'p', cls: 'pilot-car' }) : padEl('p', 'pilot-car', pr.car || 'Машина не указана')); // v135: флаг страны марки
   if (isMyPilotId(pr.pilotId)) who.appendChild(padEl('span', 'pilot-you', 'это ты'));
   head.appendChild(who);
@@ -12377,6 +12382,8 @@ function fillCrewTrackSelect() {
 }
 
 function openCrewSheet(opts = {}) {
+  return; // v206: экипажи убраны
+
   if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   const sheet = document.getElementById('crewSheet');
   if (!sheet) return;
@@ -12612,6 +12619,8 @@ async function pushCrewBestAfterLap(trackId, row) {
 }
 
 async function bootCrewFromUrl() {
+  return; // v206
+
   if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   try {
     const params = new URLSearchParams(location.search);
@@ -12933,7 +12942,6 @@ initCrewRooms({
   share: roomShare,
   openTeam: (id) => void openTeamPage(id),
   openTeamEditor: (id) => void openTeamEditor(id),
-  onSheet: () => { try { tipsOnView('teams'); } catch (_) {} },
   onCarSheet: () => { try { tipsOnView('mycar'); } catch (_) {} },
   howCar: () => { try { showMyCarHowTo(); } catch (_) {} },
 });
@@ -12944,7 +12952,6 @@ initTeams({
   openRooms: (opts) => openRoomSheet(opts || {}),
   share: roomShare,
   teamLink: (id) => publicLinkFor('team_' + id, roomWebUrl('team_' + id)),
-  onSheet: () => { try { tipsOnView('teams'); } catch (_) {} },
   report: (text) => {
     document.getElementById('teamSheet')?.classList.add('hidden');
     openFeedbackSheet();
@@ -13011,9 +13018,9 @@ document.getElementById('btnHowCar')?.addEventListener('click', () => { try { sh
 try {
   const q = new URLSearchParams(location.search);
   const code = String(q.get('room') || '').toUpperCase();
-  if (/^[A-Z2-9]{8}$/.test(code)) setTimeout(() => openRoomSheet({ invite: code }), 1100);
+  void code; // v206: приглашения в комнаты убраны
   const team = String(q.get('team') || '');
-  if (/^r[a-z0-9]{10,24}$/.test(team)) setTimeout(() => void openTeamPage(team), 1100);
+  void team; // v206: страницы команд убраны
 } catch (_) {}
 
 
@@ -13290,7 +13297,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
   const sync = () => {
     const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'home';
     const key = act === 'garage' ? 'garage' : act === 'home' ? 'home' : act === 'zamer' || act === 'run' ? 'zamer' : act === 'lap' ? 'lap' : ''; // v154: Профиль — из аватара в шапке
-    document.querySelectorAll('.nav3-btn').forEach((b) => { const on = b.dataset.n3 === key; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    void key; window.__pf6?.n6Sync?.(); // v206: единая синхронизация 5 вкладок
   };
   nav?.addEventListener('click', (e) => {
     const b = e.target.closest('.nav3-btn'); if (!b) return;
@@ -13666,8 +13673,6 @@ if (SCREEN_PARAM) {
       if (SCREEN_PARAM === 'duel') openDuelSheet();
       else if (SCREEN_PARAM === 'crew') openCrewSheet();
       else if (SCREEN_PARAM === 'mycar') openMyCarSheet();
-      else if (SCREEN_PARAM === 'rooms') openRoomSheet();
-      else if (SCREEN_PARAM === 'teams') openTeamsList();
       else if (SCREEN_PARAM === 'autodromes') openAutodromeSheet();
       else if (SCREEN_PARAM === 'feedback') openFeedbackSheet();
       else if (SCREEN_PARAM === 'shop') void openShopSheet();
@@ -15854,6 +15859,8 @@ function tgsSetTab(kind) {
 }
 function tgsBgOrigin() { const vh = document.getElementById('viewHost'); if (vh) vh.style.transformOrigin = `50% ${Math.round(window.scrollY + window.innerHeight * 0.35)}px`; }
 function openTgSheet(kind) {
+  if (kind === 'duels') return; // v206: дуэли убраны
+  if (kind === 'pulse') { openChatPage(); return; } // v206: старый оверлей Paddock → полноэкранный Чат
   if (DUELS_OFF && kind === 'duels') { goToView('home'); return; } // v197
   if (kind === 'pulse') { closeTgSheet({ instant: true }); openChatPage(); return; } // v205
   const sh = document.getElementById('tgSheet'); const panel = document.getElementById('tgSheetPanel'); if (!sh || !panel) return;
@@ -17391,6 +17398,7 @@ function openChatPage() {
   const pg = document.getElementById('chatPage'); const v = document.getElementById('view-pulse');
   if (!pg || !v) return;
   try { plMenuClose(); } catch (_) {}
+  setTimeout(() => { try { tipsOnView('pulse'); } catch (_) {} }, 600);
   if (!CP.open) {
     try { const s = localStorage.getItem('pitlane-chat-tab'); if (CP_TABS[s]) CP.ch = s; } catch (_) {}
     document.getElementById('chatSlot')?.appendChild(v);
@@ -17435,3 +17443,243 @@ document.getElementById('pulseFeed')?.addEventListener('click', (e) => {
   const t = e.target?.closest?.('.pad-trk'); if (t && CP.open) { e.stopPropagation(); cpSetTab('tracks', { trk: t.dataset.trk }); }
 }, true);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && CP.open && !document.querySelector('.pad-sheet:not(.hidden)')) closeChatPage(); });
+
+/* ——— v206: Профиль как в Telegram + единая навигация (Замер · Трек · Топы · Чат · Профиль) ———
+   Шапка профиля: аватар в рамке Pass, ник + гоночный номер + пин (как звезда Premium), статус Pass, «Изменить» справа.
+   Экран «Изменить профиль»: аватар, ник, обложка, машина + «Оформление Pass» с живым превью. Всё остальное — строки списка. */
+document.documentElement.classList.add('v206p');
+['btnMenu', 'btnProfile', 'btnHome', 'plMenu'].forEach((id) => document.getElementById(id)?.remove()); // v206: ☰ и дубли входов убраны — всё в Профиле
+const PF6 = { pass: null, sales: false, at: 0, draft: null };
+const PF6_FR = [['', 'Без рамки'], ['carbon', 'Карбон'], ['chequer', 'Клетка']];
+const PF6_PIN = [['', 'Без пина'], ['helmet', 'Шлем'], ['wheel', 'Руль'], ['carbon', 'Карбон']];
+const PF6_IC = {
+  mycar: '<path d="M3.5 15.5l1.6-4.4A2 2 0 0 1 7 9.8h10a2 2 0 0 1 1.9 1.3l1.6 4.4v2.5a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r=".8"/><circle cx="16.5" cy="15.5" r=".8"/>',
+  garage: '<path d="M4 10.5L12 5l8 5.5V19H4z"/><path d="M8 19v-5h8v5"/>',
+  history: '<circle cx="12" cy="12" r="7.5"/><path d="M12 8v4l3 2"/>',
+  pass: '<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>',
+  shop: '<path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
+  suggest: '<path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/>',
+  feedback: '<path d="M5 5h14v10h-8l-4 4v-4H5z"/>',
+  method: '<path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6"/>',
+};
+document.querySelectorAll('#pf6List .pf6-row').forEach((r) => { const k = r.dataset.pf6 || 'method'; const i = r.querySelector('.pf6-ic'); if (i && PF6_IC[k]) i.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + PF6_IC[k] + '</svg>'; });
+function pf6Nick() { return (profile().nick || currentUser()?.nick || '').trim(); }
+function pf6Ava() { return profile().avatar || currentUser()?.photo || currentUser()?.avatar || ''; }
+function pf6Active() { return !!(PF6.pass && PF6.pass.active); }
+function pf6Cos() { return pf6Active() ? { number: Number.isInteger(PF6.pass.number) ? PF6.pass.number : null, frame: PF6.pass.frame || '', pin: PF6.pass.pin || '' } : { number: null, frame: '', pin: '' }; }
+/** ник + номер + пин — один и тот же вид везде, где есть pp */
+function pf6NameRow(name, pp, cls = 'pf6-nm') {
+  const row = padEl('span', cls);
+  row.append(padEl('b', '', name || 'Пилот'));
+  if (pp && Number.isInteger(pp.number)) row.append(padEl('i', 'lb92-num pf6-num', String(pp.number)));
+  if (pp && pp.pin) { const im = document.createElement('img'); im.className = 'pf6-pin'; im.alt = ''; im.src = awardImg(pp.pin, true); row.append(im); }
+  return row;
+}
+function pf6AvaEl(size, pp) {
+  let a = padAvatar(pf6Nick() || 'Пилот', pf6Ava(), size);
+  if (pp && pp.frame) { try { a = framedAvatar(a, pp.frame, size); } catch (_) {} }
+  return a;
+}
+async function pf6LoadPass(force) {
+  if (!force && Date.now() - PF6.at < 60000) return;
+  PF6.at = Date.now();
+  if (!(isRemoteApi() && getSessionToken() && currentUser())) { PF6.pass = null; return; }
+  const r = await api.mePass().catch(() => null);
+  if (r && r.ok !== false) { PF6.pass = r.pass || null; PF6.sales = r.sales === true; }
+}
+function renderPf6() {
+  const u = currentUser(); const pp = pf6Cos();
+  const ava = document.getElementById('pf6Ava'); if (ava) ava.replaceChildren(pf6AvaEl(96, pp));
+  const nm = document.getElementById('pf6Name'); if (nm) nm.replaceChildren(pf6NameRow(pf6Nick() || (u ? 'Без ника' : 'Гость'), pp));
+  const sub = document.getElementById('pf6Sub');
+  if (sub) { const mc = (() => { try { return myCarLocal(); } catch (_) { return null; } })(); sub.textContent = u ? (mc ? shortCarName(mc.model, mc.carId) : 'Машина не выбрана') : 'Войди через Telegram, чтобы попасть в топы'; }
+  const ps = document.getElementById('pf6Pass');
+  if (ps) {
+    ps.hidden = !u; ps.classList.toggle('on', pf6Active());
+    ps.innerHTML = '';
+    const im = document.createElement('img'); im.src = './img/awards/pass_s.webp'; im.alt = '';
+    ps.append(im, padEl('span', '', pf6Active() ? 'Paddock Pass · до ' + new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'Paddock Pass — номер, рамка и пин'));
+  }
+  const pv = document.getElementById('pf6PassV'); if (pv) pv.textContent = pf6Active() ? 'активен' : PASS_STARS_206 + ' ★';
+  const eb = document.getElementById('pf6EditBtn'); if (eb) eb.hidden = !u;
+  pf6NavAva();
+}
+const PASS_STARS_206 = 149;
+function pf6NavAva() {
+  const n = document.getElementById('n6Ava'); if (!n) return;
+  const src = pf6Ava();
+  if (src && (PAD_IMG_RE.test(src) || PAD_AVA_RE.test(src))) { if (n.dataset.src !== src) { n.dataset.src = src; n.innerHTML = ''; const i = document.createElement('img'); i.alt = ''; i.src = src; n.append(i); n.classList.add('img'); } }
+}
+async function pf6Refresh() { renderPf6(); await pf6LoadPass(); renderPf6(); }
+document.getElementById('pf6EditBtn')?.addEventListener('click', () => { hap(8); openPfEdit(); });
+document.getElementById('pf6Pass')?.addEventListener('click', () => { hap(6); if (pf6Active()) openPfEdit({ focusPass: true }); else openPassSheet(); });
+document.getElementById('pf6Ava')?.addEventListener('click', () => { if (currentUser()) { hap(6); openPfEdit(); } });
+document.getElementById('pf6List')?.addEventListener('click', (e) => {
+  const r = e.target.closest('[data-pf6]'); if (!r) return;
+  const k = r.dataset.pf6; hap(6);
+  if (k === 'mycar') { try { openMyCarSheet({}); } catch (_) {} }
+  else if (k === 'garage') { goToView('garage'); window.scrollTo(0, 0); }
+  else if (k === 'pass') openPassSheet();
+  else window.__route48?.(k);
+});
+
+/* —— экран «Изменить профиль» —— */
+function pfeEl() { return document.getElementById('pfEdit'); }
+function openPfEdit(opts = {}) {
+  const pg = pfeEl(); if (!pg) return;
+  PF6.draft = { nick: pf6Nick(), ...pf6Cos() };
+  renderPfEdit();
+  pg.classList.remove('hidden'); pg.setAttribute('aria-hidden', 'false');
+  document.documentElement.classList.add('pfe-open');
+  requestAnimationFrame(() => requestAnimationFrame(() => pg.classList.add('on')));
+  setTimeout(() => { try { tipsOnView('pfedit'); } catch (_) {} }, 500);
+  if (opts.focusPass) setTimeout(() => document.getElementById('pfePass')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 320);
+  void pf6LoadPass(true).then(() => { if (!pg.classList.contains('hidden')) { const d = PF6.draft; PF6.draft = { ...pf6Cos(), nick: d.nick }; renderPfEdit(); } });
+}
+function closePfEdit() {
+  const pg = pfeEl(); if (!pg || pg.classList.contains('hidden')) return;
+  try { document.activeElement?.blur?.(); } catch (_) {}
+  pg.classList.remove('on'); pg.setAttribute('aria-hidden', 'true');
+  document.documentElement.classList.remove('pfe-open');
+  setTimeout(() => { if (!pg.classList.contains('on')) pg.classList.add('hidden'); }, tgsReduce() ? 0 : 280);
+}
+function pfePreview() {
+  const d = PF6.draft; const pp = { number: d.number, frame: d.frame, pin: d.pin };
+  const box = document.getElementById('pfePrev'); if (!box) return;
+  box.replaceChildren();
+  const row = padEl('div', 'pfe-prow');
+  row.append(pf6AvaEl(56, pp));
+  const w = padEl('div', 'pfe-pwho');
+  w.append(pf6NameRow(d.nick || 'Пилот', pp, 'pf6-nm pfe-pnm'));
+  w.append(padEl('small', '', 'так тебя видят в топах и в чате'));
+  row.append(w);
+  row.append(padEl('b', 'pfe-ptime', '3.62 с'));
+  box.append(row);
+}
+function renderPfEdit() {
+  const b = document.getElementById('pfeBody'); if (!b) return;
+  const d = PF6.draft; const on = pf6Active();
+  b.replaceChildren();
+  // аватар
+  const top = padEl('div', 'pfe-top');
+  const av = padEl('button', 'pfe-ava'); av.type = 'button'; av.append(pf6AvaEl(96, on ? d : null));
+  av.addEventListener('click', () => document.getElementById('accAvatarIn')?.click());
+  top.append(av);
+  const ch = padEl('button', 'pfe-link', 'Выбрать фото'); ch.type = 'button'; ch.addEventListener('click', () => document.getElementById('accAvatarIn')?.click());
+  top.append(ch);
+  b.append(top);
+  // ник
+  const g1 = padEl('div', 'pfe-g');
+  const lab = padEl('label', 'pfe-row pfe-in');
+  lab.append(padEl('span', 'pfe-k', 'Ник'));
+  const inp = document.createElement('input'); inp.id = 'pfeNick'; inp.maxLength = 24; inp.placeholder = 'как в топе'; inp.value = d.nick || ''; inp.autocomplete = 'nickname';
+  inp.addEventListener('input', () => { d.nick = inp.value.trim(); pfePreview(); });
+  lab.append(inp); g1.append(lab);
+  b.append(g1);
+  b.append(padEl('p', 'pfe-hint', 'Ник видят все: в топах, в чате и в твоём профиле. До 24 символов.'));
+  const g2 = padEl('div', 'pfe-g');
+  const rowBtn = (k, v, fn) => { const r = padEl('button', 'pfe-row'); r.type = 'button'; r.append(padEl('span', 'pfe-k', k)); if (v) r.append(padEl('span', 'pfe-v', v)); r.append(padEl('b', 'pf6-ch')); r.addEventListener('click', fn); return r; };
+  const mc = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
+  g2.append(rowBtn('Машина', mc ? shortCarName(mc.model, mc.carId) : 'не выбрана', () => { try { openMyCarSheet({}); } catch (_) {} }));
+  g2.append(rowBtn('Обложка профиля', '', () => { try { openBannerSheet(); } catch (_) {} }));
+  b.append(g2);
+  // Pass
+  const ps = padEl('section', 'pfe-pass' + (on ? '' : ' locked')); ps.id = 'pfePass';
+  const hd = padEl('div', 'pfe-ph');
+  const pi = document.createElement('img'); pi.src = './img/awards/pass_s.webp'; pi.alt = '';
+  hd.append(pi, padEl('b', '', 'Оформление Pass'));
+  if (!on) hd.append(padEl('span', 'pfe-lock', 'Paddock Pass'));
+  ps.append(hd);
+  const prev = padEl('div', 'pfe-prev'); prev.id = 'pfePrev'; ps.append(prev);
+  const pick = (title, list, key, imgOf) => {
+    ps.append(padEl('p', 'pfe-sh', title));
+    const g = padEl('div', 'pfe-pick'); g.setAttribute('role', 'radiogroup');
+    for (const [v, l] of list) {
+      const c = padEl('button', 'pfe-opt' + (d[key] === v ? ' on' : '')); c.type = 'button'; c.setAttribute('role', 'radio'); c.setAttribute('aria-checked', d[key] === v ? 'true' : 'false');
+      const ic = padEl('span', 'pfe-oi'); const src = imgOf(v);
+      if (src) { const im = document.createElement('img'); im.src = src; im.alt = ''; ic.append(im); } else ic.append(padEl('i', 'pfe-none'));
+      c.append(ic, padEl('small', '', l));
+      c.addEventListener('click', () => { if (!on) { hap(4); openPassSheet(); return; } hap(6); d[key] = v; g.querySelectorAll('.pfe-opt').forEach((x) => { x.classList.toggle('on', x === c); x.setAttribute('aria-checked', x === c ? 'true' : 'false'); }); pfePreview(); try { av.replaceChildren(pf6AvaEl(96, d)); } catch (_) {} });
+      g.append(c);
+    }
+    ps.append(g);
+  };
+  pick('Рамка аватара', PF6_FR, 'frame', (v) => (v ? './img/awards/' + (v === 'carbon' ? 'fcarbon' : 'fcheq') + '.webp' : ''));
+  // номер
+  ps.append(padEl('p', 'pfe-sh', 'Гоночный номер'));
+  const nr = padEl('div', 'pfe-numrow');
+  const minus = padEl('button', 'pfe-step', '−'); minus.type = 'button';
+  const plus = padEl('button', 'pfe-step', '+'); plus.type = 'button';
+  const ni = document.createElement('input'); ni.className = 'pfe-numin'; ni.type = 'text'; ni.inputMode = 'numeric'; ni.maxLength = 2; ni.placeholder = '—'; ni.value = Number.isInteger(d.number) ? String(d.number) : ''; ni.disabled = !on;
+  const setN = (n) => { d.number = n == null || n === '' || !Number.isFinite(Number(n)) ? null : Math.max(0, Math.min(99, Math.round(Number(n)))); ni.value = d.number == null ? '' : String(d.number); pfePreview(); };
+  ni.addEventListener('input', () => { ni.value = ni.value.replace(/\D/g, '').slice(0, 2); setN(ni.value === '' ? null : ni.value); });
+  minus.addEventListener('click', () => { if (!on) { openPassSheet(); return; } hap(4); setN(d.number == null ? 0 : (d.number + 99) % 100); });
+  plus.addEventListener('click', () => { if (!on) { openPassSheet(); return; } hap(4); setN(d.number == null ? 0 : (d.number + 1) % 100); });
+  const clr = padEl('button', 'pfe-clr', 'Без номера'); clr.type = 'button'; clr.addEventListener('click', () => { if (!on) { openPassSheet(); return; } hap(4); setN(null); });
+  nr.append(minus, ni, plus, clr); ps.append(nr);
+  pick('Пин у ника', PF6_PIN, 'pin', (v) => (v ? awardImg(v, true) : ''));
+  if (!on) {
+    const up = padEl('button', 'pfe-buy'); up.type = 'button';
+    up.append(padEl('b', '', 'Открыть с Paddock Pass'), padEl('span', '', PASS_STARS_206 + ' ★ в месяц · только внешний вид'));
+    up.addEventListener('click', () => { hap(8); openPassSheet(); });
+    ps.append(up);
+  }
+  b.append(ps);
+  b.append(padEl('p', 'pfe-msg tiny')); 
+  pfePreview();
+}
+document.getElementById('pfeCancel')?.addEventListener('click', () => { hap(6); closePfEdit(); });
+document.getElementById('pfeSave')?.addEventListener('click', async (e) => {
+  const btn = e.currentTarget; const d = PF6.draft; if (!d || btn.disabled) return;
+  const msg = document.querySelector('#pfeBody .pfe-msg');
+  btn.disabled = true; btn.textContent = '…';
+  const errs = [];
+  try {
+    const nick = String(d.nick || '').slice(0, 24);
+    if (nick !== pf6Nick()) {
+      const p = profile(); p.nick = nick; saveProf(p);
+      const ni = document.getElementById('accNick'); if (ni) ni.value = nick;
+      const u = currentUser(); if (u && nick) { u.nick = nick; try { saveAuth(); } catch (_) {} }
+      if (nick && isRemoteApi() && getSessionToken()) { const r = await api.setNick(nick).catch(() => null); if (!r || r.ok === false) errs.push('ник сохранён только на телефоне'); }
+    }
+    if (pf6Active()) {
+      const c = pf6Cos();
+      if (c.number !== d.number || c.frame !== d.frame || c.pin !== d.pin) {
+        const r = await api.putPassCosmetics({ number: d.number, frame: d.frame, pin: d.pin }).catch(() => null);
+        if (r && r.ok !== false && r.pass) PF6.pass = r.pass; else errs.push('оформление: ' + (r?.error || 'нет связи'));
+      }
+    }
+  } finally { btn.disabled = false; btn.textContent = 'Готово'; }
+  if (errs.length) { if (msg) msg.textContent = 'Не всё сохранилось — ' + errs.join(', '); hap(20); return; }
+  try { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success'); } catch (_) { hap(10); }
+  AW92.at = 0; _z202At = 0;
+  renderPf6(); try { void renderAwards92(); } catch (_) {}
+  closePfEdit();
+  try { plFlash('Профиль сохранён'); } catch (_) {}
+});
+document.getElementById('accAvatarIn')?.addEventListener('change', () => setTimeout(() => { renderPf6(); if (!pfeEl()?.classList.contains('hidden')) renderPfEdit(); }, 300));
+
+/* —— навигация: нижняя панель синхронизируется со всеми экранами; подстраницы профиля → назад в профиль —— */
+const N6_SUB = { garage: 'account', settings: 'account', history: 'account', cars: 'account', shop: 'account', home: 'zamer' };
+function n6Sync() {
+  const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'zamer';
+  let key = CP.open ? 'pulse' : (act === 'run' ? 'zamer' : act);
+  if (N6_SUB[key]) key = N6_SUB[key];
+  document.querySelectorAll('#nav3 .nav3-btn').forEach((b) => { const on = b.dataset.n3 === key; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+}
+document.getElementById('nav3')?.addEventListener('click', (e) => {
+  const b = e.target.closest('.nav3-btn'); if (!b) return;
+  if (b.dataset.n3 === 'account') setTimeout(() => void pf6Refresh(), 0);
+  setTimeout(n6Sync, 30);
+});
+{
+  const vh = document.getElementById('viewHost');
+  if (vh) new MutationObserver(() => requestAnimationFrame(n6Sync)).observe(vh, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  const cp = document.getElementById('chatPage'); if (cp) new MutationObserver(() => requestAnimationFrame(n6Sync)).observe(cp, { attributes: true, attributeFilter: ['class'] });
+  const src = document.getElementById('sbBadgePulse'); const dst = document.getElementById('n6BadgeChat');
+  if (src && dst) setInterval(() => { dst.hidden = src.hidden || !src.textContent.trim(); dst.textContent = src.textContent; }, 2500);
+  n6Sync();
+}
+window.__pf6 = { openPfEdit, closePfEdit, renderPf6, renderPfEdit, PF6, n6Sync };
+setTimeout(() => { try { renderPf6(); if (document.getElementById('view-account')?.classList.contains('active')) void pf6Refresh(); } catch (_) {} }, 400);

@@ -2811,6 +2811,7 @@ function lapOvertake(env, trackId, cls, before, after, submitterId) {
 function honestRoomLap(l) { return !!l && l.valid && (l.gpsQ === 'A' || l.gpsQ === 'B') && Number(l.ms) > 0; }
 /** New room best on a track → tell the other members (inside the room, so private laps are fine here). */
 async function notifyRoomBest(env, room, lap, laps) {
+  return 0; // v206: команды убраны — без уведомлений
   if (!honestRoomLap(lap)) return 0;
   let best = null;
   for (const l of laps) if (l.id !== lap.id && l.trackId === lap.trackId && honestRoomLap(l) && (!best || l.ms < best.ms)) best = l;
@@ -2832,6 +2833,7 @@ function duelTimeStr(type, run) {
 }
 /** Duel events → the other side: «вызов принят» (creator still to drive) or the final result. */
 async function notifyDuel(env, d, submitterId) {
+  return false; // v206: дуэли убраны
   const sides = [
     { who: d.createdBy, run: d.creatorRun, mine: 'creator' },
     { who: d.challenger, run: d.challengerRun, mine: 'challenger' },
@@ -3787,6 +3789,7 @@ export default {
         if (!isPilotUuid(pid)) return json({ error: 'not found' }, 404, headers);
         const prof = await buildPilotProfile(env.PITLANE, pid, viewer);
         if (!prof) return json({ error: 'not found' }, 404, headers);
+        try { const tmp = { pilotId: pid }; await attachPass(env.PITLANE, [tmp]); if (tmp.pp) prof.pp = tmp.pp; } catch (_) {} // v206: рамка/номер/пин в чужом профиле
         return json(prof, 200, headers);
       }
 

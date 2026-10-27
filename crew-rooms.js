@@ -705,6 +705,8 @@ async function renderTop(pane, room) {
 }
 
 export function openRoomSheet(opts = {}) {
+  return; // v206: комнаты/экипажи убраны — ни одного входа
+
   if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   openSheet('roomSheet');
   if (opts.invite) void showInvite(opts.invite);

@@ -795,6 +795,7 @@ export const api = {
     return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/top?' + q.toString());
   },
   // v192: Paddock Pass (Stars, только внешний вид). Без деплоя воркера → { ok:false, status:404 }
+  async setNick(nick) { return await remoteKeep('/me', { method: 'PUT', body: JSON.stringify({ nick }) }); }, // v206
   async mePass() { return await remoteKeep('/me/pass'); },
   async passInvoice() { return await remoteKeep('/me/pass/invoice', { method: 'POST', body: JSON.stringify({ via: 'link' }) }); },
   async putPassCosmetics(c) { return await remoteKeep('/me/pass/cosmetics', { method: 'PUT', body: JSON.stringify(c || {}) }); },

@@ -8,51 +8,50 @@
  * — флаги «уже видел» в localStorage; prefers-reduced-motion — без анимации. Только textContent, без эмодзи.
  * Существующие «i»-подсказки не трогаем (свои классы cm-*).
  */
-const KEY = 'pitlane-tips-v2';
-/* v120: ни тура, ни модальных подсказок сами по себе — только по запросу (профиль → «Показать подсказки»,
- * «Как привязать машину»). Затемнение не перехватывает тапы: тап мимо пузыря закрывает подсказку и проходит дальше
- * (вкладки работают всегда). Первый шаг новичка — встроенная карточка «Сделай первый замер» на Главной (app.js). */
-const AUTO_TIPS = false;
+const KEY = 'pitlane-tips-v206'; // v206: новая структура — все увидят новые подсказки один раз
+/* v206: подсказки один раз на раздел, коротко, на реальных элементах. Тап мимо пузыря закрывает и проходит дальше. */
+const AUTO_TIPS = true;
 
 /** Each step: target (selector list, first visible wins), title, text, tap: 'end' | 'next' | 'stay', before(): prepare UI. */
-const nav = (v) => `.nav3-btn[data-n3="${v}"]`; // v161: нижняя панель — Главная / Замер / Трек / Гараж
+const nav = (v) => `.nav3-btn[data-n3="${v}"]`; // v206: Замер · Трек · Топы · Чат · Профиль
 export const SCENARIOS = {
   tour: [
-    { target: nav('home'), title: 'Главная', text: 'Ваша машина, сводка и главное за день.' },
-    { target: nav('zamer'), title: 'Замер', text: '0–100 и ¼ мили по GPS. Одна кнопка «Старт».' },
-    { target: nav('lap'), title: 'Трек', text: 'Выберите трассу и начните сессию. Старт, финиш и сектора ловятся сами.' },
-    { target: nav('garage'), title: 'Гараж', text: 'Машина в 3D — цвет, детали и «Это моя машина».' },
-    { target: '#btnMenu', title: 'Меню', text: 'Журнал, Paddock, магазин и настройки.' },
+    { target: nav('zamer'), title: 'Замер', text: '0–100 и ¼ мили по GPS. Встал, нажал «Старт» — разгон ловится сам.' },
+    { target: nav('lap'), title: 'Трек', text: 'Выбери автодром — старт, финиш и сектора засекаются по GPS.' },
+    { target: nav('tops'), title: 'Топы', text: 'Лучшие честные заезды по замерам и трассам.' },
+    { target: nav('pulse'), title: 'Чат', text: 'Общий, Замеры, Треки и Вопросы — всё сообщество тут.' },
+    { target: nav('account'), title: 'Профиль', text: 'Твоя машина, гараж, журнал, Pass и настройки — в одном месте.' },
   ],
-  home: [{ target: '#hwCarImg, #homeHero', title: 'Главная', text: 'Твоя машина и главное за день. Тап по машине — в Гараж.' }],
-  garage: [
-    { target: '#g53Mine, #btnMyCarGarage', title: 'Это моя машина', text: 'Выбери машину стрелками и нажми сюда. Каждый круг запишется на неё.' },
-    { target: '#g53List, #btnCarPicker', title: 'Весь гараж', text: 'Остальные машины — лентой ниже. Тап — на подиум.' },
-  ],
-  zamer: [{ target: '#h48Start', title: 'Замер', text: 'Встань, дождись точности GPS и жми «Старт». Разгон ловится сам.' }],
-  history: [{ target: '#jnHost .jn-seg', title: 'Журнал', text: 'Замеры и сессии в одном месте. Фильтр — сверху, тап по строке — детали.' }],
+  zamer: [{ target: '#h48Start', title: 'Первый замер', text: 'Дождись точности GPS и жми «Старт». Дальше — просто газ.' }],
   lap: [
-    { target: '#tk58', title: 'Трасса', text: 'Листайте карточки и выберите автодром.' },
-    { target: '#btnMyCarLap', title: 'Машина для зачёта', text: 'На эту машину запишется круг. Тап — сменить.' },
-    { target: '#btnLapStart', title: 'Начать сессию', text: 'Старт, финиш и сектора ловятся по GPS.' },
+    { target: '#tk58', title: 'Трасса', text: 'Листай карточки и выбери автодром.' },
+    { target: '#btnMyCarLap', title: 'Машина для зачёта', text: 'Круг запишется на эту машину. Тап — сменить.' },
+    { target: '#btnLapStart', title: 'Начать сессию', text: 'Старт, финиш и сектора ловятся сами.' },
   ],
   tops: [
-    { target: '#topsChips', title: 'Топ', text: 'Выбери трассу или замер — увидишь лучшие честные заезды.' },
-    { target: '#btnTopsMenu', title: 'Фильтры', text: 'Класс зачёта, погода и модель — здесь.' },
+    { target: '#topsChips', title: 'Топы', text: 'Выбери замер или трассу — увидишь лучших.' },
+    { target: '#btnTopsMenu', title: 'Фильтры', text: 'Класс, погода и модель.' },
   ],
-  pulse: [{ target: '#pulseText', title: 'Paddock', text: 'Лента сообщества. Поделись заездом или фото.' }],
-  account: [{ target: '#btnMyCarAcc', title: 'Профиль', text: 'Вход через Telegram хранит результаты. Здесь же — машина и настройки.' }],
-  // first time the «Это моя машина» sheet opens
+  pulse: [
+    { target: '#cpTabs', title: 'Разделы чата', text: 'Общий, Замеры, Треки, Вопросы. Свайп или тап — переключить.' },
+    { target: '#pulseText', title: 'Написать', text: 'Сообщение, фото или свой заезд.' },
+  ],
+  account: [
+    { target: '#pf6EditBtn', title: 'Изменить профиль', text: 'Фото, ник, обложка и машина. С Pass — рамка, номер и пин.' },
+    { target: '#pf6List [data-pf6="mycar"]', title: 'Моя машина', text: 'Привяжи машину — на неё запишется каждый заезд.' },
+  ],
+  pfedit: [{ target: '#pfePass', title: 'Оформление Pass', text: 'Рамка, гоночный номер и пин. Превью сверху — так тебя видят в топах и чате.' }],
+  garage: [{ target: '#g53Mine, #btnMyCarGarage', title: 'Это моя машина', text: 'Выбери машину стрелками и нажми сюда.' }],
+  history: [{ target: '#jnHost .jn-seg', title: 'Журнал', text: 'Замеры и сессии. Тап по строке — детали.' }],
   mycar: [
-    { target: '#myCarModels', title: 'Шаг 1 · Машина', text: 'Выбери, на чём едешь сегодня.', tap: 'stay' },
-    { target: '#myCarTyres', title: 'Шаг 2 · Резина', text: 'Выбери шины — топ сравнивает равных.', tap: 'stay' },
-    { target: '#myCarSave', title: 'Шаг 3 · Готово', text: 'Нажми — и каждый круг запишется на эту машину.' },
+    { target: '#myCarModels', title: 'Шаг 1 · Машина', text: 'Выбери, на чём едешь.', tap: 'stay' },
+    { target: '#myCarTyres', title: 'Шаг 2 · Резина', text: 'Топ сравнивает равных.', tap: 'stay' },
+    { target: '#myCarSave', title: 'Шаг 3 · Готово', text: 'Каждый заезд запишется на эту машину.' },
   ],
 };
 // explicit «Как привязать машину?» walkthrough: garage button → sheet → model → tyre → save
 SCENARIOS.mycarHow = [
-  { target: '#g53Mine, #btnMyCarGarage', title: 'Как привязать машину', text: 'Открой Гараж, выбери машину стрелками и нажми «Это моя машина».', before: () => D.goToView?.('garage'), tap: 'next' },
-  { ...SCENARIOS.mycar[0], before: () => D.openMyCar?.() },
+  { ...SCENARIOS.mycar[0], title: 'Как привязать машину', before: () => D.openMyCar?.() },
   SCENARIOS.mycar[1],
   SCENARIOS.mycar[2],
 ];
@@ -343,7 +342,7 @@ function finish(markSeen, silent) {
   window.visualViewport?.removeEventListener('resize', schedulePlace);
   document.removeEventListener('scroll', schedulePlace, { capture: true });
   if (markSeen) {
-    if (c.id === 'tour') { state.tour = true; state.seen.home = 1; } else state.seen[c.id] = 1;
+    if (c.id === 'tour') { state.tour = true; } else state.seen[c.id] = 1;
     if (c.id === 'mycarHow') state.seen.mycar = 1;
     save();
     // v103: no haptic on tip navigation / finish (Maga: buzz on «Далее»)
@@ -361,14 +360,15 @@ function finish(markSeen, silent) {
 export function tipsOnView(id) {
   if (!AUTO_TIPS) return;
   if (!SCENARIOS[id] || id === 'tour' || id === 'mycarHow') return;
-  if (!state.tour) { if (id === 'home') queueTour(); return; } // the tour comes first
+  if (!state.tour) { if (['zamer', 'home', 'lap', 'tops', 'account'].includes(id)) queueTour(); return; } // the tour comes first
   if (state.seen[id] || cur) return;
   clearTimeout(pending);
-  const sheet = id === 'teams' || id === 'mycar';
+  const sheet = id === 'mycar' || id === 'pulse' || id === 'pfedit';
   pending = setTimeout(() => {
     if (state.seen[id] || cur) return;
     if (busy(sheet)) return; // retried on the next entry
-    if (id === 'teams' && !document.querySelector('#teamSheet:not(.hidden), #roomSheet:not(.hidden)')) return;
+    if (id === 'pulse' && !document.querySelector('#chatPage:not(.hidden)')) return;
+    if (id === 'pfedit' && !document.querySelector('#pfEdit:not(.hidden)')) return;
     if (id === 'mycar' && !document.querySelector('#myCarSheet:not(.hidden)')) return;
     run(id, SCENARIOS[id]);
   }, sheet ? 450 : 700);

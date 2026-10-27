@@ -118,10 +118,10 @@
           <b class="bb-logo" role="img" aria-label="PITLANE"><svg viewBox="-2 -78 510 146" aria-hidden="true" focusable="false"><path class="lg-arc" fill="#e12323" d="M66 -37Q250 -111 434 -36.4Q250 -98.6 66 -37Z"/><g class="lg-word" fill="#f2efe9"><path d="M0 0H46A16.5 16.5 0 0 1 62.5 16.5V26A16.5 16.5 0 0 1 46 42.5H19V32H46A6 6 0 0 0 52 26V16.5A6 6 0 0 0 46 10.5H10.5V66H0Z"/><rect x="85" y="0" width="10.5" height="66"/><path d="M117 0H179.5V10.5H153.5V66H143V10.5H117Z"/><path d="M201 0H211.5V55.5H252.5V66H201Z"/><path d="M270.5 66L303.5 0H309L342.5 66H330.5L306 19L281.5 66Z"/><path d="M362 0H372.5L415 46V0H425.5V66H418L372.5 16.8V66H362Z"/><path d="M451 0H505.5V10.5H461.5V28H502V38.5H461.5V55.5H505.5V66H451Z"/></g></svg></b>
           <div class="bb-actions">
             <button type="button" class="pp-pill" id="btnPass" aria-haspopup="dialog" aria-controls="passSheet" aria-label="Paddock Pass"><img src="./img/awards/pass_s.webp" alt="" width="16" height="16" /><span>Pass</span></button>
-            <button type="button" class="profile-btn bb-menu-btn" id="btnMenu" title="Меню" aria-label="Меню" aria-haspopup="dialog" aria-controls="plMenu" aria-expanded="false">
+            <button type="button" class="profile-btn bb-menu-btn" id="btnMenu" hidden title="Меню" aria-label="Меню" aria-haspopup="dialog" aria-controls="plMenu" aria-expanded="false">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 8h14M5 12h14M9 16h10"/></svg>
             </button>
-            <button type="button" class="profile-btn" data-view="account" id="btnProfile" title="Профиль" aria-label="Профиль">
+            <button type="button" class="profile-btn" data-view="account" id="btnProfile" hidden title="Профиль" aria-label="Профиль">
               <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
                 <circle cx="12" cy="8" r="3.2"/>
                 <path d="M5.8 19.2c.8-3.1 3.1-4.7 6.2-4.7s5.4 1.6 6.2 4.7"/>
@@ -795,23 +795,42 @@
           <div id="pulseFeed" class="pulse-feed"></div>
         </section>
 
-        <section id="view-account" class="view">
-          <h2 data-i18n="acc.title">Профиль</h2>
-          <div class="prof-banner" id="accBanner">
-            <button type="button" class="prof-banner-edit" id="accBannerEdit" aria-label="Сменить баннер профиля">Баннер</button>
+        <section id="view-account" class="view pf6-view">
+          <!-- v206: профиль как в Telegram — шапка с аватаром в рамке Pass, ник с номером и пином, «Изменить» справа -->
+          <div class="pf6-top"><h1 class="pf6-title">Профиль</h1><button type="button" class="pf6-edit-btn" id="pf6EditBtn">Изменить</button></div>
+          <div class="pf6-hero" id="pf6Hero">
+            <div class="prof-banner pf6-banner" id="accBanner"><button type="button" class="prof-banner-edit" id="accBannerEdit" aria-label="Сменить обложку профиля" hidden>Баннер</button></div>
+            <div class="pf6-ava" id="pf6Ava"></div>
+            <div class="pf6-name" id="pf6Name"></div>
+            <p class="pf6-sub" id="pf6Sub"></p>
+            <button type="button" class="pf6-pass" id="pf6Pass"></button>
           </div>
-          <div class="prof-head">
-            <label class="avatar-btn" title="аватар">
-              <img id="accAvatar" src="" alt="" />
-              <input id="accAvatarIn" type="file" accept="image/*" hidden />
-            </label>
-            <div>
-              <input id="accNick" placeholder="nickname" data-i18n-placeholder="acc.nick" maxlength="24" />
-              <p class="muted" id="accPhone">не вошли</p>
-            </div>
+          <div class="pf6-legacy" hidden>
+            <img id="accAvatar" src="" alt="" />
+            <input id="accAvatarIn" type="file" accept="image/*" hidden />
+            <input id="accNick" maxlength="24" />
+            <p id="accPhone">не вошли</p>
           </div>
           <!-- v192: витрина (машина сверху, награды только за время) + Paddock Pass (Stars, только внешний вид) -->
           <section class="card sc92" id="sc92" aria-label="Витрина"></section>
+          <!-- v206: всё остальное — сгруппированными строками, как настройки Telegram -->
+          <div class="pf6-list" id="pf6List">
+            <div class="pf6-g">
+              <button type="button" class="pf6-row" data-pf6="mycar"><i class="pf6-ic ic-r"></i><span class="pf6-k">Моя машина</span><span class="pf6-v" data-mycar-line></span><b class="pf6-ch"></b></button>
+              <button type="button" class="pf6-row" data-pf6="garage"><i class="pf6-ic ic-g"></i><span class="pf6-k">Гараж и покраска</span><b class="pf6-ch"></b></button>
+              <button type="button" class="pf6-row" data-pf6="history"><i class="pf6-ic ic-b"></i><span class="pf6-k">Журнал заездов</span><b class="pf6-ch"></b></button>
+            </div>
+            <div class="pf6-g">
+              <button type="button" class="pf6-row" data-pf6="pass"><i class="pf6-ic ic-p"></i><span class="pf6-k">Paddock Pass</span><span class="pf6-v" id="pf6PassV"></span><b class="pf6-ch"></b></button>
+              <button type="button" class="pf6-row" data-pf6="shop"><i class="pf6-ic ic-s"></i><span class="pf6-k">Магазин</span><span class="pf6-v">GPS-чип 25 Гц</span><b class="pf6-ch"></b></button>
+            </div>
+            <div class="pf6-g">
+              <button type="button" class="pf6-row" data-pf6="settings"><i class="pf6-ic ic-x"></i><span class="pf6-k">Настройки</span><b class="pf6-ch"></b></button>
+              <button type="button" class="pf6-row" data-pf6="suggest"><i class="pf6-ic ic-t"></i><span class="pf6-k">Предложить трассу</span><b class="pf6-ch"></b></button>
+              <button type="button" class="pf6-row" data-pf6="feedback"><i class="pf6-ic ic-f"></i><span class="pf6-k">Обратная связь</span><b class="pf6-ch"></b></button>
+              <a class="pf6-row" href="./method.html"><i class="pf6-ic ic-m"></i><span class="pf6-k">Как считаем время</span><b class="pf6-ch"></b></a>
+            </div>
+          </div>
           <!-- v148: всё остальное — в Профиле. Соревнования первыми -->
           <section class="p48" id="p48" aria-label="Разделы" hidden>
             <div class="p48-group p48-main">
@@ -882,8 +901,7 @@
           
           
           
-          <button type="button" class="st66-row st66-solo" data-st="settings"><span class="st66-k">Настройки</span><i class="st66-chev" aria-hidden="true"></i></button>
-        </section>
+          </section>
         <!-- v166: единые Настройки — сгруппированные списки как в iOS; всё, что было разбросано по Профилю, теперь здесь -->
         <section id="view-settings" class="view st66" aria-label="Настройки">
           <h1 class="st66-title">Настройки</h1>
@@ -986,13 +1004,19 @@
         </section>
         </div>
       <!-- v148: нижняя панель — Замер / Гараж / Профиль -->
-      <nav class="nav3" id="nav3" aria-label="Разделы">
+      <nav class="nav3 nav6" id="nav3" aria-label="Разделы">
         <button type="button" class="nav3-btn on" data-n3="zamer" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Замер</span></button>
-        <button type="button" class="nav3-btn" data-n3="home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M10 20v-6h4v6"/></svg><span>Главная</span></button>
         <button type="button" class="nav3-btn" data-n3="lap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18c0-4 2.5-5.5 5.5-5.5S15 11 15 8s2.2-3.5 4.5-2.5"/><circle cx="5" cy="18" r="1.6"/><path d="M15.5 18h4M17.5 16v4"/></svg><span>Трек</span></button>
-        <button type="button" class="nav3-btn" data-n3="garage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 15.5l1.6-4.4A2 2 0 0 1 7 9.8h10a2 2 0 0 1 1.9 1.3l1.6 4.4"/><path d="M3.5 15.5h17v2.5a1 1 0 0 1-1 1h-1.5a1 1 0 0 1-1-1v-1h-10v1a1 1 0 0 1-1 1H4.5a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r=".6"/><circle cx="16.5" cy="15.5" r=".6"/></svg><span>Гараж</span></button>
+        <button type="button" class="nav3-btn" data-n3="tops"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/></svg><span>Топы</span></button>
+        <button type="button" class="nav3-btn" data-n3="pulse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5h13A2.5 2.5 0 0 1 21 7.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17A2.5 2.5 0 0 1 3 14.5v-7A2.5 2.5 0 0 1 5.5 5z"/></svg><span>Чат</span><i class="n6-badge" id="n6BadgeChat" hidden></i></button>
+        <button type="button" class="nav3-btn" data-n3="account"><span class="n6-ava" id="n6Ava"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.4"/><path d="M5.5 19.5c.8-3.2 3.2-4.9 6.5-4.9s5.7 1.7 6.5 4.9"/></svg></span><span>Профиль</span></button>
       </nav>
       </main>
+      <!-- v206: «Изменить профиль» — полноэкранная страница -->
+      <div class="pfe hidden" id="pfEdit" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Изменить профиль">
+        <header class="pfe-head"><button type="button" class="pfe-x" id="pfeCancel">Отмена</button><b>Изменить профиль</b><button type="button" class="pfe-ok" id="pfeSave">Готово</button></header>
+        <div class="pfe-body" id="pfeBody"></div>
+      </div>
       <!-- v205: Чат — полноэкранная страница Mini App (вкладки-разделы, шапка, композер снизу) -->
       <div class="chat-page hidden" id="chatPage" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Чат">
         <header class="cp-head">

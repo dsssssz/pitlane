@@ -101,6 +101,8 @@ function filePicker(onFile) {
 
 /* ——— list / search ——— */
 export async function openTeamsList() {
+  return; // v206: команды убраны
+
   if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   openSheet();
   const search = el('input', 'room-input team-search'); search.type = 'search'; search.maxLength = 40; search.placeholder = 'поиск команды'; search.value = st.q;
@@ -150,6 +152,8 @@ function teamRow(t) {
 
 /* ——— public page ——— */
 export async function openTeamPage(id) {
+  return; // v206: команды убраны
+
   if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   openSheet();
   render([head('Команда', ''), el('p', 'room-empty', 'Загрузка…')]);
@@ -279,6 +283,8 @@ function composer(t) {
 
 /* ——— captain editor ——— */
 export async function openTeamEditor(id) {
+  return; // v206: команды убраны
+
   if (TEAMS_OFF) return; // v198: команды/экипажи убраны
   openSheet();
   const [t, room] = await Promise.all([api.getTeam(id), api.getRoom(id)]);

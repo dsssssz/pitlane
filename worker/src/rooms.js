@@ -492,6 +492,7 @@ export async function roomsRoute(ctx) {
     if (lim) return lim;
     if (!salesOn(env)) return h.json({ error: 'payments disabled', code: 'NO_SALES' }, 503, headers);
     const tg = h.telegramConfig(env);
+    if (tg || !tg) return h.json({ error: 'gone', code: 'ROOMS_REMOVED' }, 410, headers); // v206: оплата сезона экипажа убрана
     if (!tg.enabled) return h.json({ error: 'payments unavailable' }, 503, headers);
     const body = await h.readJson(req, 2048);
     await ensurePaymentUpdates(env, 'https://' + url.host, h);
@@ -542,6 +543,7 @@ export async function roomsPreCheckout(env, q, h) {
     return { ok: false, msg };
   };
   if (!q || typeof q.id !== 'string') return { ok: false, msg: 'bad query' };
+  return await fail(PAY.errStale); // v206: сезоны экипажей больше не продаются
   if (!salesOn(env)) return await fail(PAY.errStale);
   const mm = String(q.invoice_payload || '').match(PAYLOAD_RE);
   if (!mm) return await fail(PAY.errStale);
