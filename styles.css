@@ -7248,7 +7248,7 @@ html .pp-pill::after { content: ""; position: absolute; top: 0; bottom: 0; left:
 .pass-inner { background: radial-gradient(120% 60% at 50% 0%, rgba(232,196,120,.14), transparent 60%), #0b0b0c; }
 .pass-body { padding: 8px 20px 22px; }
 .ps-hero { text-align: center; padding: 18px 0 14px; }
-.ps-ic { width: 132px; height: 132px; display: block; margin: 0 auto 8px; filter: drop-shadow(0 10px 30px rgba(232,196,120,.35)); }
+.ps-ic { width: 132px; height: 132px; display: block; margin: 0 auto 8px; background: none; box-shadow: none; }
 .ps-k { display: block; font-size: 11px; letter-spacing: .3em; color: #c9a866; }
 .ps-t { margin: 4px 0 6px; font-size: 30px; line-height: 1.1; color: #fff; font-weight: 800; }
 .ps-d { margin: 0 auto; max-width: 300px; color: #a9a9ad; font-size: 14px; line-height: 1.4; }

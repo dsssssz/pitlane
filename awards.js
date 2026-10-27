@@ -220,11 +220,36 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
   root.appendChild(msg);
 }
 
+/** v204: плавное 3D-вращение — спрайт 120 кадров на canvas, время-зависимый кадр + кроссфейд соседних (60 fps) */
+function spin3d(src, px, cols, n, period, cls) {
+  const c = document.createElement('canvas'); c.className = cls; c.setAttribute('aria-hidden', 'true');
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const img = new Image(); img.decoding = 'async'; img.src = src;
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let t0 = 0;
+  const draw = (now) => {
+    if (!c.isConnected && t0) return;
+    const w = c.clientWidth || 40;
+    const W = Math.round(w * dpr); if (c.width !== W) { c.width = W; c.height = W; }
+    const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
+    if (!t0) t0 = now;
+    const f = reduce ? 0 : (((now - t0) % period) / period) * n;
+    const a = Math.floor(f) % n, b = (a + 1) % n, k = f - Math.floor(f);
+    g.clearRect(0, 0, W, W);
+    const fr = (i, al) => { g.globalAlpha = al; g.drawImage(img, (i % cols) * px, ((i / cols) | 0) * px, px, px, 0, 0, W, W); };
+    fr(a, 1); if (k > 0.01) fr(b, k);
+    g.globalAlpha = 1;
+    if (!reduce) requestAnimationFrame(draw);
+  };
+  img.onload = () => requestAnimationFrame(draw);
+  return c;
+}
+
 /** v200: шторка Paddock Pass — герой, что входит (только то, что уже работает), цена, одна кнопка */
 export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
   root.replaceChildren();
   const hero = h('div', 'ps-hero');
-  hero.appendChild(im('./img/pass/pass-emblem-360.webp', 'ps-ic', ''));
+  hero.appendChild(spin3d('./img/pass/pass-emblem-sprite.webp', 264, 12, 120, 6000, 'ps-ic'));
   hero.appendChild(h('span', 'ps-k', 'PITLANE'));
   hero.appendChild(h('h2', 'ps-t', 'Paddock Pass'));
   hero.appendChild(h('p', 'ps-d', pass?.active ? 'Активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'Твой стиль в паддоке: номер, пины и рамка у ника'));
@@ -237,7 +262,7 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
   ];
   for (const [k, n, d] of perks) {
     const li = h('li', 'ps-it');
-    li.appendChild(im(k === 'helmet' ? './img/pass/helmet-360.webp' : k[0] === 'f' && k.length > 4 ? A + k + '.webp' : awardImg(k), 'ps-it-i', ''));
+    li.appendChild(k === 'helmet' ? spin3d('./img/pass/helmet-sprite.webp', 120, 12, 120, 6000, 'ps-it-i') : im( k[0] === 'f' && k.length > 4 ? A + k + '.webp' : awardImg(k), 'ps-it-i', ''));
     const t = h('div'); t.appendChild(h('b', '', n)); t.appendChild(h('small', '', d)); li.appendChild(t);
     ul.appendChild(li);
   }
@@ -262,5 +287,4 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
     msg.textContent = available ? 'Отменить можно в Telegram в любой момент.' : 'Продажи откроются после обновления сервера.';
   }
   root.appendChild(msg);
-  root.appendChild(h('p', 'ps-credit', 'Модель шлема: VTX, CC BY-NC-SA 4.0'));
 }
