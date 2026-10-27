@@ -65,7 +65,8 @@ import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, make
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
-import { initTips, tipsOnView, resetTips, showMyCarHowTo, startTour } from './tips.js';
+// v207: подсказки удалены полностью
+const tipsOnView = () => {};
 import { musicList, renderMyMusic, initMusic, stopMusic } from './music-ui.js';
 import { createChaseTracker } from './chase-match.js';
 import { dragSplits as coreDragSplits } from './gps-core.js';
@@ -9894,7 +9895,6 @@ function padAuthor({ name, pilotId, avatar, meta, size = 40, pp = null }) {
   el.appendChild(ava);
   const who = padEl('span', 'pad-who');
   const nk = padEl('span', 'pad-nick', name || 'Пилот');
-  if (pp && Number.isInteger(pp.number)) nk.appendChild(padEl('i', 'lb92-num pad-num', String(pp.number)));
   if (pp && ['helmet', 'wheel', 'carbon'].includes(pp.pin)) { try { const b = document.createElement('img'); b.className = 'lb92-b pad-pin'; b.alt = ''; b.src = awardImg(pp.pin, true); nk.appendChild(b); } catch (_) {} }
   who.appendChild(nk);
   if (meta) who.appendChild(padEl('span', 'pad-meta', meta));
@@ -12943,7 +12943,7 @@ initCrewRooms({
   openTeam: (id) => void openTeamPage(id),
   openTeamEditor: (id) => void openTeamEditor(id),
   onCarSheet: () => { try { tipsOnView('mycar'); } catch (_) {} },
-  howCar: () => { try { showMyCarHowTo(); } catch (_) {} },
+  howCar: () => {},
 });
 initTeams({
   tracks: () => TRACKS,
@@ -12960,13 +12960,6 @@ initTeams({
   },
 });
 initMusic(() => { const t = String(getSessionToken() || ''); return t && !t.startsWith('local-') ? accountPilotId() : ''; }); // v115
-initTips({ goToView: (v) => goToView(v), openMyCar: () => openMyCarSheet({ preselect: currentCar()?.name }) });
-document.getElementById('btnTipsReset')?.addEventListener('click', () => {
-  // v120: подсказки — только по запросу; тур не блокирует вкладки (тап мимо пузыря закрывает)
-  resetTips();
-  goToView('home');
-  setTimeout(() => { try { startTour(); } catch (_) {} }, 450);
-});
 document.getElementById('btnRoomsOpen')?.addEventListener('click', () => void openTeamsList());
 document.getElementById('btnRoomsAcc')?.addEventListener('click', () => void openTeamsList());
 // v120: одна «Команда» (экипаж) в интерфейсе; комнаты/команды-страницы видны только тем, у кого они уже есть
@@ -13014,7 +13007,6 @@ setTimeout(topsActiveLine, 0);
 document.getElementById('btnMyCarAcc')?.addEventListener('click', () => openMyCarSheet());
 document.getElementById('btnMyCarLap')?.addEventListener('click', () => openMyCarSheet({ preselect: currentCar()?.name }));
 document.getElementById('btnMyCarGarage')?.addEventListener('click', () => openMyCarSheet({ preselect: currentCar()?.name }));
-document.getElementById('btnHowCar')?.addEventListener('click', () => { try { showMyCarHowTo(); } catch (_) {} });
 try {
   const q = new URLSearchParams(location.search);
   const code = String(q.get('room') || '').toUpperCase();
@@ -16466,7 +16458,6 @@ function buildTopsRow(r, i, sel, ctx) {
   if (lb || (r.pp && typeof r.pp === 'object')) { // v205: Pass-косметика и в топах разгона
     const bk = lb ? rowBadge(ctx.raw, r) : '';
     const pin = r.pp && ['helmet', 'wheel', 'carbon'].includes(r.pp.pin) ? r.pp.pin : '';
-    if (r.pp && Number.isInteger(r.pp.number)) nick.appendChild(padEl('i', 'lb92-num', String(r.pp.number)));
     for (const k of [bk, pin].filter(Boolean)) { const b = document.createElement('img'); b.className = 'lb92-b'; b.alt = ''; b.src = awardImg(k, true); b.title = AW_LIST[k]?.n || k; nick.appendChild(b); }
   }
   li.appendChild(nick);
@@ -17467,12 +17458,11 @@ document.querySelectorAll('#pf6List .pf6-row').forEach((r) => { const k = r.data
 function pf6Nick() { return (profile().nick || currentUser()?.nick || '').trim(); }
 function pf6Ava() { return profile().avatar || currentUser()?.photo || currentUser()?.avatar || ''; }
 function pf6Active() { return !!(PF6.pass && PF6.pass.active); }
-function pf6Cos() { return pf6Active() ? { number: Number.isInteger(PF6.pass.number) ? PF6.pass.number : null, frame: PF6.pass.frame || '', pin: PF6.pass.pin || '' } : { number: null, frame: '', pin: '' }; }
+function pf6Cos() { return pf6Active() ? { frame: PF6.pass.frame || '', pin: PF6.pass.pin || '' } : { frame: '', pin: '' }; }
 /** ник + номер + пин — один и тот же вид везде, где есть pp */
 function pf6NameRow(name, pp, cls = 'pf6-nm') {
   const row = padEl('span', cls);
   row.append(padEl('b', '', name || 'Пилот'));
-  if (pp && Number.isInteger(pp.number)) row.append(padEl('i', 'lb92-num pf6-num', String(pp.number)));
   if (pp && pp.pin) { const im = document.createElement('img'); im.className = 'pf6-pin'; im.alt = ''; im.src = awardImg(pp.pin, true); row.append(im); }
   return row;
 }
@@ -17499,7 +17489,7 @@ function renderPf6() {
     ps.hidden = !u; ps.classList.toggle('on', pf6Active());
     ps.innerHTML = '';
     const im = document.createElement('img'); im.src = './img/awards/pass_s.webp'; im.alt = '';
-    ps.append(im, padEl('span', '', pf6Active() ? 'Paddock Pass · до ' + new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'Paddock Pass — номер, рамка и пин'));
+    ps.append(im, padEl('span', '', pf6Active() ? 'Paddock Pass · до ' + new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'Paddock Pass — рамка и пин'));
   }
   const pv = document.getElementById('pf6PassV'); if (pv) pv.textContent = pf6Active() ? 'активен' : PASS_STARS_206 + ' ★';
   const eb = document.getElementById('pf6EditBtn'); if (eb) eb.hidden = !u;
@@ -17545,7 +17535,7 @@ function closePfEdit() {
   setTimeout(() => { if (!pg.classList.contains('on')) pg.classList.add('hidden'); }, tgsReduce() ? 0 : 280);
 }
 function pfePreview() {
-  const d = PF6.draft; const pp = { number: d.number, frame: d.frame, pin: d.pin };
+  const d = PF6.draft; const pp = { frame: d.frame, pin: d.pin };
   const box = document.getElementById('pfePrev'); if (!box) return;
   box.replaceChildren();
   const row = padEl('div', 'pfe-prow');
@@ -17606,18 +17596,6 @@ function renderPfEdit() {
     ps.append(g);
   };
   pick('Рамка аватара', PF6_FR, 'frame', (v) => (v ? './img/awards/' + (v === 'carbon' ? 'fcarbon' : 'fcheq') + '.webp' : ''));
-  // номер
-  ps.append(padEl('p', 'pfe-sh', 'Гоночный номер'));
-  const nr = padEl('div', 'pfe-numrow');
-  const minus = padEl('button', 'pfe-step', '−'); minus.type = 'button';
-  const plus = padEl('button', 'pfe-step', '+'); plus.type = 'button';
-  const ni = document.createElement('input'); ni.className = 'pfe-numin'; ni.type = 'text'; ni.inputMode = 'numeric'; ni.maxLength = 2; ni.placeholder = '—'; ni.value = Number.isInteger(d.number) ? String(d.number) : ''; ni.disabled = !on;
-  const setN = (n) => { d.number = n == null || n === '' || !Number.isFinite(Number(n)) ? null : Math.max(0, Math.min(99, Math.round(Number(n)))); ni.value = d.number == null ? '' : String(d.number); pfePreview(); };
-  ni.addEventListener('input', () => { ni.value = ni.value.replace(/\D/g, '').slice(0, 2); setN(ni.value === '' ? null : ni.value); });
-  minus.addEventListener('click', () => { if (!on) { openPassSheet(); return; } hap(4); setN(d.number == null ? 0 : (d.number + 99) % 100); });
-  plus.addEventListener('click', () => { if (!on) { openPassSheet(); return; } hap(4); setN(d.number == null ? 0 : (d.number + 1) % 100); });
-  const clr = padEl('button', 'pfe-clr', 'Без номера'); clr.type = 'button'; clr.addEventListener('click', () => { if (!on) { openPassSheet(); return; } hap(4); setN(null); });
-  nr.append(minus, ni, plus, clr); ps.append(nr);
   pick('Пин у ника', PF6_PIN, 'pin', (v) => (v ? awardImg(v, true) : ''));
   if (!on) {
     const up = padEl('button', 'pfe-buy'); up.type = 'button';
@@ -17645,8 +17623,8 @@ document.getElementById('pfeSave')?.addEventListener('click', async (e) => {
     }
     if (pf6Active()) {
       const c = pf6Cos();
-      if (c.number !== d.number || c.frame !== d.frame || c.pin !== d.pin) {
-        const r = await api.putPassCosmetics({ number: d.number, frame: d.frame, pin: d.pin }).catch(() => null);
+      if (c.frame !== d.frame || c.pin !== d.pin) {
+        const r = await api.putPassCosmetics({ number: null, frame: d.frame, pin: d.pin }).catch(() => null);
         if (r && r.ok !== false && r.pass) PF6.pass = r.pass; else errs.push('оформление: ' + (r?.error || 'нет связи'));
       }
     }

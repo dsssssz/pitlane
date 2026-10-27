@@ -2,7 +2,7 @@
  * v192: Pitlane Awards + витрина профиля + Paddock Pass (макеты v11).
  * Награды НЕ продаются: считаются только из реальных строк общего топа кругов (`/tops/lap/:track`)
  * и собственных кругов пилота (state.laps). Нет данных → «в процессе», ничего не выдумываем.
- * Paddock Pass (149 ★/мес, Telegram Stars) — только внешний вид: номер, карбон, рамки, пины.
+ * Paddock Pass (149 ★/мес, Telegram Stars) — только внешний вид: карбон, рамки, пины.
  */
 const MSK = 3 * 3600 * 1000;
 const WEEK = 7 * 86400000;
@@ -22,7 +22,6 @@ export const AWARDS = {
   champ: { n: 'Чемпион', d: 'больше всех лавров за сезон' },
 };
 export const PASS_ITEMS = [
-  ['number', 'Гоночный номер', 'свой номер 0–99 у ника'],
   ['carbon', 'Карбон', 'карбоновый знак'],
   ['helmet', 'Пин-шлем', 'пин-шлем у ника'],
   ['wheel', 'Пин-руль', 'пин-руль у ника'],
@@ -163,7 +162,6 @@ export function renderShowcase(root, { car, carName, nick, res, pass }) {
   else hero.appendChild(h('p', 'tiny muted sc-nocar', 'Выбери машину в «Моя машина» — она встанет на витрину'));
   const cap = h('div', 'sc-cap');
   cap.appendChild(h('b', '', nick || 'Пилот'));
-  if (pass?.active && pass.number != null) cap.appendChild(h('span', 'sc-num', '#' + pass.number));
   if (carName) cap.appendChild(h('small', '', carName));
   hero.appendChild(cap);
   root.appendChild(hero);
@@ -204,12 +202,11 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
   const msg = h('p', 'tiny muted pp-msg');
   if (pass?.active) {
     const row = h('div', 'pp-cos');
-    const num = h('input'); num.type = 'number'; num.min = '0'; num.max = '99'; num.placeholder = 'номер'; num.value = pass.number ?? '';
     const pin = h('select'); [['', 'без пина'], ['helmet', 'шлем'], ['wheel', 'руль'], ['carbon', 'карбон']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.pin === v) o.selected = true; pin.appendChild(o); });
     const fr = h('select'); [['', 'без рамки'], ['carbon', 'карбон'], ['chequer', 'клетка']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.frame === v) o.selected = true; fr.appendChild(o); });
     const sv = h('button', 'go-btn', 'Сохранить'); sv.type = 'button';
-    sv.addEventListener('click', async () => { sv.disabled = true; msg.textContent = await onSave({ number: num.value === '' ? null : Math.max(0, Math.min(99, Math.round(Number(num.value)))), pin: pin.value, frame: fr.value }); sv.disabled = false; });
-    row.append(num, pin, fr, sv); root.appendChild(row);
+    sv.addEventListener('click', async () => { sv.disabled = true; msg.textContent = await onSave({ pin: pin.value, frame: fr.value }); sv.disabled = false; });
+    row.append(pin, fr, sv); root.appendChild(row);
   } else {
     const b = h('button', 'go-btn race-cta pp-buy', available ? `Оформить · ${PASS_STARS} ★` : 'Скоро'); b.type = 'button';
     b.disabled = !available;
@@ -252,11 +249,10 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
   hero.appendChild(spin3d('./img/pass/pass-emblem-sprite.webp', 264, 12, 120, 6000, 'ps-ic'));
   hero.appendChild(h('span', 'ps-k', 'PITLANE'));
   hero.appendChild(h('h2', 'ps-t', 'Paddock Pass'));
-  hero.appendChild(h('p', 'ps-d', pass?.active ? 'Активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'Твой стиль в паддоке: номер, пины и рамка у ника'));
+  hero.appendChild(h('p', 'ps-d', pass?.active ? 'Активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'Твой стиль в паддоке: пины и рамка у ника'));
   root.appendChild(hero);
   const ul = h('ul', 'ps-list');
   const perks = [
-    ['number', 'Гоночный номер', 'Свой номер 0–99 рядом с ником и на витрине'],
     ['helmet', 'Пины у ника', 'Шлем, руль или карбон'],
     ['fcarbon', 'Рамка аватара', 'Карбон или клетчатый флаг'],
   ];
@@ -271,12 +267,11 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
   const msg = h('p', 'tiny muted ps-msg');
   if (pass?.active) {
     const row = h('div', 'pp-cos');
-    const num = h('input'); num.type = 'number'; num.min = '0'; num.max = '99'; num.placeholder = 'номер'; num.value = pass.number ?? '';
     const pin = h('select'); [['', 'без пина'], ['helmet', 'шлем'], ['wheel', 'руль'], ['carbon', 'карбон']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.pin === v) o.selected = true; pin.appendChild(o); });
     const fr = h('select'); [['', 'без рамки'], ['carbon', 'карбон'], ['chequer', 'клетка']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.frame === v) o.selected = true; fr.appendChild(o); });
     const sv = h('button', 'go-btn', 'Сохранить'); sv.type = 'button';
-    sv.addEventListener('click', async () => { sv.disabled = true; msg.textContent = await onSave({ number: num.value === '' ? null : Math.max(0, Math.min(99, Math.round(Number(num.value)))), pin: pin.value, frame: fr.value }); sv.disabled = false; });
-    row.append(num, pin, fr, sv); root.appendChild(row);
+    sv.addEventListener('click', async () => { sv.disabled = true; msg.textContent = await onSave({ pin: pin.value, frame: fr.value }); sv.disabled = false; });
+    row.append(pin, fr, sv); root.appendChild(row);
   } else {
     const price = h('div', 'ps-price'); price.appendChild(h('b', '', PASS_STARS + ' ★')); price.appendChild(h('span', '', 'в месяц · Telegram Stars'));
     root.appendChild(price);

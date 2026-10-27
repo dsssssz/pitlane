@@ -16,7 +16,7 @@ export function isPassPayload(p) { return PAYLOAD_RE.test(String(p || '')); }
 function active(p, now = Date.now()) { return !!p && Number(p.until) > now; }
 export function publicPass(p, now = Date.now()) {
   if (!active(p, now)) return null;
-  return { number: Number.isInteger(p.number) ? p.number : null, frame: FRAMES.includes(p.frame) ? p.frame : '', pin: PINS.includes(p.pin) ? p.pin : '' };
+  return { frame: FRAMES.includes(p.frame) ? p.frame : '', pin: PINS.includes(p.pin) ? p.pin : '' };
 }
 async function loadPass(kv, pid) { try { const r = await kv.get('pass:' + pid); return r ? JSON.parse(r) : null; } catch (_) { return null; } }
 
@@ -36,7 +36,7 @@ export async function passRoute({ req, env, path, pilot, headers, h }) {
     if (lim) return lim;
     const spec = {
       title: 'Paddock Pass',
-      description: 'Внешний вид в Pitlane: номер у ника, карбон, рамки и пины. Награды за время не продаются.',
+      description: 'Внешний вид в Pitlane: карбон, рамки и пины. Награды за время не продаются.',
       payload: 'pp1:' + pilot.id,
       currency: 'XTR',
       prices: [{ label: 'Paddock Pass · 30 дней', amount: PASS_STARS }],
@@ -49,9 +49,7 @@ export async function passRoute({ req, env, path, pilot, headers, h }) {
   if (req.method === 'PUT' && path === '/me/pass/cosmetics') {
     if (!active(p)) return h.json({ error: 'нужен активный Paddock Pass' }, 402, headers);
     const b = await h.readJson(req, 2048).catch(() => ({}));
-    const n = b?.number === null || b?.number === '' ? null : Math.round(Number(b?.number));
-    if (n !== null && !(n >= 0 && n <= 99)) return h.json({ error: 'номер 0–99' }, 400, headers);
-    const next = { ...p, number: n, frame: FRAMES.includes(b?.frame) ? b.frame : '', pin: PINS.includes(b?.pin) ? b.pin : '' };
+    const next = { ...p, number: null, frame: FRAMES.includes(b?.frame) ? b.frame : '', pin: PINS.includes(b?.pin) ? b.pin : '' };
     await kv.put('pass:' + pilot.id, JSON.stringify(next));
     return h.json({ ok: true, pass: { active: true, until: next.until, ...publicPass(next) } }, 200, headers);
   }

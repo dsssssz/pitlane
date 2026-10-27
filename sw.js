@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v206';
+const CACHE = 'pitlane-v207';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -21,7 +21,6 @@ const CORE = [
   './awards.js',
   './music-ui.js',
   './teams-ui.js',
-  './tips.js',
   './chase-match.js',
   './ghost.js',
   './session-review.js',
