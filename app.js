@@ -9895,7 +9895,7 @@ function padAuthor({ name, pilotId, avatar, meta, size = 40, pp = null }) {
   el.appendChild(ava);
   const who = padEl('span', 'pad-who');
   const nk = padEl('span', 'pad-nick', name || 'Пилот');
-  if (pp && ['helmet', 'wheel', 'carbon'].includes(pp.pin)) { try { const b = document.createElement('img'); b.className = 'lb92-b pad-pin'; b.alt = ''; b.src = awardImg(pp.pin, true); nk.appendChild(b); } catch (_) {} }
+  if (pp && ['helmet', 'wheel', 'carbon'].includes(pp.pin)) { try { const b = document.createElement('img'); b.className = 'lb92-b pad-pin'; b.dataset.pin = pp.pin; b.alt = 'Пин'; b.src = awardImg(pp.pin, true); nk.appendChild(b); } catch (_) {} }
   who.appendChild(nk);
   if (meta) who.appendChild(padEl('span', 'pad-meta', meta));
   el.appendChild(who);
@@ -10229,7 +10229,7 @@ function renderPilotProfile(pr) {
   const head = padEl('div', 'pilot-head' + (ban.classList.contains('has-banner') ? ' on-banner' : ''));
   { let av = padAvatar(pr.nick, pr.avatar, 84); if (pr.pp?.frame) { try { av = framedAvatar(av, pr.pp.frame, 84); } catch (_) {} } head.appendChild(av); } // v206
   const who = padEl('div', 'pilot-who');
-  { const h = padEl('h2', 'pilot-nick'); h.append(pf6NameRow(pr.nick || 'Пилот', pr.pp || null)); who.appendChild(h); } // v206
+  { const h = padEl('h2', 'pilot-nick'); h.append(pf6NameRow(pr.nick || 'Пилот', pr.pp || null, 'pf6-nm', false)); who.appendChild(h); } // v206
   who.appendChild(pr.car && brandOf(pr.car) ? carNameRow(pr.car, { rowTag: 'p', cls: 'pilot-car' }) : padEl('p', 'pilot-car', pr.car || 'Машина не указана')); // v135: флаг страны марки
   if (isMyPilotId(pr.pilotId)) who.appendChild(padEl('span', 'pilot-you', 'это ты'));
   head.appendChild(who);
@@ -17247,6 +17247,7 @@ async function renderAwards92() {
         window.open(r.link, '_blank', 'noopener');
         return 'Счёт открыт в Telegram. После оплаты вернись в профиль.';
       },
+      onCustomize: () => { closePassSheet(); setTimeout(() => openPfEdit({ focusPass: true }), 120); },
       onSave: async (c) => { const r = await api.putPassCosmetics(c); if (!r || r.ok === false) return 'Не сохранилось: ' + (r?.error || 'сеть'); AW92.at = 0; void renderAwards92(); return 'Сохранено'; },
     });
   } finally { AW92.busy = false; }
@@ -17460,10 +17461,10 @@ function pf6Ava() { return profile().avatar || currentUser()?.photo || currentUs
 function pf6Active() { return !!(PF6.pass && PF6.pass.active); }
 function pf6Cos() { return pf6Active() ? { frame: PF6.pass.frame || '', pin: PF6.pass.pin || '' } : { frame: '', pin: '' }; }
 /** ник + номер + пин — один и тот же вид везде, где есть pp */
-function pf6NameRow(name, pp, cls = 'pf6-nm') {
+function pf6NameRow(name, pp, cls = 'pf6-nm', own = true) {
   const row = padEl('span', cls);
   row.append(padEl('b', '', name || 'Пилот'));
-  if (pp && pp.pin) { const im = document.createElement('img'); im.className = 'pf6-pin'; im.alt = ''; im.src = awardImg(pp.pin, true); row.append(im); }
+  if (pp && pp.pin) { const im = document.createElement('img'); im.className = 'pf6-pin'; im.dataset.pin = pp.pin; if (own) im.dataset.own = '1'; im.alt = 'Пин'; im.setAttribute('role', 'button'); im.tabIndex = 0; im.src = awardImg(pp.pin, true); row.append(im); }
   return row;
 }
 function pf6AvaEl(size, pp) {
@@ -17661,3 +17662,27 @@ document.getElementById('nav3')?.addEventListener('click', (e) => {
 }
 window.__pf6 = { openPfEdit, closePfEdit, renderPf6, renderPfEdit, PF6, n6Sync };
 setTimeout(() => { try { renderPf6(); if (document.getElementById('view-account')?.classList.contains('active')) void pf6Refresh(); } catch (_) {} }, 400);
+
+/* v209: пины у ника кликабельны — премиальный поповер с объяснением */
+const PIN209 = { helmet: ['Пин «Шлем»', 'Гоночный шлем у ника'], wheel: ['Пин «Руль»', 'Руль у ника'], carbon: ['Пин «Карбон»', 'Карбоновый знак у ника'] };
+function openPin209(k, own) {
+  const m = PIN209[k]; if (!m) return;
+  document.getElementById('pin209')?.remove();
+  const ov = padEl('div', 'pin209'); ov.id = 'pin209'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', m[0]);
+  const c = padEl('div', 'pin209-c');
+  const im = document.createElement('img'); im.src = awardImg(k); im.alt = ''; im.className = 'pin209-i';
+  c.append(im, padEl('span', 'pin209-k', 'PADDOCK PASS'), padEl('h3', '', m[0]), padEl('p', '', m[1] + '. Это украшение из Paddock Pass — только внешний вид, на время и места в топах не влияет.'));
+  if (own && currentUser()) { const b = padEl('button', 'pin209-b', 'Сменить пин'); b.type = 'button'; b.addEventListener('click', () => { close(); setTimeout(() => openPfEdit({ focusPass: true }), 150); }); c.append(b); }
+  const x = padEl('button', 'pin209-x', 'Закрыть'); x.type = 'button'; x.addEventListener('click', () => close()); c.append(x);
+  ov.append(c);
+  function close() { ov.classList.remove('on'); setTimeout(() => ov.remove(), 220); }
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  document.body.append(ov);
+  requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('on')));
+}
+document.addEventListener('click', (e) => {
+  const p = e.target.closest?.('img[data-pin]'); if (!p) return;
+  e.preventDefault(); e.stopPropagation(); hap(6);
+  openPin209(p.dataset.pin, p.dataset.own === '1' && !p.closest('#pfEdit'));
+}, true);
+document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('img[data-pin]')) { e.preventDefault(); e.target.click(); } });

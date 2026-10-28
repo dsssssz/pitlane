@@ -7392,3 +7392,41 @@ html.v206p .cm-bubble { background: rgba(22,23,27,.97); -webkit-backdrop-filter:
 html.v206p .cm-arrow, html.v206p .cm-bubble[data-side="above"] .cm-arrow { background: rgba(22,23,27,.97); border-color: rgba(214,178,98,.22); }
 html.v206p .cm-title { color: #f0d48c; }
 html.v206p .cm-next { border-radius: 999px; background: linear-gradient(135deg, #e6c675, #b38b38) !important; color: #1a1408 !important; border: 0 !important; }
+/* v209: витрина — превью + полный экран; Pass — кнопка оформления; поповер пина */
+.sc-head-btn { width: 100%; background: none; border: 0; color: inherit; cursor: pointer; align-items: center; text-align: left; font: inherit; }
+.sc-all { font-size: 13px; color: #e8c478; font-weight: 600; white-space: nowrap; }
+.sc-row { display: flex; gap: 8px; width: calc(100% - 24px); margin: 0 12px; padding: 12px; background: #0f0f10; border: 1px solid #1e1e20; border-radius: 16px; justify-content: space-between; cursor: pointer; }
+.sc-mini { position: relative; width: 52px; height: 52px; flex: none; }
+.sc-mini img { width: 100%; height: 100%; object-fit: contain; }
+.sc-mini.off img { opacity: .28; filter: grayscale(1); }
+.sc-mini .sc-x { position: absolute; right: -2px; bottom: -2px; font-size: 10px; font-style: normal; background: #e8c478; color: #1a1408; border-radius: 8px; padding: 0 4px; font-weight: 800; }
+.sc-sum { margin: 8px 14px 0; font-size: 12px; color: #8a8a8f; }
+.aw-scr { position: fixed; inset: 0; z-index: 12000; background: #050506; overflow-y: auto; padding: calc(env(safe-area-inset-top, 0px) + 12px) 0 calc(env(safe-area-inset-bottom, 0px) + 24px); transform: translateX(100%); transition: transform .25s ease; }
+.aw-scr.on { transform: none; }
+.aw-scr-bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; padding: 4px 12px 8px; position: sticky; top: 0; background: rgba(5,5,6,.92); backdrop-filter: blur(12px); z-index: 2; }
+.aw-scr-bar b { font-size: 17px; }
+.aw-back { justify-self: start; background: rgba(255,255,255,.07); border: 0; color: #fff; font: inherit; font-size: 15px; padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.aw-scr-sub { margin: 4px 16px 14px; font-size: 13px; color: #8a8a8f; line-height: 1.35; }
+.aw-scr-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; padding: 0 14px; }
+.aw-scr-grid .sc-it { color: inherit; font: inherit; cursor: pointer; }
+.aw-det { position: fixed; inset: 0; z-index: 12001; background: rgba(0,0,0,.6); backdrop-filter: blur(6px); display: flex; align-items: flex-end; }
+.aw-det.hidden { display: none; }
+.aw-det-card, .pin209-c { width: 100%; background: radial-gradient(120% 70% at 50% 0%, rgba(232,196,120,.16), transparent 60%), #0e0e10; border-top: 1px solid rgba(232,196,120,.25); border-radius: 24px 24px 0 0; padding: 22px 22px calc(env(safe-area-inset-bottom, 0px) + 22px); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.aw-det-i { width: 120px; height: 120px; object-fit: contain; } .aw-det-i.off { opacity: .35; filter: grayscale(1); }
+.aw-det-card h3, .pin209-c h3 { margin: 6px 0 0; font-size: 22px; }
+.aw-det-card p, .pin209-c p { margin: 0; color: #a5a5aa; font-size: 14px; line-height: 1.4; max-width: 320px; }
+.aw-det-st { margin-top: 6px; font-size: 13px; color: #8a8a8f; padding: 5px 12px; border-radius: 999px; background: rgba(255,255,255,.06); }
+.aw-det-st.on { color: #1a1408; background: #e8c478; font-weight: 700; }
+.aw-det-card .sc-bar { width: 60%; }
+.aw-det-ok, .pin209-x { margin-top: 12px; width: 100%; height: 50px; border: 0; border-radius: 14px; background: rgba(255,255,255,.08); color: #fff; font: inherit; font-size: 16px; font-weight: 700; cursor: pointer; }
+.ps-cur { display: flex; gap: 8px; justify-content: center; margin: 0 0 12px; }
+.ps-cur span { font-size: 13px; color: #cfcfd4; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); }
+img[data-pin] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.pin209 { position: fixed; inset: 0; z-index: 12100; background: rgba(0,0,0,0); display: flex; align-items: flex-end; transition: background .2s; }
+.pin209.on { background: rgba(0,0,0,.6); backdrop-filter: blur(6px); }
+.pin209 .pin209-c { transform: translateY(100%); transition: transform .22s ease; }
+.pin209.on .pin209-c { transform: none; }
+.pin209-i { width: 96px; height: 96px; object-fit: contain; filter: drop-shadow(0 8px 24px rgba(232,196,120,.25)); }
+.pin209-k { font-size: 11px; letter-spacing: .2em; color: #e8c478; font-weight: 700; }
+.pin209-b { margin-top: 14px; width: 100%; height: 52px; border: 0; border-radius: 14px; font: inherit; font-size: 16px; font-weight: 800; color: #1a1408; background: linear-gradient(135deg, #f3dca6, #c9a35a); cursor: pointer; }
+.pin209-b + .pin209-x { margin-top: 8px; }

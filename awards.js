@@ -165,25 +165,75 @@ export function renderShowcase(root, { car, carName, nick, res, pass }) {
   if (carName) cap.appendChild(h('small', '', carName));
   hero.appendChild(cap);
   root.appendChild(hero);
-  const head = h('div', 'sc-head');
-  head.appendChild(h('h3', '', 'Витрина наград'));
   const tot = Object.values(res.earned).reduce((a, b) => a + b, 0);
-  head.appendChild(h('span', 'tiny muted', tot ? tot + ' за время на трассе' : 'только за время · не купить'));
+  // v209: компактное превью + полноэкранная витрина по тапу
+  const head = h('button', 'sc-head sc-head-btn'); head.type = 'button';
+  head.setAttribute('aria-label', 'Все награды');
+  head.appendChild(h('h3', '', 'Витрина наград'));
+  head.appendChild(h('span', 'sc-all', 'Все награды ›'));
   root.appendChild(head);
-  const g = h('div', 'sc-grid');
+  const keys = Object.keys(AWARDS);
+  const earned = keys.filter((k) => res.earned[k]);
+  const order = earned.concat(keys.filter((k) => !res.earned[k]));
+  const row = h('button', 'sc-row'); row.type = 'button'; row.setAttribute('aria-label', 'Открыть витрину наград');
+  for (const k of order.slice(0, 5)) {
+    const n = res.earned[k] || 0;
+    const c = h('span', 'sc-mini' + (n ? '' : ' off'));
+    c.appendChild(im(awardImg(k), '', AWARDS[k].n));
+    if (n > 1) c.appendChild(h('i', 'sc-x', '×' + n));
+    row.appendChild(c);
+  }
+  root.appendChild(row);
+  root.appendChild(h('p', 'sc-sum', tot ? `Получено ${earned.length} из ${keys.length} · всего ${tot}` : `0 из ${keys.length} · награды дают только за время на трассе`));
+  const open = () => openAwardsScreen(res);
+  head.addEventListener('click', open); row.addEventListener('click', open);
+}
+
+/** v209: полноэкранная витрина наград: сетка, назад, детали по тапу */
+export function openAwardsScreen(res) {
+  document.getElementById('awScreen')?.remove();
+  const scr = h('div', 'aw-scr'); scr.id = 'awScreen'; scr.setAttribute('role', 'dialog'); scr.setAttribute('aria-label', 'Витрина наград');
+  const bar = h('div', 'aw-scr-bar');
+  const back = h('button', 'aw-back', '‹ Назад'); back.type = 'button';
+  bar.append(back, h('b', '', 'Витрина наград'), h('span', ''));
+  scr.appendChild(bar);
+  const keys = Object.keys(AWARDS);
+  const got = keys.filter((k) => res.earned[k]).length;
+  scr.appendChild(h('p', 'aw-scr-sub', `Получено ${got} из ${keys.length}. Награды не продаются — только за время на трассе.`));
+  const g = h('div', 'aw-scr-grid');
+  const det = h('div', 'aw-det hidden');
+  const showDet = (k) => {
+    const a = AWARDS[k]; const n = res.earned[k] || 0; const p = res.progress[k];
+    det.replaceChildren();
+    const card = h('div', 'aw-det-card');
+    card.appendChild(im(awardImg(k), 'aw-det-i' + (n ? '' : ' off'), a.n));
+    card.appendChild(h('h3', '', a.n));
+    card.appendChild(h('p', '', a.d));
+    card.appendChild(h('span', 'aw-det-st' + (n ? ' on' : ''), n ? (n > 1 ? `Получена ×${n}` : 'Получена') : (p && p.label ? 'Прогресс: ' + p.label : 'Ещё не получена')));
+    if (!n && p && p.of) { const b2 = h('span', 'sc-bar'); const f = h('i'); f.style.width = Math.min(100, Math.round(100 * p.v / p.of)) + '%'; b2.appendChild(f); card.appendChild(b2); }
+    const ok = h('button', 'aw-det-ok', 'Понятно'); ok.type = 'button'; ok.addEventListener('click', () => det.classList.add('hidden'));
+    card.appendChild(ok);
+    det.appendChild(card); det.classList.remove('hidden');
+  };
+  det.addEventListener('click', (e) => { if (e.target === det) det.classList.add('hidden'); });
   for (const [k, a] of Object.entries(AWARDS)) {
     const n = res.earned[k] || 0; const p = res.progress[k];
-    const c = h('div', 'sc-it' + (n ? '' : ' off'));
-    c.title = a.d;
+    const c = h('button', 'sc-it' + (n ? '' : ' off')); c.type = 'button';
     const box = h('div', 'sc-m'); box.appendChild(im(awardImg(k), '', a.n));
     if (n > 1) box.appendChild(h('i', 'sc-x', '×' + n));
     c.appendChild(box);
     c.appendChild(h('b', '', a.n));
     c.appendChild(h('small', '', n ? a.d : (p ? p.label : a.d)));
-    if (!n && p && p.of) { const bar = h('span', 'sc-bar'); const f = h('i'); f.style.width = Math.min(100, Math.round(100 * p.v / p.of)) + '%'; bar.appendChild(f); c.appendChild(bar); }
+    if (!n && p && p.of) { const b2 = h('span', 'sc-bar'); const f = h('i'); f.style.width = Math.min(100, Math.round(100 * p.v / p.of)) + '%'; b2.appendChild(f); c.appendChild(b2); }
+    c.addEventListener('click', () => showDet(k));
     g.appendChild(c);
   }
-  root.appendChild(g);
+  scr.appendChild(g); scr.appendChild(det);
+  const close = () => { scr.classList.remove('on'); setTimeout(() => scr.remove(), 250); };
+  back.addEventListener('click', close);
+  document.body.appendChild(scr);
+  requestAnimationFrame(() => requestAnimationFrame(() => scr.classList.add('on')));
+  try { const TG = window.Telegram?.WebApp; if (TG?.BackButton) { TG.BackButton.show(); const f = () => { TG.BackButton.offClick(f); close(); }; TG.BackButton.onClick(f); } } catch (_) {}
 }
 
 /** Карточка Paddock Pass */
@@ -243,7 +293,7 @@ function spin3d(src, px, cols, n, period, cls) {
 }
 
 /** v200: шторка Paddock Pass — герой, что входит (только то, что уже работает), цена, одна кнопка */
-export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
+export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustomize }) {
   root.replaceChildren();
   const hero = h('div', 'ps-hero');
   hero.appendChild(spin3d('./img/pass/pass-emblem-sprite.webp', 264, 12, 120, 6000, 'ps-ic'));
@@ -266,12 +316,15 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available }) {
   root.appendChild(h('p', 'ps-note', 'Только внешний вид. Награды и места в топах не продаются — их дают только за время на трассе.'));
   const msg = h('p', 'tiny muted ps-msg');
   if (pass?.active) {
-    const row = h('div', 'pp-cos');
-    const pin = h('select'); [['', 'без пина'], ['helmet', 'шлем'], ['wheel', 'руль'], ['carbon', 'карбон']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.pin === v) o.selected = true; pin.appendChild(o); });
-    const fr = h('select'); [['', 'без рамки'], ['carbon', 'карбон'], ['chequer', 'клетка']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.frame === v) o.selected = true; fr.appendChild(o); });
-    const sv = h('button', 'go-btn', 'Сохранить'); sv.type = 'button';
-    sv.addEventListener('click', async () => { sv.disabled = true; msg.textContent = await onSave({ pin: pin.value, frame: fr.value }); sv.disabled = false; });
-    row.append(pin, fr, sv); root.appendChild(row);
+    // v209: вместо кривых select — одна понятная кнопка в «Оформление Pass»
+    const cur = h('div', 'ps-cur');
+    const PN = { helmet: 'шлем', wheel: 'руль', carbon: 'карбон' }, FN = { carbon: 'карбон', chequer: 'клетка' };
+    cur.appendChild(h('span', '', 'Пин: ' + (PN[pass.pin] || 'нет')));
+    cur.appendChild(h('span', '', 'Рамка: ' + (FN[pass.frame] || 'нет')));
+    root.appendChild(cur);
+    const b = h('button', 'ps-buy', 'Настроить оформление'); b.type = 'button';
+    b.addEventListener('click', () => { if (typeof onCustomize === 'function') onCustomize(); });
+    root.appendChild(b);
   } else {
     const price = h('div', 'ps-price'); price.appendChild(h('b', '', PASS_STARS + ' ★')); price.appendChild(h('span', '', 'в месяц · Telegram Stars'));
     root.appendChild(price);
