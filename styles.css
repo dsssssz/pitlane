@@ -7439,3 +7439,7 @@ img[data-pin] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .pad-nick, .tb-nick, .pf6-nm, .pf6-nm b, .sc-cap b, .pad-who, .pfe-nick, #pf6Nick, .pp-nick {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Noto Sans", "Noto Sans Symbols", "Noto Sans Symbols 2", "Noto Sans Math", sans-serif;
 }
+
+/* v211: шлем крутится пальцем на 360° (вертикальный скролл шторки не мешает) */
+.spin-drag { touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.spin-drag:active { cursor: grabbing; }

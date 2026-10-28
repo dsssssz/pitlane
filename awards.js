@@ -274,28 +274,45 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
   root.appendChild(msg);
 }
 
-/** v204: плавное 3D-вращение — спрайт 120 кадров на canvas, время-зависимый кадр + кроссфейд соседних (60 fps) */
-function spin3d(src, px, cols, n, period, cls) {
-  const c = document.createElement('canvas'); c.className = cls; c.setAttribute('aria-hidden', 'true');
-  const dpr = Math.min(2, window.devicePixelRatio || 1);
+/** v211: 3D-вращение на 360° — спрайт n кадров (полный оборот), авто-вращение + свободный drag по горизонтали с инерцией, без ограничения угла */
+function spin3d(src, px, cols, n, period, cls, drag) {
+  const c = document.createElement('canvas'); c.className = cls + (drag ? ' spin-drag' : ''); c.setAttribute('aria-hidden', 'true');
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
   const img = new Image(); img.decoding = 'async'; img.src = src;
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let t0 = 0;
-  const draw = (now) => {
-    if (!c.isConnected && t0) return;
+  const auto = reduce ? 0 : n / period; // кадров в мс
+  let pos = 0, last = 0, vel = auto, held = false, px0 = 0, lastMove = 0, raf = 0;
+  const kick = () => { if (!raf) raf = requestAnimationFrame(draw); };
+  function draw(now) {
+    raf = 0;
+    if (!c.isConnected && last) return;
+    const dt = last ? Math.min(64, now - last) : 0; last = now;
+    if (!held) { vel += (auto - vel) * Math.min(1, dt / 600); pos += vel * dt; } // инерция → плавный возврат к авто
     const w = c.clientWidth || 40;
     const W = Math.round(w * dpr); if (c.width !== W) { c.width = W; c.height = W; }
     const g = c.getContext('2d'); g.imageSmoothingQuality = 'high';
-    if (!t0) t0 = now;
-    const f = reduce ? 0 : (((now - t0) % period) / period) * n;
+    const f = ((pos % n) + n) % n;
     const a = Math.floor(f) % n, b = (a + 1) % n, k = f - Math.floor(f);
     g.clearRect(0, 0, W, W);
     const fr = (i, al) => { g.globalAlpha = al; g.drawImage(img, (i % cols) * px, ((i / cols) | 0) * px, px, px, 0, 0, W, W); };
     fr(a, 1); if (k > 0.01) fr(b, k);
     g.globalAlpha = 1;
-    if (!reduce) requestAnimationFrame(draw);
-  };
-  img.onload = () => requestAnimationFrame(draw);
+    if (auto || held || Math.abs(vel) > 1e-4) kick();
+  }
+  c.__spin = { set: (deg) => { pos = (deg / 360) * n; last = 0; kick(); } }; // скриншоты/отладка
+  if (drag) {
+    // полный оборот = ширина канваса × 2.5 → удобно крутить и на маленькой иконке
+    const perPx = () => n / ((c.clientWidth || 40) * 2.5);
+    c.addEventListener('pointerdown', (e) => { held = true; px0 = e.clientX; lastMove = performance.now(); vel = 0; try { c.setPointerCapture(e.pointerId); } catch (_) {} kick(); });
+    c.addEventListener('pointermove', (e) => {
+      if (!held) return;
+      const now = performance.now(), d = (e.clientX - px0) * perPx(); px0 = e.clientX;
+      pos -= d; const dt = Math.max(8, now - lastMove); vel = vel * 0.6 + (-d / dt) * 0.4; lastMove = now; kick();
+    });
+    const up = () => { if (!held) return; held = false; if (performance.now() - lastMove > 80) vel = 0; last = 0; kick(); };
+    c.addEventListener('pointerup', up); c.addEventListener('pointercancel', up); c.addEventListener('lostpointercapture', up);
+  }
+  img.onload = kick;
   return c;
 }
 
@@ -315,7 +332,7 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
   ];
   for (const [k, n, d] of perks) {
     const li = h('li', 'ps-it');
-    li.appendChild(k === 'helmet' ? spin3d('./img/pass/helmet-sprite.webp', 120, 12, 120, 6000, 'ps-it-i') : im( k[0] === 'f' && k.length > 4 ? A + k + '.webp' : awardImg(k), 'ps-it-i', ''));
+    li.appendChild(k === 'helmet' ? spin3d('./img/pass/helmet-sprite.webp', 120, 12, 120, 9000, 'ps-it-i', true) : im( k[0] === 'f' && k.length > 4 ? A + k + '.webp' : awardImg(k), 'ps-it-i', ''));
     const t = h('div'); t.appendChild(h('b', '', n)); t.appendChild(h('small', '', d)); li.appendChild(t);
     ul.appendChild(li);
   }
