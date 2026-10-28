@@ -7430,3 +7430,12 @@ img[data-pin] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .pin209-k { font-size: 11px; letter-spacing: .2em; color: #e8c478; font-weight: 700; }
 .pin209-b { margin-top: 14px; width: 100%; height: 52px; border: 0; border-radius: 14px; font: inherit; font-size: 16px; font-weight: 800; color: #1a1408; background: linear-gradient(135deg, #f3dca6, #c9a35a); cursor: pointer; }
 .pin209-b + .pin209-x { margin-top: 8px; }
+
+/* v210: фото-кольца Pass — кольцо целиком снаружи аватарки (аватар = 80% бокса) */
+.aw-fr.rg { width: calc(var(--s) / .8); height: calc(var(--s) / .8); }
+.aw-fr.rg .aw-fr-i { filter: drop-shadow(0 1px 2px rgba(0,0,0,.7)); }
+.pfe-oi img[src*="fr_"] { object-fit: contain; }
+/* v210: ник — fallback для декоративного Unicode */
+.pad-nick, .tb-nick, .pf6-nm, .pf6-nm b, .sc-cap b, .pad-who, .pfe-nick, #pf6Nick, .pp-nick {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", "Noto Sans", "Noto Sans Symbols", "Noto Sans Symbols 2", "Noto Sans Math", sans-serif;
+}

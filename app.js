@@ -75,7 +75,7 @@ import { GRID as RM_GRID, LABEL as RM_LABEL, DIST_KEYS as RM_DIST, createRunMark
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ, withSpeed as coreWithSpeed, launchTime as coreLaunchTime, speedCross as coreSpeedCross, distCross as coreDistCross } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
 import { legalReady } from './legal-config.js';
-import { computeAwards, rowBadge, framedAvatar, carCropSrc, fmtGap, awardImg, renderShowcase, renderPassCard, renderPassSheet, weekStart as awWeekStart, AWARDS as AW_LIST } from './awards.js'; // v192
+import { computeAwards, rowBadge, framedAvatar, passFrame, passFrameSrc, PASS_FRAMES, carCropSrc, fmtGap, awardImg, renderShowcase, renderPassCard, renderPassSheet, weekStart as awWeekStart, AWARDS as AW_LIST } from './awards.js'; // v192
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -9889,7 +9889,7 @@ function padAuthor({ name, pilotId, avatar, meta, size = 40, pp = null }) {
   const el = padEl(clickable ? 'button' : 'div', 'pad-author');
   if (clickable) { el.type = 'button'; el.dataset.pilot = pilotId; el.setAttribute('aria-label', 'Профиль: ' + (name || 'Пилот')); }
   // v205: Pass-косметика у ника (рамка аватарки, номер, пин) — только если сервер её отдал
-  const fr = pp && (pp.frame === 'carbon' || pp.frame === 'chequer') ? pp.frame : '';
+  const fr = pp ? passFrame(pp.frame) : '';
   let ava = padAvatar(name, avatar, size);
   if (fr) { try { ava = framedAvatar(ava, fr, size); } catch (_) {} }
   el.appendChild(ava);
@@ -16450,7 +16450,7 @@ function buildTopsRow(r, i, sel, ctx) {
   if (lb) {
     li.classList.add('lb92');
     const pp = r.pp && typeof r.pp === 'object' ? r.pp : null;
-    const fr = i < 3 ? ['gold', 'silver', 'bronze'][i] : (pp && (pp.frame === 'carbon' || pp.frame === 'chequer') ? pp.frame : '');
+    const fr = i < 3 ? ['gold', 'silver', 'bronze'][i] : (pp ? passFrame(pp.frame) : '');
     li.appendChild(framedAvatar(padAvatar(r.name || 'P', r.avatar, 32), fr, 32));
   } else li.appendChild(padAvatar(r.name || 'P', r.avatar, 28));
   const nick = padEl('span', 'tb-nick', clipText(r.name || 'пилот', 12));
@@ -17442,8 +17442,8 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && CP.open 
 document.documentElement.classList.add('v206p');
 ['btnMenu', 'btnProfile', 'btnHome', 'plMenu'].forEach((id) => document.getElementById(id)?.remove()); // v206: ☰ и дубли входов убраны — всё в Профиле
 const PF6 = { pass: null, sales: false, at: 0, draft: null };
-const PF6_FR = [['', 'Без рамки'], ['carbon', 'Карбон'], ['chequer', 'Клетка']];
-const PF6_PIN = [['', 'Без пина'], ['helmet', 'Шлем'], ['wheel', 'Руль'], ['carbon', 'Карбон']];
+const PF6_FR = [['', 'No frame'], ...PASS_FRAMES];
+const PF6_PIN = [['', 'No pin'], ['helmet', 'Helmet'], ['wheel', 'Wheel'], ['carbon', 'Carbon']];
 const PF6_IC = {
   mycar: '<path d="M3.5 15.5l1.6-4.4A2 2 0 0 1 7 9.8h10a2 2 0 0 1 1.9 1.3l1.6 4.4v2.5a1 1 0 0 1-1 1h-17a1 1 0 0 1-1-1z"/><circle cx="7.5" cy="15.5" r=".8"/><circle cx="16.5" cy="15.5" r=".8"/>',
   garage: '<path d="M4 10.5L12 5l8 5.5V19H4z"/><path d="M8 19v-5h8v5"/>',
@@ -17459,7 +17459,7 @@ document.querySelectorAll('#pf6List .pf6-row').forEach((r) => { const k = r.data
 function pf6Nick() { return (profile().nick || currentUser()?.nick || '').trim(); }
 function pf6Ava() { return profile().avatar || currentUser()?.photo || currentUser()?.avatar || ''; }
 function pf6Active() { return !!(PF6.pass && PF6.pass.active); }
-function pf6Cos() { return pf6Active() ? { frame: PF6.pass.frame || '', pin: PF6.pass.pin || '' } : { frame: '', pin: '' }; }
+function pf6Cos() { return pf6Active() ? { frame: passFrame(PF6.pass.frame),  pin: PF6.pass.pin || '' } : { frame: '', pin: '' }; }
 /** ник + номер + пин — один и тот же вид везде, где есть pp */
 function pf6NameRow(name, pp, cls = 'pf6-nm', own = true) {
   const row = padEl('span', cls);
@@ -17477,7 +17477,7 @@ async function pf6LoadPass(force) {
   PF6.at = Date.now();
   if (!(isRemoteApi() && getSessionToken() && currentUser())) { PF6.pass = null; return; }
   const r = await api.mePass().catch(() => null);
-  if (r && r.ok !== false) { PF6.pass = r.pass || null; PF6.sales = r.sales === true; }
+  if (r && r.ok !== false) { PF6.pass = r.pass || null; if (PF6.pass) PF6.pass.frame = passFrame(PF6.pass.frame); PF6.sales = r.sales === true; }
 }
 function renderPf6() {
   const u = currentUser(); const pp = pf6Cos();
@@ -17596,7 +17596,7 @@ function renderPfEdit() {
     }
     ps.append(g);
   };
-  pick('Рамка аватара', PF6_FR, 'frame', (v) => (v ? './img/awards/' + (v === 'carbon' ? 'fcarbon' : 'fcheq') + '.webp' : ''));
+  pick('Рамка аватара', PF6_FR, 'frame', (v) => passFrameSrc(v));
   pick('Пин у ника', PF6_PIN, 'pin', (v) => (v ? awardImg(v, true) : ''));
   if (!on) {
     const up = padEl('button', 'pfe-buy'); up.type = 'button';

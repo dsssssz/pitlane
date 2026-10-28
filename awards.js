@@ -22,9 +22,9 @@ export const AWARDS = {
   champ: { n: 'Чемпион', d: 'больше всех лавров за сезон' },
 };
 export const PASS_ITEMS = [
-  ['carbon', 'Карбон', 'карбоновый знак'],
-  ['helmet', 'Пин-шлем', 'пин-шлем у ника'],
-  ['wheel', 'Пин-руль', 'пин-руль у ника'],
+  ['carbon', 'Carbon Pin', 'карбоновый знак у ника'],
+  ['helmet', 'Helmet Pin', 'пин-шлем у ника'],
+  ['wheel', 'Wheel Pin', 'пин-руль у ника'],
 ];
 export const CROP_CARS = new Set(['g87-m2', 'gt3rs', 'mclaren-765lt', 'g63', 'm4', 'm3', 'x6', 'isf', 'c63-ed507', 'spark']);
 export function awardImg(k, small) { return A + k + (small ? '_s' : '') + '.webp'; }
@@ -143,13 +143,20 @@ export function rowBadge(rowsAll, r, now = Date.now()) {
 function h(tag, cls, txt) { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; }
 function im(src, cls, alt = '') { const e = document.createElement('img'); e.src = src; e.alt = alt; e.decoding = 'async'; e.loading = 'lazy'; if (cls) e.className = cls; return e; }
 
-/** Аватар в рамке: kind = gold|silver|bronze|purple|carbon|chequer */
+/** Аватар в рамке: kind = gold|silver|bronze|purple | Pass: forged|titanium|ceramic|gold18|chrome */
+/** v210: рамки Pass — фото-кольца снаружи аватарки; старые id мигрируют */
+export const PASS_FRAMES = [['forged', 'Forged Carbon'], ['titanium', 'Black Titanium'], ['ceramic', 'Carbon Ceramic'], ['gold18', '18K Gold'], ['chrome', 'Black Chrome']];
+const FR_LEGACY = { carbon: 'forged', chequer: 'chrome' };
+export function passFrame(k) { k = FR_LEGACY[k] || k; return PASS_FRAMES.some(([v]) => v === k) ? k : ''; }
+export function passFrameSrc(k) { k = passFrame(k); return k ? A + 'fr_' + k + '.webp' : ''; }
 export function framedAvatar(avaEl, kind, size) {
-  const FR = { gold: 'f1', silver: 'f2', bronze: 'f3', purple: 'fpurple', carbon: 'fcarbon', chequer: 'fcheq' };
-  const w = h('span', 'aw-fr' + (kind ? ' on' : ''));
+  const FR = { gold: 'f1', silver: 'f2', bronze: 'f3', purple: 'fpurple' };
+  const pf = passFrame(kind);
+  const w = h('span', 'aw-fr' + (kind ? ' on' : '') + (pf ? ' rg' : ''));
   w.style.setProperty('--s', size + 'px');
   w.appendChild(avaEl);
-  if (kind && FR[kind]) w.appendChild(im(A + FR[kind] + '.webp', 'aw-fr-i'));
+  if (pf) w.appendChild(im(A + 'fr_' + pf + '.webp', 'aw-fr-i'));
+  else if (kind && FR[kind]) w.appendChild(im(A + FR[kind] + '.webp', 'aw-fr-i'));
   return w;
 }
 
@@ -253,7 +260,7 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
   if (pass?.active) {
     const row = h('div', 'pp-cos');
     const pin = h('select'); [['', 'без пина'], ['helmet', 'шлем'], ['wheel', 'руль'], ['carbon', 'карбон']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.pin === v) o.selected = true; pin.appendChild(o); });
-    const fr = h('select'); [['', 'без рамки'], ['carbon', 'карбон'], ['chequer', 'клетка']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.frame === v) o.selected = true; fr.appendChild(o); });
+    const fr = h('select'); [['', 'No frame'], ...PASS_FRAMES].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (passFrame(pass.frame) === v) o.selected = true; fr.appendChild(o); });
     const sv = h('button', 'go-btn', 'Сохранить'); sv.type = 'button';
     sv.addEventListener('click', async () => { sv.disabled = true; msg.textContent = await onSave({ pin: pin.value, frame: fr.value }); sv.disabled = false; });
     row.append(pin, fr, sv); root.appendChild(row);
@@ -303,8 +310,8 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
   root.appendChild(hero);
   const ul = h('ul', 'ps-list');
   const perks = [
-    ['helmet', 'Пины у ника', 'Шлем, руль или карбон'],
-    ['fcarbon', 'Рамка аватара', 'Карбон или клетчатый флаг'],
+    ['helmet', 'Nick Pins', 'Helmet, Wheel or Carbon'],
+    ['fr_forged', 'Avatar Frames', 'Forged Carbon · Black Titanium · Carbon Ceramic · 18K Gold · Black Chrome'],
   ];
   for (const [k, n, d] of perks) {
     const li = h('li', 'ps-it');
@@ -318,9 +325,9 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
   if (pass?.active) {
     // v209: вместо кривых select — одна понятная кнопка в «Оформление Pass»
     const cur = h('div', 'ps-cur');
-    const PN = { helmet: 'шлем', wheel: 'руль', carbon: 'карбон' }, FN = { carbon: 'карбон', chequer: 'клетка' };
+    const PN = { helmet: 'Helmet', wheel: 'Wheel', carbon: 'Carbon' }, FN = Object.fromEntries(PASS_FRAMES);
     cur.appendChild(h('span', '', 'Пин: ' + (PN[pass.pin] || 'нет')));
-    cur.appendChild(h('span', '', 'Рамка: ' + (FN[pass.frame] || 'нет')));
+    cur.appendChild(h('span', '', 'Рамка: ' + (FN[passFrame(pass.frame)] || 'нет')));
     root.appendChild(cur);
     const b = h('button', 'ps-buy', 'Настроить оформление'); b.type = 'button';
     b.addEventListener('click', () => { if (typeof onCustomize === 'function') onCustomize(); });

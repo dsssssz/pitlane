@@ -1,6 +1,6 @@
 /**
  * v192: Paddock Pass — подписка 149 ★/мес (Telegram Stars, XTR), ТОЛЬКО внешний вид:
- * Race Number у ника, Carbon, рамки (carbon/chequer), пины (helmet/wheel/carbon).
+ * Race Number у ника, Carbon, рамки (forged/titanium/ceramic/gold18/chrome; carbon/chequer мигрируют), пины (helmet/wheel/carbon).
  * Награды за время НЕ продаются и здесь не выдаются. Robokassa/рубли не используются.
  * Продажи выключены, пока в окружении нет PASS_SALES="1" (legalReady/Pro не трогаем).
  * KV: pass:<pilotId> = { until, number, frame, pin, charges[] }; идемпотентность — paycharge:<chargeId>.
@@ -8,7 +8,9 @@
 export const PASS_STARS = 149;
 export const PASS_PERIOD_S = 2592000; // 30 дней — единственный период подписки Stars в Bot API
 const PAYLOAD_RE = /^pp1:([A-Za-z0-9_-]{6,64})$/;
-const FRAMES = ['', 'carbon', 'chequer'];
+const FRAMES = ['', 'forged', 'titanium', 'ceramic', 'gold18', 'chrome'];
+const FR_LEGACY = { carbon: 'forged', chequer: 'chrome' }; // v210: миграция старых рамок
+const fr = (v) => { v = FR_LEGACY[v] || v; return FRAMES.includes(v) ? v : ''; };
 const PINS = ['', 'helmet', 'wheel', 'carbon'];
 
 export function passSalesOn(env) { return String(env?.PASS_SALES || '') === '1' || env?.__passForTests === true; }
@@ -16,7 +18,7 @@ export function isPassPayload(p) { return PAYLOAD_RE.test(String(p || '')); }
 function active(p, now = Date.now()) { return !!p && Number(p.until) > now; }
 export function publicPass(p, now = Date.now()) {
   if (!active(p, now)) return null;
-  return { frame: FRAMES.includes(p.frame) ? p.frame : '', pin: PINS.includes(p.pin) ? p.pin : '' };
+  return { frame: fr(p.frame), pin: PINS.includes(p.pin) ? p.pin : '' };
 }
 async function loadPass(kv, pid) { try { const r = await kv.get('pass:' + pid); return r ? JSON.parse(r) : null; } catch (_) { return null; } }
 
@@ -49,7 +51,7 @@ export async function passRoute({ req, env, path, pilot, headers, h }) {
   if (req.method === 'PUT' && path === '/me/pass/cosmetics') {
     if (!active(p)) return h.json({ error: 'нужен активный Paddock Pass' }, 402, headers);
     const b = await h.readJson(req, 2048).catch(() => ({}));
-    const next = { ...p, number: null, frame: FRAMES.includes(b?.frame) ? b.frame : '', pin: PINS.includes(b?.pin) ? b.pin : '' };
+    const next = { ...p, number: null, frame: fr(b?.frame), pin: PINS.includes(b?.pin) ? b.pin : '' };
     await kv.put('pass:' + pilot.id, JSON.stringify(next));
     return h.json({ ok: true, pass: { active: true, until: next.until, ...publicPass(next) } }, 200, headers);
   }
