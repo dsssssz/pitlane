@@ -15484,6 +15484,18 @@ function homeBest0100(carId, remote) {
   const c = Number(state.dragBestC?.[carId]?.['0-100']?.t);
   return c > 0 ? { t: c, cls: 'c' } : null;
 }
+/** v212: данные для карточки «Моя машина» (editorial) — бренд/модель/крупный текст/характеристики/мой лучший 0–100 */
+function carCardSpec(mc) {
+  const c = CARS.find((x) => x.id === mc.carId) || null;
+  const full = String(mc.model || c?.name || '').trim();
+  const bm = full.match(CAR_BRAND_RE);
+  const brand = bm ? bm[1] : (/^BMW\s/i.test(full) ? 'BMW' : (full.split(/\s+/).length > 1 ? full.split(/\s+/)[0] : ''));
+  const short = shortCarName(mc.model, mc.carId).replace(/^(BMW|Audi)\s+/i, '');
+  const model = (c && short) ? short : ((brand ? full.slice(brand.length) : full).trim() || full);
+  let best = null; try { const b = homeBest0100(mc.carId || '', null); best = b && b.t > 0 ? b.t : null; } catch (_) {}
+  return { brand, model, sub: c ? [c.trim, c.year].filter(Boolean).join(' · ') : '', big: short || model, side: c?.side || '',
+    hp: c?.hp ?? null, nm: c?.nm ?? null, v0100: c?.v0100 ?? null, best };
+}
 function renderHwCar(remote) {
   // v202: гостю/новичку без своей машины — не демо-BMW с прочерками, а приглашение добавить машину
   try {
@@ -17230,7 +17242,7 @@ async function renderAwards92() {
     const pr = isRemoteApi() && getSessionToken() ? await api.mePass().catch(() => null) : null;
     const available = !!(pr && pr.ok !== false && pr.sales === true);
     if (pr && pr.ok !== false) pass = pr.pass || null;
-    const base = { car: mc?.carId || '', carName: mc ? shortCarName(mc.model, mc.carId) : '', nick, pass };
+    const base = { car: mc?.carId || '', carName: mc ? shortCarName(mc.model, mc.carId) : '', nick, pass, spec: mc ? carCardSpec(mc) : null };
     renderShowcase(sc, { ...base, res: computeAwards({ boards: {}, laps: state.laps, tracks: TRACKS, pid }) });
     const boards = await aw92Boards();
     renderShowcase(sc, { ...base, res: computeAwards({ boards, laps: state.laps, tracks: TRACKS, pid }) });

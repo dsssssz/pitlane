@@ -7443,3 +7443,23 @@ img[data-pin] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 /* v211: шлем крутится пальцем на 360° (вертикальный скролл шторки не мешает) */
 .spin-drag { touch-action: pan-y; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .spin-drag:active { cursor: grabbing; }
+
+/* v212: «Моя машина» — editorial spec sheet (макет C) */
+.sc-hero.ce { display: block; height: 330px; border: 0; border-radius: 22px; overflow: hidden; margin: 0 0 6px; background: linear-gradient(160deg, #121316 0%, #070708 60%); }
+.ce-big { position: absolute; right: -6px; top: 6px; font: 800 128px/1 "Helvetica Neue", system-ui, sans-serif; letter-spacing: -.06em; color: transparent; -webkit-text-stroke: 1px rgba(255,255,255,.07); white-space: nowrap; pointer-events: none; }
+.ce-big.l { font-size: 92px; } .ce-big.xl { font-size: 64px; top: 24px; }
+.ce-car { position: absolute; top: 22px; left: 56%; width: 470px; max-width: none; transform: translateX(-50%); -webkit-mask: radial-gradient(ellipse 46% 44% at 50% 50%, #000 55%, transparent 100%); mask: radial-gradient(ellipse 46% 44% at 50% 50%, #000 55%, transparent 100%); pointer-events: none; }
+.ce-car.ce-refl { top: 150px; transform: translateX(-50%) scaleY(-1); opacity: .22; filter: blur(1.2px); -webkit-mask: linear-gradient(to top, rgba(0,0,0,.9) 0%, transparent 28%); mask: linear-gradient(to top, rgba(0,0,0,.9) 0%, transparent 28%); }
+.ce-sil { position: absolute; left: 50%; top: 110px; width: 260px; transform: translateX(-50%); opacity: .35; filter: invert(1); }
+.ce-ln { position: absolute; left: 22px; right: 22px; top: 214px; height: 1px; background: linear-gradient(90deg, rgba(217,180,106,.6), rgba(255,255,255,.06) 60%, transparent); }
+.ce-info { position: absolute; left: 22px; right: 22px; top: 24px; }
+.ce-k { font: 500 10.5px/1 system-ui, sans-serif; letter-spacing: .32em; color: #8a8d94; text-transform: uppercase; }
+.ce-md { font: 300 22px/1.05 "Helvetica Neue", system-ui, sans-serif; margin-top: 10px; color: #fff; } .ce-md b { font-weight: 700; }
+.ce-sub { font: 400 12px/1 system-ui, sans-serif; color: #7d8087; margin-top: 7px; letter-spacing: .02em; }
+.ce-row { position: absolute; left: 22px; right: 22px; bottom: 20px; display: flex; justify-content: space-between; }
+.ce-v { font: 600 18px/1 "SF Mono", ui-monospace, Menlo, monospace; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: #fff; }
+.ce-v small { font: 500 10px system-ui, sans-serif; color: #7d8087; margin-left: 3px; letter-spacing: .06em; }
+.ce-kk { font: 500 9.5px/1 system-ui, sans-serif; letter-spacing: .2em; color: #5d6067; text-transform: uppercase; margin-top: 7px; }
+.ce-c.best .ce-v { color: #d9b46a; } .ce-c.best { text-align: right; }
+.ce-md { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ce-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

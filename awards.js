@@ -161,16 +161,33 @@ export function framedAvatar(avaEl, kind, size) {
 }
 
 /** Витрина профиля (машина сверху, без пилота) */
-export function renderShowcase(root, { car, carName, nick, res, pass }) {
+export function renderShowcase(root, { car, carName, nick, res, pass, spec }) {
   root.replaceChildren();
-  const hero = h('div', 'sc-hero');
-  const src = carCropSrc(car);
-  if (src) hero.appendChild(im(src, 'sc-car', carName || ''));
-  else hero.appendChild(h('p', 'tiny muted sc-nocar', 'Выбери машину в «Моя машина» — она встанет на витрину'));
-  const cap = h('div', 'sc-cap');
-  cap.appendChild(h('b', '', nick || 'Пилот'));
-  if (carName) cap.appendChild(h('small', '', carName));
-  hero.appendChild(cap);
+  // v212: «Моя машина» — editorial-карточка: машина растворяется в фоне, крупная контурная модель, характеристики, мой лучший 0–100
+  const hero = h('div', 'sc-hero ce');
+  const sp = spec || {};
+  if (car || carName) {
+    const big = String(sp.big || carName || '').replace(/^(BMW|Audi)\s+/i, '');
+    const bg = h('div', 'ce-big', big); if (Array.from(big).length > 4) bg.classList.add('l'); if (Array.from(big).length > 7) bg.classList.add('xl');
+    hero.appendChild(bg);
+    const src = car && CROP_CARS.has(car) ? './img/cars/studio/' + car + '-1170.webp' : '';
+    if (src) { hero.appendChild(im(src, 'ce-car ce-refl', '')); hero.appendChild(im(src, 'ce-car', carName || '')); }
+    else if (sp.side) hero.appendChild(im(sp.side, 'ce-sil', ''));
+    hero.appendChild(h('div', 'ce-ln'));
+    const info = h('div', 'ce-info');
+    info.appendChild(h('div', 'ce-k', 'My car'));
+    const md = h('div', 'ce-md'); if (sp.brand) md.appendChild(document.createTextNode(sp.brand + ' ')); md.appendChild(h('b', '', sp.model || carName || '')); info.appendChild(md);
+    if (sp.sub) info.appendChild(h('div', 'ce-sub', sp.sub));
+    hero.appendChild(info);
+    const row = h('div', 'ce-row');
+    const cell = (v, u, k, cls) => { const d = h('div', 'ce-c' + (cls ? ' ' + cls : '')); const vv = h('div', 'ce-v', v == null ? '—' : String(v)); if (v != null) vv.appendChild(h('small', '', u)); d.appendChild(vv); d.appendChild(h('div', 'ce-kk', k)); row.appendChild(d); };
+    const f2 = (x) => (x == null || !(x > 0) ? null : (x < 10 ? Number(x).toFixed(x * 10 % 1 ? 2 : 1) : Number(x).toFixed(1)));
+    cell(sp.hp > 0 ? Math.round(sp.hp) : null, 'HP', 'Power');
+    cell(sp.nm > 0 ? Math.round(sp.nm) : null, 'NM', 'Torque');
+    cell(f2(sp.v0100), 'S', 'Factory 0–100');
+    cell(sp.best > 0 ? Number(sp.best).toFixed(2) : null, 'S', 'My best', 'best');
+    hero.appendChild(row);
+  } else hero.appendChild(h('p', 'tiny muted sc-nocar', 'Выбери машину в «Моя машина» — она встанет на витрину'));
   root.appendChild(hero);
   const tot = Object.values(res.earned).reduce((a, b) => a + b, 0);
   // v209: компактное превью + полноэкранная витрина по тапу
