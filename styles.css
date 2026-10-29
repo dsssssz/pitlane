@@ -7463,3 +7463,7 @@ img[data-pin] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .ce-c.best .ce-v { color: #d9b46a; } .ce-c.best { text-align: right; }
 .ce-md { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ce-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* v213: 3D-шлем у ника и в поповере */
+canvas.pf6-pin { display: inline-block; vertical-align: middle; cursor: pointer; }
+canvas.pin209-i { width: 150px; height: 150px; display: block; margin: 0 auto; }

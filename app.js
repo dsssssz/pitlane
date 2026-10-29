@@ -75,7 +75,7 @@ import { GRID as RM_GRID, LABEL as RM_LABEL, DIST_KEYS as RM_DIST, createRunMark
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ, withSpeed as coreWithSpeed, launchTime as coreLaunchTime, speedCross as coreSpeedCross, distCross as coreDistCross } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
 import { legalReady } from './legal-config.js';
-import { computeAwards, rowBadge, framedAvatar, passFrame, passFrameSrc, PASS_FRAMES, carCropSrc, fmtGap, awardImg, renderShowcase, renderPassCard, renderPassSheet, weekStart as awWeekStart, AWARDS as AW_LIST } from './awards.js'; // v192
+import { computeAwards, rowBadge, framedAvatar, passFrame, passFrameSrc, PASS_FRAMES, carCropSrc, fmtGap, awardImg, renderShowcase, helmet3d, renderPassCard, renderPassSheet, weekStart as awWeekStart, AWARDS as AW_LIST } from './awards.js'; // v192
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -17476,7 +17476,7 @@ function pf6Cos() { return pf6Active() ? { frame: passFrame(PF6.pass.frame),  pi
 function pf6NameRow(name, pp, cls = 'pf6-nm', own = true) {
   const row = padEl('span', cls);
   row.append(padEl('b', '', name || 'Пилот'));
-  if (pp && pp.pin) { const im = document.createElement('img'); im.className = 'pf6-pin'; im.dataset.pin = pp.pin; if (own) im.dataset.own = '1'; im.alt = 'Пин'; im.setAttribute('role', 'button'); im.tabIndex = 0; im.src = awardImg(pp.pin, true); row.append(im); }
+  if (pp && pp.pin) { const im = pp.pin === 'helmet' ? helmet3d('pf6-pin') : document.createElement('img'); im.className = 'pf6-pin' + (pp.pin === 'helmet' ? ' spin3' : ''); im.dataset.pin = pp.pin; if (own) im.dataset.own = '1'; im.alt = 'Пин'; im.setAttribute('role', 'button'); im.tabIndex = 0; if (im.tagName === 'IMG') im.src = awardImg(pp.pin, true); row.append(im); }
   return row;
 }
 function pf6AvaEl(size, pp) {
@@ -17682,7 +17682,7 @@ function openPin209(k, own) {
   document.getElementById('pin209')?.remove();
   const ov = padEl('div', 'pin209'); ov.id = 'pin209'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', m[0]);
   const c = padEl('div', 'pin209-c');
-  const im = document.createElement('img'); im.src = awardImg(k); im.alt = ''; im.className = 'pin209-i';
+  let im; if (k === 'helmet') { im = helmet3d('pin209-i', true, true); } else { im = document.createElement('img'); im.src = awardImg(k); im.alt = ''; im.className = 'pin209-i'; } // v213: шлем — 3D 360°, крутится сам и пальцем
   c.append(im, padEl('span', 'pin209-k', 'PADDOCK PASS'), padEl('h3', '', m[0]), padEl('p', '', m[1] + '. Это украшение из Paddock Pass — только внешний вид, на время и места в топах не влияет.'));
   if (own && currentUser()) { const b = padEl('button', 'pin209-b', 'Сменить пин'); b.type = 'button'; b.addEventListener('click', () => { close(); setTimeout(() => openPfEdit({ focusPass: true }), 150); }); c.append(b); }
   const x = padEl('button', 'pin209-x', 'Закрыть'); x.type = 'button'; x.addEventListener('click', () => close()); c.append(x);
@@ -17693,8 +17693,8 @@ function openPin209(k, own) {
   requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('on')));
 }
 document.addEventListener('click', (e) => {
-  const p = e.target.closest?.('img[data-pin]'); if (!p) return;
+  const p = e.target.closest?.('[data-pin]'); if (!p || p.closest('.pin209')) return;
   e.preventDefault(); e.stopPropagation(); hap(6);
   openPin209(p.dataset.pin, p.dataset.own === '1' && !p.closest('#pfEdit'));
 }, true);
-document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('img[data-pin]')) { e.preventDefault(); e.target.click(); } });
+document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('[data-pin]')) { e.preventDefault(); e.target.click(); } });

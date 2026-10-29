@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v212';
+const CACHE = 'pitlane-v213';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -204,7 +204,8 @@ self.addEventListener('fetch', (e) => {
   e.respondWith(
     (async () => {
       try {
-        const net = await fetch(e.request);
+        // v213: свои файлы — всегда ревалидация (ETag), чтобы WKWebView/HTTP-кэш не держал старый JS после деплоя
+        const net = url.origin === self.location.origin && e.request.mode !== 'navigate' ? await fetch(e.request, { cache: 'no-cache' }) : await fetch(e.request);
         if (net.ok) {
           const isThree = url.hostname.includes('unpkg.com') && url.pathname.includes('/three');
           const isGlb = url.pathname.endsWith('.glb');

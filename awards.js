@@ -292,12 +292,14 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
 }
 
 /** v211: 3D-вращение на 360° — спрайт n кадров (полный оборот), авто-вращение + свободный drag по горизонтали с инерцией, без ограничения угла */
-function spin3d(src, px, cols, n, period, cls, drag) {
+/** v213: 3D-шлем — единая точка: sm=иконка у ника (120px кадры), иначе 240px */
+export function helmet3d(cls, drag, big) { return big ? spin3d('./img/pass/helmet-sprite-240.webp', 240, 12, 120, 9000, cls, drag) : spin3d('./img/pass/helmet-sprite.webp', 120, 12, 120, 9000, cls, drag); }
+export function spin3d(src, px, cols, n, period, cls, drag) {
   const c = document.createElement('canvas'); c.className = cls + (drag ? ' spin-drag' : ''); c.setAttribute('aria-hidden', 'true');
   const dpr = Math.min(3, window.devicePixelRatio || 1);
   const img = new Image(); img.decoding = 'async'; img.src = src;
   const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const auto = reduce ? 0 : n / period; // кадров в мс
+  const auto = n / (reduce ? period * 2 : period); // v213: и при «уменьшении движения» крутится — просто медленнее
   let pos = 0, last = 0, vel = auto, held = false, px0 = 0, lastMove = 0, raf = 0;
   const kick = () => { if (!raf) raf = requestAnimationFrame(draw); };
   function draw(now) {
@@ -349,7 +351,7 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
   ];
   for (const [k, n, d] of perks) {
     const li = h('li', 'ps-it');
-    li.appendChild(k === 'helmet' ? spin3d('./img/pass/helmet-sprite.webp', 120, 12, 120, 9000, 'ps-it-i', true) : im( k[0] === 'f' && k.length > 4 ? A + k + '.webp' : awardImg(k), 'ps-it-i', ''));
+    li.appendChild(k === 'helmet' ? helmet3d('ps-it-i', true) : im( k[0] === 'f' && k.length > 4 ? A + k + '.webp' : awardImg(k), 'ps-it-i', ''));
     const t = h('div'); t.appendChild(h('b', '', n)); t.appendChild(h('small', '', d)); li.appendChild(t);
     ul.appendChild(li);
   }
