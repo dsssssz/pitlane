@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v214';
+const CACHE = 'pitlane-v215';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -26,6 +26,7 @@ const CORE = [
   './session-review.js',
   './ghost-codec.js',
   './gps-core.js',
+  './measure-engine.js',
   './run-marks.js',
   './car-brands.js',
   './shop-config.js',

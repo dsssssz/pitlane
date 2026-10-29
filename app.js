@@ -70,6 +70,7 @@ const tipsOnView = () => {};
 import { musicList, renderMyMusic, initMusic, stopMusic } from './music-ui.js';
 import { createChaseTracker } from './chase-match.js';
 import { dragSplits as coreDragSplits } from './gps-core.js';
+import { DisplaySpeed, REASON_RU } from './measure-engine.js';
 import { brandOf, fillCarNameRow, carNameRow, flagUrl, COUNTRIES } from './car-brands.js';
 import { GRID as RM_GRID, LABEL as RM_LABEL, DIST_KEYS as RM_DIST, createRunMarks, stepRunMarks, speedSeries, elevation as rmElevation, shareCurve, shareSplits, cleanCurve, cleanSplits, drawSpeedChart, chartTags } from './run-marks.js';
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ, withSpeed as coreWithSpeed, launchTime as coreLaunchTime, speedCross as coreSpeedCross, distCross as coreDistCross } from './gps-core.js';
@@ -3237,6 +3238,7 @@ function kmhFromCoords(coords, ts) {
     filtV = coords.speed * 3.6;
     filtShow = filtV;
     extSpeedTs = ts;
+    extDisp.push(Date.now(), filtV); // v215: на экран — плавно (≤15 к/с, физический лимит), 25 Гц сырые цифры не мелькают
     return filtV;
   }
   if (!s.ready) return null;
@@ -3246,8 +3248,9 @@ function kmhFromCoords(coords, ts) {
 }
 
 var extSpeedTs = 0;
+const extDisp = new DisplaySpeed({ fps: 15 }); let _extShown = 0;
 function displayKmh() {
-  if (extGps?.active() && extSpeedTs && Date.now() - extSpeedTs < 1500) return Math.round(filtShow || filtV || 0);
+  if (extGps?.active() && extSpeedTs && Date.now() - extSpeedTs < 1500) { const v = extDisp.frame(Date.now()); if (v != null) _extShown = v; return _extShown; }
   if (!GpsFusion.getState().ready) return Math.round(filtShow || filtV || 0);
   return Math.round(GpsFusion.displayKmhAt(Date.now()));
 }
@@ -3639,7 +3642,8 @@ function pushRawFix(pos, now) {
   const last = rawTrace[rawTrace.length - 1];
   if (last && last.src === src && now <= last.t) return;
   const alt = c.altitude != null && Number.isFinite(Number(c.altitude)) ? Number(c.altitude) : null; // v117: высота — только если источник её даёт (телефон); в трек для сервера не уходит
-  rawTrace.push({ seq: ++rawSeq, t: now, lat: c.latitude, lon: c.longitude, v: c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : null, acc: Number.isFinite(Number(c.accuracy)) ? Number(c.accuracy) : null, src, alt });
+  const sAcc = Number(c.sAcc ?? c.speedAccuracy); const sv = Number(pos.ext?.numSV); // v215: точность доплера и спутники — в движок замера (гейт выбросов, флаги)
+  rawTrace.push({ seq: ++rawSeq, t: now, lat: c.latitude, lon: c.longitude, v: c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : null, acc: Number.isFinite(Number(c.accuracy)) ? Number(c.accuracy) : null, src, alt, sAcc: Number.isFinite(sAcc) && sAcc > 0 ? sAcc : undefined, sv: Number.isFinite(sv) ? sv : undefined });
   if (rawTrace.length > 9000) rawTrace.splice(0, rawTrace.length - 8000);
 }
 function rawSince(seq0, tFrom = -Infinity, tTo = Infinity) {
@@ -3825,7 +3829,9 @@ function onGpsPoint(pos) {
   if (!prev) return;
   run.peak = Math.max(run.peak || 0, v);
   setRunText('runStatus', `Разгон: ${Math.round(v)} км/ч`);
-  if (run.launched && run.peak >= 70 && v < run.peak - 12 && v < prev.v) {
+  // v215: финиш — падение скорости подтверждено ≥ 0.5 с (на 25 Гц один шумный сэмпл больше не обрывает заезд)
+  if (run.launched && run.peak >= 70 && v < run.peak - 12 && v < prev.v) run.dropT = run.dropT || now; else if (v >= run.peak - 8) run.dropT = 0;
+  if (run.launched && run.peak >= 70 && run.dropT && now - run.dropT >= (pos.coords?.ext ? 500 : 0) && v < run.peak - 12) {
     // v117: итог для всех источников (Wi-Fi — по событию чипа или здесь, что раньше)
     finishRun();
     setRunText('runStatus', 'Скорость упала — замер записан');
@@ -4290,7 +4296,11 @@ function renderRunSummary() {
   }
   document.getElementById('rdChartBox')?.classList.toggle('empty', !(S.t0 != null && pts.length >= 2));
   rdBadge(tp);
-  setRunText('rdNote', wifiNote());
+  { // v215: честная пометка точности от движка замера
+    const why = (S.reasons || []).filter((r) => REASON_RU[r]).map((r) => REASON_RU[r]);
+    const note = wifiNote();
+    setRunText('rdNote', (why.length ? (S.approx ? '≈ ' : '⚠ ') + why.join(' · ') + (note ? ' · ' : '') : '') + (note || ''));
+  }
   rdShareAugment();
   rdFinalButtons();
   rdDeltas();
@@ -4465,7 +4475,7 @@ function armRun(opts = {}) {
   run.accN = 0;
   run.flags = [];
   run.revealed = {};
-  run.peak = 0;
+  run.peak = 0; run.dropT = 0;
   run.dist = 0;
   run.prevDist = 0;
   run.lastPos = null;

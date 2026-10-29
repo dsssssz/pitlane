@@ -26,11 +26,15 @@ export function createRunMarks() { return { seen: {}, S: null }; }
  * скорость последней точки считается по одной стороне — ждём следующую точку.
  */
 export function stepRunMarks(st, pts) {
+  const n = pts.length;
+  const tLast = n ? pts[n - 1].t : 0;
+  // v215: траекторный движок (Калман+RTS) тяжелее старой интерполяции — живой пересчёт не чаще ~7 раз/с
+  if (st.S && st.tCalc != null && tLast - st.tCalc < 140) return { S: st.S, fresh: [] };
+  st.tCalc = tLast;
   const S = dragSplits(pts);
   const fresh = [];
-  const n = pts.length;
-  const allV = n > 0 && pts[n - 1].v != null && (n < 2 || pts[n - 2].v != null);
-  const settledT = allV ? Infinity : (n >= 2 ? pts[n - 2].t : -Infinity);
+  // отметка «окончательная», когда после неё есть ≥ 300 мс данных (RTS-сглаживание успело её уточнить)
+  const settledT = tLast - 300;
   for (const [k, m] of Object.entries(S.marks)) {
     if (st.seen[k] != null) continue;
     if (!(m.t <= settledT)) continue;

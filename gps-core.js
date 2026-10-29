@@ -5,6 +5,7 @@
  * Пороги антифрода (телепорт, пауза, симулятор, дубли) здесь НЕ живут — они только на сервере.
  * Pure JS, без DOM/Buffer — работает в браузере, Workers и Node.
  */
+import { analyzeRun } from './measure-engine.js';
 export const TRACE_V = 1;
 export const TRACE_MAX_POINTS = 8000;
 
@@ -220,9 +221,9 @@ const secOf = (c) => Math.round(c.t - c.tFrom) / 1000;
 export function dragTime(points, disc) {
   const def = DRAG_DEFS[disc];
   if (!def || !points || points.length < 2) return null;
-  const p = withSpeed(points);
-  const c = discCross(p, def, def.from != null ? null : launchTime(p));
-  return c ? secOf(c) : null;
+  // v215: траекторный движок (Калман [s,v,a] + RTS, гейт выбросов, ось заезда) — см. measure-engine.js
+  const m = analyzeRun(points, { defs: { [disc]: def } }).marks[disc];
+  return m ? m.sec : null;
 }
 
 /** v117: дисциплины экрана замера (= DRAG_DEFS сервера + 0–300 для показа). */
@@ -231,20 +232,9 @@ export const SPLIT_DEFS = { ...DRAG_DEFS, '0-300': { to: 300 } };
  * v117: ОДИН расчёт всех отметок заезда по сырому треку — для живого экрана, итога, шейра (и он же = dragTime сервера).
  * → { t0, tEnd, dist, vmax, marks: { disc: { sec, t, v (км/ч в момент пересечения), d (м от старта) } } }
  */
-export function dragSplits(points, defs = SPLIT_DEFS) {
-  const out = { t0: null, tEnd: null, dist: 0, vmax: 0, marks: {} };
-  if (!points || points.length < 2) return out;
-  const p = withSpeed(points);
-  const t0 = launchTime(p);
-  out.t0 = t0; out.tEnd = p[p.length - 1].t;
-  for (const q of p) if (t0 != null && q.t >= t0 && q.v > out.vmax) out.vmax = q.v;
-  if (t0 != null) out.dist = distAt(p, t0, out.tEnd);
-  for (const [k, def] of Object.entries(defs)) {
-    const c = discCross(p, def, def.from != null ? null : t0);
-    if (!c) continue;
-    out.marks[k] = { sec: secOf(c), t: c.t, v: speedAt(p, c.t), d: t0 != null ? distAt(p, t0, c.t) : null };
-  }
-  return out;
+export function dragSplits(points, defs = SPLIT_DEFS, opt = {}) {
+  const r = analyzeRun(points, { ...opt, defs });
+  return { t0: r.t0, tEnd: r.tEnd, dist: r.dist, vmax: r.vmax, marks: r.marks, valid: r.valid, reasons: r.reasons, approx: r.approx, q: r.q };
 }
 
 /* ———————————— круги: ворота ———————————— */
