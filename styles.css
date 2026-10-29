@@ -7467,3 +7467,6 @@ img[data-pin] { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 /* v213: 3D-шлем у ника и в поповере */
 canvas.pf6-pin { display: inline-block; vertical-align: middle; cursor: pointer; }
 canvas.pin209-i { width: 150px; height: 150px; display: block; margin: 0 auto; }
+/* v214 QA: пустая витрина (нет машины) — компактная карточка, текст по центру */
+.sc-hero.ce.empty { height: auto; min-height: 0; display: grid; place-items: center; padding: 26px 22px; text-align: center; border: 1px solid #1c1d20; }
+.sc-hero.ce.empty .sc-nocar { margin: 0; max-width: 260px; }

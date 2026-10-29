@@ -187,7 +187,7 @@ export function renderShowcase(root, { car, carName, nick, res, pass, spec }) {
     cell(f2(sp.v0100), 'S', 'Factory 0–100');
     cell(sp.best > 0 ? Number(sp.best).toFixed(2) : null, 'S', 'My best', 'best');
     hero.appendChild(row);
-  } else hero.appendChild(h('p', 'tiny muted sc-nocar', 'Выбери машину в «Моя машина» — она встанет на витрину'));
+  } else { hero.classList.add('empty'); hero.appendChild(h('p', 'tiny muted sc-nocar', 'Выбери машину в «Моя машина» — она встанет на витрину')); }
   root.appendChild(hero);
   const tot = Object.values(res.earned).reduce((a, b) => a + b, 0);
   // v209: компактное превью + полноэкранная витрина по тапу
