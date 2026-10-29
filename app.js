@@ -2636,7 +2636,7 @@ const LN61 = { T: 1340, UI: 900 }; // v163: крупный знак держит
     setTimeout(() => {
       try { if (document.getElementById('view-garage')?.classList.contains('active')) void ensurePodium3d(); } catch (_) {}
     }, 30);
-    try { prefetchEngineStart(); } catch (_) {}
+    setTimeout(() => { try { (window.requestIdleCallback || setTimeout)(() => prefetchEngineStart(), { timeout: 4000 }); } catch (_) {} }, 3000); // перф: звук старта — после первой отрисовки
     setTimeout(() => { try { tipsOnView((document.querySelector('.view.active')?.id || 'view-home').slice(5)); } catch (_) {} }, 700);
   };
   let seen = false;
@@ -3643,7 +3643,9 @@ function pushRawFix(pos, now) {
   if (last && last.src === src && now <= last.t) return;
   const alt = c.altitude != null && Number.isFinite(Number(c.altitude)) ? Number(c.altitude) : null; // v117: высота — только если источник её даёт (телефон); в трек для сервера не уходит
   const sAcc = Number(c.sAcc ?? c.speedAccuracy); const sv = Number(pos.ext?.numSV); // v215: точность доплера и спутники — в движок замера (гейт выбросов, флаги)
-  rawTrace.push({ seq: ++rawSeq, t: now, lat: c.latitude, lon: c.longitude, v: c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : null, acc: Number.isFinite(Number(c.accuracy)) ? Number(c.accuracy) : null, src, alt, sAcc: Number.isFinite(sAcc) && sAcc > 0 ? sAcc : undefined, sv: Number.isFinite(sv) ? sv : undefined });
+  const vK = c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : null;
+  const im = src === 'phone' ? imuForFix(now, vK, last && last.src === 'phone' ? last : null) : {}; // v217: IMU — только к фиксам телефона (чип 25 Гц точнее)
+  rawTrace.push({ seq: ++rawSeq, t: now, lat: c.latitude, lon: c.longitude, v: vK, acc: Number.isFinite(Number(c.accuracy)) ? Number(c.accuracy) : null, src, alt, sAcc: Number.isFinite(sAcc) && sAcc > 0 ? sAcc : undefined, sv: Number.isFinite(sv) ? sv : undefined, ...im });
   if (rawTrace.length > 9000) rawTrace.splice(0, rawTrace.length - 8000);
 }
 function rawSince(seq0, tFrom = -Infinity, tTo = Infinity) {
@@ -5975,8 +5977,33 @@ document.querySelectorAll('.btn-pro-soon, #btnProSoon').forEach((btn) => {
     toastSoon();
   });
 });
+/* v217: IMU телефона для замера (как Harry's LapTimer): толчок трогания + ускорение у каждого фикса 1 Гц.
+ * Модуль линейного ускорения (без g), ФНЧ ~5 Гц. Толчок = >1.2 м/с² держится 120 мс; момент — последняя «тишина» (<0.4) перед ним. */
+const imuRun = { lp: null, quietT: 0, hiT: 0, kickT: null, accSum: 0, accN: 0 };
+function imuMotion(e) {
+  const now = Date.now();
+  const a = e.acceleration; const ag = e.accelerationIncludingGravity;
+  let m = null;
+  if (a && a.x != null) m = Math.hypot(a.x || 0, a.y || 0, a.z || 0);
+  else if (ag && ag.x != null) m = Math.abs(Math.hypot(ag.x || 0, ag.y || 0, ag.z || 0) - 9.81);
+  if (!Number.isFinite(m)) return;
+  imuRun.lp = imuRun.lp == null ? m : imuRun.lp + (m - imuRun.lp) * 0.3;
+  imuRun.accSum += imuRun.lp; imuRun.accN++;
+  if (imuRun.lp < 0.4) { imuRun.quietT = now; imuRun.hiT = 0; }
+  else if (imuRun.lp > 1.2) { if (!imuRun.hiT) imuRun.hiT = now; if (now - imuRun.hiT >= 120 && imuRun.quietT && now - imuRun.quietT < 1500) imuRun.kickT = imuRun.quietT; }
+}
+/** К фиксу телефона: среднее ускорение с прошлого фикса (только на разгоне) и метка толчка. */
+function imuForFix(now, vKmh, prev) {
+  const o = {};
+  const aMean = imuRun.accN ? imuRun.accSum / imuRun.accN : null;
+  imuRun.accSum = 0; imuRun.accN = 0;
+  if (aMean != null && prev && Number.isFinite(vKmh) && Number.isFinite(prev.v) && vKmh > 3 && vKmh - prev.v > 0.5) o.a = Math.min(15, aMean);
+  if (imuRun.kickT && imuRun.kickT <= now && now - imuRun.kickT <= 5000) { o.imuT = imuRun.kickT; imuRun.kickT = null; }
+  return o;
+}
 window.addEventListener('devicemotion', (e) => {
   GpsFusion.onDeviceMotion(e);
+  try { imuMotion(e); } catch (_) {}
   const a = e.accelerationIncludingGravity || e.acceleration;
   if (!a) return;
   const g = Math.sqrt((a.x || 0) ** 2 + (a.y || 0) ** 2 + (a.z || 0) ** 2) / 9.81;

@@ -92,3 +92,34 @@ test('DisplaySpeed: нет скачков >3 км/ч за кадр на 1 Гц �
   assert.ok(frames <= 160, 'frames ' + frames);
   assert.ok(maxJump <= 5, 'jump ' + maxJump);
 });
+
+test('v217 телефон 1 Гц + акселерометр: трогание по IMU и ускорение между фиксами — точнее, чем один GPS', () => {
+  const t0abs = 1e6 + 3000; // истинное трогание (ступень ускорения в t=3 с)
+  const e1 = []; const e2 = [];
+  for (let k = 0; k < 12; k++) {
+    const ph = rnd();
+    const s0 = seed; const base = trace(tru, 1, { sV: 0.5, sP: 5, phase: ph });
+    seed = s0; const pts = trace(tru, 1, { sV: 0.5, sP: 5, phase: ph });
+    // IMU: ускорение у фикса (шум 0.3 м/с², смещение 0.15), метка трогания с ошибкой ±40 мс
+    for (const p of pts) { const t = (p.t - 1e6) / 1000; if (t > 3) { const v = tru.at(t).v; p.a = 7.5 * (1 - v / 90) + 0.15 + gauss() * 0.3; } }
+    { const ti = Math.round(t0abs + 18 + gauss() * 40); const nx = pts.find((p) => p.t >= ti); nx.imuT = ti; }
+    e1.push(Math.abs(analyzeRun(base).marks['0-60'].sec - tru.cross(60)));
+    const r = analyzeRun(pts);
+    assert.equal(r.imuLaunch, true);
+    e2.push(Math.abs(r.marks['0-60'].sec - tru.cross(60)));
+  }
+  const m = (a) => a.reduce((x, y) => x + y) / a.length;
+  assert.ok(m(e2) < 0.12 && m(e2) < m(e1), `GPS ${m(e1).toFixed(3)} → GPS+IMU ${m(e2).toFixed(3)}`);
+  console.log(`# 1 Гц 0–60: только GPS ${m(e1).toFixed(3)} с, GPS+IMU ${m(e2).toFixed(3)} с`);
+});
+test('v217 метка IMU вне окна стоим/едем игнорируется (нельзя подделать старт)', () => {
+  const pts = trace(tru, 1, { sV: 0.3, sP: 4 });
+  pts.find((p) => p.t >= 1e6 + 7000).imuT = 1e6 + 6500;
+  assert.notEqual(analyzeRun(pts).imuLaunch, true);
+});
+test('v217 трек: колонки IMU переживают кодек', async () => {
+  const { encodeTrace, decodeTrace } = await import('../gps-core.js');
+  const w = encodeTrace([{ t: 0, lat: 55, lon: 37, v: 0, acc: 3 }, { t: 1000, lat: 55.0001, lon: 37, v: 10, acc: 3, a: 2.34 }, { t: 1100, lat: 55.0001, lon: 37, v: 11, acc: 3, imuT: 1040 }]);
+  const d = decodeTrace(w).pts;
+  assert.equal(d[0].a, undefined); assert.equal(d[1].a, 2.34); assert.equal(d[2].imuT, 1040);
+});

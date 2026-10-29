@@ -42,8 +42,12 @@ export function encodeTrace(points, src) {
     const t = Math.round(q.t); const la = Math.round(q.lat * 1e6); const lo = Math.round(q.lon * 1e6);
     const v = Number.isFinite(q.v) && q.v >= 0 ? Math.round(q.v * 10) : -1;
     const a = Number.isFinite(q.acc) && q.acc >= 0 ? Math.min(99999, Math.round(q.acc * 10)) : -1;
-    if (i === 0) p.push([0, la, lo, v, a]);
-    else p.push([t - pt, la - pla, lo - plo, v, a]);
+    // v217: необязательные колонки IMU телефона — ускорение (×100 м/с²) и мс от толчка акселерометра (трогание) до фикса
+    const ia = Number.isFinite(q.a) ? Math.max(-3000, Math.min(3000, Math.round(q.a * 100))) : null;
+    const row = i === 0 ? [0, la, lo, v, a] : [t - pt, la - pla, lo - plo, v, a];
+    const ib = Number.isFinite(q.imuT) && q.imuT <= q.t && q.t - q.imuT <= 5000 ? Math.round(q.t - q.imuT) : -1; // толчок IMU: мс до этого фикса
+    if (ia != null || ib >= 0) row.push(ia ?? -9999, ib);
+    p.push(row);
     pt = t; pla = la; plo = lo;
   });
   return { v: TRACE_V, src: src === 'ext' || src === 'sim' ? src : 'phone', t0, p };
@@ -63,7 +67,9 @@ export function decodeTrace(w) {
     if (!Array.isArray(r) || r.length < 5 || !r.every((x) => Number.isFinite(x))) return null;
     if (i === 0) { la = r[1]; lo = r[2]; } else { t += r[0]; la += r[1]; lo += r[2]; }
     if (r[0] < 0 || Math.abs(la) > 90e6 || Math.abs(lo) > 180e6) return null;
-    pts.push({ t, lat: la / 1e6, lon: lo / 1e6, v: r[3] >= 0 ? r[3] / 10 : null, acc: r[4] >= 0 ? r[4] / 10 : null });
+    const pt = { t, lat: la / 1e6, lon: lo / 1e6, v: r[3] >= 0 ? r[3] / 10 : null, acc: r[4] >= 0 ? r[4] / 10 : null };
+    if (r.length >= 7) { if (r[5] !== -9999 && Math.abs(r[5]) <= 3000) pt.a = r[5] / 100; if (r[6] >= 0 && r[6] <= 5000) pt.imuT = t - r[6]; }
+    pts.push(pt);
   }
   return { src, t0, pts };
 }

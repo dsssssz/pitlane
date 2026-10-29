@@ -140,7 +140,7 @@ export function smoothTrajectory(pts, opt = {}) {
       }
       const hA = fin(p.acc) && p.acc > 0 ? Math.max(0.5, p.acc) : 15;
       if (axis && hA <= 30) upd(0, axis.s(p), (vMs == null ? 1 : 2.5) * hA * hA, used > 3 ? 12 : 0);
-      if (fin(p.a)) upd(2, p.a, 0.36, 16); // акселерометр (вдоль хода), если есть
+      if (fin(p.a)) upd(2, p.a, lowHz ? 0.5 : 0.36, 16); // акселерометр (вдоль хода), если есть
     }
     Xf.set(x, k * 3); Pf.set(P, k * 9);
   }
@@ -234,6 +234,16 @@ export function analyzeRun(points, opt = {}) {
       t0 = Math.min(t0, moving.t - 1000 * (Math.max(0, moving.v - MOVE_KMH) / 3.6) / Math.max(aL, aRaw, hz >= 5 ? 0.8 : 15));
     }
     t0 = Math.min(t0, L.t);
+    // v217: телефон (< 5 Гц) — трогание по акселерометру (как Harry's LapTimer / Dragy-приложения: IMU 50–100 Гц точнее 1 Гц GPS).
+    // Принимаем только внутри окна [последняя сырая «стоим» − 0.3 с, первая сырая «едем»]: подделка не сдвинет старт больше чем на ~1 с.
+    const hiT = moving ? moving.t : L.t;
+    // метка: у фикса GPS поле imuT — момент толчка по акселерометру (абсолютное время, мс), берём последний до первой точки «едем»
+    const imuTs = hz < 5 ? pts.filter((p) => fin(p.imuT) && p.imuT <= hiT).map((p) => p.imuT) : [];
+    const imu = imuTs.length ? { t: imuTs[imuTs.length - 1] } : null;
+    if (imu) {
+      const lo = still ? still.t - 300 : -Infinity;
+      if (imu.t >= lo && imu.t <= hiT) { t0 = imu.t; out.imuLaunch = true; }
+    }
     if (opt.rollout) { const d0 = atT(traj, d, t0); for (let i = 1; i < traj.length; i++) if (d[i] - d0 >= ROLLOUT_M) { const k = (d0 + ROLLOUT_M - d[i - 1]) / Math.max(1e-9, d[i] - d[i - 1]); t0 = traj[i - 1].t + (traj[i].t - traj[i - 1].t) * k; break; } }
     out.t0 = t0;
   }
