@@ -34,7 +34,7 @@ export function stepRunMarks(st, pts) {
   const S = dragSplits(pts);
   const fresh = [];
   // отметка «окончательная», когда после неё есть ≥ 300 мс данных (RTS-сглаживание успело её уточнить)
-  const settledT = tLast - 300;
+  const settledT = tLast - 1200;
   for (const [k, m] of Object.entries(S.marks)) {
     if (st.seen[k] != null) continue;
     if (!(m.t <= settledT)) continue;

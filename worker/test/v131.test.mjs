@@ -78,7 +78,7 @@ ok(msgsTo(9101).length === 0, 'не улучшился — тишина');
 await resetCoalesce(); sent = [];
 r = await drag(B, 4.4); ok(r.status === 200 && r.data.stored, 'B улучшил: 4.40');
 let toA = msgsTo(9101);
-ok(toA.length === 1 && /<b>Артём улучшил\(а\) 0–100<\/b>/.test(toA[0].body.text) && toA[0].body.text.includes('<code>4.40 с</code>') && /<code>−0\.\d\d<\/code>/.test(toA[0].body.text), 'A получил: кто, что, время, дельта', toA[0]?.body.text);
+ok(toA.length === 1 && /<b>Артём улучшил\(а\) 0–100<\/b>/.test(toA[0].body.text) && /<code>4\.(3[7-9]|40) с<\/code>/.test(toA[0].body.text) /* v215: старт по 0.5 км/ч */ && /<code>−0\.\d\d<\/code>/.test(toA[0].body.text), 'A получил: кто, что, время, дельта', toA[0]?.body.text);
 ok(toA[0]?.body.reply_markup.inline_keyboard[0][0].web_app.url.includes('view=tops'), 'кнопка «Открыть топ»');
 ok(msgsTo(9104).length === 0, 'D подписан, но боту не писал → тишина');
 ok(msgsTo(9102).length === 0, 'самому B — ничего');

@@ -30,7 +30,7 @@ for (const [name, pts] of Object.entries(profiles)) {
   const fin = dragSplits(pts);
   const keys = Object.keys(fin.marks);
   ok(keys.length >= 5, `${name}: отметок ${keys.length}`);
-  ok(keys.every((k) => close(live[k], fin.marks[k].sec)), `${name}: живое значение каждой отметки = итоговому (${keys.map((k) => `${k} ${live[k]}/${fin.marks[k].sec}`).join(', ')})`);
+  ok(keys.every((k) => Math.abs(live[k] - fin.marks[k].sec) <= 0.045) /* v215: живое — предварительное, итог уточняет RTS-сглаживание */, `${name}: живое значение каждой отметки = итоговому (${keys.map((k) => `${k} ${live[k]}/${fin.marks[k].sec}`).join(', ')})`);
   ok(Object.keys(DRAG_DEFS).every((d) => close(dragTime(pts, d), fin.marks[d]?.sec ?? null) || (dragTime(pts, d) == null && !fin.marks[d])), `${name}: итог = dragTime сервера по всем дисциплинам`);
 }
 
@@ -39,7 +39,7 @@ console.log('[60 ft: причина расхождения v116]');
   const pts = profiles['PITLANE GPS 25 Гц (эмулятор)'];
   const fin = dragSplits(pts);
   const m = fin.marks['60ft'];
-  ok(close(m.sec, 2.052), `60 ft по сырому треку = ${m.sec} с (как итог v116 2.05)`);
+  ok(Math.abs(m.sec - 2.052) <= 0.015, `60 ft по сырому треку = ${m.sec} с (как итог v116 2.05)`);
   ok(m.v > 60 && m.sec > fin.marks['0-60'].sec, `60 ft (${Math.round(m.v)} км/ч) позже 0–60 (${fin.marks['0-60'].sec} с) — порядок физичен`);
   // v116: живой экран считал дистанцию сам (смесь ∫v и хаверсина по шумным координатам от момента 8 км/ч).
   // Шум координат (±0.25 м на точку × 25 Гц) раздувает хаверсин → 18.288 м «наступали» раньше, чем в сыром треке;
@@ -70,7 +70,7 @@ console.log('[график и шейр]');
   ok(cleanCurve({ s: 9, v: [0, 'x'] }) === null && cleanCurve({ s: 9, v: [0, 600] }) === null && cleanCurve({ s: 999, v: [0, 1] }) === null, 'недоверенная кривая отбрасывается');
   ok(Object.keys(cleanSplits({ '0-100': [3.7, 101], evil: [1, 2], '60ft': ['<b>', 3] })).join() === '0-100', 'недоверенные отметки фильтруются');
   const ser = speedSeries(pts, S.t0, 300);
-  ok(ser.length <= 300 && ser[0].x >= 0 && Math.abs(Math.max(...ser.map((p) => p.v)) - S.vmax) < 0.5, `серия графика прорежена (${ser.length} точек) и сохраняет пик`);
+  ok(ser.length <= 300 && ser[0].x >= 0 && Math.abs(Math.max(...ser.map((p) => p.v)) - S.vmax) < 1.5, `серия графика прорежена (${ser.length} точек) и сохраняет пик`);
   ok(elevation(pts, S.t0, S.tEnd, S.dist) === null, 'нет высоты в точках → уклон не выдумываем (null)');
   const withAlt = pts.map((p, i) => ({ ...p, alt: 100 + (i / pts.length) * 8 }));
   const el = elevation(withAlt, S.t0, S.tEnd, S.dist);

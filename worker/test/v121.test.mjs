@@ -62,7 +62,7 @@ sent = [];
 console.log('\n[«тебя обогнали в топе»]');
 r = await drag(A, 4.2); ok(r.status === 200 && r.data.stored, 'A 4.20 → #1');
 const toB = msgsTo(8002); const toC = msgsTo(8003);
-ok(toB.length === 1 && /<b>Вас обогнали в топе<\/b>/.test(toB[0].body.text) && /Топ 0–100 · внешний GPS \(A\/B\)/.test(toB[0].body.text) && toB[0].body.text.includes('<code>#2</code>') && toB[0].body.text.includes('<code>4.20 с</code>'), 'B (#1 → #2) получил: доска, время, новое место', toB[0]?.body.text);
+ok(toB.length === 1 && /<b>Вас обогнали в топе<\/b>/.test(toB[0].body.text) && /Топ 0–100 · внешний GPS \(A\/B\)/.test(toB[0].body.text) && toB[0].body.text.includes('<code>#2</code>') && /<code>4\.(1[6-9]|20) с<\/code>/.test(toB[0].body.text) /* v215: старт по 0.5 км/ч */, 'B (#1 → #2) получил: доска, время, новое место', toB[0]?.body.text);
 ok(toC.length === 1 && toC[0].body.text.includes('<code>#4</code>'), 'C (#3 → #4) получил');
 ok(msgsTo(8004).length === 0, 'D сдвинут, но боту не писал → тишина');
 ok(msgsTo(8001).length === 0, 'автору зачёта — ничего');

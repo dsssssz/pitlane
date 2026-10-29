@@ -74,7 +74,11 @@ export function smoothTrajectory(pts, opt = {}) {
   const hz = 1000 / Math.max(1, medianDt(pts));
   const lowHz = hz < 5;
   const q = opt.jerkQ ?? (lowHz ? 25 : 60); // спектр рывка (м²/с⁵) — разгон авто: рывок до ~10–20 м/с³
-  const axis = opt.axis || runAxis(pts);
+  let axis = opt.axis || runAxis(pts);
+  { // координаты, противоречащие доплеру (застывшие/кэш), в фильтр не берём
+    let D = 0; for (let i = 1; i < n; i++) if (fin(pts[i].v) && fin(pts[i - 1].v)) D += (pts[i].v + pts[i - 1].v) / 7.2 * (pts[i].t - pts[i - 1].t) / 1000;
+    if (axis && D > 20 && axis.span < Math.max(5, 0.3 * D)) axis = null;
+  }
   const tBase = pts[0].t;
   // события: измерения и (для < 10 Гц) узлы сетки — траектория модели между редкими точками
   const ev = [];
@@ -224,7 +228,11 @@ export function analyzeRun(points, opt = {}) {
     let still = null; let moving = null;
     for (const p of pts) { if (p.t > L.t) break; if (fin(p.v) && p.v <= MOVE_KMH) { still = p; moving = null; } else if (fin(p.v) && p.v > 1.5 && !moving) moving = p; }
     if (still) t0 = Math.max(t0, still.t); else out.reasons.push('no_standstill');
-    if (moving) t0 = Math.min(t0, moving.t - 1000 * (Math.max(0, moving.v - MOVE_KMH) / 3.6) / Math.max(aL, 15));
+    if (moving) { // не позже, чем даёт прямая назад от первой сырой точки «едем» (ускорение — по сырым соседям, но не меньше сглаженного)
+      const m2 = pts[pts.indexOf(moving) + 1];
+      const aRaw = hz >= 5 && m2 && fin(m2.v) ? (m2.v - moving.v) / 3.6 / ((m2.t - moving.t) / 1000) : 0;
+      t0 = Math.min(t0, moving.t - 1000 * (Math.max(0, moving.v - MOVE_KMH) / 3.6) / Math.max(aL, aRaw, hz >= 5 ? 0.8 : 15));
+    }
     t0 = Math.min(t0, L.t);
     if (opt.rollout) { const d0 = atT(traj, d, t0); for (let i = 1; i < traj.length; i++) if (d[i] - d0 >= ROLLOUT_M) { const k = (d0 + ROLLOUT_M - d[i - 1]) / Math.max(1e-9, d[i] - d[i - 1]); t0 = traj[i - 1].t + (traj[i].t - traj[i - 1].t) * k; break; } }
     out.t0 = t0;

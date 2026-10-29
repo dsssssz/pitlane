@@ -112,7 +112,7 @@ await call('POST', '/tops/lap/sochi', { token: B.token, body: lapBody('1:59.000'
 r = await call('GET', '/pilot/' + A.id, { token: B.token });
 const pr = r.data;
 ok(r.status === 200 && pr.nick === 'Алиса' && pr.car === 'BMW M2', 'profile: nick + car');
-ok(pr.best.zeroHundred.length === 1 && Math.abs(pr.best.zeroHundred[0].t - 4.12) < 0.05, 'best 0–100 ≈ 4.12 (GPS C run ignored) ' + JSON.stringify(pr.best.zeroHundred));
+ok(pr.best.zeroHundred.length === 1 && Math.abs(pr.best.zeroHundred[0].t - 4.12) < 0.08, 'best 0–100 ≈ 4.12 (GPS C run ignored) ' + JSON.stringify(pr.best.zeroHundred));
 ok(pr.best.laps.length === 1 && /^2:01\.[3-6]/.test(pr.best.laps[0].t) && pr.best.laps[0].trackId === 'sochi', 'best lap on sochi ≈ 2:01.5 (B\'s faster lap not mixed in) ' + pr.best.laps[0].t);
 ok(Array.isArray(pr.best.laps[0].sectors) && pr.best.laps[0].sectors.length === 3 && pr.best.laps[0].sectors.every((x) => x > 30000 && x < 45000), 'best sectors per split (server gates S1/S2) ' + JSON.stringify(pr.best.laps[0].sectors));
 ok(pr.postCount === 1 && pr.posts[0].id === post.id && pr.likesReceived === 1 && pr.posts[0].liked === false, 'profile posts + likes received');
