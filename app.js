@@ -9463,7 +9463,7 @@ const CATALOG = {
 
 function fillSelect(el, items) {
   if (!el) return;
-  el.innerHTML = items.map((v) => `<option value="${v}">${v}</option>`).join('');
+  el.innerHTML = items.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
 }
 function syncWizard() {
   const brand = document.getElementById('wBrand')?.value;
