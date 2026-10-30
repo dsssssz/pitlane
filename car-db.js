@@ -70,7 +70,7 @@ let sheet = null, st = null;
 function ensureSheet() {
   if (sheet) return sheet;
   sheet = el('div', 'cdb-sheet hidden'); sheet.id = 'carDbSheet'; sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-label', 'Выбор машины');
-  sheet.innerHTML = '<div class="cdb-inner"><header class="cdb-head"><button type="button" class="cdb-back" aria-label="Назад"></button><b class="cdb-title">Марка</b><button type="button" class="cdb-x" aria-label="Закрыть">×</button></header>'
+  sheet.innerHTML = '<div class="cdb-inner"><header class="cdb-head"><button type="button" class="cdb-back pl-x pl-back pl-inline" aria-label="Назад"></button><b class="cdb-title">Марка</b><button type="button" class="cdb-x pl-x pl-inline" aria-label="Закрыть">×</button></header>'
     + '<label class="cdb-search"><input type="search" enterkeyhint="search" autocomplete="off" placeholder="Марка, модель, кузов — например M3 G80" aria-label="Поиск машины" /></label><div class="cdb-body" role="list"></div></div>';
   document.body.appendChild(sheet);
   sheet.addEventListener('click', (e) => { if (e.target === sheet) closeCarDb(); });

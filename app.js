@@ -10680,7 +10680,7 @@ function appendDisputeButton(body, pid) {
 function askText172(title, { placeholder = '', value = '', multi = false, ok = 'Готово', hint = '' } = {}) {
   return new Promise((resolve) => {
     const root = document.createElement('div'); root.className = 'ds-sheet ask172'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-modal', 'true');
-    root.innerHTML = '<div class="ds-sheet-scrim" data-ask-x></div><div class="ds-sheet-panel"><header class="ds-sheet-hd"><b></b><button type="button" class="ds-sheet-x" data-ask-x aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header><div class="ask172-body"><p class="ask172-hint"></p></div><button type="button" class="ask172-ok"></button></div>';
+    root.innerHTML = '<div class="ds-sheet-scrim" data-ask-x></div><div class="ds-sheet-panel"><header class="ds-sheet-hd"><b></b><button type="button" class="ds-sheet-x pl-x pl-inline" data-ask-x aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header><div class="ask172-body"><p class="ask172-hint"></p></div><button type="button" class="ask172-ok"></button></div>';
     root.querySelector('b').textContent = title;
     const hp = root.querySelector('.ask172-hint'); if (hint) hp.textContent = hint; else hp.remove();
     const f = document.createElement(multi ? 'textarea' : 'input'); f.className = 'ask172-in'; f.placeholder = placeholder; f.value = value || ''; if (!multi) { f.type = 'text'; f.enterKeyHint = 'done'; } else f.rows = 4;
@@ -13145,7 +13145,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v227';
+const APP_VERSION = 'v228';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

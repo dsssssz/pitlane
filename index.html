@@ -1021,7 +1021,7 @@
       <div class="chat-page hidden" id="chatPage" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Чат">
         <header class="cp-head">
           <div class="cp-bar">
-            <button type="button" class="cp-back" id="chatBack" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+            <button type="button" class="cp-back pl-x pl-back pl-inline" id="chatBack" aria-label="Назад"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
             <div class="cp-title"><b>Чат</b><span id="cpSub">пилоты Pitlane</span></div>
             <span class="cp-live" id="cpLive" hidden><i></i><span></span></span>
           </div>
@@ -1047,7 +1047,7 @@
         <section class="tgs-panel" id="tgSheetPanel">
           <header class="tgs-head" id="tgSheetHead">
             <div class="tgs-grab" aria-hidden="true"></div>
-            <button type="button" class="tgs-close" id="tgSheetClose" aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+            <button type="button" class="tgs-close pl-x" id="tgSheetClose" aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
           </header>
           <div class="tgs-body" id="tgSheetBody"></div>
         </section>
@@ -1224,7 +1224,7 @@
 
     <div id="shareCard" class="share-card hidden" aria-hidden="true">
       <div class="share-card-inner">
-        <button type="button" class="share-card-close" id="shareCardClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="shareCardClose" aria-label="Закрыть">×</button>
         <p class="share-brand">PITLANE</p>
         <p class="share-badge" id="shareBadge"><span>VALID</span></p>
         <div class="share-photo" id="sharePhoto" hidden><img id="sharePhotoImg" alt="" decoding="async"></div>
@@ -1265,7 +1265,7 @@
 
     <div id="ghostResult" class="ghost-result hidden" aria-hidden="true" role="dialog" aria-label="Итог заезда с призраком">
       <div class="ghost-result-inner">
-        <button type="button" class="share-card-close" id="ghostResultClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="ghostResultClose" aria-label="Закрыть">×</button>
         <p class="gr-kicker" id="grKicker">ПРИЗРАК</p>
         <p class="gr-verdict" id="grVerdict">—</p>
         <p class="gr-sub" id="grSub"></p>
@@ -1289,7 +1289,7 @@
     <div class="ds-sheet hidden" id="gfx64" role="dialog" aria-modal="true" aria-label="Графика" aria-hidden="true">
       <div class="ds-sheet-scrim" data-close64></div>
       <div class="ds-sheet-panel">
-        <header class="ds-sheet-hd"><b>Графика 3D</b><button type="button" class="ds-sheet-x" data-close64 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+        <header class="ds-sheet-hd"><b>Графика 3D</b><button type="button" class="ds-sheet-x pl-x pl-inline" data-close64 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
         <div class="ds-sheet-body gfx64-list" role="radiogroup" aria-label="Качество графики">
           <button type="button" class="gfx64-o" role="radio" data-gfx="auto"><span><b>Авто</b><small>Подстраивается под устройство и FPS</small></span><i aria-hidden="true"></i></button>
           <button type="button" class="gfx64-o" role="radio" data-gfx="smooth"><span><b>Плавность</b><small>Без отражений и теней, ×1 — дольше батарея</small></span><i aria-hidden="true"></i></button>
@@ -1302,14 +1302,14 @@
     <div class="ds-sheet hidden" id="ghost74" role="dialog" aria-modal="true" aria-label="Призрак" aria-hidden="true">
       <div class="ds-sheet-scrim" data-close74></div>
       <div class="ds-sheet-panel">
-        <header class="ds-sheet-hd"><b>Призрак</b><button type="button" class="ds-sheet-x" id="ghost74Close" data-close74 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+        <header class="ds-sheet-hd"><b>Призрак</b><button type="button" class="ds-sheet-x pl-x pl-inline" id="ghost74Close" data-close74 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
         <div class="ds-sheet-body"><p class="gh74-hint">С кем соревноваться в заезде — призрак едет рядом, дельта видна в реальном времени.</p><div class="ghost-pick gh74" id="runGhostPick" data-scope="run"></div></div>
       </div>
     </div>
     <div class="ds-sheet hidden" id="gps61" role="dialog" aria-modal="true" aria-label="Источник GPS" aria-hidden="true">
       <div class="ds-sheet-scrim" data-close61></div>
       <div class="ds-sheet-panel">
-        <header class="ds-sheet-hd"><b>Источник GPS</b><button type="button" class="ds-sheet-x" id="gps61Close" data-close61 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+        <header class="ds-sheet-hd"><b>Источник GPS</b><button type="button" class="ds-sheet-x pl-x pl-inline" id="gps61Close" data-close61 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
         <div class="ds-sheet-body">
           <article class="card ext-gps-card" id="extGpsCard">
             <h3>Источник GPS</h3>
@@ -1360,7 +1360,7 @@
       <aside class="plm-panel" id="plMenuPanel">
         <div class="plm-head">
           <b class="plm-brand">PITLANE</b>
-          <button type="button" class="plm-close" id="plMenuClose" aria-label="Закрыть меню"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          <button type="button" class="plm-close pl-x pl-inline" id="plMenuClose" aria-label="Закрыть меню"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         </div>
         <!-- v166: меню — три группы: разделы, ещё, приложение. Документы — в Настройках -->
         <p class="plm-h">Разделы</p>
@@ -1405,7 +1405,7 @@
     <!-- v97: «Это моя машина» -->
     <div id="myCarSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Это моя машина">
       <div class="crew-sheet-inner race-sheet-inner mycar-inner">
-        <button type="button" class="share-card-close" id="myCarSheetClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="myCarSheetClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title">Это моя машина</h2>
@@ -1419,7 +1419,7 @@
     <!-- v137: магазин (содержимое строит shop-ui.js) -->
     <div id="shopSheet" class="crew-sheet race-sheet shop-sheet hidden" aria-hidden="true" role="dialog" aria-label="Магазин">
       <div class="crew-sheet-inner race-sheet-inner shop-sheet-inner">
-        <button type="button" class="share-card-close" id="shopClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="shopClose" aria-label="Закрыть">×</button>
         <div class="race-sheet-handle" aria-hidden="true"></div>
         <div class="shop-body" id="shopBodySheet"></div>
       </div>
@@ -1427,14 +1427,14 @@
     <!-- v200: Paddock Pass — отдельная шторка, вход — пилюля «Pass» в шапке -->
     <div id="passSheet" class="crew-sheet race-sheet pass-sheet hidden" aria-hidden="true" role="dialog" aria-label="Paddock Pass">
       <div class="crew-sheet-inner race-sheet-inner pass-inner">
-        <button type="button" class="share-card-close" id="passClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="passClose" aria-label="Закрыть">×</button>
         <div class="pass-body" id="passBody"></div>
       </div>
     </div>
 
     <div id="feedbackSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Обратная связь">
       <div class="crew-sheet-inner race-sheet-inner fb-sheet-inner">
-        <button type="button" class="share-card-close" id="feedbackClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="feedbackClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title crew-title">Обратная связь</h2>
@@ -1473,7 +1473,7 @@
     <div id="autodromeSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Автодромы">
       <div class="crew-sheet-inner ad-sheet-inner race-sheet-inner">
         <button type="button" class="pit-info-btn sheet-info" data-help="autodrome" title="Справка" aria-label="Справка: автодромы">i</button>
-        <button type="button" class="share-card-close" id="autodromeSheetClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="autodromeSheetClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title crew-title">Автодромы</h2>
@@ -1497,7 +1497,7 @@
 
     <div id="carPickerSheet" class="crew-sheet race-sheet car-picker-sheet hidden" aria-hidden="true" role="dialog" aria-label="Выбор машины">
       <div class="crew-sheet-inner race-sheet-inner car-picker-inner" id="carPickerInner">
-        <button type="button" class="share-card-close" id="carPickerClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="carPickerClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head" id="carPickerHead">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title">Гараж</h2>
@@ -1530,7 +1530,7 @@
 
     <div id="deleteSheet" class="pit-help race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Удаление аккаунта">
       <div class="pit-help-inner race-sheet-inner">
-        <button type="button" class="share-card-close" id="deleteClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="deleteClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <p class="race-sheet-kicker">Аккаунт</p>
@@ -1558,7 +1558,7 @@
     </div>
     <div id="pitHelpSheet" class="pit-help race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Справка">
       <div class="pit-help-inner race-sheet-inner">
-        <button type="button" class="share-card-close" id="pitHelpClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="pitHelpClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <p class="race-sheet-kicker">Справка</p>
@@ -1573,7 +1573,7 @@
     <!-- v83: Paddock — comments sheet -->
     <div id="padCommentsSheet" class="crew-sheet race-sheet pad-sheet hidden" aria-hidden="true" role="dialog" aria-label="Комментарии">
       <div class="crew-sheet-inner race-sheet-inner pad-sheet-inner">
-        <button type="button" class="share-card-close pad-close" id="padCommentsClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pad-close pl-x" id="padCommentsClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title">Комментарии</h2>
@@ -1591,7 +1591,7 @@
     <!-- v89: баннер профиля -->
     <div id="bannerSheet" class="crew-sheet race-sheet pad-sheet hidden" aria-hidden="true" role="dialog" aria-label="Баннер профиля">
       <div class="crew-sheet-inner race-sheet-inner pad-sheet-inner banner-sheet-inner">
-        <button type="button" class="share-card-close pad-close" id="bannerClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pad-close pl-x" id="bannerClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title">Баннер профиля</h2>
@@ -1611,7 +1611,7 @@
     <!-- v83: public pilot profile -->
     <div id="sessionSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Разбор сессии">
       <div class="crew-sheet-inner race-sheet-inner ss-inner">
-        <button type="button" class="share-card-close" id="sessionSheetClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pl-x" id="sessionSheetClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title">Разбор сессии</h2>
@@ -1629,7 +1629,7 @@
     </div>
     <div id="pilotSheet" class="crew-sheet race-sheet pad-sheet hidden" aria-hidden="true" role="dialog" aria-label="Профиль пилота">
       <div class="crew-sheet-inner race-sheet-inner pad-sheet-inner pilot-sheet-inner">
-        <button type="button" class="share-card-close pad-close" id="pilotClose" aria-label="Закрыть">×</button>
+        <button type="button" class="share-card-close pad-close pl-x" id="pilotClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <p class="race-sheet-kicker">Пилот</p>
