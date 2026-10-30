@@ -1,3 +1,4 @@
+#include <driver/gpio.h>
 #include "ubx.h"
 
 static inline uint32_t rdU4(const uint8_t* p) { return p[0] | (p[1] << 8) | (p[2] << 16) | ((uint32_t)p[3] << 24); }
@@ -101,6 +102,7 @@ bool UbxGps::valset(const uint32_t* keys, const uint32_t* vals, const uint8_t* s
 bool UbxGps::probeBaud(uint32_t baud) {
   ser.end();
   ser.begin(baud, SERIAL_8N1, rx, tx);
+  if (rx >= 0) gpio_pullup_en((gpio_num_t)rx);    // 2.1.2: без модуля RX не «висит» — нет мусора/шума в UART
   delay(60);
   while (ser.available()) ser.read();
   st = 0; gotVer = false;

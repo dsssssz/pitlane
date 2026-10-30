@@ -25,7 +25,32 @@ static uint32_t portalUntil = 0, portalStopAt = 0;
 static WebSocketsClient ws;
 static bool wsStarted = false, wsOpen = false, gotHello = false;
 static bool pairErr = false, tokenErr = false, timeSet = false, ntpStarted = false;
-static uint32_t lastTimeLog = 0;
+static uint32_t lastTimeLog = 0, wifiUpAt = 0, httpTimeAt = 0, httpTimeBackoff = 8000;
+static uint8_t httpTimeHost = 0;
+// 2.1.2: запасной источник времени — заголовок Date обычного HTTP (порт 80), если NTP режут
+static bool timeFromHttp() {
+  static const char* hosts[] = {"http://ya.ru/", "http://captive.apple.com/", "http://www.google.com/", "http://connectivitycheck.gstatic.com/generate_204"};
+  for (int k = 0; k < 4; k++) {
+    const char* u = hosts[(httpTimeHost + k) % 4];
+    WiFiClient c; HTTPClient h;
+    h.setTimeout(3000); h.setConnectTimeout(3000);
+    if (!h.begin(c, u)) continue;
+    const char* hk[] = {"Date"}; h.collectHeaders(hk, 1);
+    int rc = h.sendRequest("HEAD");
+    String d = h.header("Date"); h.end();
+    if (rc <= 0 || d.length() < 20) { Serial.printf("[pitlane-gps] время: HTTP %s → %d\n", u, rc); continue; }
+    struct tm tmv{};
+    if (!strptime(d.c_str(), "%a, %d %b %Y %H:%M:%S", &tmv)) continue;
+    // timegm для UTC: TZ на чипе не задан (UTC), mktime == timegm
+    time_t t = mktime(&tmv);
+    if (t < 1700000000) continue;
+    struct timeval tv{t, 0}; settimeofday(&tv, nullptr);
+    httpTimeHost = (httpTimeHost + k) % 4;
+    Serial.printf("[pitlane-gps] время: из HTTP Date (%s, %ld)\n", u, (long)t);
+    return true;
+  }
+  return false;
+}
 static bool timeValid() { return time(nullptr) > 1700000000; }
 static uint32_t lastBatch = 0, lastStatus = 0, claimAt = 0, claimBackoff = 4000;
 static NetBuf buf;
@@ -316,6 +341,11 @@ void loop(uint32_t now) {
     configTime(0, 0, "pool.ntp.org", "time.google.com", "time.cloudflare.com");
     ntpStarted = true;
     Serial.println("[pitlane-gps] время: запрос NTP");
+  }
+  if (!wifi) wifiUpAt = 0; else if (!wifiUpAt) wifiUpAt = now ? now : 1;
+  if (wifi && !timeSet && !timeValid() && now - wifiUpAt > 8000 && now - httpTimeAt > httpTimeBackoff) {
+    httpTimeAt = now;
+    if (!timeFromHttp()) { httpTimeBackoff = min<uint32_t>(httpTimeBackoff * 2, 120000); httpTimeHost++; }
   }
   if (!timeSet && timeValid()) { timeSet = true; Serial.printf("[pitlane-gps] время: получено (%ld)\n", (long)time(nullptr)); }
   if (wifi && !timeSet && now - lastTimeLog > 5000) { lastTimeLog = now; Serial.println("[pitlane-gps] время: ждём NTP/GPS — привязка отложена"); }

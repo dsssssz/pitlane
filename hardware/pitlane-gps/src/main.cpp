@@ -8,8 +8,9 @@
 #include "lights.h"
 #include "netlink.h"
 #include <Preferences.h>
+#include <esp_system.h>
 
-#define FW_VERSION "2.1.1"
+#define FW_VERSION "2.1.2"
 
 #ifndef GPS_RX_PIN
 #define GPS_RX_PIN 20
@@ -181,6 +182,15 @@ void setup() {
   analogSetPinAttenuation(BAT_ADC_PIN, ADC_11db);
 #endif
   delay(300);
+  {
+    esp_reset_reason_t rr = esp_reset_reason();
+    const char* rn = rr == ESP_RST_BROWNOUT ? "BROWNOUT (просадка питания: кабель/порт USB, мощность Wi-Fi)" :
+                     rr == ESP_RST_PANIC ? "PANIC" : rr == ESP_RST_TASK_WDT ? "TASK_WDT" : rr == ESP_RST_INT_WDT ? "INT_WDT" :
+                     rr == ESP_RST_WDT ? "WDT" : rr == ESP_RST_POWERON ? "питание" : rr == ESP_RST_SW ? "программный" :
+                     "другое";
+    Serial.printf("[pitlane-gps] причина перезагрузки: %s (%d)\n", rn, (int)rr);
+  }
+  // 2.1.2: первая попытка GPS — короткая; без модуля дальше повторяем с нарастающей паузой в loop()
   bool ok = gps.begin(GPS_RX_PIN, GPS_TX_PIN, DEFAULT_RATE_HZ);
   Serial.printf("[pitlane-gps] GNSS %s: %s, rate %u Hz\n", gps.model(), ok ? "UBX OK" : "НЕ ОТВЕЧАЕТ", gps.rate());
   readBattery();
