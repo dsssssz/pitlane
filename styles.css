@@ -7484,3 +7484,41 @@ canvas.pin209-i { width: 150px; height: 150px; display: block; margin: 0 auto; }
 .qc-row.on span { color: #4a4b4f; }
 .qc-more { width: 100%; padding: 15px; border: 0; border-radius: 14px; background: #232427; color: #e8e6e1; font: 600 14px/1 var(--font-ui); cursor: pointer; }
 .tb-empty-go, .jn-go { display: inline-block; margin-top: 12px; padding: 12px 20px; border: 0; border-radius: 12px; background: #e8e6e1; color: #0b0b0c; font: 600 14px/1 var(--font-ui); cursor: pointer; }
+
+/* v220: большая база машин (car-db.js) — Марка → Модель → Версия */
+.cdb-sheet { position: fixed; inset: 0; z-index: 2147483000; background: rgba(0,0,0,.6); display: flex; align-items: flex-end; }
+.cdb-sheet.hidden { display: none; }
+.cdb-inner { width: 100%; height: calc(100% - max(36px, env(safe-area-inset-top))); background: #0b0b0c; border-radius: 22px 22px 0 0; display: flex; flex-direction: column; overflow: hidden; }
+.cdb-head { display: grid; grid-template-columns: 44px 1fr 44px; align-items: center; padding: 10px 8px 4px; }
+.cdb-title { text-align: center; font: 600 17px/24px var(--font-ui); color: #f2efe9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cdb-back, .cdb-x { width: 40px; height: 40px; border: 0; border-radius: 12px; background: #161719; color: #e8e6e1; font: 400 24px/1 var(--font-ui); cursor: pointer; }
+.cdb-back { background-color: #161719; -webkit-mask: none; position: relative; }
+.cdb-back::before { content: ''; position: absolute; inset: 10px; background: #e8e6e1; -webkit-mask: var(--back-ico) center/20px no-repeat; mask: var(--back-ico) center/20px no-repeat; }
+.cdb-back.off { visibility: hidden; }
+.cdb-search { display: block; padding: 8px 16px 10px; }
+.cdb-search input { width: 100%; box-sizing: border-box; height: 46px; border: 0; border-radius: 14px; background: #161719; color: #f2efe9; padding: 0 16px; font: 400 16px/1 var(--font-ui); outline: none; -webkit-appearance: none; }
+.cdb-search input::placeholder { color: #6e7076; }
+.cdb-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 4px 16px calc(24px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
+.cdb-brands { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cdb-brand { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 18px 6px 14px; border: 0; border-radius: 16px; background: #141516; color: #f2efe9; cursor: pointer; min-width: 0; }
+.cdb-brand:active, .cdb-row:active { background: #1f2023; }
+.cdb-brand b { font: 500 13px/16px var(--font-ui); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cdb-brand span { font: 400 11px/14px var(--font-ui); color: #7a7c82; }
+.cdb-logo { width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; flex: none; color: #f2efe9; }
+.cdb-logo i { display: block; width: 100%; height: 100%; background: currentColor; -webkit-mask: var(--logo) center/contain no-repeat; mask: var(--logo) center/contain no-repeat; }
+.cdb-logo.txt { border-radius: 50%; background: #232427; font: 700 18px/1 var(--font-ui); }
+.cdb-logo.big { width: 48px; height: 48px; }
+.cdb-row .cdb-logo { width: 28px; height: 28px; }
+.cdb-grp { margin: 18px 2px 8px; font: 500 11px/16px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: #7a7c82; }
+.cdb-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 0 0 6px; padding: 14px 16px; border: 0; border-radius: 14px; background: #141516; color: #f2efe9; text-align: left; cursor: pointer; }
+.cdb-l { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.cdb-tx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cdb-tx b { font: 500 15px/20px var(--font-ui); }
+.cdb-tx span { font: 400 12px/16px var(--font-num); color: #8a8d93; }
+.cdb-chev { width: 16px; height: 16px; flex: none; background: #6e7076; -webkit-mask: var(--chev-ico) center/16px no-repeat; mask: var(--chev-ico) center/16px no-repeat; transform: rotate(-90deg); }
+.cdb-mhead { display: flex; align-items: center; gap: 14px; padding: 6px 2px 16px; }
+.cdb-mhead b { font: 600 18px/24px var(--font-ui); }
+.cdb-empty { color: #8a8d93; text-align: center; padding: 40px 0; font: 400 15px/22px var(--font-ui); }
+.cdb-manual { width: 100%; margin-top: 16px; padding: 15px; border: 0; border-radius: 14px; background: #232427; color: #e8e6e1; font: 600 14px/1 var(--font-ui); cursor: pointer; }
+.qc-db { width: 100%; margin: 0 0 10px; padding: 15px; border: 0; border-radius: 14px; background: #e8e6e1; color: #0b0b0c; font: 600 15px/1 var(--font-ui); cursor: pointer; }
+.mycar-mods { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; }

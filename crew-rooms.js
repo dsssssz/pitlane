@@ -5,6 +5,10 @@ const TEAMS_OFF = true; // v198: команды/экипажи убраны
  */
 import { api } from './api.js';
 import { teamLapsPublic, setTeamLapsPublic } from './teams-ui.js';
+import { openCarDb } from './car-db.js';
+const CARX_KEY = 'pitlane-carx-v1'; // v220: год и доработки — только на устройстве, по названию машины
+function carX(model) { try { return (JSON.parse(localStorage.getItem(CARX_KEY) || '{}') || {})[model] || {}; } catch (_) { return {}; } }
+function setCarX(model, x) { try { const m = JSON.parse(localStorage.getItem(CARX_KEY) || '{}') || {}; m[model] = x; localStorage.setItem(CARX_KEY, JSON.stringify(m)); } catch (_) {} }
 
 const ACTIVE_KEY = 'pitlane-room-active-v1';
 const CAR_KEY = 'pitlane-mycar-v1';
@@ -141,17 +145,23 @@ export function openMyCarSheet(opts = {}) {
   const cars = [];
   const seen = new Set();
   const cur = D.currentCar?.();
-  for (const c of [cur, ...D.garageCars()]) {
+  const dbc = opts.dbCar && opts.dbCar.name ? { name: opts.dbCar.name, id: opts.dbCar.id || '', year: opts.dbCar.years || '' } : null;
+  const mine = st.car?.model ? { name: st.car.model, id: st.car.carId || '' } : null;
+  for (const c of [dbc, cur, mine, ...D.garageCars()]) {
     if (!c || !c.name || seen.has(c.name)) continue;
     seen.add(c.name); cars.push(c);
   }
   const stock = (D.stockCars() || []).filter((c) => c && c.name && !seen.has(c.name));
   const pick = { model: '', carId: '', tyre: '' };
-  if (opts.preselect) { const c = cars.find((x) => x.name === opts.preselect); if (c) { pick.model = c.name; pick.carId = c.id || ''; } }
+  if (dbc) { pick.model = dbc.name; pick.carId = dbc.id; }
+  if (!pick.model && opts.preselect) { const c = cars.find((x) => x.name === opts.preselect); if (c) { pick.model = c.name; pick.carId = c.id || ''; } }
   if (!pick.model && st.car) { pick.model = st.car.model; pick.carId = st.car.carId || ''; }
   if (!pick.model && cars[0]) { pick.model = cars[0].name; pick.carId = cars[0].id || ''; }
   if (st.car && st.car.model === pick.model) pick.tyre = st.car.tyre;
+  if (opts.tyre && !pick.tyre) pick.tyre = opts.tyre;
   const pass = passportOf(st.car && st.car.model === pick.model ? st.car : null);
+  if (dbc && pass.hp == null && opts.dbCar.hp) pass.hp = opts.dbCar.hp;
+  const xtra = { ...carX(pick.model) };
 
   // —— step 1: машина ——
   const s1 = el('section', 'mycar-step');
@@ -177,7 +187,12 @@ export function openMyCarSheet(opts = {}) {
     });
     b.dataset.model = c.name;
   });
-  const otherB = mkCar('Другая', 'из каталога или вручную', () => { sel.classList.remove('hidden'); sel.focus?.(); pick.model = ''; refresh(); });
+  const otherB = mkCar('Другая', 'все марки и модели', () => {
+    openCarDb({
+      onPick: (c) => openMyCarSheet({ ...opts, preselect: undefined, dbCar: c, tyre: pick.tyre || opts.tyre }),
+      onManual: () => { sel.classList.remove('hidden'); sel.focus?.(); pick.model = ''; refresh(); },
+    });
+  });
   otherB.dataset.model = '__other';
   sel.addEventListener('change', () => {
     if (sel.value === '__other') { custom.classList.remove('hidden'); pick.model = custom.value.trim(); pick.carId = ''; }
@@ -237,7 +252,17 @@ export function openMyCarSheet(opts = {}) {
   numIn('hp', 'л.с.', 'мощность', 30, 2500, 1);
   numIn('kg', 'кг', 'масса', 400, 4000, 1);
   numIn('bar', 'бар', 'давление шин', 1, 4, 0.1);
-  s3.append(prepRow.row, tyreTk, tyreTRow.row, nums, el('p', 'tiny muted mycar-note', 'Со слов пилота — проверить класс мы не можем, как и превью эмблем. Указывай честно: «Сток» на уличных шинах — это эталон «к стоку» для своей модели. Можно не указывать — тогда «класс не указан».'));
+  { // v220: год выпуска + доработки (как в Dragy) — локально
+    const w = el('label', 'mycar-num'); w.appendChild(el('span', 'tiny muted', 'год'));
+    const i = el('input', 'mycar-custom'); i.type = 'number'; i.inputMode = 'numeric'; i.min = '1960'; i.max = '2027'; i.placeholder = 'год'; i.id = 'myCar_year';
+    if (xtra.year) i.value = String(xtra.year);
+    i.addEventListener('input', () => { xtra.year = i.value.trim() ? Number(i.value) : undefined; });
+    w.appendChild(i); nums.appendChild(w);
+  }
+  const mods = el('input', 'mycar-custom mycar-mods'); mods.maxLength = 120; mods.id = 'myCar_mods'; mods.placeholder = 'Доработки: прошивка, даунпайп, интеркулер…'; mods.setAttribute('aria-label', 'Доработки');
+  if (xtra.mods) mods.value = xtra.mods;
+  mods.addEventListener('input', () => { xtra.mods = mods.value.trim() || undefined; });
+  s3.append(prepRow.row, tyreTk, tyreTRow.row, nums, mods, el('p', 'tiny muted mycar-note', 'Со слов пилота — проверить класс мы не можем, как и превью эмблем. Указывай честно: «Сток» на уличных шинах — это эталон «к стоку» для своей модели. Можно не указывать — тогда «класс не указан».'));
 
   // —— step 4: итог + кнопка ——
   const sum = el('div', 'mycar-sum');
@@ -258,6 +283,7 @@ export function openMyCarSheet(opts = {}) {
     }
     msg.classList.remove('mycar-msg-err');
     const local = { model, tyre: t, carId: pick.carId || undefined, ...passportOf(pass), at: Date.now() };
+    setCarX(model, { year: xtra.year, mods: xtra.mods });
     save.disabled = true;
     let car = local;
     if (loggedIn()) {
@@ -748,7 +774,7 @@ export function openQuickCarSheet() {
   const list = el('div', 'qc-list'); list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Машина');
   const pickCar = async (c) => {
     const base = st.car || null;
-    if (!base || !base.tyre) { closeSheet('myCarSheet'); setTimeout(() => openMyCarSheet({ preselect: c.name }), 280); return; }
+    if (!base || !base.tyre) { closeSheet('myCarSheet'); setTimeout(() => openMyCarSheet(c.db ? { dbCar: c.db } : { preselect: c.name }), 280); return; }
     const local = { ...base, model: c.name, carId: c.id || undefined, at: Date.now() };
     let car = local;
     if (loggedIn()) {
@@ -767,6 +793,10 @@ export function openQuickCarSheet() {
     if (on) b.append(el('span', '', st.car.tyre || ''));
     list.appendChild(b);
   });
+  body.appendChild(btn('qc-db', 'Все марки и модели', () => openCarDb({
+    onPick: (c) => pickCar({ name: c.name, id: c.id, db: c }),
+    onManual: () => { closeSheet('myCarSheet'); setTimeout(() => openMyCarSheet(), 280); },
+  })));
   body.appendChild(list);
   body.appendChild(btn('qc-more', 'Нет в списке — указать вручную', () => { closeSheet('myCarSheet'); setTimeout(() => openMyCarSheet(), 280); }));
   openSheet('myCarSheet');

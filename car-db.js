@@ -1,0 +1,142 @@
+/**
+ * v220: большая база машин — Марка → Модель (по сериям/поколениям) → Версия.
+ * База лениво грузится из cars-db.json (≈17 КБ gzip) только при открытии выбора; эмблемы — img/brands/<key>.svg (монохром, CSS-маска).
+ * Цифры (л.с., 0–100) — заводские; null = не уверены, не показываем. id версии: db.<марка>.<hash> (стабильный, проходит slug на сервере).
+ * Весь текст → textContent.
+ */
+const LOGOS = new Set(['acura','alfaromeo','astonmartin','audi','bentley','bmw','bugatti','byd','cadillac','chery','chevrolet','cupra','dodge','ferrari','ford','geely','haval','honda','hyundai','infiniti','jaguar','jeep','kia','koenigsegg','lada','lamborghini','landrover','lexus','lixiang','lucid','maserati','mazda','mclaren','mercedes','mini','mitsubishi','nissan','opel','peugeot','polestar','porsche','ram','renault','rollsroyce','seat','skoda','subaru','tesla','toyota','volkswagen','volvo','zeekr']);
+let _db = null, _p = null, _flat = null;
+export function loadCarDb() {
+  if (_db) return Promise.resolve(_db);
+  if (!_p) _p = fetch('./cars-db.json?v=1', { cache: 'force-cache' }).then((r) => { if (!r.ok) throw new Error('db ' + r.status); return r.json(); })
+    .then((j) => { _db = j; _flat = null; return j; }).catch((e) => { _p = null; throw e; });
+  return _p;
+}
+export function carDbReady() { return _db; }
+function prefixOf(b, g) { return b.k === 'mercedes' ? (g.t === 'Mercedes-Benz' ? 'Mercedes-Benz' : 'Mercedes-AMG') : b.t; }
+function chassisOf(n) { const m = n.match(/\(([^)]+)\)/); return m ? m[1] : ''; }
+function baseOf(n) { return n.replace(/\s*\([^)]*\)/g, '').trim(); }
+/** «BMW M3 Competition (G80)», «Porsche 911 GT3 RS (992)», «Toyota Camry 2.5 (XV70)». */
+export function variantName(b, g, m, v) {
+  const base = baseOf(m.n), tr = v[1], ch = chassisOf(m.n);
+  const w0 = (tr.split(/\s+/)[0] || '').toLowerCase();
+  const baseWords = base.toLowerCase().split(/[\s/]+/);
+  let s = baseWords.includes(w0) || base.toLowerCase().startsWith(w0) ? tr : base.split(' / ')[0] + ' ' + tr;
+  if (ch && !tr.includes('(')) s += ' (' + ch + ')';
+  return (prefixOf(b, g) + ' ' + s).replace(/\s+/g, ' ').slice(0, 80);
+}
+function flat() {
+  if (_flat || !_db) return _flat;
+  _flat = [];
+  for (const b of _db.b) for (const g of b.g) for (const m of g.m) for (const v of m.v) {
+    const name = variantName(b, g, m, v);
+    _flat.push({ id: v[0], name, hp: v[2], v0100: v[3], years: m.y, b, g, m, v, hay: norm(b.t + ' ' + b.k + ' ' + name + ' ' + m.n + ' ' + (ALIAS[b.k] || '')) });
+  }
+  return _flat;
+}
+const ALIAS = { bmw: 'бмв бэха', mercedes: 'мерседес мерс амг amg benz', porsche: 'порше', audi: 'ауди', volkswagen: 'фольксваген vw фв', toyota: 'тойота', lexus: 'лексус', nissan: 'ниссан', honda: 'хонда', subaru: 'субару', mitsubishi: 'мицубиси митсубиси', ford: 'форд', chevrolet: 'шевроле', dodge: 'додж', tesla: 'тесла', lamborghini: 'ламборгини ламба', ferrari: 'феррари', mclaren: 'макларен', astonmartin: 'астон мартин', bentley: 'бентли', hyundai: 'хендай хундай хёндэ', kia: 'киа', skoda: 'шкода', cupra: 'купра', lada: 'лада ваз', mazda: 'мазда', alfaromeo: 'альфа ромео', zeekr: 'зикр', lixiang: 'лисян li auto', haval: 'хавал хавейл', chery: 'чери', geely: 'джили', byd: 'бид', exeed: 'эксид', tank: 'танк', genesis: 'генезис', infiniti: 'инфинити', maserati: 'мазерати', jaguar: 'ягуар', landrover: 'ленд ровер рендж range', renault: 'рено', mini: 'мини' };
+function norm(s) { return String(s).toLowerCase().replace(/ё/g, 'е').replace(/[–—-]/g, ' ').replace(/[()·,]/g, ' ').replace(/\s+/g, ' '); }
+export function searchCarDb(q, lim = 60) {
+  const f = flat(); if (!f) return [];
+  const t = norm(q).trim().split(' ').filter(Boolean); if (!t.length) return [];
+  const out = [];
+  for (const r of f) { if (t.every((w) => r.hay.includes(w))) { out.push(r); if (out.length >= lim) break; } }
+  return out;
+}
+/** Синхронный поиск по id (после загрузки) — для класса/стока в топах. */
+export function carDbById(id) { const f = flat(); return f ? f.find((r) => r.id === id) || null : null; }
+
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+function logoEl(b, big) {
+  const w = el('span', 'cdb-logo' + (big ? ' big' : ''));
+  if (LOGOS.has(b.k)) { const i = el('i'); i.style.setProperty('--logo', `url("./img/brands/${b.k}.svg")`); w.appendChild(i); }
+  else { w.classList.add('txt'); w.textContent = b.t.slice(0, 1).toUpperCase(); }
+  w.setAttribute('aria-hidden', 'true');
+  return w;
+}
+function specLine(hp, t) { return [hp ? hp + ' л.с.' : '', t ? '0–100 ' + String(t).replace('.', ',') + ' с' : ''].filter(Boolean).join(' · '); }
+
+let sheet = null, st = null;
+function ensureSheet() {
+  if (sheet) return sheet;
+  sheet = el('div', 'cdb-sheet hidden'); sheet.id = 'carDbSheet'; sheet.setAttribute('role', 'dialog'); sheet.setAttribute('aria-label', 'Выбор машины');
+  sheet.innerHTML = '<div class="cdb-inner"><header class="cdb-head"><button type="button" class="cdb-back" aria-label="Назад"></button><b class="cdb-title">Марка</b><button type="button" class="cdb-x" aria-label="Закрыть">×</button></header>'
+    + '<label class="cdb-search"><input type="search" enterkeyhint="search" autocomplete="off" placeholder="Марка, модель, кузов — например M3 G80" aria-label="Поиск машины" /></label><div class="cdb-body" role="list"></div></div>';
+  document.body.appendChild(sheet);
+  sheet.addEventListener('click', (e) => { if (e.target === sheet) closeCarDb(); });
+  sheet.querySelector('.cdb-x').addEventListener('click', () => closeCarDb());
+  sheet.querySelector('.cdb-back').addEventListener('click', () => { if (!st) return; if (st.model) { st.model = null; render(); } else if (st.brand) { st.brand = null; render(); } else closeCarDb(); });
+  const inp = sheet.querySelector('input');
+  let tm = 0; inp.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(() => { if (st) { st.q = inp.value; render(); } }, 90); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sheet.classList.contains('hidden')) closeCarDb(); });
+  return sheet;
+}
+export function closeCarDb() { if (!sheet) return; sheet.classList.add('hidden'); st = null; }
+/** opts.onPick({id,name,hp,v0100,years,brand}) ; opts.onManual() — «нет в списке». */
+export function openCarDb(opts = {}) {
+  ensureSheet();
+  st = { brand: null, model: null, q: '', onPick: opts.onPick, onManual: opts.onManual };
+  sheet.querySelector('input').value = '';
+  sheet.classList.remove('hidden');
+  const body = sheet.querySelector('.cdb-body');
+  if (!_db) { body.replaceChildren(el('p', 'cdb-empty', 'Загружаю базу…')); }
+  loadCarDb().then(() => { if (st) render(); }).catch(() => { if (st) body.replaceChildren(el('p', 'cdb-empty', 'Нет сети — база не загрузилась')); });
+  if (_db) render();
+}
+function pick(r) {
+  const f = st?.onPick; closeCarDb();
+  try { f?.({ id: r.id, name: r.name, hp: r.hp ?? null, v0100: r.v0100 ?? null, years: r.years, brand: r.b.t }); } catch (_) {}
+}
+function variantBtn(r, showBrand) {
+  const b = el('button', 'cdb-row cdb-var'); b.type = 'button'; b.setAttribute('role', 'listitem');
+  const l = el('span', 'cdb-l');
+  if (showBrand) l.appendChild(logoEl(r.b));
+  const tx = el('span', 'cdb-tx'); tx.append(el('b', '', showBrand ? r.name : r.v[1]), el('span', '', [showBrand ? r.years : '', specLine(r.hp, r.v0100)].filter(Boolean).join(' · ') || ' '));
+  l.appendChild(tx); b.appendChild(l);
+  b.addEventListener('click', () => pick(r));
+  return b;
+}
+function render() {
+  if (!st || !_db) return;
+  const body = sheet.querySelector('.cdb-body'), title = sheet.querySelector('.cdb-title');
+  sheet.querySelector('.cdb-back').classList.toggle('off', !st.brand && !st.model);
+  const nodes = [];
+  if (st.q.trim()) {
+    title.textContent = 'Поиск';
+    const res = searchCarDb(st.q, 80);
+    if (!res.length) nodes.push(el('p', 'cdb-empty', 'Ничего не нашли'));
+    res.forEach((r) => nodes.push(variantBtn(r, true)));
+  } else if (st.model) {
+    const { b, g, m } = st.model;
+    title.textContent = baseOf(m.n);
+    const hd = el('div', 'cdb-mhead'); hd.append(logoEl(b, true)); const t = el('span', 'cdb-tx'); t.append(el('b', '', prefixOf(b, g) + ' ' + m.n), el('span', '', m.y)); hd.appendChild(t); nodes.push(hd);
+    const f = flat();
+    m.v.forEach((v) => { const r = f.find((x) => x.id === v[0]); if (r) nodes.push(variantBtn(r, false)); });
+  } else if (st.brand) {
+    const b = st.brand; title.textContent = b.t;
+    b.g.forEach((g) => {
+      nodes.push(el('h4', 'cdb-grp', g.t));
+      g.m.forEach((m) => {
+        const row = el('button', 'cdb-row cdb-model'); row.type = 'button'; row.setAttribute('role', 'listitem');
+        const tx = el('span', 'cdb-tx'); tx.append(el('b', '', m.n), el('span', '', m.y + ' · ' + m.v.length + ' ' + plural(m.v.length)));
+        row.append(tx, el('i', 'cdb-chev'));
+        row.addEventListener('click', () => { if (m.v.length === 1) { const r = flat().find((x) => x.id === m.v[0][0]); if (r) return pick(r); } st.model = { b, g, m }; render(); body.scrollTop = 0; });
+        nodes.push(row);
+      });
+    });
+  } else {
+    title.textContent = 'Марка';
+    const grid = el('div', 'cdb-brands');
+    _db.b.forEach((b) => {
+      const n = b.g.reduce((a, g) => a + g.m.length, 0);
+      const t = el('button', 'cdb-brand'); t.type = 'button'; t.setAttribute('aria-label', b.t);
+      t.append(logoEl(b), el('b', '', b.t), el('span', '', n + ' мод.'));
+      t.addEventListener('click', () => { st.brand = b; render(); body.scrollTop = 0; });
+      grid.appendChild(t);
+    });
+    nodes.push(grid);
+  }
+  if (st.onManual) { const mb = el('button', 'cdb-manual', 'Нет в списке — ввести вручную'); mb.type = 'button'; mb.addEventListener('click', () => { const f = st.onManual; closeCarDb(); f(); }); nodes.push(mb); }
+  body.replaceChildren(...nodes);
+}
+function plural(n) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'версия' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'версии' : 'версий'; }
