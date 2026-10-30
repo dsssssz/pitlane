@@ -7631,3 +7631,7 @@ html.tma .cp-back { display:none; }
 html:not(#_):not(#_):not(#_) .pl-x { align-content:center; justify-content:center; }
 html:not(#_):not(#_):not(#_) .ds-sheet-hd { padding-left:16px; padding-right:16px; box-sizing:border-box; }
 html:not(#_):not(#_):not(#_) .share-card > .pl-x, html:not(#_):not(#_):not(#_) .ghost-result .pl-x { top:15px; right:15px; }
+/* v229: inline-кнопки — зона 44px, визуально круг 30px */
+html:not(#_):not(#_):not(#_) .pl-x.pl-inline:not(.plm-close) { width:44px; height:44px; min-width:44px; max-width:44px; min-height:44px; margin:-7px; background:transparent; isolation:isolate; }
+html:not(#_):not(#_):not(#_) .pl-x.pl-inline:not(.plm-close)::after { inset:7px; background:#2a2b2f; z-index:-1; }
+html:not(#_):not(#_):not(#_) .pl-x.pl-inline:not(.plm-close):active::after { background:#34353a; }
