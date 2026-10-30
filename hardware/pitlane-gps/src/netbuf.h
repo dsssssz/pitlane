@@ -5,7 +5,7 @@
 #include <stddef.h>
 
 #ifndef NET_BUF_POINTS
-#define NET_BUF_POINTS 2048   // ≈ 82 с при 25 Гц, ≈ 3.4 мин при 10 Гц (20 байт на точку → 40 КБ RAM)
+#define NET_BUF_POINTS 768    // 2.1.3: было 2048 (40 КБ) — память нужна TLS; ≈ 30 с при 25 Гц, 77 с при 10 Гц (15 КБ)
 #endif
 
 struct NetPt {

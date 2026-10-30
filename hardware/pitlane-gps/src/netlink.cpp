@@ -91,6 +91,8 @@ static void checkDns() {
 // повтор без проверки сертификата ТОЛЬКО для диагноза (данные не передаются), чтобы отличить сертификат от сети.
 static bool tlsProbe() {
   uint32_t t0 = millis();
+  if (ESP.getMaxAllocHeap() < 40000)
+    Serial.printf("[pitlane-gps] TLS: мало памяти одним куском (%lu Б) — рукопожатие может упасть с -32512\n", (unsigned long)ESP.getMaxAllocHeap());
   Serial.printf("[pitlane-gps] TLS: проба %s:443 · heap %lu (макс. блок %lu) · time %ld\n", PL_API_HOST,
                 (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap(), (long)time(nullptr));
   WiFiClientSecure c; tlsSetup(c); c.setHandshakeTimeout(15);
@@ -264,7 +266,11 @@ void startPortal(uint32_t minutes) {
 }
 static void stopPortal() {
   if (!portalOn) return;
+  // 2.1.3: после сохранения сети — перезагрузка, чтобы стартовать в режиме Wi-Fi без BLE (память под TLS)
+  if (portalSaved && ssid.length()) { Serial.println("[pitlane-gps] сеть сохранена — перезагрузка в режим Wi-Fi"); delay(300); ESP.restart(); }
   http->stop(); dns->stop();
+  delete http; http = nullptr; delete dns; dns = nullptr;   // 2.1.3: освобождаем RAM под TLS
+  scanHtml = String();
   WiFi.softAPdisconnect(true);
   portalOn = false;
   WiFi.mode(WIFI_STA); txPower();
@@ -279,7 +285,7 @@ static void tryClaim(uint32_t now) {
   WiFiClientSecure cli; tlsSetup(cli); cli.setTimeout(15); cli.setHandshakeTimeout(15);
   HTTPClient hc;
   if (!hc.begin(cli, "https://" PL_API_HOST "/gps/claim")) return;
-  Serial.printf("[pitlane-gps] привязка: POST /gps/claim (код %s)\n", code.c_str());
+  Serial.printf("[pitlane-gps] привязка: POST /gps/claim (код %s) · heap %lu, блок %lu\n", code.c_str(), (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
   hc.addHeader("Content-Type", "application/json");
   char body[160];
   snprintf(body, sizeof body, "{\"code\":\"%s\",\"name\":\"%s\",\"fw\":\"%s\"}", code.c_str(), devName, fwVer);
@@ -315,7 +321,7 @@ static void wsEvent(WStype_t type, uint8_t* payload, size_t len) {
     Serial.println("[pitlane-gps] сервер: подключено");
   } else if (type == WStype_DISCONNECTED) {
     if (wsOpen) Serial.printf("[pitlane-gps] сервер: связь потеряна (hello %s, heap %lu) — копим точки в буфере\n", gotHello ? "был" : "НЕ пришёл", (unsigned long)ESP.getFreeHeap());
-    else Serial.printf("[pitlane-gps] сервер: WS не открылся (heap %lu), повтор через 5 с\n", (unsigned long)ESP.getFreeHeap());
+    else Serial.printf("[pitlane-gps] сервер: WS не открылся (heap %lu, блок %lu), повтор через 5 с\n", (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
     if (len) Serial.printf("[pitlane-gps] сервер: причина: %.*s\n", (int)len, (const char*)payload);
     wsOpen = false; gotHello = false;
     buf.rewind();
@@ -352,7 +358,7 @@ static void startWs() {
 #else
   ws.beginSslWithCA(PL_API_HOST, 443, "/gps/ws", PL_CA_BUNDLE, "");
 #endif
-  Serial.printf("[pitlane-gps] сервер: WS wss://%s/gps/ws · heap %lu\n", PL_API_HOST, (unsigned long)ESP.getFreeHeap());
+  Serial.printf("[pitlane-gps] сервер: WS wss://%s/gps/ws · heap %lu, блок %lu\n", PL_API_HOST, (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
   ws.setExtraHeaders(hdr.c_str());
   ws.onEvent(wsEvent);
   ws.setReconnectInterval(5000);          // 2.1.3: не чаще раза в 5 с (TLS-рукопожатие на C3 ~1–3 с)

@@ -3,6 +3,8 @@
 // и v116: Wi-Fi (режим модема телефона) → Worker (WSS) → Telegram Mini App / iPhone.
 #include <Arduino.h>
 #include <NimBLEDevice.h>
+#include <Preferences.h>
+#include "esp_bt.h"
 #include "protocol.h"
 #include "ubx.h"
 #include "lights.h"
@@ -131,6 +133,16 @@ static void buildStatus(StatusPacket& s) {
 static void setupBle() {
   uint64_t mac = ESP.getEfuseMac();
   snprintf(devName, sizeof(devName), "PITLANE-GPS-%04X", (unsigned)((mac >> 32) & 0xFFFF));
+  // 2.1.3: в режиме Wi-Fi BLE не поднимаем вовсе и отдаём память контроллера — иначе TLS на C3
+  // падает с -32512 (Memory allocation failed): NimBLE + Wi-Fi оставляют ~54 КБ, а рукопожатию нужно ~45–50 КБ одним куском.
+  {
+    Preferences pp; pp.begin("plnet", true); bool wifiCfg = pp.getString("ssid", "").length() > 0; pp.end();
+    if (wifiCfg) {
+      esp_bt_controller_mem_release(ESP_BT_MODE_BTDM);
+      Serial.printf("[pitlane-gps] BLE выключен (режим Wi-Fi) · heap %lu, макс. блок %lu\n", (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
+      return;
+    }
+  }
   NimBLEDevice::init(devName);
   NimBLEDevice::setPower(9);
   NimBLEDevice::setMTU(64);
@@ -165,8 +177,7 @@ static void sendPvt(const NavPvt& p) {
   pk.sAcc_cms = (uint8_t)min<uint32_t>(p.sAcc / 10, 255);
   int32_t h = p.headMot % 36000000; if (h < 0) h += 36000000;
   pk.head = (uint8_t)(((int64_t)h * 256 + 18000000) / 36000000);
-  chPvt->setValue((uint8_t*)&pk, sizeof(pk));
-  if (bleConnected) chPvt->notify();
+  if (chPvt) { chPvt->setValue((uint8_t*)&pk, sizeof(pk)); if (bleConnected) chPvt->notify(); }
 }
 
 void setup() {
@@ -251,16 +262,15 @@ void loop() {
     pvtRate = pvtCount; pvtCount = 0;
     readBattery();
     StatusPacket s; buildStatus(s);
-    chStatus->setValue((uint8_t*)&s, sizeof(s));
-    if (bleConnected) chStatus->notify();
+    if (chStatus) { chStatus->setValue((uint8_t*)&s, sizeof(s)); if (bleConnected) chStatus->notify(); }
     Serial.printf("fix=%u ok=%d sv=%u lat=%.7f lon=%.7f v=%.2f km/h sAcc=%.2f m/s hAcc=%.1f m | %lu Hz | bat %u mV %u%% | BLE %s\n",
                   last.fixType, last.gnssFixOK, last.numSV, last.lat * 1e-7, last.lon * 1e-7,
                   last.gSpeed * 0.0036, last.sAcc / 1000.0, last.hAcc / 1000.0, (unsigned long)pvtRate,
                   battmV, battPct, bleConnected ? "on" : "off");
     netlink::setStatus(gps.rate(), battmV, battPct, (uint8_t)min<uint32_t>(pvtRate, 255));
-    Serial.printf("  leds: %s | Wi-Fi: %s, в буфере %lu, потеряно %lu | heap %lu\n", lights::modeName(lights::mode()),
+    Serial.printf("  leds: %s | Wi-Fi: %s, в буфере %lu, потеряно %lu | heap %lu, блок %lu\n", lights::modeName(lights::mode()),
                   netlink::stateName(netlink::state()), (unsigned long)netlink::bufferedPoints(), (unsigned long)netlink::droppedPoints(),
-                  (unsigned long)ESP.getFreeHeap());
+                  (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
     // GPS молчит — переинициализация. gps.begin() блокирует ~5 с (перебор скоростей), поэтому
     // без модуля повторяем всё реже (8 → 60 с), иначе светодиод «замирает» и сеть подтормаживает
     static uint32_t silentSec = 0, reinitAfter = 5;
