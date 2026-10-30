@@ -63,7 +63,7 @@ import { analyzeSession, splitOutline, sectorTone } from './session-review.js';
 import * as LB from './lap-battle.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
-import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
+import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 // v207: подсказки удалены полностью
 const tipsOnView = () => {};
@@ -5941,7 +5941,7 @@ function renderSlips() {
   // v87: строки слипов через DOM/textContent (крупные табличные цифры)
   el.replaceChildren();
   const rows = state.slips || [];
-  if (!rows.length) { el.appendChild(padEl('li', 'slip-empty', 'Слипов пока нет — сделай первый замер.')); return; }
+  if (!rows.length) { el.appendChild(padEl('li', 'slip-empty', 'Слипов пока нет.')); return; }
   rows.forEach((s) => {
     const li = padEl('li', 'slip-row');
     li.appendChild(padEl('span', 'slip-car', s.car || '—'));
@@ -13041,6 +13041,7 @@ document.getElementById('btnTopsMenu')?.addEventListener('click', () => {
 document.getElementById('topsMenu')?.addEventListener('click', (e) => { if (e.target.closest?.('.tops-menu-links button')) { const m = document.getElementById('topsMenu'); if (m) m.hidden = true; document.getElementById('btnTopsMenu')?.setAttribute('aria-expanded', 'false'); document.getElementById('btnTopsMenu')?.classList.remove('on'); } setTimeout(topsActiveLine, 0); });
 document.getElementById('topsMenu')?.addEventListener('change', () => setTimeout(topsActiveLine, 0));
 setTimeout(topsActiveLine, 0);
+document.getElementById('h48Car')?.addEventListener('click', () => openQuickCarSheet());
 document.getElementById('btnMyCarAcc')?.addEventListener('click', () => openMyCarSheet());
 document.getElementById('btnMyCarLap')?.addEventListener('click', () => openMyCarSheet({ preselect: currentCar()?.name }));
 document.getElementById('btnMyCarGarage')?.addEventListener('click', () => openMyCarSheet({ preselect: currentCar()?.name }));
@@ -16018,6 +16019,10 @@ function homeGoGpsStatus() {
   const st = (typeof extGps !== 'undefined' && extGps?.state?.()) || 'off';
   const ext = st === 'wifi' || st === 'ble';
   const src = st === 'wifi' ? 'Внешний GPS · Wi-Fi' : st === 'ble' ? 'Внешний GPS · Bluetooth' : st === 'sim' ? 'Симулятор' : 'Телефон';
+  if (ext) { // v219: чип — спокойно и заметно: «Чип · 25 Гц · Wi-Fi»
+    let hzN = 0; try { const i = extGps.info(); hzN = i?.status?.rateHz || (i?.hz >= 18 ? 25 : i?.hz >= 8 ? 10 : Math.round(i?.hz || 0)); } catch (_) {}
+    return { text: 'Чип' + (hzN ? ' · ' + hzN + ' Гц' : '') + ' · ' + (st === 'wifi' ? 'Wi-Fi' : 'Bluetooth'), q: 'chip' };
+  }
   const fix = _homeLastFix;
   if (fix && Date.now() - fix.at < 15000 && Number.isFinite(fix.acc) && fix.acc > 0) {
     const acc = fix.acc;
@@ -16363,11 +16368,11 @@ async function renderDuelsView() {
     if (!cur.length) {
       const e = padEl('div', 'duels-empty');
       const msg = !isRemoteApi() ? ['Дуэли работают онлайн', 'Нужен Worker API.']
-        : _duelsTab === 'inbox' ? ['Входящих вызовов нет', 'Когда друг пришлёт ссылку на дуэль, она появится здесь.']
-          : _duelsTab === 'done' ? ['Завершённых дуэлей пока нет', 'Итоги появятся, когда оба пилота прикрепят заезды.']
-            : ['Активных дуэлей нет', 'Брось вызов на 0–100 или круг — отправь ссылку сопернику.'];
+        : _duelsTab === 'inbox' ? ['Входящих вызовов нет', '']
+          : _duelsTab === 'done' ? ['Завершённых дуэлей нет', '']
+            : ['Активных дуэлей нет', ''];
       e.appendChild(padEl('b', '', msg[0]));
-      e.appendChild(padEl('span', '', msg[1]));
+      if (msg[1]) e.appendChild(padEl('span', '', msg[1]));
       if (_duelsTab !== 'done' && isRemoteApi()) {
         const b = padEl('button', 'go-btn duels-empty-go', 'Вызвать');
         b.type = 'button';
@@ -16672,11 +16677,8 @@ async function renderTopsBoard() {
   if (!rows.length) {
     const li = padEl('li', 'tb-empty');
     const filtered = _topsPrep !== 'all' || document.getElementById('topMyCarOnly')?.checked;
-    li.appendChild(padEl('b', '', filtered ? 'в этом срезе пока нет заездов' : (sel.kind === 'lap' && _topsPeriod === 'week' ? 'на этой неделе кругов пока нет' : 'пока нет валидных заездов')));
-    li.appendChild(padEl('span', '', cls === 'c'
-      ? (sel.kind === 'lap' ? 'Проедь круг с телефоном по линии С/Ф — он попадёт в зачёт C.' : 'Сделай замер телефоном — лучший результат попадёт в зачёт C.')
-      : (sel.kind === 'lap' ? 'Проедь валидный круг с GPS A/B — и займи первую строку.' : 'Сделай замер с GPS A/B — лучший результат попадёт сюда.')));
-    const go = padEl('button', 'home-link', sel.kind === 'lap' ? 'К кругу' : 'К замеру');
+    li.appendChild(padEl('b', '', filtered ? 'В этом срезе пока пусто' : (sel.kind === 'lap' ? 'Кругов пока нет' : 'Заездов пока нет')));
+    const go = padEl('button', 'tb-empty-go', sel.kind === 'lap' ? 'Проехать круг' : 'Сделать замер');
     go.type = 'button';
     go.addEventListener('click', () => goToView(sel.kind === 'lap' ? 'lap' : 'run'));
     li.appendChild(go);

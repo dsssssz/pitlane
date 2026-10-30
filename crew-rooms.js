@@ -135,6 +135,7 @@ function tyreShort(t) {
 export function openMyCarSheet(opts = {}) {
   const body = document.getElementById('myCarBody');
   if (!body) return;
+  { const sh = document.getElementById('myCarSheet'); const h = sh?.querySelector('.race-sheet-title'); const p = sh?.querySelector('.race-sheet-sub'); if (h) h.textContent = 'Это моя машина'; if (p) { p.textContent = 'На эту машину и резину запишется каждый круг'; p.hidden = false; } }
   body.replaceChildren();
   if (opts.reason) body.appendChild(el('p', 'mycar-warn', opts.reason));
   const cars = [];
@@ -725,4 +726,48 @@ export function initCrewRooms(deps) {
   try {
     window.__plRooms = { open: openRoomSheet, openCar: openMyCarSheet, showRoom: (id, tab) => { openSheet('roomSheet'); return showRoom(id, tab); }, state: () => ({ car: st.car, room: st.room?.id || null, active: activeRoomId() }), syncCar: () => syncMyCarAfterAuth() };
   } catch (_) {}
+}
+
+/**
+ * v219: быстрый выбор машины со вкладки «Замер» — сразу список, один тап.
+ * Резина/паспорт берутся с текущей «Моей машины»; если их нет — открываем полный лист с выбранной машиной.
+ */
+export function openQuickCarSheet() {
+  const body = document.getElementById('myCarBody');
+  if (!body) return;
+  body.replaceChildren();
+  const seen = new Set(); const cars = [];
+  const cur = D.currentCar?.();
+  if (st.car?.model) { seen.add(st.car.model); cars.push({ name: st.car.model, id: st.car.carId || '', mine: true }); }
+  for (const c of [cur, ...(D.garageCars() || []), ...(D.stockCars() || [])]) {
+    if (!c || !c.name || seen.has(c.name)) continue;
+    seen.add(c.name); cars.push(c);
+  }
+  const hd = (t, sub) => { const sh = document.getElementById('myCarSheet'); const h = sh?.querySelector('.race-sheet-title'); const p = sh?.querySelector('.race-sheet-sub'); if (h) h.textContent = t; if (p) { p.textContent = sub; p.hidden = !sub; } };
+  hd('Машина', '');
+  const list = el('div', 'qc-list'); list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Машина');
+  const pickCar = async (c) => {
+    const base = st.car || null;
+    if (!base || !base.tyre) { closeSheet('myCarSheet'); setTimeout(() => openMyCarSheet({ preselect: c.name }), 280); return; }
+    const local = { ...base, model: c.name, carId: c.id || undefined, at: Date.now() };
+    let car = local;
+    if (loggedIn()) {
+      const r = await api.putMyCar({ model: c.name, tyre: base.tyre, carId: c.id || undefined, ...passportOf(base) });
+      if (!r || r.ok === false) { try { D.flash?.('Не сохранилось — проверь сеть'); } catch (_) {} return; }
+      car = r.car || local;
+    }
+    cacheCar(car); D.hap?.(10);
+    closeSheet('myCarSheet');
+  };
+  cars.slice(0, 40).forEach((c) => {
+    const on = st.car?.model === c.name;
+    const b = btn('qc-row' + (on ? ' on' : ''), null, () => pickCar(c));
+    b.setAttribute('role', 'option'); b.setAttribute('aria-selected', on ? 'true' : 'false');
+    b.append(el('b', '', c.name));
+    if (on) b.append(el('span', '', st.car.tyre || ''));
+    list.appendChild(b);
+  });
+  body.appendChild(list);
+  body.appendChild(btn('qc-more', 'Нет в списке — указать вручную', () => { closeSheet('myCarSheet'); setTimeout(() => openMyCarSheet(), 280); }));
+  openSheet('myCarSheet');
 }

@@ -7470,3 +7470,17 @@ canvas.pin209-i { width: 150px; height: 150px; display: block; margin: 0 auto; }
 /* v214 QA: пустая витрина (нет машины) — компактная карточка, текст по центру */
 .sc-hero.ce.empty { height: auto; min-height: 0; display: grid; place-items: center; padding: 26px 22px; text-align: center; border: 1px solid #1c1d20; }
 .sc-hero.ce.empty .sc-nocar { margin: 0; max-width: 260px; }
+/* v219: быстрый выбор машины + статус чипа */
+.h48-car { display: block; margin-left: auto; margin-right: auto; background: none; border: 0; padding: 6px 10px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.h48-car::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 8px; border-right: 1.5px solid #75787e; border-bottom: 1.5px solid #75787e; transform: translateY(-3px) rotate(45deg); }
+.h48-car[data-empty="1"] { color: #f2f2f2; }
+.h48-gps[data-q="chip"] { color: #e8e6e1; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.07); font-weight: 500; }
+.h48-gps[data-q="chip"] i { background: #e8e6e1; }
+.qc-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0 14px; max-height: 56vh; overflow-y: auto; }
+.qc-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; padding: 15px 16px; border: 0; border-radius: 14px; background: #161719; color: #e8e6e1; text-align: left; font: 500 15px/1.25 var(--font-ui); cursor: pointer; }
+.qc-row b { font-weight: 500; }
+.qc-row span { font-size: 12px; color: #8a8d93; white-space: nowrap; }
+.qc-row.on { background: #e8e6e1; color: #0b0b0c; }
+.qc-row.on span { color: #4a4b4f; }
+.qc-more { width: 100%; padding: 15px; border: 0; border-radius: 14px; background: #232427; color: #e8e6e1; font: 600 14px/1 var(--font-ui); cursor: pointer; }
+.tb-empty-go, .jn-go { display: inline-block; margin-top: 12px; padding: 12px 20px; border: 0; border-radius: 12px; background: #e8e6e1; color: #0b0b0c; font: 600 14px/1 var(--font-ui); cursor: pointer; }
