@@ -12,9 +12,9 @@
  *   введённый на шагах текст удаляется; /start и команды заменяют прошлый экран (KV botscr:<chat>). Данные кнопок: <экран>[~<назад>],
  *   шаги назад: bq · bc · bt · bm; кнопки уведомлений: n:<данные> (открыть экран новым сообщением, уведомление не трогать).
  */
-import { SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, fmtRub, orderTotal, SHOP_DELIVERY, deliveryById, cartTotals, PAY_BADGES, trackUrl, MAX_CART_LINES } from '../../shop-config.js';
+import { FOUNDERS, SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, fmtRub, orderTotal, SHOP_DELIVERY, deliveryById, cartTotals, PAY_BADGES, trackUrl, MAX_CART_LINES } from '../../shop-config.js';
 import { APP_URL, RULE, esc, webAppBtn, START_CAPTION, TG_BANNER_URL } from './botcopy.js';
-import { createOrder, listOrders, setOrderStatus, getOrder, msgOrderOwner, adminStatusKeyboard, msgOrderStatusBuyer, msgOrderBuyer, shopAdmins, ownerChat, normPhone, SHOP_RL, priceRec, findOrder, itemLines, sumLines, orderNo } from './shop.js';
+import { foundersState, createOrder, listOrders, setOrderStatus, getOrder, msgOrderOwner, adminStatusKeyboard, msgOrderStatusBuyer, msgOrderBuyer, shopAdmins, ownerChat, normPhone, SHOP_RL, priceRec, findOrder, itemLines, sumLines, orderNo } from './shop.js';
 import { paymentsOn } from './robokassa.js';
 import { resolvePromo } from './promo.js';
 
@@ -191,11 +191,15 @@ export function screenConfirm(f) {
 }
 let payOnNow = false; // выставляется по env в botCallback/botCommand (экраны — чистые функции)
 /** Запись заказа из состояния шага (суммы — тем же priceRec, что и для сайта). */
+/** v236: мест основателей не осталось → превью «Проверьте заказ» показывает обычную цену (как и createOrder). */
+async function markSeats(kv, f, H) {
+  try { const fs = await foundersState(kv, H); f.noSeats = !(fs.ids.length < FOUNDERS.limit); } catch (_) { delete f.noSeats; }
+}
 export function flowRec(f) {
   const items = (f.items && f.items.length ? f.items : [{ id: f.pid, qty: f.qty || 1 }]).map((x) => { const p = productById(x.id); return { productId: p.id, title: p.title, qty: x.qty, price: Number.isFinite(p.price) ? p.price : null }; });
   const d = deliveryById(f.dl);
   const delivery = d ? { id: d.id, title: d.title, price: d.price, addr: d.id === 'pickup' ? '' : (f.addr || '') } : null;
-  return priceRec({ items, delivery, promo: f.promo || null, payMethod: f.pm || null, city: f.city, contact: f.cm === 'tg' ? { method: 'tg' } : { method: f.cm, value: f.cv }, comment: f.cmt || '', cid: f.cid }, {}, null, !!SHOP_CONFIG.foundersOpen && items.some((x) => x.productId === 'pitlane-gps'));
+  return priceRec({ items, delivery, promo: f.promo || null, payMethod: f.pm || null, city: f.city, contact: f.cm === 'tg' ? { method: 'tg' } : { method: f.cm, value: f.cv }, comment: f.cmt || '', cid: f.cid }, {}, null, !!SHOP_CONFIG.foundersOpen && !f.noSeats && items.some((x) => x.productId === 'pitlane-gps'));
 }
 
 /* ——— v226: корзина ——— */
@@ -450,7 +454,7 @@ export async function botFlowMessage(env, msg, H) {
     return stay('order:phone', screenComment(f));
   }
   if (f.step === 'comment') {
-    f.cmt = H.cleanLabel(tx.replace(/\s+/g, ' '), 500); f.step = 'confirm'; return stay('order:comment', screenConfirm(f));
+    f.cmt = H.cleanLabel(tx.replace(/\s+/g, ' '), 500); f.step = 'confirm'; await markSeats(env.PITLANE, f, H); return stay('order:comment', screenConfirm(f));
   }
   if (f.step === 'confirm' || f.step === 'qty' || f.step === 'contact' || f.step === 'dl') { await tidy(); return { cmd: 'order:wait' }; } // выбор — кнопками на экране
   return null;
@@ -587,7 +591,7 @@ export async function botCallback(env, cq, H) {
   if (key === 'bc' && f.qty) { await clearAux(env, chat, f, H); f.step = 'city'; if (!f.fromCart) f.dl = null; return step('cb:back:city', screenCity(f)); }
   if (key === 'bt' && f.city) { await clearAux(env, chat, f, H); f.step = 'contact'; return step('cb:back:contact', screenContact(f)); }
   if (key === 'bm' && f.cm) { f.step = 'comment'; return step('cb:back:comment', screenComment(f)); }
-  if (key === 'on:skip' && f.cm) { f.cmt = ''; f.step = 'confirm'; return step('cb:skip', screenConfirm(f)); }
+  if (key === 'on:skip' && f.cm) { f.cmt = ''; f.step = 'confirm'; await markSeats(env.PITLANE, f, H); return step('cb:skip', screenConfirm(f)); }
   if (key === 'oe') { await clearAux(env, chat, f, H); if (f.fromCart) { await dropFlow(kv, chat); return done('cb:edit', screenCart(await getCart(kv, chat))); } const g = { step: 'qty', pid: f.pid, un: f.un, nm: f.nm, cid: f.cid, mid: f.mid, ph: f.ph }; Object.keys(f).forEach((k) => delete f[k]); Object.assign(f, g); return step('cb:edit', screenQty(f)); }
   if (key === 'ok' && f.step === 'confirm' && f.qty && f.city && f.cm) {
     if (!(f.items || [{ id: p.id }]).every((x) => orderable(productById(x.id)))) { await ack('Товар сейчас недоступен', true); return { cmd: 'cb:ok:na' }; }
