@@ -1,7 +1,7 @@
 /* v190: Трек — список 16 трасс и карточка трассы: 2D-карта (геометрия OSM, высоты Copernicus DEM), повороты по официальным схемам, зоны торможения и траектория (расчёт), конфигурации, рекорды, «как попасть», проигрыш круга. Грузится лениво. */
-import {TURNS,INFO} from './tv2-data.js?v=190';
+import {TURNS,INFO} from './tv2-data.js';
 export const SEC=['#cfccc5','#8ea3b5','#b9a27a'];
-const BASE=new URL('../geo/tv2/',import.meta.url).href;
+const BASE=new URL('./geo/tv2/',document.baseURI).href;
 const ORDER=['sochi','moscow','igora','kazan','smolensk','nring','adm','grozny','redring','spb','tlt','lipetsk','auto-msk','neva','ufa','don'];
 const WHERE={sochi:'Сириус · Краснодарский край',moscow:'Волоколамск · Подмосковье',igora:'Приозерский р-н · Ленобласть',kazan:'Высокая Гора · Татарстан',smolensk:'Смоленская область',nring:'Богородск · Нижегородская обл.',adm:'Мячково · Подмосковье',grozny:'Грозный · Чечня',redring:'Емельяново · Красноярский край',spb:'Шушары · Санкт-Петербург',tlt:'Тольятти',lipetsk:'Липецк','auto-msk':'Москва',neva:'—',ufa:'Уфа',don:'Ростов-на-Дону'};
 const OFFICIAL={redring:{km:2.16,turns:13},kazan:{turns:12}};

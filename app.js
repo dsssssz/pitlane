@@ -13145,7 +13145,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v229';
+const APP_VERSION = 'v230';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -16995,7 +16995,7 @@ function ls58Close() { const box = document.getElementById('ls58'); if (!box) re
   // v189: новый «Трек» — список 16 трасс + карточка/3D (модуль грузится лениво при открытии вкладки)
   let tv2Booted = false; let tv2P = null;
   // v193: модуль предзагружается заранее, пока грузится — скелетон в #tv2 (старое меню трека удалено)
-  const tv2Mod = () => (tv2P ||= import('./track-v2/tv2.js?v=190').catch((e) => { tv2P = null; throw e; }));
+  const tv2Mod = () => (tv2P ||= import('./track-v2/tv2.js').catch((e) => { tv2P = null; throw e; }));
   (window.requestIdleCallback || ((f) => setTimeout(f, 1200)))(() => { tv2Mod().catch(() => {}); });
   const tv2Boot = () => { if (tv2Booted) return; const host = document.getElementById('tv2'); if (!host) return; tv2Booted = true;
     const B = { tracks: TRACKS, myBest: tk58MyBest, laps: tk58Laps, fmt: fmtLapTime, theo: lh58Theo, full: lh58Full,

@@ -1,8 +1,10 @@
-const CACHE = 'pitlane-v229';
+const CACHE = 'pitlane-v230';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
+const BUILD = /*BUILD*/["./b/app-MPMZWOGQ.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-1A285103.css"]/*END*/;
 const CORE = [
+  ...BUILD,
   './',
   './index.html',
   './zamer.html',
@@ -16,29 +18,7 @@ const CORE = [
   './contacts.html',
   './delete-account.html',
   './tools/tma-check.html',
-  './legal.css',
-  './styles.css', './fonts/pl-sans.woff2', './fonts/pl-num.woff2', './motion.js', './journal.js',
-  './app.js',
-  './plates.js',
-  './ext-gps.js',
-  './crew-rooms.js',
-  './awards.js',
-  './music-ui.js',
-  './teams-ui.js',
-  './chase-match.js',
-  './ghost.js',
-  './session-review.js',
-  './ghost-codec.js',
-  './gps-core.js',
-  './measure-engine.js',
-  './run-marks.js',
-  './car-brands.js',
-  './car-db.js',
-  './shop-config.js',
-  './shop-ui.js',
-  './lap-battle.js',
-  './lap-analytics.js',
-  './video-tele.js',
+  './legal.css', './fonts/pl-sans.woff2', './fonts/pl-num.woff2',
   './img/shop/gps-hero-720.webp',
   './img/banners/bn-gps-800.webp',
   './img/banners/bn-tops-800.webp',
@@ -46,8 +26,6 @@ const CORE = [
   './img/banners/bn-video-800.webp',
   './img/banners/bn-track-800.webp',
   './img/flags/de.svg', './img/flags/gb.svg', './img/flags/it.svg', './img/flags/jp.svg', './img/flags/us.svg',
-  './track-cal.js',
-  './legal-config.js',
   './legal.js',
   './img/profile-banners/neon-sochi-600.webp',
   './img/profile-banners/neon-moscow-600.webp',
@@ -77,10 +55,6 @@ const CORE = [
   './img/track-maps/neva-thumb.webp',
   './img/track-maps/ufa-thumb.webp',
   './img/track-maps/don-thumb.webp',
-  './track-sat-map.js',
-  './geo/outlines.js',
-  './api.js',
-  './tma.js',
   './vendor/telegram-web-app.js',
   './manifest.json',
   './favicon.svg',
@@ -206,6 +180,22 @@ self.addEventListener('fetch', (e) => {
     url.hostname.includes('server.arcgisonline.com')
   ) {
     return;
+  }
+  // v230: /b/ — файлы с хэшем в имени (неизменяемые) → cache-first; шрифты/картинки/three → stale-while-revalidate.
+  // Обновление версий не ломается: index.html (navigate) всегда из сети, новые хэши = новые URL.
+  if (url.origin === self.location.origin && e.request.mode !== 'navigate') {
+    const hashed = /\/b\/[\w.-]+-[A-Z0-9]{8}\.js$|\/styles-[A-Z0-9]{8}\.css$/.test(p);
+    const stat = /\/(fonts|img|vendor)\/|\.(woff2|webp|avif|png|svg|jpg)$/.test(p) && !p.includes('/hardware/');
+    if (hashed || stat) {
+      e.respondWith((async () => {
+        const c = await caches.open(CACHE);
+        const hit = await c.match(e.request);
+        const net = fetch(e.request).then((r) => { if (r.ok) c.put(e.request, r.clone()).catch(() => {}); return r; });
+        if (hit) { if (!hashed) e.waitUntil(net.catch(() => {})); return hit; }
+        return net;
+      })());
+      return;
+    }
   }
   e.respondWith(
     (async () => {

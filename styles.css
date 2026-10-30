@@ -7363,7 +7363,7 @@ html.pfe-open .nav3 { visibility: hidden; }
 .pfe-buy b { font: 700 15px/1 var(--font-ui); } .pfe-buy span { font: 500 12px/1 var(--font-ui); opacity: .75; }
 .pfe-msg { color: #e35b5b; text-align: center; min-height: 1em; }
 @media (prefers-reduced-motion: reduce) { .pfe { transition: none; } }
-#btnMenu[hidden], #btnProfile[hidden], #accBannerEdit[hidden] { display: none !important; }
+html #btnMenu[hidden], html #btnProfile[hidden], html #accBannerEdit[hidden] { display: none !important; }
 .pf6-edit-btn[hidden], .pf6-pass[hidden] { display: none !important; }
 /* v206: подсказки — премиальный пузырь */
 html.v206p .cm-bubble { background: rgba(22,23,27,.97); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(214,178,98,.22); border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.55); }
