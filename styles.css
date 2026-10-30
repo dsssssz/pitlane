@@ -7639,3 +7639,6 @@ html:not(#_):not(#_):not(#_) .pl-x.pl-inline:not(.plm-close):active::after { bac
 /* ===== v231: источник замера в топе (чип / телефон) ===== */
 .tb-src { display:inline-block; margin-left:6px; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:600; letter-spacing:.02em; line-height:1.4; vertical-align:middle; color:#9a9a9a; background:#1c1c1e; }
 .tb-src.chip { color:#0b0b0c; background:#e8e6e1; }
+
+/* v234: город в фильтре топа */
+.tops-city { margin-left:6px; padding:0 4px; border:0; background:none; color:#9a9a9a; font:inherit; font-size:12px; text-decoration:underline; text-underline-offset:2px; cursor:pointer; }

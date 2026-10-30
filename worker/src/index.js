@@ -602,6 +602,18 @@ function trackHistory(rows, pid) {
   return { cond: useDry ? 'dry' : 'all', overall, car, carName: myBest ? cleanLabel(myBest.car, 80) : '', sector, best: myBest ? myBest._ms : null, laps };
 }
 
+/** v234: город пилота (необязательно) — для фильтра топов. '' → нет. */
+export function sanitizeCity(v) {
+  const t = String(v ?? '').normalize('NFC').replace(/\s+/g, ' ').trim();
+  if (!t || t.length < 2 || t.length > 40) return '';
+  if (!/^[\p{L}][\p{L} .\-’'ʼ]*$/u.test(t)) return '';
+  return t;
+}
+const cityKey = (c) => String(c || '').toLowerCase().replace(/ё/g, 'е').replace(/[^\p{L}]+/gu, '');
+function cityFilter(url) {
+  const k = cityKey(sanitizeCity(url.searchParams.get('city')));
+  return k ? (r) => r && cityKey(r.city) === k : () => true;
+}
 /** v104: 0–100 (тот же зачёт, что /tops/drag/0-100). → { row } | { code } */
 function sanitizeStraight(body, pilot) {
   return sanitizeDrag(body, pilot, '0-100');
@@ -3260,12 +3272,12 @@ export default {
           if (lim) return lim;
           const body = await readJson(req, BODY_LIMITS.auth);
           const nick = sanitizeNick(body?.nick);
-          if (nick) {
-            rec.nick = nick;
-            await savePilot(env.PITLANE, rec);
-          }
+          let dirty = false;
+          if (nick) { rec.nick = nick; dirty = true; }
+          if (body && 'city' in body) { const c = sanitizeCity(body.city); if (c) rec.city = c; else delete rec.city; dirty = true; } // v234
+          if (dirty) await savePilot(env.PITLANE, rec);
         }
-        return json({ ok: true, pilotId: rec.id, nick: rec.nick, user: ownerUser(rec), banner: publicBanner(rec), carPhoto: publicCarPhoto(rec, true) }, 200, headers);
+        return json({ ok: true, pilotId: rec.id, nick: rec.nick, city: rec.city || '', user: ownerUser(rec), banner: publicBanner(rec), carPhoto: publicCarPhoto(rec, true) }, 200, headers);
       }
 
       // —— Account deletion (Google Play / 152-ФЗ) ——
@@ -3466,6 +3478,7 @@ export default {
         let rows = (await readList(env.PITLANE, boardKey('lap', trackId, cls))).filter(cls === 'c' ? isClassCRow : isValidGpsRow);
         if (wx) rows = rows.filter((r) => r && r.weather === wx);
         rows = rows.filter(prepFilter(url.searchParams.get('prep')));
+        rows = rows.filter(cityFilter(url)); // v234
         if (url.searchParams.get('avatars') === '1') {
           rows.sort((a, b) => (parseLapMs(a.t) ?? 1e12) - (parseLapMs(b.t) ?? 1e12));
           await enrichAvatars(env.PITLANE, rows, 40);
@@ -3498,6 +3511,7 @@ export default {
         await applyWeather(env, row, res.geo); // v128
 
         row.pilotId = pilot.id;
+        { const pr = await loadPilot(env.PITLANE, pilot.id); if (pr?.city) row.city = pr.city; } // v234
         const av = row.avatar || null;
         // keep KV lap lists lean — avatar lives in pilotmeta, not on every row
         delete row.avatar;
@@ -3538,6 +3552,7 @@ export default {
           if (wx) rows = rows.filter((r) => r && r.weather === wx);
           if (car && slugOk(car)) rows = rows.filter((r) => r && r.carId === car);
           rows = rows.filter(prepFilter(url.searchParams.get('prep')));
+          rows = rows.filter(cityFilter(url)); // v234
           rows = rows.slice(0, 100);
           await enrichAvatars(env.PITLANE, rows, 40);
           await attachPass(env.PITLANE, rows, 40); // v205: Pass-косметика и в топах разгона
@@ -3556,6 +3571,7 @@ export default {
           if (res.code) return rejectRun(res.code, headers);
           const row = res.row;
           row.pilotId = pilot.id;
+          if (rec?.city) row.city = rec.city; // v234
           { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
           // v231: «подтверждено чипом» — время совпало с отметкой, которую чип сам прислал в GpsLive (WSS, токен устройства)
           if (row.src === 'ext') { const at = await chipAttest(env, pilot.id, disc, row.t); row.chip = at.ok ? 1 : 0; }

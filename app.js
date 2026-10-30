@@ -13208,7 +13208,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v233';
+const APP_VERSION = 'v234';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -16617,8 +16617,29 @@ function topsClassPass(r) {
     if (mc.carId && r.carId) return mc.carId === r.carId;
     return String(mc.model).trim().toLowerCase() === String(r.car || '').trim().toLowerCase();
   }
+  if (topsCityOn() && topsCityKey(r.city) !== topsCityKey(myCity())) return false; // v234
   return true;
 }
+/* v234: топ по городу — город из профиля (необязательное поле, хранится на сервере в /me) */
+function myCity() { try { return String(profile()?.city || ''); } catch (_) { return ''; } }
+function topsCityKey(c) { return String(c || '').toLowerCase().replace(/ё/g, 'е').replace(/[^\p{L}]+/gu, ''); }
+function topsCityOn() { return !!document.getElementById('topMyCityOnly')?.checked && !!myCity(); }
+function syncTopsCity() { const b = document.getElementById('topCitySet'); if (b) b.textContent = myCity() || 'указать'; }
+async function askMyCity() {
+  const v = window.prompt('Ваш город (для топа по городу). Пусто — убрать.', myCity());
+  if (v == null) return false;
+  const c = String(v).replace(/\s+/g, ' ').trim().slice(0, 40);
+  const p = profile(); if (c) p.city = c; else delete p.city; saveProf(p);
+  if (isRemoteApi() && getSessionToken()) { const r = await api.setCity(c).catch(() => null); if (r && r.ok !== false) { const p2 = profile(); if (r.city) p2.city = r.city; else delete p2.city; saveProf(p2); } }
+  syncTopsCity();
+  return !!myCity();
+}
+document.getElementById('topCitySet')?.addEventListener('click', async (e) => { e.preventDefault(); e.stopPropagation(); hap(6); await askMyCity(); void renderTopsBoard(); });
+document.getElementById('topMyCityOnly')?.addEventListener('change', async (e) => {
+  if (e.target.checked && !myCity() && !(await askMyCity())) e.target.checked = false;
+  void renderTopsBoard();
+});
+syncTopsCity();
 document.getElementById('topPrepChips')?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('.wx-chip[data-prep]');
   if (!b) return;
@@ -16727,7 +16748,7 @@ async function renderTopsBoard() {
       });
       rows = [...best.values()];
     } else {
-      rows = (await api.listDrag(sel.id, { cls })) || [];
+      rows = (await api.listDrag(sel.id, { cls, city: topsCityOn() ? myCity() : '' })) || [];
     }
   } catch (_) { rows = []; }
   if (seq !== _topsBoardSeq || cls !== _topsCls) return;
@@ -16742,7 +16763,7 @@ async function renderTopsBoard() {
   ol.removeAttribute('aria-busy');
   if (!rows.length) {
     const li = padEl('li', 'tb-empty');
-    const filtered = _topsPrep !== 'all' || document.getElementById('topMyCarOnly')?.checked;
+    const filtered = _topsPrep !== 'all' || document.getElementById('topMyCarOnly')?.checked || topsCityOn();
     li.appendChild(padEl('b', '', filtered ? 'В этом срезе пока пусто' : (sel.kind === 'lap' ? 'Кругов пока нет' : 'Заездов пока нет')));
     const go = padEl('button', 'tb-empty-go', sel.kind === 'lap' ? 'Проехать круг' : 'Сделать замер');
     go.type = 'button';
@@ -16755,7 +16776,7 @@ async function renderTopsBoard() {
   const lctx = sel.kind === 'lap' ? { raw: lapRaw, leadMs: rows[0] ? (rows[0]._ms ?? lapMs(rows[0].t)) : 0 } : null;
   rows.slice(0, 100).forEach((r, i) => frag.appendChild(buildTopsRow(r, i, sel, lctx)));
   ol.appendChild(frag);
-  try { topsRise(ol, `${sel.kind}:${cls}:${sel.id}:${model || ''}:${_topsPrep}`); } catch (_) {} // v153: подъём в топе
+  try { topsRise(ol, `${sel.kind}:${cls}:${sel.id}:${model || ''}:${_topsPrep}${topsCityOn() ? ':' + topsCityKey(myCity()) : ''}`); } catch (_) {} // v153: подъём в топе
 }
 document.getElementById('topsChips')?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('.tchip');

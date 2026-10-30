@@ -388,11 +388,12 @@ export const api = {
     return remoteKeep('/pulse/' + encodeURIComponent(id) + '/like', { method: 'POST', body: JSON.stringify(body) });
   },
   /** v84: global straight-line board for a discipline (0-100, 100-200, 402m…). */
-  async listDrag(disc, { car, weather, cls } = {}) {
+  async listDrag(disc, { car, weather, cls, city } = {}) {
     let path = '/tops/drag/' + encodeURIComponent(disc);
     const q = [];
     if (cls === 'c') q.push('cls=c'); // v118: зачёт C (телефон)
     if (car) q.push('car=' + encodeURIComponent(car));
+    if (city) q.push('city=' + encodeURIComponent(city)); // v234
     if (weather === 'dry' || weather === 'damp' || weather === 'wet') q.push('weather=' + weather);
     if (q.length) path += '?' + q.join('&');
     const rows = await remote(path);
@@ -799,6 +800,7 @@ export const api = {
     return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/top?' + q.toString());
   },
   // v192: Paddock Pass (Stars, только внешний вид). Без деплоя воркера → { ok:false, status:404 }
+  async setCity(city) { return await remoteKeep('/me', { method: 'PUT', body: JSON.stringify({ city }) }); }, // v234
   async setNick(nick) { return await remoteKeep('/me', { method: 'PUT', body: JSON.stringify({ nick }) }); }, // v206
   async mePass() { return await remoteKeep('/me/pass'); },
   async passInvoice(plan) { return await remoteKeep('/me/pass/invoice', { method: 'POST', body: JSON.stringify({ via: 'link', plan: plan === 'year' ? 'year' : 'season' }) }); },
