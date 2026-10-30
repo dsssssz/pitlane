@@ -62,6 +62,7 @@ import { TRACK_OUTLINES } from './geo/outlines.js';
 import { analyzeSession, splitOutline, sectorTone } from './session-review.js';
 import * as LB from './lap-battle.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
+import { flushRunQueue, runQueueSize } from './api.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
@@ -3717,6 +3718,7 @@ const REJECT_TEXT = {
   not_verified: 'Призрак принимается только к зачтённому сервером результату.',
   session_expired: 'Сессия закончилась — войдите через Telegram ещё раз.',
   offline: 'Нет связи с сервером — замер сохранён на устройстве.',
+  queued: 'Нет сети — замер в очереди, уйдёт в топ при появлении связи.',
 };
 function rejectText(res) {
   const code = res && (res.code || (res.status === 401 ? 'no_account' : ''));
@@ -13208,7 +13210,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v234';
+const APP_VERSION = 'v235';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13759,6 +13761,10 @@ window.addEventListener('online', () => {
 });
 setTimeout(() => { void api.flushFeedbackQueue(); }, 8000);
 
+// v235: офлайн-очередь замеров в топ — отправка при появлении сети и после старта
+async function flushRunsUi() { try { const n = await flushRunQueue(); if (n) showAppToast(n === 1 ? 'Замер из очереди отправлен в топ' : `Замеры из очереди отправлены в топ: ${n}`); } catch (_) {} }
+window.addEventListener('online', () => { void flushRunsUi(); });
+setTimeout(() => { if (runQueueSize()) void flushRunsUi(); }, 6000);
 /* v81: ?screen= deep links (Telegram bot buttons) → open the matching sheet once the app is up */
 if (SCREEN_PARAM) {
   setTimeout(() => {

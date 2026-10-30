@@ -279,6 +279,44 @@ function localGetShare(id) {
   return row ? row.payload : null;
 }
 
+/* v235: офлайн-очередь замеров в топ. Нет сети (fetch упал, нет HTTP-статуса) → замер с сырым треком
+ * кладётся в localStorage и уходит позже (событие online / старт приложения). Сервер всё равно
+ * пересчитывает время по треку, так что очередь ничего не «подделывает». */
+const RUNQ_KEY = 'pitlane-runq-v1';
+const RUNQ_MAX = 40;
+const RUNQ_TTL = 14 * 86400 * 1000;
+function runqRead() { try { const a = JSON.parse(localStorage.getItem(RUNQ_KEY) || '[]'); return Array.isArray(a) ? a : []; } catch { return []; } }
+function runqWrite(a) { try { localStorage.setItem(RUNQ_KEY, JSON.stringify(a.slice(-RUNQ_MAX))); } catch (_) {} }
+export function runQueueSize() { return runqRead().length; }
+async function postRun(path, row) {
+  const body = JSON.stringify({ ...row, gps: true });
+  const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
+  const r = offline ? { ok: false, error: 'offline' } : await remoteKeep(path, { method: 'POST', body, timeoutMs: 20000 });
+  if (r && r.ok === false && !r.status && getSessionToken()) {
+    const q = runqRead(); q.push({ path, body, at: Date.now() }); runqWrite(q);
+    return { ok: false, code: 'queued', queued: true };
+  }
+  return r;
+}
+let _runqBusy = false;
+/** → число отправленных (принятых или окончательно отклонённых сервером). */
+export async function flushRunQueue() {
+  if (_runqBusy || !apiBase() || !getSessionToken()) return 0;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 0;
+  _runqBusy = true;
+  let sent = 0;
+  try {
+    let q = runqRead().filter((x) => x && x.path && Date.now() - (x.at || 0) < RUNQ_TTL);
+    while (q.length) {
+      const it = q[0];
+      const r = await remoteKeep(it.path, { method: 'POST', body: it.body, timeoutMs: 20000 });
+      if (r && r.ok === false && (!r.status || r.status === 401 || r.status === 429 || r.status >= 500)) break; // ещё нет связи / сессии — позже
+      q.shift(); sent++; runqWrite(q);
+    }
+    runqWrite(q);
+  } finally { _runqBusy = false; }
+  return sent;
+}
 export const api = {
   async listStraight(carId) {
     const remoteRows = await remote('/tops/straight/' + encodeURIComponent(carId));
@@ -306,8 +344,7 @@ export const api = {
    */
   async addStraight(carId, row) {
     if (!apiBase()) return { ok: false, code: 'offline' };
-    const r = await remoteKeep('/tops/straight/' + encodeURIComponent(carId), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
-    return r;
+    return postRun('/tops/straight/' + encodeURIComponent(carId), row);
   },
   /** v131: подписки на пилота / команду */
   async getFollows() {
@@ -327,7 +364,7 @@ export const api = {
   },
   async addLap(trackId, row) {
     if (!apiBase()) return { ok: false, code: 'offline' };
-    return remoteKeep('/tops/lap/' + encodeURIComponent(trackId), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
+    return postRun('/tops/lap/' + encodeURIComponent(trackId), row);
   },
   /** v125: свежие посты без картинок (превью чата на Главной); локально — свои посты */
   async listPulseRecent() {
@@ -401,7 +438,7 @@ export const api = {
   },
   async addDrag(disc, row) {
     if (!apiBase()) return { ok: false, error: 'offline' };
-    return remoteKeep('/tops/drag/' + encodeURIComponent(disc), { method: 'POST', body: JSON.stringify({ ...row, gps: true }), timeoutMs: 20000 });
+    return postRun('/tops/drag/' + encodeURIComponent(disc), row);
   },
   /** v84: lap board with avatars (pilotmeta) for the compact tops list. */
   async listLapBoard(trackId, weather, cls) {

@@ -1,0 +1,20 @@
+// v235: офлайн-очередь замеров — node tests/runqueue.test.mjs
+const store = new Map();
+globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)), removeItem: (k) => store.delete(k) };
+globalThis.document = { querySelector: () => ({ content: 'https://api.test' }) };
+globalThis.window = { addEventListener() {}, dispatchEvent() {} };
+let online = false; const posted = [];
+Object.defineProperty(globalThis, 'navigator', { value: { get onLine() { return online; } }, configurable: true });
+globalThis.fetch = async (url, o) => { if (!online) throw new TypeError('Failed to fetch'); posted.push(url); return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json' } }); };
+const A = await import('../api.js');
+A.setSessionToken('tok123', 'rt');
+let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+let r = await A.api.addDrag('100-200', { trace: [1, 2] });
+ok(r && r.queued && r.code === 'queued', 'офлайн → в очереди');
+await A.api.addLap('sochi', { trace: [1] });
+ok(A.runQueueSize() === 2, 'в очереди 2');
+ok((await A.flushRunQueue()) === 0, 'без сети не шлёт');
+online = true;
+ok((await A.flushRunQueue()) === 2 && A.runQueueSize() === 0, 'сеть есть → отправлено 2, очередь пуста');
+ok(posted[0].endsWith('/tops/drag/100-200') && posted[1].endsWith('/tops/lap/sochi'), 'порядок сохранён');
+console.log(fails ? `FAIL ${fails}` : 'OK'); process.exit(fails ? 1 : 0);
