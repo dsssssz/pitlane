@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v222';
+const CACHE = 'pitlane-v223';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -10,6 +10,10 @@ const CORE = [
   './privacy.html',
   './terms.html',
   './offer.html',
+  './shop.html',
+  './sale.html',
+  './delivery.html',
+  './contacts.html',
   './delete-account.html',
   './tools/tma-check.html',
   './legal.css',

@@ -198,6 +198,7 @@ function viewForm(v) {
   const send = el('button', 'shop-cta', 'Отправить заявку'); send.type = 'submit'; send.id = 'shopSend';
   form.append(msg, send);
   form.appendChild(el('p', 'shop-muted shop-pd', 'Сохраняем только город, способ связи и комментарий — для этой заявки. Удаляются вместе с аккаунтом. Подробнее — в политике конфиденциальности.'));
+  { const lg = el('p', 'shop-muted shop-pd'); lg.append('Отправляя заявку, вы соглашаетесь с '); const a1 = el('a', '', 'офертой'); a1.href = './sale.html'; const a2 = el('a', '', 'политикой конфиденциальности'); a2.href = './privacy.html'; const a3 = el('a', '', 'условиями доставки и возврата'); a3.href = './delivery.html'; lg.append(a1, ', ', a2, ' и ', a3, '.'); form.appendChild(lg); }
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); if (st.busy) return;
     const city = d.city.trim();
