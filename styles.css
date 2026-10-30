@@ -7612,3 +7612,29 @@ canvas.pin209-i { width: 150px; height: 150px; display: block; margin: 0 auto; }
 .shop-acts .shop-cta { text-align: center; text-decoration: none; display: block; }
 .shop-cta.off { opacity: .4; pointer-events: none; }
 .shop-empty { text-align: center; padding: 30px 0; }
+
+/* v227: шторка «Машина» и car-db — ровные отступы 16px, без обводок, плотные карточки, iOS-крестик */
+#myCarSheet .crew-sheet-inner { box-sizing: border-box; width: 100%; max-width: 100%; border-left: 0 !important; border-right: 0 !important; padding: 10px 16px calc(20px + env(safe-area-inset-bottom)) !important; overflow-x: hidden; }
+#myCarSheet .race-sheet-body { min-width: 0; }
+html:not(#_):not(#_):not(#_) #myCarSheet .share-card-close, html:not(#_):not(#_):not(#_) .cdb-x { min-width: 30px !important; position: absolute; top: 12px !important; right: 16px !important; width: 30px !important; height: 30px !important; min-height: 30px !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important; background: rgba(118,118,128,.24) !important; color: #bdbdc2 !important; display: grid !important; place-items: center !important; align-content: center !important; line-height: 0 !important; font-size: 0 !important; }
+html:not(#_):not(#_):not(#_) #myCarSheet .share-card-close::before, html:not(#_):not(#_):not(#_) .cdb-x::before { content: ''; width: 11px; height: 11px; background: currentColor; -webkit-mask: var(--x-ico) center / contain no-repeat; mask: var(--x-ico) center / contain no-repeat; }
+.cdb-head { position: relative; grid-template-columns: 30px 1fr 30px; padding: 12px 16px 6px; }
+html:not(#_):not(#_):not(#_) .cdb-x { position: static; }
+html:not(#_):not(#_):not(#_) .cdb-back { width: 30px !important; height: 30px !important; min-width: 30px !important; min-height: 30px !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important; background-color: rgba(118,118,128,.24); }
+.cdb-back::before { inset: 5px; }
+.qc-cards { grid-template-columns: minmax(0, 1fr); margin: 12px 0 8px; }
+.qc-card, .qc-other, .cdb-row, .cdb-brand { box-sizing: border-box; min-width: 0; max-width: 100%; }
+.qc-card, .qc-other { gap: 12px; min-height: 64px; padding: 12px 14px; border: 0 !important; border-radius: 14px; background: #1c1d20; color: #f2efe9; font: 600 15px/1.25 var(--font-ui); }
+.qc-card:active, .qc-other:active { background: #25262a; }
+.qc-card.on { background: #26272b; }
+.qc-card .qc-tx b, .cdb-tx b { white-space: normal; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.qc-card .qc-tx span, .cdb-tx span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qc-card .qc-tick { width: 22px; height: 22px; border: 0; box-shadow: none; background: transparent; }
+.qc-card.on .qc-tick { background: #f2efe9; box-shadow: none; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat; }
+.qc-other .qc-plus { width: 40px; height: 40px; border-radius: 50%; background: #2a2b2f; }
+.qc-other b { flex: 1; min-width: 0; }
+.qc-other span:last-child { white-space: nowrap; }
+.cdb-body { padding-left: 16px; padding-right: 16px; }
+.cdb-brands { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cdb-row { border: 0; background: #1c1d20; }
+.cdb-l { flex: 1; }
