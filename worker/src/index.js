@@ -103,6 +103,7 @@ const BODY_LIMITS = {
   default: 32 * 1024,
   auth: 16 * 1024,
   share: 8 * 1024,
+  story: 220 * 1024,
   pulse: 256 * 1024,
   feedback: 720 * 1024,
   garage: 1_600_000,
@@ -3353,6 +3354,28 @@ export default {
         return json({ id }, 200, headers);
       }
 
+      // v233: картинка для Telegram Stories (shareToStory нужен публичный https-URL медиа)
+      {
+        const sm = path.match(/^\/share\/([A-Za-z0-9_-]{4,40})\/story(\.jpg)?$/);
+        if (sm && req.method === 'POST') {
+          const lim = await limitOr429(env, headers, [['rl:story:ip:' + ip, 20, 3600], ['rl:story:day:' + moscowDateKey(), 2000, 86400]]);
+          if (lim) return lim;
+          if (!(await env.PITLANE.get('share:' + sm[1]))) return json({ error: 'not found' }, 404, headers);
+          const body = await readJson(req, BODY_LIMITS.story);
+          const im = sanitizeBannerImage(body?.img);
+          if (im.error || im.mime !== 'image/jpeg') return json({ error: im.error || 'jpeg only' }, 400, headers);
+          await env.PITLANE.put('shareimg:' + sm[1], JSON.stringify({ mime: im.mime, b64: im.b64 }), { expirationTtl: 2 * 86400 });
+          return json({ ok: true, url: new URL(req.url).origin + '/share/' + sm[1] + '/story.jpg' }, 200, headers);
+        }
+        if (sm && req.method === 'GET') {
+          const b = await kvJson(env.PITLANE, 'shareimg:' + sm[1]);
+          if (!b || !b.b64 || b.mime !== 'image/jpeg') return json({ error: 'not found' }, 404, headers);
+          const bin = atob(b.b64);
+          const bytes = new Uint8Array(bin.length);
+          for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          return new Response(bytes, { status: 200, headers: { ...headers, 'Content-Type': 'image/jpeg', 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'", 'Cross-Origin-Resource-Policy': 'cross-origin', 'Cache-Control': 'public, max-age=86400' } });
+        }
+      }
       let m = path.match(/^\/share\/([^/]+)$/);
       if (req.method === 'GET' && m) {
         const id = safeDecode(m[1]);

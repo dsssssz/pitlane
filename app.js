@@ -6621,6 +6621,67 @@ async function shareResult(payload) {
   } catch (_) {}
 }
 
+// v233: результат → Telegram Stories (WebApp.shareToStory, Bot API 7.8+); иначе — картинка 9:16 (share файла / скачать)
+function drawStoryCard(p) {
+  const W = 1080, H = 1920, c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const x = c.getContext('2d');
+  x.fillStyle = '#0b0b0c'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#e8e6e1'; x.textAlign = 'left';
+  const F = (w, px) => `${w} ${px}px -apple-system, "Segoe UI", Roboto, Arial, sans-serif`;
+  x.font = F(700, 54); x.fillText('PITLANE', 90, 220);
+  x.fillStyle = '#3a3a3c'; x.fillRect(90, 260, 900, 3);
+  const isLap = p.type === 'lap' || p.type === 'круг';
+  const typeLabel = isLap ? ('КРУГ' + (p.track ? ' · ' + String(p.track).toUpperCase() : '')) : (p.type === '402m' ? '¼ МИЛИ' : '0–100 КМ/Ч');
+  x.fillStyle = '#9a9a9a'; x.font = F(600, 46); x.fillText(typeLabel.slice(0, 34), 90, 760);
+  x.fillStyle = '#ffffff'; let fs = 260; x.font = F(700, fs);
+  const t = String(p.time || '—');
+  while (x.measureText(t).width > 900 && fs > 80) { fs -= 10; x.font = F(700, fs); }
+  x.fillText(t, 84, 760 + fs * 0.95);
+  x.fillStyle = '#e8e6e1'; x.font = F(600, 56); x.fillText(String(p.car || '').slice(0, 30), 90, 1240);
+  x.fillStyle = '#9a9a9a'; x.font = F(500, 44); x.fillText(String(p.nick || '').slice(0, 32), 90, 1310);
+  const tags = [];
+  const g = gpsGradeLabel(p.gpsQ); if (g && g !== 'GPS') tags.push('GPS ' + g);
+  if (p.chip === 1) tags.push('подтверждено чипом');
+  else if (p.src === 'phone') tags.push('телефон');
+  if (Number.isFinite(p.pbD)) tags.push(fmtPbDelta(p.pbD) + ' к лучшему');
+  x.font = F(500, 40); x.fillText(tags.join(' · ').slice(0, 48), 90, 1400);
+  x.fillStyle = '#3a3a3c'; x.fillRect(90, 1700, 900, 3);
+  x.fillStyle = '#9a9a9a'; x.font = F(500, 38); x.fillText('dsssssz.github.io/pitlane', 90, 1770);
+  return c;
+}
+async function shareStory(p) {
+  p = p || _sharePayload;
+  if (!p) return;
+  hap(16);
+  const cv = drawStoryCard(p);
+  const WA = window.Telegram?.WebApp;
+  let ok = false;
+  if (WA && typeof WA.shareToStory === 'function' && (!WA.isVersionAtLeast || WA.isVersionAtLeast('7.8'))) {
+    try {
+      let id = p._shareId;
+      if (!id) { const r = await api.createShare(p); id = r?.id; if (id) p._shareId = id; }
+      const up = id ? await api.uploadStory(id, cv.toDataURL('image/jpeg', 0.82)) : null;
+      if (up?.url) {
+        const cfg = await ensureAuthCfg().catch(() => null);
+        const link = (cfg?.telegramBot && tmaStartLink(cfg.telegramBot, 's_' + id)) || sharePublicUrl(p, id);
+        WA.shareToStory(up.url, { text: (`PITLANE · ${p.time || ''} · ${link}`).slice(0, 200) });
+        ok = true;
+      }
+    } catch (_) {}
+  }
+  if (ok) return;
+  // fallback: системный share картинки или скачивание
+  try {
+    const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.9));
+    const file = new File([blob], 'pitlane-story.jpg', { type: 'image/jpeg' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'PITLANE' }); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pitlane-story.jpg';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (err) { if (err?.name !== 'AbortError') console.warn('story', err); }
+}
+document.getElementById('shareCardStory')?.addEventListener('click', () => { void shareStory(_sharePayload); });
+
 async function bootShareFromUrl() {
   try {
     const params = new URLSearchParams(location.search);
@@ -13147,7 +13208,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v232';
+const APP_VERSION = 'v233';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

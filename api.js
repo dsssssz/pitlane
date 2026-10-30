@@ -443,6 +443,10 @@ export const api = {
     saveDb(d);
     return localListPulse();
   },
+  /** v233: JPEG для Telegram Stories → публичный URL. */
+  async uploadStory(id, img) {
+    return await remote('/share/' + encodeURIComponent(id) + '/story', { method: 'POST', body: JSON.stringify({ img }) });
+  },
   async createShare(payload) {
     const remoteRes = await remote('/share', {
       method: 'POST',
