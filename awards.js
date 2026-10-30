@@ -6,7 +6,8 @@
  */
 const MSK = 3 * 3600 * 1000;
 const WEEK = 7 * 86400000;
-export const PASS_STARS = 149;
+export const PASS_STARS = 250; // v225: сезон 90 дней
+export const PASS_PLANS = [{ id: 'year', stars: 799, days: 365, t: 'Год', sub: '365 дней · 67 ★ в месяц', old: 1000, badge: '−20%' }, { id: 'season', stars: 250, days: 90, t: 'Сезон', sub: '90 дней · 83 ★ в месяц' }];
 const A = './img/awards/';
 export const AWARDS = {
   p1: { n: 'Подиум P1', d: 'P1 недели на трассе' },
@@ -268,7 +269,7 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
   const t = h('div'); t.appendChild(h('b', '', 'Paddock Pass'));
   t.appendChild(h('small', '', pass?.active ? 'активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'только внешний вид · награды не продаются'));
   top.appendChild(t);
-  top.appendChild(h('span', 'pp-price', PASS_STARS + ' ★ / мес'));
+  top.appendChild(h('span', 'pp-price', 'от ' + PASS_STARS + ' ★'));
   root.appendChild(top);
   const g = h('div', 'pp-grid');
   for (const [k, n, d] of PASS_ITEMS) { const c = h('div', 'pp-it'); c.appendChild(im(awardImg(k), '', n)); c.appendChild(h('b', '', n)); c.appendChild(h('small', '', d)); g.appendChild(c); }
@@ -284,9 +285,9 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
   } else {
     const b = h('button', 'go-btn race-cta pp-buy', available ? `Оформить · ${PASS_STARS} ★` : 'Скоро'); b.type = 'button';
     b.disabled = !available;
-    b.addEventListener('click', async () => { b.disabled = true; msg.textContent = await onBuy(); b.disabled = false; });
+    b.addEventListener('click', async () => { b.disabled = true; msg.textContent = await onBuy('season'); b.disabled = false; });
     root.appendChild(b);
-    msg.textContent = available ? 'Оплата Telegram Stars. Отменить можно в Telegram в любой момент.' : 'Подписка откроется после обновления сервера. Награды за время уже считаются.';
+    msg.textContent = available ? 'Оплата Telegram Stars, разово, без автопродления.' : 'Подписка откроется после обновления сервера. Награды за время уже считаются.';
   }
   root.appendChild(msg);
 }
@@ -369,13 +370,28 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
     b.addEventListener('click', () => { if (typeof onCustomize === 'function') onCustomize(); });
     root.appendChild(b);
   } else {
-    const price = h('div', 'ps-price'); price.appendChild(h('b', '', PASS_STARS + ' ★')); price.appendChild(h('span', '', 'в месяц · Telegram Stars'));
-    root.appendChild(price);
-    const b = h('button', 'ps-buy', available ? `Купить за ${PASS_STARS} ★` : 'Скоро'); b.type = 'button';
+    // v225: выбор плана в стиле Telegram Premium — год (выгодно) / сезон
+    let sel = 'year';
+    const plans = h('div', 'ps-plans'); plans.setAttribute('role', 'radiogroup');
+    const b = h('button', 'ps-buy'); b.type = 'button';
+    const sync = () => {
+      for (const c of plans.children) { const on = c.dataset.plan === sel; c.classList.toggle('on', on); c.setAttribute('aria-checked', on ? 'true' : 'false'); }
+      const P = PASS_PLANS.find((x) => x.id === sel);
+      b.textContent = available ? `Купить ${P.id === 'year' ? 'год' : 'сезон'} за ${P.stars} ★` : 'Скоро';
+    };
+    for (const P of PASS_PLANS) {
+      const c = h('button', 'ps-plan'); c.type = 'button'; c.dataset.plan = P.id; c.setAttribute('role', 'radio');
+      c.appendChild(h('i', 'ps-plan-dot'));
+      const t = h('div', 'ps-plan-t'); const tt = h('b', '', P.t); if (P.badge) tt.appendChild(h('em', 'ps-plan-badge', P.badge)); t.appendChild(tt); t.appendChild(h('small', '', P.sub)); c.appendChild(t);
+      const pr = h('div', 'ps-plan-p'); if (P.old) pr.appendChild(h('s', '', P.old.toLocaleString('ru-RU') + ' ★')); pr.appendChild(h('b', '', P.stars + ' ★')); c.appendChild(pr);
+      c.addEventListener('click', () => { sel = P.id; sync(); });
+      plans.appendChild(c);
+    }
+    root.appendChild(plans);
     b.disabled = !available;
-    b.addEventListener('click', async () => { b.disabled = true; msg.textContent = await onBuy(); b.disabled = false; });
-    root.appendChild(b);
-    msg.textContent = available ? 'Отменить можно в Telegram в любой момент.' : 'Продажи откроются после обновления сервера.';
+    b.addEventListener('click', async () => { b.disabled = true; msg.textContent = await onBuy(sel); b.disabled = false; });
+    root.appendChild(b); sync();
+    msg.textContent = available ? 'Telegram Stars · разовая оплата, без автопродления.' : 'Продажи откроются после обновления сервера.';
   }
   root.appendChild(msg);
 }

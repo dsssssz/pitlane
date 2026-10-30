@@ -17287,8 +17287,8 @@ async function renderAwards92() {
     renderShowcase(sc, { ...base, res: computeAwards({ boards, laps: state.laps, tracks: TRACKS, pid }) });
     if (pp) renderPassSheet(pp, {
       pass, available,
-      onBuy: async () => {
-        const r = await api.passInvoice();
+      onBuy: async (plan) => {
+        const r = await api.passInvoice(plan);
         if (!r || r.ok === false || !r.link) return 'Оплата недоступна: ' + (r?.error || 'сеть');
         const TG = window.Telegram?.WebApp;
         if (TG && typeof TG.openInvoice === 'function') {
@@ -17547,11 +17547,11 @@ function renderPf6() {
     const im = document.createElement('img'); im.src = './img/awards/pass_s.webp'; im.alt = '';
     ps.append(im, padEl('span', '', pf6Active() ? 'Paddock Pass · до ' + new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'Paddock Pass — рамка и пин'));
   }
-  const pv = document.getElementById('pf6PassV'); if (pv) pv.textContent = pf6Active() ? 'активен' : PASS_STARS_206 + ' ★';
+  const pv = document.getElementById('pf6PassV'); if (pv) pv.textContent = pf6Active() ? 'активен' : 'от ' + PASS_STARS_206 + ' ★';
   const eb = document.getElementById('pf6EditBtn'); if (eb) eb.hidden = !u;
   pf6NavAva();
 }
-const PASS_STARS_206 = 149;
+const PASS_STARS_206 = 250; // v225: сезон 250 ★ / 90 дней, год 799 ★
 function pf6NavAva() {
   const n = document.getElementById('n6Ava'); if (!n) return;
   const src = pf6Ava();
@@ -17655,7 +17655,7 @@ function renderPfEdit() {
   pick('Пин у ника', PF6_PIN, 'pin', (v) => (v ? awardImg(v, true) : ''));
   if (!on) {
     const up = padEl('button', 'pfe-buy'); up.type = 'button';
-    up.append(padEl('b', '', 'Открыть с Paddock Pass'), padEl('span', '', PASS_STARS_206 + ' ★ в месяц · только внешний вид'));
+    up.append(padEl('b', '', 'Открыть с Paddock Pass'), padEl('span', '', PASS_STARS_206 + ' ★ за сезон · 799 ★ за год'));
     up.addEventListener('click', () => { hap(8); openPassSheet(); });
     ps.append(up);
   }

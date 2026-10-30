@@ -5,16 +5,25 @@
  * Продажи выключены, пока в окружении нет PASS_SALES="1" (legalReady/Pro не трогаем).
  * KV: pass:<pilotId> = { until, number, frame, pin, charges[] }; идемпотентность — paycharge:<chargeId>.
  */
-export const PASS_STARS = 149;
-export const PASS_PERIOD_S = 2592000; // 30 дней — единственный период подписки Stars в Bot API
+export const PASS_STARS = 149; // legacy: старая подписка 30 дней (только продления уже оформленных)
+export const PASS_PERIOD_S = 2592000;
+// v225: разовые планы — сезон 90 дней и год 365 дней (сумма проверяется на сервере)
+export const PASS_PLANS = { season: { stars: 250, days: 90, label: 'Сезон · 90 дней' }, year: { stars: 799, days: 365, label: 'Год · 365 дней' } };
 const PAYLOAD_RE = /^pp1:([A-Za-z0-9_-]{6,64})$/;
+const PAYLOAD2_RE = /^pp2:(season|year):([A-Za-z0-9_-]{6,64})$/;
+function parsePayload(x) {
+  x = String(x || '');
+  let m = x.match(PAYLOAD2_RE); if (m) return { plan: m[1], pid: m[2], stars: PASS_PLANS[m[1]].stars, days: PASS_PLANS[m[1]].days };
+  m = x.match(PAYLOAD_RE); if (m) return { plan: 'legacy', pid: m[1], stars: PASS_STARS, days: 30 };
+  return null;
+}
 const FRAMES = ['', 'forged', 'titanium', 'ceramic', 'gold18', 'chrome'];
 const FR_LEGACY = { carbon: 'forged', chequer: 'chrome' }; // v210: миграция старых рамок
 const fr = (v) => { v = FR_LEGACY[v] || v; return FRAMES.includes(v) ? v : ''; };
 const PINS = ['', 'helmet', 'wheel', 'carbon'];
 
 export function passSalesOn(env) { return String(env?.PASS_SALES || '') === '1' || env?.__passForTests === true; }
-export function isPassPayload(p) { return PAYLOAD_RE.test(String(p || '')); }
+export function isPassPayload(p) { return !!parsePayload(p); }
 function active(p, now = Date.now()) { return !!p && Number(p.until) > now; }
 export function publicPass(p, now = Date.now()) {
   if (!active(p, now)) return null;
@@ -30,23 +39,25 @@ export async function passRoute({ req, env, path, pilot, headers, h }) {
   const kv = env.PITLANE;
   const p = await loadPass(kv, pilot.id);
   if (req.method === 'GET' && path === '/me/pass') {
-    return h.json({ ok: true, sales: passSalesOn(env), stars: PASS_STARS, pass: active(p) ? { active: true, until: p.until, ...publicPass(p) } : null }, 200, headers);
+    return h.json({ ok: true, sales: passSalesOn(env), stars: PASS_PLANS.season.stars, plans: PASS_PLANS, pass: active(p) ? { active: true, until: p.until, ...publicPass(p) } : null }, 200, headers);
   }
   if (req.method === 'POST' && path === '/me/pass/invoice') {
     if (!passSalesOn(env)) return h.json({ error: 'подписка пока недоступна' }, 403, headers);
     const lim = await h.limitOr429(env, headers, [['rl:ppinv:p:' + pilot.id, 10, 3600]]);
     if (lim) return lim;
+    const body = await h.readJson(req, 1024).catch(() => ({}));
+    const plan = body?.plan === 'year' ? 'year' : 'season';
+    const P = PASS_PLANS[plan];
     const spec = {
-      title: 'Paddock Pass',
-      description: 'Внешний вид в Pitlane: карбон, рамки и пины. Награды за время не продаются.',
-      payload: 'pp1:' + pilot.id,
+      title: 'Paddock Pass · ' + (plan === 'year' ? 'год' : 'сезон'),
+      description: 'Внешний вид в Pitlane на ' + P.days + ' дней: рамки и пины. Разовая оплата, без автопродления. Награды за время не продаются.',
+      payload: 'pp2:' + plan + ':' + pilot.id,
       currency: 'XTR',
-      prices: [{ label: 'Paddock Pass · 30 дней', amount: PASS_STARS }],
-      subscription_period: PASS_PERIOD_S,
+      prices: [{ label: 'Paddock Pass · ' + P.label, amount: P.stars }],
     };
     const r = await h.tgCall(env, 'createInvoiceLink', spec);
     if (!r?.ok || typeof r.result !== 'string') return h.json({ error: 'telegram: ' + String(r?.description || 'fail').slice(0, 120) }, 502, headers);
-    return h.json({ ok: true, link: r.result, stars: PASS_STARS }, 200, headers);
+    return h.json({ ok: true, link: r.result, plan, stars: P.stars, days: P.days }, 200, headers);
   }
   if (req.method === 'PUT' && path === '/me/pass/cosmetics') {
     if (!active(p)) return h.json({ error: 'нужен активный Paddock Pass' }, 402, headers);
@@ -61,10 +72,10 @@ export async function passRoute({ req, env, path, pilot, headers, h }) {
 export async function passPreCheckout(env, q, h) {
   const fail = async (m) => { await h.tgCall(env, 'answerPreCheckoutQuery', { pre_checkout_query_id: q.id, ok: false, error_message: m }); return { ok: false, msg: m }; };
   if (!passSalesOn(env)) return await fail('Подписка временно недоступна');
-  const mm = String(q.invoice_payload || '').match(PAYLOAD_RE);
-  if (!mm || q.currency !== 'XTR' || Number(q.total_amount) !== PASS_STARS) return await fail('Счёт устарел — открой заново');
+  const pp = parsePayload(q.invoice_payload);
+  if (!pp || q.currency !== 'XTR' || Number(q.total_amount) !== pp.stars) return await fail('Счёт устарел — открой заново');
   const payer = await env.PITLANE.get(h.providerKey('tg', String(q.from?.id || '')));
-  if (!payer || payer !== mm[1]) return await fail('Оплатить можно только со своего аккаунта');
+  if (!payer || payer !== pp.pid) return await fail('Оплатить можно только со своего аккаунта');
   await h.tgCall(env, 'answerPreCheckoutQuery', { pre_checkout_query_id: q.id, ok: true });
   return { ok: true };
 }
@@ -76,13 +87,14 @@ export async function passSuccessfulPayment(env, msg, now = Date.now()) {
   if (!sp || !charge) return { ok: false };
   const ckey = 'paycharge:' + charge;
   if (await env.PITLANE.get(ckey)) return { ok: true, duplicate: true };
-  const mm = String(sp.invoice_payload || '').match(PAYLOAD_RE);
-  const rec = { at: now, stars: Number(sp.total_amount) || 0, currency: sp.currency, tg: String(msg.from?.id || ''), kind: 'pass' };
-  if (!mm || sp.currency !== 'XTR') { await env.PITLANE.put(ckey, JSON.stringify({ ...rec, error: 'bad payload' })); return { ok: false }; }
-  const pid = mm[1];
+  const pp = parsePayload(sp.invoice_payload);
+  const rec = { at: now, stars: Number(sp.total_amount) || 0, currency: sp.currency, tg: String(msg.from?.id || ''), kind: 'pass', plan: pp?.plan || null };
+  if (!pp || sp.currency !== 'XTR') { await env.PITLANE.put(ckey, JSON.stringify({ ...rec, error: 'bad payload' })); return { ok: false }; }
+  if (Number(sp.total_amount) !== pp.stars) { await env.PITLANE.put(ckey, JSON.stringify({ ...rec, error: 'bad amount' })); return { ok: false, msg: 'bad amount' }; }
+  const pid = pp.pid;
   const p = (await loadPass(env.PITLANE, pid)) || {};
-  const exp = Number(sp.subscription_expiration_date) * 1000;
-  const until = exp > now ? exp : Math.max(now, Number(p.until) || 0) + PASS_PERIOD_S * 1000;
+  const exp = pp.plan === 'legacy' ? Number(sp.subscription_expiration_date) * 1000 : 0;
+  const until = exp > now ? exp : Math.max(now, Number(p.until) || 0) + pp.days * 86400000;
   await env.PITLANE.put('pass:' + pid, JSON.stringify({ ...p, until, charges: [...(p.charges || []).slice(-11), charge] }));
   await env.PITLANE.put(ckey, JSON.stringify(rec));
   return { ok: true, pilotId: pid, until };

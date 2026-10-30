@@ -7531,3 +7531,17 @@ canvas.pin209-i { width: 150px; height: 150px; display: block; margin: 0 auto; }
 .shop-pb-left, .shop-pb-soon { font: 500 12px/1.3 var(--font-ui); color: #e6e6e6; }
 .shop-pb-note { font: 400 12px/1.3 var(--font-ui); color: var(--ds-text-2, #8a8a8a); }
 .pf6-founder { display: inline-block; margin-top: 6px; font: 600 11px/1 var(--font-ui); letter-spacing: .06em; text-transform: uppercase; padding: 5px 9px; border-radius: 6px; background: #f2f2f2; color: #0c0c0c; }
+/* v225: планы Paddock Pass (как Telegram Premium) */
+.ps-plans { display: grid; gap: 10px; margin: 0 0 14px; }
+.ps-plan { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: 0; border-radius: 16px; background: #1c1c1f; color: #fff; text-align: left; cursor: pointer; font: inherit; transition: background .15s; }
+.ps-plan.on { background: #2a2620; box-shadow: inset 0 0 0 2px #c9a35a; }
+.ps-plan-dot { width: 22px; height: 22px; flex: none; border-radius: 50%; background: #2e2e33; position: relative; }
+.ps-plan.on .ps-plan-dot { background: #c9a35a; }
+.ps-plan.on .ps-plan-dot::after { content: ''; position: absolute; inset: 7px; border-radius: 50%; background: #1a1408; }
+.ps-plan-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.ps-plan-t b { font-size: 16px; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.ps-plan-t small { font-size: 12.5px; color: #9a9aa0; }
+.ps-plan-badge { font-style: normal; font-size: 11.5px; font-weight: 800; color: #1a1408; background: #c9a35a; padding: 2px 7px; border-radius: 6px; }
+.ps-plan-p { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.ps-plan-p s { font-size: 12.5px; color: #6e6e74; }
+.ps-plan-p b { font-size: 18px; font-weight: 800; color: #f1d9a4; }
