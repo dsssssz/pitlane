@@ -1289,6 +1289,8 @@ function topsGpsTip(r) {
   if (r.hz != null && Number.isFinite(Number(r.hz))) parts.push(`${Number(r.hz).toFixed(1)} Гц`);
   if (Array.isArray(r.flags) && r.flags.includes('teleport')) parts.push('есть телепорты');
   else if (r.gpsQ === 'A' || r.gpsQ === 'B') parts.push('без телепортов');
+  if (r.chip === 1) parts.push('подтверждено чипом PITLANE GPS'); // v231
+  else if (r.src === 'phone' || r.cls === 'c') parts.push('замер телефоном');
   if (r.weather === 'dry') parts.push('сухо');
   else if (r.weather === 'damp') parts.push('сыро');
   else if (r.weather === 'wet') parts.push('мокро');
@@ -13145,7 +13147,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v231';
+const APP_VERSION = 'v232';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -16531,6 +16533,9 @@ function buildTopsRow(r, i, sel, ctx) {
   const time = sel.kind === 'lap' ? String(r.t) : Number(r.t).toFixed(2);
   const tm = padEl('span', 'tb-t', time);
   if (r.gpsQ) tm.dataset.q = r.gpsQ;
+  // v231: источник замера — «чип» (время подтверждено самим чипом через сервер) / «тел»
+  if (r.chip === 1) { const v = padEl('small', 'tb-src chip', 'чип'); v.title = 'подтверждено чипом PITLANE GPS'; tm.appendChild(v); }
+  else if (r.src === 'phone' || r.cls === 'c') { const v = padEl('small', 'tb-src', 'тел'); v.title = 'замер телефоном'; tm.appendChild(v); }
   if (lb && i > 0 && ctx.leadMs) tm.appendChild(padEl('small', 'lb92-gap', fmtGap((r._ms ?? lapMs(r.t)) - ctx.leadMs)));
   li.appendChild(tm);
   if (isMyPilotId(r.pilotId)) li.classList.add('me');

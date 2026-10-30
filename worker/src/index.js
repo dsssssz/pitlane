@@ -7,7 +7,7 @@ import { TG_BANNER_URL, START_CAPTION, RULE as COPY_RULE, startKeyboard, startPa
 import { seasonRoute, seasonRecord0100 } from './season.js';
 import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, loadPrefs, savePrefs, markStarted, setChatStop, chatState, deleteNotifyKeys, NOTIFY_TYPES, NOTIFY_LABELS, NOTIFY_DAILY_MAX, NOTIFY_BOT_TEXT } from './notify.js';
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
-import { gpsRoute, deleteAccountGps, GpsLive } from './gpslive.js';
+import { gpsRoute, deleteAccountGps, GpsLive, chipAttest } from './gpslive.js';
 import { shopRoute, deleteAccountShop } from './shop.js';
 import { botCallback, botFlowMessage, botCommand, botStart, mainMenuRows, botTrackCommand } from './botshop.js';
 import { trackSuggestRoute, deleteAccountTrackSug } from './tracksug.js';
@@ -529,7 +529,7 @@ function sanitizeWeather(v) {
 const PUBLIC_ROW_FIELDS = [
   'car', 't', 'gps', 'valid', 'gpsQ', 'src', 'n', 'avgAcc', 'hz', 'weather', 'wx', 'track',
   'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost', 'tyre',
-  'prep', 'tyreT', 'cls', 'asC', 'pp',
+  'prep', 'tyreT', 'cls', 'asC', 'pp', 'chip', 'city',
 ];
 
 /** Whitelisted public tops row (straight / lap / sector / duel run). No phone, ever. */
@@ -3534,13 +3534,15 @@ export default {
           const row = res.row;
           row.pilotId = pilot.id;
           { const g = await guardRun(env, req, row, pilot.id, headers); if (g) return g; }
+          // v231: «подтверждено чипом» — время совпало с отметкой, которую чип сам прислал в GpsLive (WSS, токен устройства)
+          if (row.src === 'ext') { const at = await chipAttest(env, pilot.id, disc, row.t); row.chip = at.ok ? 1 : 0; }
           Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
           await applyWeather(env, row, res.geo); // v128
           const stored = await upsertDrag(env.PITLANE, disc, row, (b, a, k) => defer(dragOvertake(env, disc, k, b, a, pilot.id)));
           const c = row.cls === 'c';
           if (disc === '0-100' && !c) await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114 (сезон — только A/B)
           const rows = (await readList(env.PITLANE, boardKey('drag', disc, c ? 'c' : 'ab'))).filter(c ? isClassCRow : isValidGpsRow).sort((a, b) => a.t - b.t);
-          return json({ ok: true, cls: c ? 'c' : 'ab', stored, valid: row.valid, wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
+          return json({ ok: true, cls: c ? 'c' : 'ab', stored, chip: row.chip ?? null, valid: row.valid, wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
         }
       }
 

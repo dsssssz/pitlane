@@ -7635,3 +7635,7 @@ html:not(#_):not(#_):not(#_) .share-card > .pl-x, html:not(#_):not(#_):not(#_) .
 html:not(#_):not(#_):not(#_) .pl-x.pl-inline:not(.plm-close) { width:44px; height:44px; min-width:44px; max-width:44px; min-height:44px; margin:-7px; background:transparent; isolation:isolate; }
 html:not(#_):not(#_):not(#_) .pl-x.pl-inline:not(.plm-close)::after { inset:7px; background:#2a2b2f; z-index:-1; }
 html:not(#_):not(#_):not(#_) .pl-x.pl-inline:not(.plm-close):active::after { background:#34353a; }
+
+/* ===== v231: источник замера в топе (чип / телефон) ===== */
+.tb-src { display:inline-block; margin-left:6px; padding:1px 5px; border-radius:4px; font-size:10px; font-weight:600; letter-spacing:.02em; line-height:1.4; vertical-align:middle; color:#9a9a9a; background:#1c1c1e; }
+.tb-src.chip { color:#0b0b0c; background:#e8e6e1; }

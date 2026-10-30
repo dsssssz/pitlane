@@ -180,6 +180,20 @@ const MAX_ROWS = 80;
 const MAX_MSG = 12 * 1024;
 const EV_KINDS = new Set(['launch', 'mark', 'end', 'abort']);
 const MARK_KEYS = new Set(['0-60', '0-100', '0-200', '0-300', '100-200', '200-300']);
+const ATTEST_TTL_MS = 14 * 86400_000; // как AC.maxAgeMs: офлайн-очередь может прислать замер позже
+const ATTEST_KEEP = 60;
+export const ATTEST_DISCS = MARK_KEYS;
+/** v231: подтверждение замера чипом через DO пилота. → { ok, devId? } ; без DO/ошибка → { ok:false }. */
+export async function chipAttest(env, pid, disc, tSec) {
+  if (!MARK_KEYS.has(disc) || !(tSec > 0)) return { ok: false };
+  const stub = liveStub(env, pid);
+  if (!stub) return { ok: false };
+  try {
+    const r = await stub.fetch(new Request('https://gps-live/attest?k=' + encodeURIComponent(disc) + '&ms=' + Math.round(tSec * 1000)));
+    const j = await r.json();
+    return j && j.ok ? j : { ok: false };
+  } catch (_) { return { ok: false }; }
+}
 
 /** Validate one batch row [dt, lat_e7, lon_e7, v_cms, hAcc_cm, sAcc_cms, numSV, fix]. */
 function rowOk(r) {
@@ -209,9 +223,35 @@ export class GpsLive {
   pair() { const P = this.env.__WebSocketPair || WebSocketPair; return Object.values(new P()); }
   upgrade(client, hdr) { return (this.env.__upgrade || ((c, hh) => new Response(null, { status: 101, webSocket: c, headers: hh })))(client, hdr); }
 
+  async saveEnd(marks, devId) {
+    if (!Object.keys(marks).length) return;
+    try {
+      const cut = this.now() - ATTEST_TTL_MS;
+      const l = ((await this.ctx.storage.get('ends')) || []).filter((e) => e && e.at >= cut);
+      l.push({ at: this.now(), marks, devId: devId || null, used: [] });
+      await this.ctx.storage.put('ends', l.slice(-ATTEST_KEEP));
+    } catch (_) {}
+  }
+  /** v231: есть ли отметка чипа k ≈ ms (±max(60 мс, 1,5 %)) за ATTEST_TTL; каждая отметка зачитывается один раз. */
+  async attest(k, ms) {
+    if (!MARK_KEYS.has(k) || !(ms > 0)) return { ok: false };
+    const cut = this.now() - ATTEST_TTL_MS;
+    const l = ((await this.ctx.storage.get('ends')) || []).filter((e) => e && e.at >= cut);
+    const tol = Math.max(60, ms * 0.015);
+    const e = l.slice().reverse().find((x) => Number.isInteger(x.marks?.[k]) && Math.abs(x.marks[k] - ms) <= tol && !(x.used || []).includes(k));
+    if (!e) return { ok: false };
+    e.used = [...(e.used || []), k];
+    await this.ctx.storage.put('ends', l);
+    return { ok: true, devId: e.devId, chipMs: e.marks[k] };
+  }
+
   async fetch(req) {
     await this.load();
     const u = new URL(req.url);
+    if (u.pathname === '/attest') {
+      const r = await this.attest(String(u.searchParams.get('k') || ''), Number(u.searchParams.get('ms')));
+      return new Response(JSON.stringify(r), { headers: { 'Content-Type': 'application/json' } });
+    }
     if (u.pathname === '/state') {
       return new Response(JSON.stringify({ online: this.devOnline(), devId: this.m.devId, status: this.m.status, lastAt: this.m.lastAt || null }), { headers: { 'Content-Type': 'application/json' } });
     }
@@ -316,6 +356,11 @@ export class GpsLive {
         }
       }
       this.m.ev = msg.id;
+      // v231: античит — отметки чипа хранятся в DO (сервер сверяет с присланным треком, см. attest)
+      if (msg.e === 'launch') this.m.run = {};
+      if (msg.e === 'mark') { this.m.run = this.m.run || {}; this.m.run[ev.k] = ev.ms; }
+      if (msg.e === 'end') await this.saveEnd({ ...(this.m.run || {}), ...(ev.marks || {}) }, a.devId);
+      if (msg.e === 'end' || msg.e === 'abort') this.m.run = {};
       const s = JSON.stringify(ev);
       this.m.evs.push({ at: this.now(), msg: s });
       if (this.m.evs.length > KEEP_EV) this.m.evs.shift();
