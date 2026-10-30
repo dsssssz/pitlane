@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c
 const ROOT = new URL('../../', import.meta.url).pathname;
 const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const app = rd('app.js'); const sw = rd('sw.js'); const css = rd('styles.css');
-ok(/const APP_VERSION = 'v1(8\d|9\d)'/.test(app) && /const CACHE = 'pitlane-v1(8\d|9\d)'/.test(sw) && /'v179', 'v180'/.test(app), 'версия v180');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(8\d|9\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(8\d|9\d))'/.test(sw) && /'v179', 'v180'/.test(app), 'версия v180');
 const a = app.indexOf('const BN_MS = 5000'); const blk = app.slice(a, a + 6000);
 ok(a > 0 && /BN_TW = 300/.test(blk) && /BN_RESUME = 4000/.test(blk), '5 с на баннер, переход 300 мс, пауза 4 с после касания');
 ok(/\(i \+ slides\.length\) % slides\.length/.test(blk) && /go\(cur \+ 1\)/.test(blk), 'по кругу');

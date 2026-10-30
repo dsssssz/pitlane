@@ -1,5 +1,6 @@
 // v135: флаг страны марки справа от названия машины (SVG, не эмодзи). Логотипов/эмблем марок НЕ добавляем (решение Маги).
 // node test/v135.test.mjs
+import { inPrecache, lazyCached } from './precache.mjs';
 import fs from 'fs';
 let fails = 0; const ok = (c, m, x) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m, x !== undefined ? JSON.stringify(x).slice(0, 400) : ''); } };
 const U = (f) => new URL('../../' + f, import.meta.url);
@@ -32,7 +33,8 @@ console.log('никаких логотипов марок (v135: только ф
 ok(!/logo|simple-?icons|img\/brands/i.test(mod), 'car-brands.js не знает о логотипах');
 ok(!/cb-logo/.test(app + css + html), 'нет класса логотипа в UI');
 // v136: эмблем нет вообще — ни папки img/brands, ни кода показа, ни пометки «превью» (больше нечего помечать)
-ok(!fs.existsSync(U('img/brands')), 'папки img/brands с эмблемами нет');
+// v226: решение изменено — реальные эмблемы марок разрешены (выбор машины по логотипам)
+ok(fs.existsSync(U('img/brands')), 'v226: эмблемы марок в img/brands (решение владельца)');
 ok(!/brandMark|BRAND_MARKS|applyBrandMark|brandKeyFromName|brand-mark|img\/brands/.test(app + css + html + sw), 'кода/стилей/кэша эмблем нет');
 ok(!/brandDisclaimer|эмблемы марок/.test(html + css), 'пометки про эмблемы нет');
 ok(!/<img[^>]+(emblem|logo|brand)[^>]*>/i.test(html), 'в разметке нет картинок-эмблем');
@@ -49,8 +51,8 @@ ok(/\.cb-row \.cb-name \{[^}]*text-overflow: ellipsis/.test(css) && /\.cb-flag \
 const v135at = css.indexOf('v135: флаг страны марки'); const v135css = css.slice(v135at, css.indexOf('/* ===== v153', v135at) > 0 ? css.indexOf('/* ===== v153', v135at) : undefined); // v153: подъём в топе — отдельный, разрешённый блок
 ok(!/text-shadow|drop-shadow|0 0 ([2-9]|\d{2,})px|#0f0|#39ff|lime/i.test(v135css), 'без неона/свечения');
 ok(!/hw-top|top-row|tops-/.test(v135css), 'таблицы топа не трогаем');
-ok(/'\.\/car-brands\.js'/.test(sw) && /img\/flags\/gb\.svg/.test(sw), 'SW: модуль и флаги в precache');
-ok(/const CACHE = 'pitlane-v1(3[5-9]|[4-9]\d)'/.test(sw), 'версия SW не ниже v135');
+ok(inPrecache('car-brands.js') && /img\/flags\/gb\.svg/.test(sw), 'SW: модуль и флаги в precache');
+ok(/const CACHE = 'pitlane-v(?:[2-9]\d\d|1(3[5-9]|[4-9]\d))'/.test(sw), 'версия SW не ниже v135');
 
 if (fails) { console.log(`\n✗ v135: ${fails}`); process.exit(1); }
 console.log('\nv135 OK');

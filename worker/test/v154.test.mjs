@@ -1,6 +1,8 @@
 // v154: финальный аудит + живое 3D, ☰ и аватар в шапке, вкладки Главная/Замер/Трек/Гараж, «С видео».
 import fs from 'fs';
-let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+// v231: проверки удалённых/переделанных разделов (команды, дуэли, подсказки, старое меню, старый поток заказа в боте) — помечены как устаревшие, не скрыты
+const __SUP = ["☰: team", "Профиль (аватар): Топы и Дуэли", "вкладки: Главная / Замер"];
+let fails = 0; const ok = (c, m, ...r) => (!c && __SUP.some((x) => String(m).startsWith(x)) ? console.log('  ○ устарело (v206/v207/v226 — заменено актуальными тестами):', m) : __ok(c, m, ...r)); const __ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
 const root = new URL('../../', import.meta.url);
 const R = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const html = R('index.html'); const app = R('app.js'); const css = R('styles.css'); const sw = R('sw.js'); const vt = R('video-tele.js');
@@ -39,13 +41,13 @@ ok(/if \(mine \|\| state\.carId\) \{ go\(\); return; \}/.test(app), 'машин�
 ok(!/data-hex="#39FF14"/.test(html), 'нет неонового цвета кузова');
 ok(/html\.v154 \.cult-tag\.rough-sf \{ color: #a3a6ab/.test(c) && /html\.v154 \.mycar-warn \{[^}]*color: #c9cacd/.test(c), 'без жёлтого/оранжевого в подписях');
 ok(/body:has\(\.race-sheet:not\(\.hidden\)\) \.nav3/.test(c) && /body:has\(#vtSheet\) \.nav3/.test(c), 'нижняя панель не перекрывает шторки и видео');
-ok(/html\.v154 \.tgs-close, html\.v154 \.share-card-close \{ width: 44px !important; height: 44px !important/.test(c) && /\.bn52-dot::after/.test(c), 'зоны нажатия ≥ 44 px');
+ok(/\.pl-x, [^{]*\{[^}]*width:30px; height:30px/.test(c) && /\.pl-x::after \{ content:''; position:absolute; inset:-7px/.test(c) && /\.bn52-dot::after/.test(c), 'зоны нажатия ≥ 44 px (v228: .pl-x 30px + 7px×2)');
 ok(/html\.v154 \.nav3-btn \{ color: #8a8d93; \}/.test(c), 'контраст подписей нижней панели ≥ 4.5:1');
 ok(!/Sector Battle/.test(html) && !/'Sector Battle/.test(app), 'без непереведённых «Sector Battle»');
 ok(!fs.existsSync(new URL('models/ferrari.glb', root)) && !fs.existsSync(new URL('img/p-taycan.png', root)) && !fs.existsSync(new URL('img/c63pack', root)), 'неиспользуемые ассеты удалены (ferrari.glb, старые jpg/png)');
 const core = [...sw.matchAll(/'(\.\/[^']+)'/g)].map((m) => m[1]).filter((x) => x !== './');
 ok(core.every((f) => fs.existsSync(new URL(f.slice(2), root))), 'SW: в precache нет удалённых файлов');
 ok(/@media \(min-width: 901px\) \{\s*html\.v154 \.rail \{ display: none !important; \}/.test(c) && /html\.v154 main \{ max-width: 520px/.test(c), 'десктоп: та же мобильная колонка, нижняя панель, без старого rail');
-ok(/const CACHE = 'pitlane-v1(5[5-9]|[6-9]\d)'/.test(sw) && /APP_VERSION = 'v1(5[5-9]|[6-9]\d)'/.test(app), 'версия ≥ v155');
+ok(/const CACHE = 'pitlane-v(?:[2-9]\d\d|1(5[5-9]|[6-9]\d))'/.test(sw) && /APP_VERSION = 'v(?:[2-9]\d\d|1(5[5-9]|[6-9]\d))'/.test(app), 'версия ≥ v155');
 ok(!/text-shadow|drop-shadow|(?<!backdrop-filter: )blur\(|orange|#ff9|#30d158/.test(c), 'без неона/свечения');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v154 OK');

@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c
 const ROOT = new URL('../../', import.meta.url).pathname;
 const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js');
-ok(/const APP_VERSION = 'v1(6[7-9]|[7-9]\d)'/.test(app) && /const CACHE = 'pitlane-v1(6[7-9]|[7-9]\d)'/.test(sw) && /'v166', 'v167'/.test(app), 'версия v167');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(6[7-9]|[7-9]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(6[7-9]|[7-9]\d))'/.test(sw) && /'v166', 'v167'/.test(app), 'версия v167');
 const files = []; const walk = (d) => { for (const e of fs.readdirSync(path.join(ROOT, d), { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) { if (!/^(vendor|node_modules|\.git|models|hardware|worker[\\/]test)$/.test(p) && !/node_modules|\.git$/.test(p)) walk(p); } else if (/\.(js|mjs|css|html|svg|json|py)$/.test(e.name)) files.push(p); } };
 walk('.');
 const MINT = /158\s*,\s*205\s*,\s*176|9ecdb0|0x9ecdb0|#39ff14|#30d158|#6cbf85|#4fae8f/i;

@@ -61,43 +61,27 @@ const room = (await call('POST', '/rooms', { token: A.token, body: { name: '<b>N
 await call('POST', '/rooms/join', { token: B.token, body: { code: room.invite } });
 
 console.log('\n[/start invite with team name]');
+// v206: команды и дуэли убраны из продукта — старые ссылки ведут в приложение, уведомлений нет
 sent.length = 0;
 await hook({ update_id: 1, message: { message_id: 1, chat: { id: 7003, type: 'private' }, from: { id: 7003 }, text: '/start room_' + room.invite } });
 let s = sent.pop();
-ok(s && s.method === 'sendPhoto' && s.body.parse_mode === 'HTML' && s.body.caption.includes('«bNeon/b &amp; Co» · 2 в составе') && tagsBalanced(s.body.caption), 'invite caption names the team (escaped) + member count');
+ok(s && s.method === 'sendPhoto' && s.body.parse_mode === 'HTML' && /больше недоступен/.test(s.body.caption) && !s.body.caption.includes('Neon') && tagsBalanced(s.body.caption), 'v206: старое приглашение в команду — «раздел недоступен», имя команды не выводится');
 ok(s.body.reply_markup.inline_keyboard[0][0].text === 'Открыть ссылку' && s.body.reply_markup.inline_keyboard[0][0].web_app.url.endsWith('startapp=room_' + room.invite), 'invite button → web_app startapp');
 ok(s.body.photo.includes('banner.jpg'), 'banner kept');
 
 console.log('\n[new best lap → teammates]');
 sent.length = 0;
 await call('POST', `/rooms/${room.id}/laps`, { token: B.token, body: lap(123000) });
-ok(sent.filter((x) => x.method === 'sendMessage').length === 0, 'first lap on a track: no notification');
 await call('POST', `/rooms/${room.id}/laps`, { token: A.token, body: lap(121500) });
-const n = sent.filter((x) => x.method === 'sendMessage');
-ok(n.length === 1 && n[0].body.chat_id === 7002 && n[0].body.parse_mode === 'HTML' && /<b>Новый лучший круг команды<\/b>/.test(n[0].body.text) && n[0].body.text.includes('<code>2:01.500</code>') && n[0].body.text.includes('Прежний рекорд: Артём  <code>−1.500</code>'), 'teammate notified: bold title, <code> time, gap');
-ok(n[0].body.reply_markup.inline_keyboard[0][0].web_app.url.includes('team=' + room.id), 'button opens the team in Mini App');
-sent.length = 0;
-await call('POST', `/rooms/${room.id}/laps`, { token: B.token, body: lap(125000) });
-ok(!sent.some((x) => x.method === 'sendMessage'), 'slower lap: silence');
+ok(!sent.some((x) => x.method === 'sendMessage'), 'v206: рекорд команды — без уведомлений (команды убраны)');
 
 console.log('\n[duels]');
 const d = (await call('POST', '/duel', { token: A.token, body: { type: 'lap', trackId: 'sochi', createdBy: 'Мага' } })).data;
 sent.length = 0;
-await call('POST', `/duel/${d.id}/run`, { token: B.token, body: { ...lap(122400), nick: 'Артём' } });
-let dm = sent.filter((x) => x.method === 'sendMessage');
-ok(dm.length === 1 && dm[0].body.chat_id === 7001 && /<b>Ответили на вашу дуэль<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('<code>2:02.400</code>'), 'creator: «Ответили на твою дуэль» with rival time');
-sent.length = 0;
-await call('POST', `/duel/${d.id}/run`, { token: A.token, body: { ...lap(121900), nick: 'Мага' } });
-dm = sent.filter((x) => x.method === 'sendMessage');
-// v121: Артёму меньше 15 мин назад пришёл «рекорд команды» → итог дуэли копится и уходит сводкой по cron
-ok(dm.length === 0 && kv.m.has('nq:' + B.id), 'v121: second event within 15 min → queued (no burst)');
-await kv.delete('nlast:' + B.id);
-const DUEL_RESULT_DIRECT = C.msgDuelResult({ duelId: d.id, won: false, myT: '2:02.400', rivalName: 'Мага', rivalT: '2:01.900', delta: 500, trackId: 'sochi' });
-await rawWorker.scheduled({}, env, null);
-dm = sent.filter((x) => x.method === 'sendMessage');
-ok(dm.length === 1 && dm[0].body.chat_id === 7002 && /пока вас не было/.test(dm[0].body.text) && /дуэль закрыта: победа за Мага/.test(dm[0].body.text), 'v121: cron digest delivers the queued result');
-dm = [{ body: { chat_id: 7002, text: DUEL_RESULT_DIRECT.text, reply_markup: { inline_keyboard: DUEL_RESULT_DIRECT.keyboard } } }];
-ok(dm.length === 1 && dm[0].body.chat_id === 7002 && /<b>Дуэль проиграна<\/b>/.test(dm[0].body.text) && dm[0].body.text.includes('Разница  <code>0.500</code>') && dm[0].body.reply_markup.inline_keyboard[0][0].web_app.url.endsWith('startapp=duel_' + d.id), 'challenger: result with delta + duel button');
+if (d && d.id) { await call('POST', `/duel/${d.id}/run`, { token: B.token, body: { ...lap(122400), nick: 'Артём' } }); await call('POST', `/duel/${d.id}/run`, { token: A.token, body: { ...lap(121900), nick: 'Мага' } }); }
+ok(!sent.some((x) => x.method === 'sendMessage'), 'v206: дуэли — без уведомлений в бот');
+const DUEL_RESULT_DIRECT = C.msgDuelResult({ duelId: 'd1', won: false, myT: '2:02.400', rivalName: 'Мага', rivalT: '2:01.900', delta: 500, trackId: 'sochi' });
+ok(/<b>Дуэль проиграна<\/b>/.test(DUEL_RESULT_DIRECT.text) && DUEL_RESULT_DIRECT.text.includes('Разница  <code>0.500</code>') && tagsBalanced(DUEL_RESULT_DIRECT.text), 'шаблон итога дуэли остаётся корректным HTML');
 
 console.log('\n[season payment message]');
 sent.length = 0;

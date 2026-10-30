@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if 
 const root = new URL('../../', import.meta.url); const rd = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const tma = rd('tma.js');
 const L = app.slice(app.indexOf('(function setupLaunch'), app.indexOf('renderTracks();\napplyCarUI();'));
-ok(/const APP_VERSION = 'v1(6[2-9]|[7-9]\d)'/.test(app) && /const CACHE = 'pitlane-v1(6[2-9]|[7-9]\d)'/.test(sw) && /'v161', 'v162'/.test(app), 'версия v162');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(6[2-9]|[7-9]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(6[2-9]|[7-9]\d))'/.test(sw) && /'v161', 'v162'/.test(app), 'версия v162');
 ok(/if \(isTMA && tmaInitData\) \{ const q = new URLSearchParams\(tmaInitData\); return 'tg:' \+ \(q\.get\('auth_date'\)/.test(L), 'ключ запуска в Telegram — auth_date + подпись initData (меняются при каждом открытии)');
 ok(/seen = launchId === 'tg:same' \? !!v : v === launchId/.test(L) && /sessionStorage\.setItem\(KEY, launchId\)/.test(L), 'старый флаг «1» в sessionStorage WebView больше не глушит новый запуск');
 ok(/nav\.type !== 'navigate'/.test(L) && /new URL\(document\.referrer\)\.origin === location\.origin/.test(L), 'запуск без initData: новая навигация — играет, возврат со своих страниц / reload — нет');

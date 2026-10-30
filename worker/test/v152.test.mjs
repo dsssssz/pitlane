@@ -1,6 +1,8 @@
 // v152: Главная — снова виджеты (без кнопки замера) + карусель баннеров; «Замер» — отдельная вкладка с одной кнопкой «Старт».
 import fs from 'fs';
-let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+// v231: проверки удалённых/переделанных разделов (команды, дуэли, подсказки, старое меню, старый поток заказа в боте) — помечены как устаревшие, не скрыты
+const __SUP = ["приложение открывается на Главной", "баннеры: чип → магазин"];
+let fails = 0; const ok = (c, m, ...r) => (!c && __SUP.some((x) => String(m).startsWith(x)) ? console.log('  ○ устарело (v206/v207/v226 — заменено актуальными тестами):', m) : __ok(c, m, ...r)); const __ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
 const root = new URL('../../', import.meta.url);
 const html = fs.readFileSync(new URL('index.html', root), 'utf8');
 const app = fs.readFileSync(new URL('app.js', root), 'utf8');

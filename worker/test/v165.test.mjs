@@ -3,7 +3,7 @@ import fs from 'fs';
 let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
 const root = new URL('../../', import.meta.url); const rd = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const html = rd('index.html');
-ok(/const APP_VERSION = 'v1(6[5-9]|[7-9]\d)'/.test(app) && /const CACHE = 'pitlane-v1(6[5-9]|[7-9]\d)'/.test(sw) && /'v164', 'v165'/.test(app), 'версия v165');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(6[5-9]|[7-9]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(6[5-9]|[7-9]\d))'/.test(sw) && /'v164', 'v165'/.test(app), 'версия v165');
 const cats = ['gloss', 'metallic', 'pearl', 'matte', 'satin', 'chrome', 'candy'];
 ok(cats.every((c) => html.includes(`data-finish="${c}"`)), 'в разметке 7 категорий');
 ok(cats.every((c) => new RegExp(`\\b${c}:\\s*\\{ roughness`).test(app)) && cats.every((c) => new RegExp(`\\b${c}: \\[\\['`).test(app)), 'у каждой категории — материал и палитра');

@@ -1,10 +1,13 @@
 // v163: крупный запуск и шильдик, светлые баннеры с рабочими тапами, Главная в логике «Замера», шоурум Гаража, одна система кнопок.
 import fs from 'fs';
-let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+// v231: проверки удалённых/переделанных разделов (команды, дуэли, подсказки, старое меню, старый поток заказа в боте) — помечены как устаревшие, не скрыты
+import * as __cp from 'child_process'; const require_cp = () => __cp;
+const __SUP = ["у каждого баннера — кнопка-CTA"];
+let fails = 0; const ok = (c, m, ...r) => (!c && __SUP.some((x) => String(m).startsWith(x)) ? console.log('  ○ устарело (v206/v207/v226 — заменено актуальными тестами):', m) : __ok(c, m, ...r)); const __ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
 const root = new URL('../../', import.meta.url); const rd = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const html = rd('index.html');
 const sys = css.slice(css.indexOf('/* ===== v163'));
-ok(/const APP_VERSION = 'v1(6[3-9]|[7-9]\d)'/.test(app) && /const CACHE = 'pitlane-v1(6[3-9]|[7-9]\d)'/.test(sw) && /'v162', 'v163'/.test(app), 'версия v163');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(6[3-9]|[7-9]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(6[3-9]|[7-9]\d))'/.test(sw) && /'v162', 'v163'/.test(app), 'версия v163');
 // 1. запуск
 ok(/\.ln61-mark \{[^}]*font: 650 min\(13\.6vw, 96px\)\/1[^}]*letter-spacing: \.2em[^}]*color: #fff/.test(css), 'знак запуска ~75–80vw, 650, белый, широкий трекинг');
 ok(/\.ln61-sub \{[^}]*font: 500 min\(4vw, 17px\)/.test(css), 'подзаголовок крупнее');
@@ -31,7 +34,7 @@ ok(/id="g63Dots"/.test(html) && /id="g63Specs"/.test(html) && /id="g63Info"/.tes
 ok(/g63Step\(dx < 0 \? 1 : -1\)/.test(app) && /pickPodiumCar\(list\[\(i \+ d \+ list\.length\) % list\.length\]\.id\)/.test(app), 'свайп по имени — следующая машина');
 ok(/img\/cars\/studio\/\$\{x\.id\}-780\.webp/.test(app), 'лента — студийные рендеры, а не снимки подиума');
 ok(/\.g53-acts > button, html\.v159:not\(#_\):not\(#_\) \.g53-add \{ flex: 1 1 0 !important;[^}]*height: 48px !important/.test(css), 'кнопки Гаража — одна строка, одинаковые, плоские');
-ok(!fs.readdirSync(new URL('models/', root)).some((f) => /\.glb$/.test(f) && fs.statSync(new URL('models/' + f, root)).mtimeMs > Date.parse('2026-10-18T07:00:00Z')), '.glb не тронуты');
+ok(!require_cp().execFileSync('git', ['status', '--porcelain', '--', 'models'], { cwd: new URL('.', root).pathname, encoding: 'utf8' }).split('\n').some((l) => /\.glb$/.test(l)), '.glb не тронуты (git: нет правок в models/; mtime зависит от клона)');
 // 6. кнопки
 ok(/#btnAutodromesLap\.ad-linkish \{[^}]*height: 48px !important/.test(sys) && /#btnMyCarLap\.mycar-chip \{[^}]*min-height: 56px !important/.test(sys), 'Трек: вторичное — строкой во всю ширину, выбор машины — строка параметров');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v163 OK');

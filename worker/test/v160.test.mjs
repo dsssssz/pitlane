@@ -1,12 +1,14 @@
 // v160: фирменные моменты движения — пружинный прибор замера, полоса дельты, вход в сессию, прорисовка трассы, общие элементы, тактильные отклики.
+import { inPrecache, lazyCached } from './precache.mjs';
 import fs from 'fs';
 let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c ? '' : (x ?? '')); if (!c) fails++; };
 const root = new URL('../../', import.meta.url);
 const R = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const html = R('index.html'); const app = R('app.js'); const css = R('styles.css'); const sw = R('sw.js'); const mo = R('motion.js'); const shop = R('shop-ui.js');
-const mc = css.slice(css.indexOf('/* ===== v160 MOTION'));
-ok(/const CACHE = 'pitlane-v1(6\d|[7-9]\d)'/.test(sw) && /APP_VERSION = 'v1(6\d|[7-9]\d)'/.test(app) && /'v159', 'v160'[,)]/.test(app), 'версия ≥ v160');
-ok(/'\.\/motion\.js'/.test(sw) && fs.statSync(new URL('motion.js', root)).size < 7000, 'motion.js в precache и маленький (< 7 КБ)');
+const secOf = (s, m) => { const a = s.indexOf(m); const b = s.indexOf('\n/* ===== ', a + 5); return s.slice(a, b < 0 ? undefined : b); }; // v231: правило проверяется в своём разделе, а не до конца файла
+const mc = secOf(css, '/* ===== v160 MOTION');
+ok(/const CACHE = 'pitlane-v(?:[2-9]\d\d|1(6\d|[7-9]\d))'/.test(sw) && /APP_VERSION = 'v(?:[2-9]\d\d|1(6\d|[7-9]\d))'/.test(app) && /'v159', 'v160'[,)]/.test(app), 'версия ≥ v160');
+ok(inPrecache('motion.js') && fs.statSync(new URL('motion.js', root)).size < 7000, 'motion.js в precache и маленький (< 7 КБ)');
 ok(/import \{ spring, countUp, flyShared, drawIn, reduced as motionReduced \} from '\.\/motion\.js'/.test(app) && /import \{ flyShared \} from '\.\/motion\.js'/.test(shop), 'один модуль движения для приложения и магазина');
 console.log('[производительность]');
 ok(/raf = live\.size \? requestAnimationFrame\(loop\) : 0/.test(mo), 'один общий rAF, останавливается, когда ничего не движется');

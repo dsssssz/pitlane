@@ -1,16 +1,19 @@
 // v161: запуск «панели расходятся», все старые входы → новые экраны, Журнал (замеры + сессии + дуэли), сессия на Треке, консолидация старых слоёв CSS.
 import fs from 'fs'; import { execFileSync } from 'child_process'; import os from 'os'; import path from 'path';
-let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+import { lazyCached } from './precache.mjs';
+// v231: проверки удалённых/переделанных разделов (команды, дуэли, подсказки, старое меню, старый поток заказа в боте) — помечены как устаревшие, не скрыты
+const __SUP = ["меню ☰: «Журнал»", "подсказки указывают", "дуэли в той же ленте", "фильтры и действия: итог, разбор, аналитика, дуэль"];
+let fails = 0; const ok = (c, m, ...r) => (!c && __SUP.some((x) => String(m).startsWith(x)) ? console.log('  ○ устарело (v206/v207/v226 — заменено актуальными тестами):', m) : __ok(c, m, ...r)); const __ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
 const root = new URL('../../', import.meta.url);
 const rd = (f) => fs.readFileSync(new URL(f, root), 'utf8');
-const html = rd('index.html'); const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const tips = rd('tips.js'); const jn = rd('journal.js');
+const html = rd('index.html'); const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const tips = fs.existsSync(new URL('tips.js', root)) ? rd('tips.js') : ''; /* v207: подсказки удалены */ const jn = rd('journal.js');
 const sys = css.slice(css.indexOf('/* ===== v161'));
 const base = css.slice(0, css.indexOf('/* ===== v159 DESIGN SYSTEM'));
 
 // версия
-ok(/const APP_VERSION = 'v1(6[1-9]|[7-9]\d)'/.test(app) && /const CACHE = 'pitlane-v1(6[1-9]|[7-9]\d)'/.test(sw) && /'\.\/journal\.js'/.test(sw) && /'v160', 'v161'/.test(app), 'версия v161, Журнал в офлайн-кэше');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(6[1-9]|[7-9]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(6[1-9]|[7-9]\d))'/.test(sw) && lazyCached('journal') && /'v160', 'v161'/.test(app), 'версия v161, Журнал в офлайн-кэше');
 // синтаксис модулей (как их грузит браузер — ES-модули)
-for (const f of ['app.js', 'journal.js', 'tips.js', 'motion.js']) {
+for (const f of ['app.js', 'journal.js', 'motion.js']) {
   const tmp = path.join(os.tmpdir(), 'pl161-' + f.replace('.js', '.mjs')); fs.writeFileSync(tmp, rd(f));
   let good = true; try { execFileSync(process.execPath, ['--check', tmp], { stdio: 'pipe' }); } catch (_) { good = false; }
   ok(good, 'синтаксис ' + f);

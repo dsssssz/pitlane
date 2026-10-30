@@ -9,6 +9,7 @@ import { PulseHub } from '../src/pulsehub.js';
 import { roomsRefundedPayment, roomsSuccessfulPayment, ROOM_SEASON_STARS, ROOM_SEASON_DAYS } from '../src/rooms.js';
 import { SUPPORT_DAY_MAX } from '../src/botshop.js';
 import fs from 'fs'; import crypto from 'crypto';
+import { SHOP_CONFIG as __SC, FOUNDERS as __F } from '../../shop-config.js'; __SC.foundersOpen = true; __F.limit = 0; // v231: чип открыт, без цены основателей — проверяем обычную арифметику
 const worker = withAutoRefresh(rawWorker);
 let fails = 0;
 const ok = (c, m, x) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m, x !== undefined ? JSON.stringify(x).slice(0, 600) : ''); } };
@@ -139,7 +140,7 @@ console.log('\n[M3/L8/L9: сайт — CSP, сторонние скрипты, i
   const v = R('hardware/pitlane-gps/web-flash/vendor/esp-web-tools-10.4.0/install-button.js');
   ok(!/(from|import\()\s*['"]https?:/.test(v), 'вендорный бандл не тянет модули со сторонних хостов');
   ok(!/cap\.innerHTML/.test(R('track-sat-map.js')), 'подпись спутниковой карты — без innerHTML');
-  ok(/APP_VERSION = 'v18[4-9]'/.test(R('app.js')) && /pitlane-v18[4-9]'/.test(R('sw.js')) && /'v184'\);/.test(R('app.js')), 'версия v184 (APP_VERSION, кэш SW, класс)');
+  ok(/APP_VERSION = 'v(?:[2-9]\d\d|18[4-9])'/.test(R('app.js')) && /pitlane-v(?:[2-9]\d\d|18[4-9])'/.test(R('sw.js')) && /'v184'\);/.test(R('app.js')), 'версия v184 (APP_VERSION, кэш SW, класс)');
   ok(/RL_TGMSG/.test(R('worker/wrangler.toml')) && /RL_TGCB/.test(R('worker/wrangler.toml')), 'wrangler.toml: биндинги RL_TGMSG / RL_TGCB');
 }
 

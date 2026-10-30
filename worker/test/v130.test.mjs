@@ -1,4 +1,5 @@
 // v130: разбор сессии (клиент) — node test/v130.test.mjs
+import { inPrecache, lazyCached } from './precache.mjs';
 import { analyzeSession, splitOutline, sectorTone, splitsOf } from '../../session-review.js';
 import { TRACK_OUTLINES } from '../../geo/outlines.js';
 import fs from 'fs';
@@ -37,5 +38,5 @@ ok(blk.length > 1000 && !/innerHTML/.test(blk) && !/L\.map|ensureLeaflet/.test(b
 ok(/analyzeSession\(state\.trackDays\[0\]\.laps\)\.ok\) setTimeout\(\(\) => openSessionReview\(0\)/.test(app), 'открывается после сессии из ≥2 кругов');
 ok(/td-review/.test(app) && /\['sessionSheet', 'sessionSheetClose'\]/.test(app), 'вход из списка track-day + BackButton');
 ok(!/fetch\(|api\./.test(blk), 'никаких сетевых запросов — данные сессии на клиенте');
-ok(/'\.\/session-review\.js'/.test(sw) && /const APP_VERSION = 'v1([3-9]\d)'/.test(app), 'модуль в precache SW, APP_VERSION ≥ v130');
+ok(inPrecache('session-review.js') && /const APP_VERSION = 'v(?:[2-9]\d\d|1([3-9]\d))'/.test(app), 'модуль в precache SW, APP_VERSION ≥ v130');
 console.log(fails ? `\n${fails} FAIL` : '\nOK'); process.exit(fails ? 1 : 0);

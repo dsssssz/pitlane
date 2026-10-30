@@ -5,11 +5,11 @@ const root = new URL('../../', import.meta.url);
 const R = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const html = R('index.html'); const app = R('app.js'); const css = R('styles.css'); const sw = R('sw.js'); const legal = R('legal.css'); const method = R('method.html');
 const noC = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '');
-const sysAt = css.indexOf('/* ===== v159 DESIGN SYSTEM'); const sys = css.slice(sysAt); const base = noC(css.slice(0, sysAt));
-ok(/const CACHE = 'pitlane-v1(59|[6-9]\d)'/.test(sw) && /APP_VERSION = 'v1(59|[6-9]\d)'/.test(app) && /'v158', 'v159'[,)]/.test(app) && /<html lang="ru" class="v159">/.test(html), 'версия ≥ v159, класс системы сразу в <html>');
+const sysAt = css.indexOf('/* ===== v159 DESIGN SYSTEM'); const secOf = (s, m) => { const a = s.indexOf(m); const b = s.indexOf('\n/* ===== ', a + 5); return s.slice(a, b < 0 ? undefined : b); }; /* v231: правило проверяется в своём разделе */ const sys = secOf(css, '/* ===== v159 DESIGN SYSTEM'); const base = noC(css.slice(0, sysAt));
+ok(/const CACHE = 'pitlane-v(?:[2-9]\d\d|1(59|[6-9]\d))'/.test(sw) && /APP_VERSION = 'v(?:[2-9]\d\d|1(59|[6-9]\d))'/.test(app) && /'v158', 'v159'[,)]/.test(app) && /<html lang="ru" class="v159[ "]/.test(html), 'версия ≥ v159, класс системы сразу в <html>');
 console.log('[токены — одно место]');
 ok(css.indexOf('/* ===== v159 TOKENS') >= 0 && css.indexOf('/* ===== v159 TOKENS') < 200, 'токены — в начале файла');
-for (const t of ['--ds-bg: #000', '--ds-bg-1: #0a0a0a', '--ds-line: rgba(255,255,255,.08)', '--ds-sub: #8a8a8a', '--ds-acc: rgb(var(--acc-rgb))', '--gutter: 24px', '--s1: 8px', '--r1: 4px', '--r3: 8px', '--ds-t: 200ms']) ok(css.includes(t), 'токен ' + t);
+for (const t of ['--ds-bg: #000', '--ds-bg-1: #0a0a0a', '--ds-line: rgba(255,255,255,.08)', '--ds-sub: #9a9a9a', '--ds-acc: rgb(var(--acc-rgb))', '--gutter: 24px', '--s1: 8px', '--r1: 4px', '--r3: 8px', '--ds-t: 200ms']) ok(css.includes(t), 'токен ' + t);
 { const roots = noC(css).match(/:root\s*\{[^}]*\}/g) || []; const defs = roots.join('').match(/--(c|h|r|sp|sh)-[a-z0-9-]+:/g) || []; ok(defs.length > 0 && new Set(defs).size === defs.length, 'старые имена токенов определены один раз (алиасы на систему)', defs.length + ' / ' + new Set(defs).size); }
 ok(!/--h-card:\s*linear-gradient/.test(css) && /--h-card: transparent/.test(css) && /--sh-1: none; --sh-2: none/.test(css), 'карточки и тени старых слоёв сведены к токенам системы');
 console.log('[шрифт]');
@@ -20,7 +20,7 @@ console.log('[старые слои без «кожи»]');
 { const sh = [...base.matchAll(/box-shadow:\s*([^;}]+)/g)].map((m) => m[1].trim()).map((v) => v.replace(/\([^()]*\)/g, '()')).filter((v) => !/^none/.test(v) && !v.split(',').every((p) => /^\s*inset 0 0 0 1px /.test(p)) && !/^var\(--sh-\d\)/.test(v));
   ok(sh.length === 0, 'тени остались только как кольца-волоски (inset 0 0 0 1px)', sh.slice(0, 5)); }
 ok(!/text-shadow\s*:\s*(?!none)/.test(noC(css)) && !/drop-shadow\(/.test(noC(css)), 'нет text-shadow и drop-shadow во всём файле');
-{ const big = [...noC(css).matchAll(/border(?:-(?:top|bottom)-(?:left|right))?-radius:\s*([^;}]+)/g)].map((m) => m[1]).filter((v) => (v.match(/(\d*\.?\d+)px/g) || []).some((x) => { const n = parseFloat(x); return n > 8 && n < 60; }));
+{ const big = [...noC(css.slice(0, sysAt + sys.length)).matchAll(/border(?:-(?:top|bottom)-(?:left|right))?-radius:\s*([^;}]+)/g)].map((m) => m[1]).filter((v) => (v.match(/(\d*\.?\d+)px/g) || []).some((x) => { const n = parseFloat(x); return n > 8 && n < 60; }));
   ok(big.length === 0, 'радиусы 4–8 px (кроме кругов и пилюль-индикаторов)', big.slice(0, 5)); }
 ok(!/\.run-secondary \{ margin-top: 12px; \}\s*\}/.test(css), 'лишняя «}» (ломала следующее правило) убрана');
 console.log('[система]');

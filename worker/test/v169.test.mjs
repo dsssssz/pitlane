@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c
 const ROOT = new URL('../../', import.meta.url).pathname;
 const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js');
-ok(/const APP_VERSION = 'v1(69|[7-9]\d)'/.test(app) && /const CACHE = 'pitlane-v1(69|[7-9]\d)'/.test(sw) && /'v168', 'v169'/.test(app), 'версия v169');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(69|[7-9]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(69|[7-9]\d))'/.test(sw) && /'v168', 'v169'/.test(app), 'версия v169');
 ok(/\.nav3 \{ background: rgba\(10,10,10,\.72\)[^}]*saturate\(1\.5\)/.test(css) && /\.brand-bar \{[^}]*rgba\(10,10,10,\.7\)[^}]*saturate\(1\.5\)/.test(css), 'жидкое стекло на шапке/навигации (размытие только у них — ради iPhone)');
 ok(/scale: \.965/.test(css) && /cubic-bezier\(\.34,1\.56,\.64,1\)/.test(css), 'пружинное нажатие через scale (не ломает transform)');
 ok(/@supports \(animation-timeline: view\(\)\)/.test(css) && /prefers-reduced-motion: no-preference/.test(css), 'появление при скролле только где поддерживается и без reduced-motion');

@@ -48,5 +48,5 @@ ok(/maxlength="280"/.test(html) && /text: text\.slice\(0, 280\)/.test(app), 'л�
 const v125 = app.slice(app.indexOf('/* v125: Paddock как чат'), app.indexOf('let _hwTeamAt = 0;'));
 ok(!/innerHTML/.test(v125), 'превью чата только через textContent/узлы');
 console.log('[версия]');
-ok(/const APP_VERSION = 'v1(2[5-9]|[3-9]\d)'/.test(app) && /pitlane-v1(2[5-9]|[3-9]\d)/.test(sw), 'APP_VERSION / SW ≥ v125');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(2[5-9]|[3-9]\d))'/.test(app) && /pitlane-v(?:[2-9]\d\d|1(2[5-9]|[3-9]\d))/.test(sw), 'APP_VERSION / SW ≥ v125');
 console.log(fails ? `\n${fails} FAIL` : '\nOK'); process.exit(fails ? 1 : 0);

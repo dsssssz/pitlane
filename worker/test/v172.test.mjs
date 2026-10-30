@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c
 const ROOT = new URL('../../', import.meta.url).pathname;
 const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js');
-ok(/const APP_VERSION = 'v1(7[2-9]|[89]\d)'/.test(app) && /const CACHE = 'pitlane-v1(7[2-9]|[89]\d)'/.test(sw) && /'v171', 'v172'/.test(app), 'версия v172');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(7[2-9]|[89]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(7[2-9]|[89]\d))'/.test(sw) && /'v171', 'v172'/.test(app), 'версия v172');
 ok(/function askText172\(/.test(app) && (app.match(/await askText172\(/g) || []).length === 4, 'лист ввода в 4 местах (жалоба, дуэль, экипаж, ник)');
 ok(!/[^.\w]prompt\('Вставь|window\.prompt\('Что не так|prompt\('Твой ник/.test(app), 'системных prompt() для ввода нет');
 ok(!/[^.\w]alert\(/.test(app), 'системных alert() нет — тосты');

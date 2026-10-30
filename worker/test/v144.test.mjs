@@ -4,10 +4,11 @@ import { withAutoRefresh } from './autorefresh.mjs';
 import { MemKV } from './kvmock.mjs';
 import { SHOP_CONFIG, SHOP_PRODUCTS, SHOP_SUBS, productById, orderable } from '../../shop-config.js';
 import fs from 'fs';
+import { SHOP_CONFIG as __SC, FOUNDERS as __F } from '../../shop-config.js'; __SC.foundersOpen = true; __F.limit = 0; // v231: чип открыт, без цены основателей — проверяем обычную арифметику
 const worker = withAutoRefresh(rawWorker);
 let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c ? '' : JSON.stringify(x ?? '').slice(0, 300)); if (!c) fails++; };
-ok(['pitlane-gps', 'pitlane-gps-case', 'pitlane-mount'].every((id) => productById(id) && orderable(productById(id))), 'чип, корпус, держатель — предзаказ');
-ok(productById('pitlane-gps').price === 6800, 'цена чипа не тронута');
+ok(orderable(productById('pitlane-gps')) && ['pitlane-gps-case', 'pitlane-mount'].every((id) => productById(id) && productById(id).status === 'soon' && !orderable(productById(id))), 'чип — предзаказ; корпус и держатель — «Скоро», не заказываются (v222)');
+ok(productById('pitlane-gps').price === 8499, 'цена чипа не тронута');
 ok(SHOP_SUBS.length === 2 && SHOP_SUBS.every((s) => s.status === 'soon' && !('price' in s)), 'подписки — «скоро», без цены');
 ok(SHOP_CONFIG.payments === false, 'оплаты выключены');
 ok(!productById('sub-analytics'), 'подписку нельзя заказать как товар');
@@ -20,8 +21,8 @@ async function call(method, path, { body, token } = {}) { const h = { Origin: 'h
 const o = await call('POST', '/auth/otp', { body: { phone: '79001440001' } });
 const v = await call('POST', '/auth/verify', { body: { phone: '79001440001', code: o.data.demoCode, nick: 'Мага' } });
 const r = await call('POST', '/shop/order', { token: v.data.token, body: { productId: 'pitlane-mount', qty: 2, city: 'Москва', contact: { method: 'phone', value: '+79001112233' }, cid: 'mount0000001' } });
-ok(r.status === 200 && r.data.ok && r.data.order.total == null && r.data.forwarded, 'заявка на держатель ушла в бот (цена по запросу)', r);
-ok(sent.some((x) => x.m === 'sendMessage' && x.b.chat_id === '8591275999' && /Магнитный держатель/.test(x.b.text)), 'сообщение владельцу');
+ok(r.status === 400 && r.data.error === 'not available' && r.data.productId === 'pitlane-mount', 'держатель «Скоро»: заявка отклоняется сервером', r);
+ok(!sent.some((x) => x.m === 'sendMessage' && /Магнитный держатель/.test(x.b.text || '')), 'владельцу ничего не ушло');
 ok((await call('POST', '/shop/order', { token: v.data.token, body: { productId: 'sub-tracks', qty: 1, city: 'Москва', contact: { method: 'phone', value: '+79001112233' }, cid: 'sub000000001' } })).status === 400, 'подписка не заказывается');
 const ui = fs.readFileSync(new URL('../../shop-ui.js', import.meta.url), 'utf8');
 ok(ui.includes('SHOP_SUBS') && ui.includes("'Скоро'"), 'витрина показывает подписки «Скоро»');

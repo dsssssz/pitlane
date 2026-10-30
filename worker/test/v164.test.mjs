@@ -3,7 +3,7 @@ import fs from 'fs';
 let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
 const root = new URL('../../', import.meta.url); const rd = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const html = rd('index.html');
-ok(/const APP_VERSION = 'v1(6[4-9]|[7-9]\d)'/.test(app) && /const CACHE = 'pitlane-v1(6[4-9]|[7-9]\d)'/.test(sw) && /'v163', 'v164'/.test(app), 'версия v164');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(6[4-9]|[7-9]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(6[4-9]|[7-9]\d))'/.test(sw) && /'v163', 'v164'/.test(app), 'версия v164');
 ok(/#homeWidgets \.hw\[hidden\], html\.v159:not\(#_\):not\(#_\) #view-home #homeWidgets \.hw\[data-empty="1"\]/.test(css) && /#homeWidgets \.hw-empty-cta \{ display: none !important; \}/.test(css), 'скрытые/пустые плитки скрыты, кнопки внутри плитки нет — не вылезает');
 ok(/brandOf\(m\.name\)/.test(app) && /g64-flag/.test(app) && /\.g53-name \.g64-flag/.test(css), 'флаг страны у имени в Гараже');
 ok(/const Q_KEY = 'pitlane-quality-v2'/.test(app), 'сброс ложного «low» прежнего замера');

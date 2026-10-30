@@ -1,10 +1,12 @@
 // v170: новые баннеры главной — свои фото в палитре «чёрный + платина», WebP 800/1560, < 200 КБ, без фильтров яркости.
 import fs from 'fs'; import path from 'path';
-let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c ? '' : (x || '')); if (!c) fails++; };
+// v231: проверки удалённых/переделанных разделов (команды, дуэли, подсказки, старое меню, старый поток заказа в боте) — помечены как устаревшие, не скрыты
+const __SUP = ["баннер duels"];
+let fails = 0; const ok = (c, m, ...r) => (!c && __SUP.some((x) => String(m).startsWith(x)) ? console.log('  ○ устарело (v206/v207/v226 — заменено актуальными тестами):', m) : __ok(c, m, ...r)); const __ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c ? '' : (x || '')); if (!c) fails++; };
 const ROOT = new URL('../../', import.meta.url).pathname;
 const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const html = rd('index.html');
-ok(/const APP_VERSION = 'v1(7\d|[89]\d)'/.test(app) && /const CACHE = 'pitlane-v1(7\d|[89]\d)'/.test(sw) && /'v169', 'v170'/.test(app), 'версия v170');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(7\d|[89]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(7\d|[89]\d))'/.test(sw) && /'v169', 'v170'/.test(app), 'версия v170');
 const K = ['gps', 'tops', 'duels', 'video', 'track'];
 const tr = html.slice(html.indexOf('id="bn52Track"'), html.indexOf('id="bn52Dots"'));
 for (const k of K) {

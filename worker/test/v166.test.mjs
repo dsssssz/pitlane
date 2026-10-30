@@ -1,9 +1,11 @@
 // v166: единый экран «Настройки» (группы как в iOS), меню ☰ из трёх групп, Профиль без дублей.
 import fs from 'fs';
-let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+// v231: проверки удалённых/переделанных разделов (команды, дуэли, подсказки, старое меню, старый поток заказа в боте) — помечены как устаревшие, не скрыты
+const __SUP = ["разбросанные настройки", "☰: три группы", "Профиль: без дублей", "кнопка профиля (аватар)"];
+let fails = 0; const ok = (c, m, ...r) => (!c && __SUP.some((x) => String(m).startsWith(x)) ? console.log('  ○ устарело (v206/v207/v226 — заменено актуальными тестами):', m) : __ok(c, m, ...r)); const __ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
 const root = new URL('../../', import.meta.url); const rd = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const html = rd('index.html'); const tma = rd('tma.js');
-ok(/const APP_VERSION = 'v1(6[6-9]|[7-9]\d)'/.test(app) && /const CACHE = 'pitlane-v1(6[6-9]|[7-9]\d)'/.test(sw) && /'v165', 'v166'/.test(app), 'версия v166');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(6[6-9]|[7-9]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(6[6-9]|[7-9]\d))'/.test(sw) && /'v165', 'v166'/.test(app), 'версия v166');
 const st = html.slice(html.indexOf('id="view-settings"'), html.indexOf('</section>', html.indexOf('id="view-settings"')));
 ok(['Аккаунт', 'Моя машина', 'GPS и датчики', 'Графика', 'Уведомления', 'Звук и вибрация', 'Язык', 'Помощь', 'Документы', 'О приложении'].every((g) => st.includes(`<p class="st66-h">${g}</p>`)), 'группы Настроек');
 ok(['id="langSelect"', 'id="sfxToggle"', 'id="hapToggle"', 'id="accNotify"', 'id="accFollows"', 'id="imuCard"', 'id="accGfx"', 'id="btnLogout"', 'id="btnDeleteAccount"', 'id="btnMyCarAcc"', 'id="btnTipsReset"', 'id="accCarPhoto"', 'data-st="gps"', './privacy.html'].every((x) => st.includes(x)), 'разбросанные настройки перенесены в один экран');

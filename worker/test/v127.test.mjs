@@ -21,7 +21,7 @@ for (const t of ['--c-acc', '--r-lg', '--sp-4', '--sh-1', '--font-num', '--c-lin
 ok(/\.nav-badge \{ background: var\(--c-text\) !important/.test(css) && /\.pc-bh b[^{]*\{ color: var\(--c-text\)/.test(css) && /\.tb-row\.me \{ background: var\(--ds-fill\) !important/.test(css), 'бейджи/ники/моя строка — без зелёного');
 ok(/\.hw-k, #hwCarSub, \.eyebrow[^{]*\{\s*text-transform: none !important/.test(css), 'меньше разряженного капса');
 console.log('[без эмодзи и прочерков]');
-ok(!/[\u2600-\u27BF\u2B50\u{1F300}-\u{1FAFF}]/u.test(app.replace(/'☰'|☰/g, '')), 'в app.js нет эмодзи/символов-бейджей');
+ok(!/[\u2600-\u27BF\u2B50\u{1F300}-\u{1FAFF}]/u.test(app.replace(/'☰'|☰/g, '').replace(/ ★|♥|'⚠ '/g, '') /* ★ — валюта Stars, ♥ — лайки, ⚠ — предупреждение замера */), 'в app.js нет эмодзи/символов-бейджей');
 ok(!/content: ' ⚔'|content: "★ "/.test(css), 'в CSS нет ⚔/★');
 ok(/'tb-car', shortCarName\(r\.car, r\.carId\) \|\| ''\)/.test(app) && /<strong id="hdrLap"><\/strong>/.test(html) && /<span id="gpsAcc"><\/span>/.test(html), 'пустые значения — без «—»');
 console.log('[аватарки]');
@@ -45,5 +45,5 @@ ok((await call('GET', `/pilot/${v2.pilotId}/avatar`)).status === 404, 'чужи�
 await kv.put('pilotmeta:' + v2.pilotId, JSON.stringify({ avatar: 'https://t.me/i/userpic/320/x.jpg' }));
 const tg = await call('GET', `/pilot/${v2.pilotId}/avatar`); ok(tg.status === 302 && tg.h.get('location') === 'https://t.me/i/userpic/320/x.jpg', 'Telegram CDN — редирект');
 console.log('[версия]');
-ok(/const APP_VERSION = 'v1(2[7-9]|[3-9]\d)'/.test(app) && /pitlane-v1(2[7-9]|[3-9]\d)/.test(sw), 'APP_VERSION / SW ≥ v127');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(2[7-9]|[3-9]\d))'/.test(app) && /pitlane-v(?:[2-9]\d\d|1(2[7-9]|[3-9]\d))/.test(sw), 'APP_VERSION / SW ≥ v127');
 console.log(fails ? `\n${fails} FAIL` : '\nOK'); process.exit(fails ? 1 : 0);

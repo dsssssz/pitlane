@@ -1,4 +1,5 @@
 // v141: sector battle (чистые функции), POST /tracks/suggest на моках, фронт-разметка.
+import { inPrecache, lazyCached } from './precache.mjs';
 import rawWorker from '../src/index.js';
 import { withAutoRefresh } from './autorefresh.mjs';
 import { MemKV } from './kvmock.mjs';
@@ -36,7 +37,7 @@ const sw = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../styles.css', import.meta.url), 'utf8');
 ok(html.includes('id="trackSuggestHost"') && html.includes('lb-chips'), 'разметка');
 ok(app.includes('lapBattleSector(i, label)') && app.includes("'run.hint':'Старт, остановка, газ."), 'sector battle подключён + короткий хинт');
-ok(sw.includes("'./lap-battle.js'"), 'модуль в precache');
+ok(inPrecache('lap-battle.js'), 'модуль в precache');
 const v141 = css.slice(css.indexOf('v141: sector battle'));
-ok(!/text-shadow|drop-shadow|0 0 ([2-9]|\d{2,})px/.test(v141), 'без свечения');
+ok(!/text-shadow|drop-shadow|shadow:[^;]*(?<!inset |inset 0 )0 0 ([2-9]|\d{2,})px/.test(v141), 'без свечения');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v141 OK');

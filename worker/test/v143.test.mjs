@@ -1,4 +1,5 @@
 // v143: видео + телеметрия — выбор контейнера, фолбэк, имя файла, подключение.
+import { inPrecache, lazyCached } from './precache.mjs';
 import fs from 'fs';
 const V = await import('../../video-tele.js');
 let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c ? '' : JSON.stringify(x ?? '')); if (!c) fails++; };
@@ -19,6 +20,6 @@ ok(calls.filter((c) => c === 'fillText').length >= 5, 'оверлей рисуе
 const app = fs.readFileSync(new URL('../../app.js', import.meta.url), 'utf8');
 const sw = fs.readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
 const vt = fs.readFileSync(new URL('../../video-tele.js', import.meta.url), 'utf8');
-ok(app.includes("import('./video-tele.js')") && sw.includes("'./video-tele.js'"), 'подключено + precache');
+ok(app.includes("import('./video-tele.js')") && lazyCached('video-tele'), 'подключено + precache');
 ok(!/shadowBlur|shadowColor/.test(vt), 'оверлей без свечения');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v143 OK');

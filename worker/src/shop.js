@@ -284,6 +284,8 @@ export async function createOrder(env, buyer, rec, mine, h, { source = 'app', no
       if (o.items) Object.assign(o, priceRec(o, env, null, true)); else o.total = founderTotal(productById(o.productId), o.qty);
     }
   }
+  // v231: места основателей кончились (или закрыты) — пересчёт по обычной цене, даже если превью (бот) посчитало founder
+  if (!o.founder && o.items) Object.assign(o, priceRec(o, env, null, false));
   // v226: короткий номер заказа (№1001…) = InvId Robokassa; KV-счётчик (best effort) + индекс shopno:<no> → id
   const seq = Math.max(1000, Number(await kv.get('shopseq')) || 1000) + 1;
   await kv.put('shopseq', String(seq)); o.no = seq;

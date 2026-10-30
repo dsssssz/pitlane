@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c
 const ROOT = new URL('../../', import.meta.url).pathname;
 const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const app = rd('app.js'); const sw = rd('sw.js');
-ok(/const APP_VERSION = 'v1(7[7-9]|[89]\d)'/.test(app) && /const CACHE = 'pitlane-v1(7[7-9]|[89]\d)'/.test(sw) && /'v176', 'v177'/.test(app), 'версия v177');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(7[7-9]|[89]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(7[7-9]|[89]\d))'/.test(sw) && /'v176', 'v177'/.test(app), 'версия v177');
 const lp = app.slice(app.indexOf('function loadPodiumModel('), app.indexOf('function loadPodiumModel(') + 1200);
 ok(/window\.__g53\(\)/.test(lp) && lp.indexOf('__g53') < lp.indexOf('fitGlb'), 'loadPodiumModel обновляет карточку g53 сразу');
 const g = app.match(/const GLASS177 = \{ clearcoat: ([\d.]+), spec: ([\d.]+), env: ([\d.]+) \}/);

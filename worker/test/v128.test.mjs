@@ -101,5 +101,5 @@ ok(/Weather data by Open-Meteo\.com/.test(method) && /CC BY 4\.0/.test(method) &
 ok(!/innerHTML[^;]*wxLine|innerHTML[^;]*wxShareLine/.test(app), 'погода — только textContent');
 const toml = fs.readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8');
 ok(/^WX_ENABLED = "1"/m.test(toml), 'прод: включено в wrangler.toml');
-ok(/const APP_VERSION = 'v1(2[8-9]|[3-9]\d)'/.test(app), 'APP_VERSION ≥ v128');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(2[8-9]|[3-9]\d))'/.test(app), 'APP_VERSION ≥ v128');
 console.log(fails ? `\n${fails} FAIL` : '\nOK'); process.exit(fails ? 1 : 0);

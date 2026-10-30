@@ -8,6 +8,7 @@ const html = fs.readFileSync(R + 'index.html', 'utf8');
 let fails = 0;
 const ok = (c, m, x) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m, x ?? ''); } };
 
+const BUILD = eval(sw.match(/const BUILD = \/\*BUILD\*\/(\[[^\]]*\])/)[1]); // v230: esbuild-бандл
 const core = eval(sw.match(/const CORE = (\[[\s\S]*?\]);/)[1]);
 ok(!core.some((u) => /\.glb$/.test(u)), 'CORE без GLB');
 ok(!core.some((u) => /vendor\/(three|leaflet)/.test(u)), 'CORE без three.js / Leaflet (кэш по первому запросу)');

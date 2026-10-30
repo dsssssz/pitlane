@@ -46,5 +46,5 @@ ok(/function thChart\(host, laps\)/.test(app) && /createElementNS\(NS, 'svg'\)/.
 const blk = app.slice(app.indexOf('/* ——— v129'), app.indexOf('/* ——— view enter hooks'));
 ok(!/innerHTML/.test(blk), 'v129 — только textContent/DOM');
 ok(/Здесь ещё нет твоих зачтённых кругов/.test(blk) && /Войди и проедь круг/.test(blk), 'честные пустые состояния');
-ok(/const APP_VERSION = 'v1(29|[3-9]\d)'/.test(app), 'APP_VERSION ≥ v129');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(29|[3-9]\d))'/.test(app), 'APP_VERSION ≥ v129');
 console.log(fails ? `\n${fails} FAIL` : '\nOK'); process.exit(fails ? 1 : 0);

@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c
 const ROOT = new URL('../../', import.meta.url).pathname;
 const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const html = rd('index.html');
-ok(/const APP_VERSION = 'v1(7[5-9]|[89]\d)'/.test(app) && /const CACHE = 'pitlane-v1(7[5-9]|[89]\d)'/.test(sw) && /'v174', 'v175'/.test(app), 'версия v175');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(7[5-9]|[89]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(7[5-9]|[89]\d))'/.test(sw) && /'v174', 'v175'/.test(app), 'версия v175');
 const logo = rd('img/logo/pitlane-logo.svg');
 ok(/fill="#(c9c6bf|e12323)"/.test(logo) && /fill="#f2efe9"/.test(logo) && !/gradient|filter|<text/i.test(logo), 'логотип: платиновая дуга, тёплый белый знак, контуры (не шрифт), без градиента/свечения');
 ok(/<b class="bb-logo" role="img" aria-label="PITLANE"><svg[^>]*>.*class="lg-arc".*class="lg-word"/.test(html), 'шапка: SVG-логотип с дугой');

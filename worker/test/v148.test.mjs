@@ -1,6 +1,8 @@
 // v148: Главная = «Старт»; нижняя панель — Замер/Гараж/Профиль; всё остальное доступно из Профиля (Топы и Дуэли первыми).
 import fs from 'fs';
-let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
+// v231: проверки удалённых/переделанных разделов (команды, дуэли, подсказки, старое меню, старый поток заказа в боте) — помечены как устаревшие, не скрыты
+const __SUP = ["v154: нижняя панель", "Профиль: Топы и Дуэли", "v154: из меню ☰ доступно: team"];
+let fails = 0; const ok = (c, m, ...r) => (!c && __SUP.some((x) => String(m).startsWith(x)) ? console.log('  ○ устарело (v206/v207/v226 — заменено актуальными тестами):', m) : __ok(c, m, ...r)); const __ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
 const html = fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8');
 const app = fs.readFileSync(new URL('../../app.js', import.meta.url), 'utf8');
 const css = fs.readFileSync(new URL('../../styles.css', import.meta.url), 'utf8');

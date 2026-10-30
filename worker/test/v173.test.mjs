@@ -4,7 +4,7 @@ let fails = 0; const ok = (c, m, x) => { console.log(c ? '  ✓' : '  ✗', m, c
 const ROOT = new URL('../../', import.meta.url).pathname;
 const rd = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js');
-ok(/const APP_VERSION = 'v1(7[3-9]|[89]\d)'/.test(app) && /const CACHE = 'pitlane-v1(7[3-9]|[89]\d)'/.test(sw) && /'v172', 'v173'/.test(app), 'версия v173');
+ok(/const APP_VERSION = 'v(?:[2-9]\d\d|1(7[3-9]|[89]\d))'/.test(app) && /const CACHE = 'pitlane-v(?:[2-9]\d\d|1(7[3-9]|[89]\d))'/.test(sw) && /'v172', 'v173'/.test(app), 'версия v173');
 ok(/\.ds-row\.z61-ghost \.ghost-pick \{ min-width: 0;/.test(css), 'выбор призрака сжимается на 320px');
 ok(/@media \(max-width: 359px\) \{[^}]*#colorBar \{ grid-template-columns: repeat\(6/.test(css), 'свотчи 6 в ряд на узком экране');
 ok(/#paintFinish button::before \{ content: ""; position: absolute;[^}]*left: -9px/.test(css), 'хит-зона коротких вкладок отделки');

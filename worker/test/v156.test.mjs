@@ -4,7 +4,8 @@ let fails = 0; const ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if 
 const root = new URL('../../', import.meta.url);
 const R = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const html = R('index.html'); const app = R('app.js'); const css = R('styles.css'); const sw = R('sw.js');
-const c = css.slice(css.indexOf('/* ===== v156'));
+const secOf = (s, m) => { const a = s.indexOf(m); const b = s.indexOf('\n/* ===== ', a + 5); return s.slice(a, b < 0 ? undefined : b); }; // v231: правило проверяется в своём разделе, а не до конца файла
+const c = secOf(css, '/* ===== v156');
 // (1) стекло
 // v159: стекло заменено системой — тонкий контурный круг без blur, светлый текст (одинаково для «Старт» и «Старт круга»)
 { const sys = css.slice(css.indexOf('/* ===== v159 DESIGN SYSTEM')); const g = (sys.match(/\.h48-start, html\.v159[^{]*#view-lap \.lap-start-hero \{[^}]*\}/) || [''])[0];
@@ -12,7 +13,7 @@ ok(/border: 1px solid var\(--ds-line-3\)/.test(g) && /backdrop-filter: none/.tes
 ok(/\.lap-start-hero::before \{[^}]*padding: 1px;[^}]*linear-gradient\(180deg, rgba\(255,255,255,\.46\)[^}]*mask/.test(c), 'обводка 1px градиентом, верх светлее');
 { const sys = css.slice(css.indexOf('/* ===== v159 DESIGN SYSTEM')); ok(/\.h48-start::before, html\.v159[^{]*\{[^}]*inset: 10px; border-radius: 50%; border: 1px solid var\(--ds-line\)/.test(sys) && !/inset 0 1px 0 rgba\(255,255,255,\.22\)/.test(css), 'v159: вместо блика — внутреннее кольцо-волосок'); }
 ok(/@keyframes s56Sheen \{[^}]*translateX\(-105%\)/.test(c) && /classList\.add\('s56-sheen'\)/.test(app), 'мягкий блик проходит по нажатию');
-ok(!/text-shadow|drop-shadow|(?<!backdrop-filter: )blur\(|orange|#ff9|#30d158|0 0 \d+px/.test(c), 'без неона/свечения (blur — только backdrop-filter стекла)');
+ok(!/text-shadow|drop-shadow|(?<!backdrop-filter: )blur\(|orange|#ff9|#30d158|shadow:[^;]*(?<!inset |inset 0 )0 0 [1-9]\d*px/.test(c), 'без неона/свечения (blur — только backdrop-filter стекла)');
 ok(!/\.h48-start[^{]*\{[^}]*background: #ecebe8/.test(c), 'белой заливки у старта больше нет');
 // (2) переход без вспышки
 ok(/html\.v156 #runDrive\.rd56-pre \{ visibility: hidden; pointer-events: none; \}/.test(c) && /function rd56Pre\(\)/.test(app) && /if \(on\) \(window\.requestIdleCallback/.test(app), 'спидометр пре-смонтирован скрытым, пока открыт «Замер»');
@@ -37,5 +38,5 @@ ok(/if \(AS56\.wait && !run\.armed\) as56Tick\(pos, v, now\);/.test(app) && /run
   s = mk(); [1000, 1500, 2100].forEach((t) => s.tick(0, t)); s.tick(5, 2300); ok(s.fired() === 1, '≥ 4 км/ч — сразу старт');
 }
 ok(/else \{ rd56Unpre\(\); as56Stop\(\); \}/.test(app), 'ушли с «Замера» — ожидание автостарта снято');
-ok(/const CACHE = 'pitlane-v1(5[6-9]|[6-9]\d)'/.test(sw) && /APP_VERSION = 'v1(5[6-9]|[6-9]\d)'/.test(app) && /'v155', 'v156'[,)]/.test(app), 'версия ≥ v156');
+ok(/const CACHE = 'pitlane-v(?:[2-9]\d\d|1(5[6-9]|[6-9]\d))'/.test(sw) && /APP_VERSION = 'v(?:[2-9]\d\d|1(5[6-9]|[6-9]\d))'/.test(app) && /'v155', 'v156'[,)]/.test(app), 'версия ≥ v156');
 if (fails) { console.log('FAIL', fails); process.exit(1); } console.log('v156 OK');
