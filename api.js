@@ -822,6 +822,7 @@ export const api = {
   // v137: магазин — заявки (только вошедшие; повтор с тем же cid не создаёт вторую заявку)
   async shopOrder(payload) { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), timeoutMs: 15000 }); },
   async trackSuggest(payload) { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/tracks/suggest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), timeoutMs: 15000 }); },
+  async shopFounders() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/founders'); },
   async shopOrders() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/orders'); },
   async gpsPair() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/gps/pair', { method: 'POST', body: '{}' }); },
   async gpsDevices() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/gps/devices'); },

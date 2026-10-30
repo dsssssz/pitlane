@@ -17529,11 +17529,15 @@ async function pf6LoadPass(force) {
   if (!(isRemoteApi() && getSessionToken() && currentUser())) { PF6.pass = null; return; }
   const r = await api.mePass().catch(() => null);
   if (r && r.ok !== false) { PF6.pass = r.pass || null; if (PF6.pass) PF6.pass.frame = passFrame(PF6.pass.frame); PF6.sales = r.sales === true; }
+  // v222: значок «Основатель» — сервер считает по подтверждённой заявке на чип
+  const so = await api.shopOrders().catch(() => null);
+  if (so && so.ok) { try { localStorage.setItem('pl_founder', so.founder ? '1' : '0'); } catch (_) {} }
 }
+const pf6Founder = () => { try { return localStorage.getItem('pl_founder') === '1'; } catch (_) { return false; } };
 function renderPf6() {
   const u = currentUser(); const pp = pf6Cos();
   const ava = document.getElementById('pf6Ava'); if (ava) ava.replaceChildren(pf6AvaEl(96, pp));
-  const nm = document.getElementById('pf6Name'); if (nm) nm.replaceChildren(pf6NameRow(pf6Nick() || (u ? 'Без ника' : 'Гость'), pp));
+  const nm = document.getElementById('pf6Name'); if (nm) { nm.replaceChildren(pf6NameRow(pf6Nick() || (u ? 'Без ника' : 'Гость'), pp)); if (u && pf6Founder()) nm.appendChild(padEl('span', 'pf6-founder', 'Основатель')); }
   const sub = document.getElementById('pf6Sub');
   if (sub) { const mc = (() => { try { return myCarLocal(); } catch (_) { return null; } })(); sub.textContent = u ? (mc ? shortCarName(mc.model, mc.carId) : 'Машина не выбрана') : 'Войди через Telegram, чтобы попасть в топы'; }
   const ps = document.getElementById('pf6Pass');

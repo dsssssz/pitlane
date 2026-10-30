@@ -1,10 +1,32 @@
 /* v137: магазин PITLANE — шторка: витрина → карточка товара → заявка → «Заявка принята», плюс «Мои заявки».
  * Всё строится через DOM + textContent (без вставки HTML-строк). Оплаты онлайн нет (SHOP_CONFIG.payments=false). */
 import { flyShared } from './motion.js'; // v160: фото карточки перелетает в галерею товара
-import { SHOP_SUBS, SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal } from './shop-config.js';
+import { SHOP_SUBS, SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal, FOUNDERS, gated, founderTotal } from './shop-config.js';
 
 let D = null; // deps from app.js: { api, currentUser, needLogin, hap, close }
-const st = { stack: [], orders: null, tg: undefined, busy: false, draft: {} };
+const st = { stack: [], orders: null, tg: undefined, busy: false, draft: {}, founders: null };
+/* v222: «Основатели» — счётчик только с сервера (GET /shop/founders); нет ответа → счётчик не показываем. */
+const isChip = (p) => p && p.id === FOUNDERS.productId;
+const founderLive = (p) => isChip(p) && SHOP_CONFIG.foundersOpen && st.founders && st.founders.left > 0;
+async function loadFounders() {
+  if (!SHOP_CONFIG.foundersOpen) return;
+  const r = await D.api.shopFounders?.().catch(() => null);
+  if (r && r.ok && Number.isFinite(r.left)) { st.founders = r; render(); }
+}
+function priceBlock(p, big) {
+  const w = el('span', 'shop-pb' + (big ? ' shop-pb-big' : ''));
+  const reg = Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу';
+  const row = el('span', 'shop-pb-row');
+  if (founderLive(p)) { row.append(el('b', big ? 'shop-buy-price' : 'shop-price', fmtRub(FOUNDERS.price)), el('s', 'shop-pb-old', reg)); }
+  else row.append(el('b', big ? 'shop-buy-price' : 'shop-price', p.status === 'soon' ? (big ? 'Скоро в продаже' : 'Скоро') : reg));
+  w.appendChild(row);
+  if (founderLive(p)) {
+    w.appendChild(el('span', 'shop-pb-offer', '−' + fmtRub(p.price - FOUNDERS.price) + ' первым ' + FOUNDERS.limit));
+    w.appendChild(el('span', 'shop-pb-left', 'осталось ' + st.founders.left + ' из ' + FOUNDERS.limit));
+  } else if (gated(p)) w.appendChild(el('span', 'shop-pb-soon', 'Скоро · после проверки точности'));
+  if (isChip(p)) w.appendChild(el('span', 'shop-pb-note', 'вдвое дешевле Dragy'));
+  return w;
+}
 const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
 const body = () => document.getElementById('shopBody');
 const rid = () => { const a = new Uint8Array(12); crypto.getRandomValues(a); return [...a].map((b) => 'abcdefghijklmnopqrstuvwxyz0123456789'[b % 36]).join(''); };
@@ -56,13 +78,13 @@ function viewList() {
     if (p.gallery?.[0]) open.appendChild(picture(p.gallery[0], 'shop-card-img', i < 3)); else open.appendChild(soonPh('shop-card-img'));
     const t = el('span', 'shop-card-txt');
     t.appendChild(el('b', 'shop-card-title', p.title)); t.appendChild(el('span', 'shop-card-sub', p.subtitle || ''));
-    t.appendChild(el('span', 'shop-price', p.status === 'soon' ? 'Скоро' : Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу'));
+    t.appendChild(priceBlock(p, false));
     open.appendChild(t);
     open.addEventListener('click', () => { D.hap?.(6); const img = open.querySelector('img'); const from = img ? { el: img.cloneNode(true), rect: img.getBoundingClientRect() } : null; push({ k: 'product', id: p.id }); if (from && D.page) requestAnimationFrame(() => { try { flyShared(from, document.querySelector('#shopBody .shop-gal-slide img'), { dur: 420 }); } catch (_) {} }); });
     c.appendChild(open);
     const pre = el('button', 'shop-pre', orderable(p) ? (p.status === 'preorder' ? 'Предзаказ' : 'Заказать') : statusOf(p).label); pre.type = 'button'; pre.disabled = !orderable(p);
     pre.addEventListener('click', async () => { D.hap?.(8); if (!D.currentUser()) { D.close?.(); D.needLogin('Чтобы оформить заявку, войдите — так мы сможем с вами связаться'); return; } st.stack = [{ k: 'list' }, { k: 'product', id: p.id }]; if (st.tg === undefined) await loadOrders(); push({ k: 'form', id: p.id }); });
-    c.appendChild(pre);
+    if (!gated(p)) c.appendChild(pre);
     grid.appendChild(c);
   });
   f.appendChild(grid);
@@ -98,7 +120,7 @@ const shortStatus = (s) => ORDER_SHORT[s] || ORDER_SHORT.new; // v182: стат�
 async function loadOrders() {
   const r = await D.api.shopOrders();
   st.orders = r && r.ok && Array.isArray(r.orders) ? r.orders : [];
-  if (r && r.ok) st.tg = r.tg || null; // сервер знает, есть ли Telegram во входе
+  if (r && r.ok) { st.tg = r.tg || null; try { localStorage.setItem('pl_founder', r.founder ? '1' : '0'); } catch (_) {} if (r.founders && Number.isFinite(r.founders.left)) st.founders = r.founders; } // сервер знает, есть ли Telegram во входе
   const old = document.getElementById('shopOrders'); if (old) old.replaceWith(ordersBlock());
 }
 
@@ -116,13 +138,13 @@ function viewProduct(v) {
   gal.appendChild(track); gal.appendChild(dots); f.appendChild(gal);
   const buy = el('div', 'shop-buy');
   const pl = el('div', 'shop-buy-p');
-  pl.appendChild(el('b', 'shop-buy-price', p.status === 'soon' ? 'Скоро в продаже' : Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу'));
-  pl.appendChild(el('span', 'shop-badge', statusOf(p).label));
+  pl.appendChild(priceBlock(p, true));
+  if (!gated(p)) pl.appendChild(el('span', 'shop-badge', statusOf(p).label));
   buy.appendChild(pl);
   const cta = el('button', 'shop-cta', orderable(p) ? (p.status === 'preorder' ? 'Заказать · предзаказ' : 'Заказать') : statusOf(p).label);
   cta.type = 'button'; cta.disabled = !orderable(p); cta.id = 'shopOrderBtn';
   cta.addEventListener('click', async () => { D.hap?.(8); if (!D.currentUser()) { D.close?.(); D.needLogin('Чтобы оформить заявку, войдите — так мы сможем с вами связаться'); return; } if (st.tg === undefined) { cta.disabled = true; await loadOrders(); cta.disabled = false; } push({ k: 'form', id: p.id }); });
-  buy.appendChild(cta); f.appendChild(buy);
+  if (!gated(p)) buy.appendChild(cta); f.appendChild(buy);
   if (!SHOP_CONFIG.payments) f.appendChild(el('p', 'shop-muted shop-pay-note', 'Без предоплаты в приложении: после заявки напишем в Telegram, договоримся об оплате и доставке.'));
   if (p.inside) f.appendChild(insideBlock(p.inside));
   const sp = el('section', 'shop-sec'); sp.appendChild(el('h3', 'shop-h3', 'Характеристики'));
@@ -146,7 +168,7 @@ function viewForm(v) {
   const stp = el('div', 'shop-qty'); const minus = el('button', 'shop-qty-b', '−'); minus.type = 'button'; minus.setAttribute('aria-label', 'Меньше');
   const qv = el('output', 'shop-qty-v', String(d.qty)); const plus = el('button', 'shop-qty-b', '+'); plus.type = 'button'; plus.setAttribute('aria-label', 'Больше');
   const sum = el('span', 'shop-sum');
-  const upd = () => { qv.textContent = String(d.qty); minus.disabled = d.qty <= 1; plus.disabled = d.qty >= (p.maxQty || 5); const t = orderTotal(p, d.qty); sum.textContent = t != null ? 'Итого ' + fmtRub(t) : 'Цена по запросу'; };
+  const upd = () => { qv.textContent = String(d.qty); minus.disabled = d.qty <= 1; plus.disabled = d.qty >= (p.maxQty || 5); const t = founderLive(p) ? founderTotal(p, d.qty) : orderTotal(p, d.qty); sum.textContent = t != null ? 'Итого ' + fmtRub(t) : 'Цена по запросу'; };
   minus.addEventListener('click', () => { d.qty = Math.max(1, d.qty - 1); D.hap?.(4); upd(); }); plus.addEventListener('click', () => { d.qty = Math.min(p.maxQty || 5, d.qty + 1); D.hap?.(4); upd(); });
   stp.append(minus, qv, plus); q.appendChild(stp); q.appendChild(sum); form.appendChild(q); upd();
   // город
@@ -204,7 +226,7 @@ function viewDone(v) {
   w.appendChild(el('p', 'shop-sub', 'Свяжемся ' + (o.contactMethod === 'phone' ? 'по телефону' : 'в Telegram') + ', чтобы договориться об оплате и доставке. Заранее ничего платить не нужно.'));
   const card = el('div', 'shop-done-card');
   const row = (k, val) => { const r = el('div', 'shop-done-row'); r.append(el('span', '', k), el('b', '', val)); card.appendChild(r); };
-  row('Номер', o.id); row('Товар', o.title + ' × ' + o.qty); if (o.total != null) row('Сумма', fmtRub(o.total)); row('Город', o.city); row('Статус', o.statusLabel || ORDER_STATUS.new);
+  row('Номер', o.id); row('Товар', o.title + ' × ' + o.qty); if (o.total != null) row('Сумма', fmtRub(o.total)); if (o.founder) row('Цена', 'Основатель · ' + fmtRub(FOUNDERS.price)); row('Город', o.city); row('Статус', o.statusLabel || ORDER_STATUS.new);
   w.appendChild(card);
   const b = el('button', 'shop-cta shop-cta-2', 'К магазину'); b.type = 'button'; b.addEventListener('click', () => { st.stack = [{ k: 'list' }]; render(); });
   w.appendChild(b); f.appendChild(w); return f;
@@ -212,7 +234,7 @@ function viewDone(v) {
 const VIEWS = { list: viewList, product: viewProduct, form: viewForm, done: viewDone };
 
 export function openShop(deps, start) {
-  D = deps; st.orders = null; st.tg = undefined;
+  D = deps; st.orders = null; st.tg = undefined; void loadFounders();
   st.stack = [{ k: 'list' }]; if (start && productById(start)) st.stack.push({ k: 'product', id: start });
   render();
 }

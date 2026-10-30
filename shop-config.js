@@ -15,7 +15,17 @@ export const SHOP_CONFIG = {
   payments: false,           // онлайн-оплата (см. выше); false → только заявка
   orderTtlDays: 365,         // сколько хранится заявка (и удаляется вместе с аккаунтом раньше)
   contactBot: 'pitlane_official_bot',
+  // v222: «Основатели». false → чип не заказать, цена с подписью «Скоро · после проверки точности».
+  // Открыть продажи: true → поднять CACHE в sw.js → задеплоить сайт и Worker.
+  foundersOpen: false,
 };
+
+/** v222: первые FOUNDERS.limit заявок на чип (не отменённых, считает сервер по KV) — цена FOUNDERS.price за 1 шт. */
+export const FOUNDERS = { productId: 'pitlane-gps', limit: 50, price: 7499 };
+/** Заявки в этих статусах = заказ подтверждён → значок «Основатель». */
+export const FOUNDER_CONFIRMED = ['accepted', 'assembling', 'shipped', 'delivered', 'confirmed', 'done'];
+/** Цена за 1-ю шт. для основателя, остальные — по обычной цене. */
+export const founderTotal = (p, qty) => FOUNDERS.price + (qty - 1) * p.price;
 
 export const SHOP_STATUS = {
   preorder: { label: 'Предзаказ', orderable: true },
@@ -52,7 +62,7 @@ export const SHOP_PRODUCTS = [
     subtitle: 'Внешний GPS 25 Гц для трека',
     // Себестоимость комплекта на 1 прибор — до 5 450 ₽ (верхняя граница BOM, hardware/pitlane-gps/docs/kit),
     // наценка 25 %: 5 450 × 1,25 = 6 812,5 → 6 800 ₽.
-    price: 7500,
+    price: 8499,  // v222: обычная цена; основателям — FOUNDERS.price
     status: 'preorder',
     maxQty: 5,
     gallery: [
@@ -117,7 +127,9 @@ export const SHOP_SUBS = [
 export const productById = (id) => SHOP_PRODUCTS.find((p) => p.id === id) || null;
 export const visibleProducts = () => SHOP_PRODUCTS.filter((p) => !p.hidden);
 export const statusOf = (p) => SHOP_STATUS[p && p.status] || SHOP_STATUS.preorder;
-export const orderable = (p) => !!p && !p.hidden && statusOf(p).orderable;
+/** v222: чип закрыт до проверки точности (SHOP_CONFIG.foundersOpen). */
+export const gated = (p) => !!p && p.id === FOUNDERS.productId && !SHOP_CONFIG.foundersOpen;
+export const orderable = (p) => !!p && !p.hidden && !gated(p) && statusOf(p).orderable;
 export const fmtRub = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0') + '\u00a0₽';
 /** «6 800 ₽ · Предзаказ» / «Цена по запросу · Предзаказ» */
 export const priceLine = (p) => (Number.isFinite(p?.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу') + ' · ' + statusOf(p).label;

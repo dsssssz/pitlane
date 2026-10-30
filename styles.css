@@ -7522,3 +7522,12 @@ canvas.pin209-i { width: 150px; height: 150px; display: block; margin: 0 auto; }
 .cdb-manual { width: 100%; margin-top: 16px; padding: 15px; border: 0; border-radius: 14px; background: #232427; color: #e8e6e1; font: 600 14px/1 var(--font-ui); cursor: pointer; }
 .qc-db { width: 100%; margin: 0 0 10px; padding: 15px; border: 0; border-radius: 14px; background: #e8e6e1; color: #0b0b0c; font: 600 15px/1 var(--font-ui); cursor: pointer; }
 .mycar-mods { display: block; width: 100%; box-sizing: border-box; margin-top: 10px; }
+
+/* v222: цена чипа и «Основатели» — спокойно, без неона */
+.shop-pb { display: grid; gap: 4px; justify-items: start; }
+.shop-pb-row { display: flex; align-items: baseline; gap: 10px; }
+.shop-pb-old { font: 400 14px/1 var(--font-num), var(--font-ui); color: var(--ds-text-2, #8a8a8a); text-decoration: line-through; }
+.shop-pb-offer { font: 600 12px/1 var(--font-ui); padding: 5px 8px; border-radius: 6px; background: #d5001c; color: #fff; }
+.shop-pb-left, .shop-pb-soon { font: 500 12px/1.3 var(--font-ui); color: #e6e6e6; }
+.shop-pb-note { font: 400 12px/1.3 var(--font-ui); color: var(--ds-text-2, #8a8a8a); }
+.pf6-founder { display: inline-block; margin-top: 6px; font: 600 11px/1 var(--font-ui); letter-spacing: .06em; text-transform: uppercase; padding: 5px 9px; border-radius: 6px; background: #f2f2f2; color: #0c0c0c; }

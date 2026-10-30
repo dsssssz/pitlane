@@ -11,7 +11,7 @@
  * Адресат заявок: env.SHOP_CHAT_ID, иначе env.FEEDBACK_CHAT_ID (владелец).
  * PAYMENTS: при SHOP_CONFIG.payments && legalReady() здесь появится ссылка на оплату (createInvoiceLink / провайдер) — сейчас выключено.
  */
-import { SHOP_CONFIG, ORDER_STATUS, ORDER_ADMIN_STATUSES, ORDER_SHORT, productById, orderable, orderTotal, fmtRub, statusOf } from '../../shop-config.js';
+import { FOUNDERS, FOUNDER_CONFIRMED, founderTotal, SHOP_CONFIG, ORDER_STATUS, ORDER_ADMIN_STATUSES, ORDER_SHORT, productById, orderable, orderTotal, fmtRub, statusOf } from '../../shop-config.js';
 import { legalReady } from '../../legal-config.js';
 
 export const SHOP_ORDERS_MAX = 20;
@@ -24,6 +24,24 @@ export const SHOP_RL = { pilotDay: 5, ipDay: 10, globalDay: 200 };
 const ttl = () => Math.max(1, Number(SHOP_CONFIG.orderTtlDays) || 365) * 86400;
 const ordersKey = (pid) => 'shoporders:' + pid;
 const orderKey = (id) => 'shoporder:' + id;
+const FKEY = 'shopfounders';
+
+/** v222: «Основатели» — список id заявок на чип, занявших места (не отменённые, по времени). Честный счётчик:
+ *  при первом обращении собирается из уже существующих заявок в KV, дальше ведётся при создании/отмене. */
+export async function foundersState(kv, h) {
+  const s = await h.kvJson(kv, FKEY);
+  if (s && Array.isArray(s.ids)) return s;
+  const all = [];
+  for (const k of await h.kvListAll(kv, 'shoporder:')) {
+    const o = await h.kvJson(kv, k.name);
+    if (o && o.productId === FOUNDERS.productId && o.status !== 'canceled') all.push(o);
+  }
+  all.sort((a, b) => (a.at || 0) - (b.at || 0));
+  const st = { ids: all.slice(0, FOUNDERS.limit).map((o) => o.id), initAt: Date.now() };
+  await kv.put(FKEY, JSON.stringify(st));
+  return st;
+}
+export const foundersPublic = (s) => ({ open: !!SHOP_CONFIG.foundersOpen, limit: FOUNDERS.limit, taken: Math.min(FOUNDERS.limit, s.ids.length), left: Math.max(0, FOUNDERS.limit - s.ids.length), price: FOUNDERS.price });
 
 export function normPhone(v) {
   const d = String(v || '').replace(/[^\d+]/g, '');
@@ -58,7 +76,7 @@ export function sanitizeOrder(body, h, { hasTg }) {
 export const publicOrder = (o) => ({
   id: o.id, at: o.at, productId: o.productId, title: o.title, qty: o.qty, price: o.price, total: o.total,
   city: o.city, contactMethod: o.contact?.method || null, contact: o.contact?.value || null, comment: o.comment || '',
-  status: ORDER_STATUS[o.status] ? o.status : 'new', statusLabel: ORDER_STATUS[o.status] || ORDER_STATUS.new, payUrl: o.payUrl || null,
+  founder: !!o.founder, status: ORDER_STATUS[o.status] ? o.status : 'new', statusLabel: ORDER_STATUS[o.status] || ORDER_STATUS.new, payUrl: o.payUrl || null,
 });
 
 /** Сообщение команде (HTML, весь пользовательский текст экранирован) + клавиатура «Написать покупателю». */
@@ -72,6 +90,7 @@ export function msgOrderOwner(o, buyer, h) {
     '<b>PITLANE · заявка ' + e(o.id) + '</b>',
     '',
     '<b>' + e(o.title) + '</b> × ' + o.qty + ' — <b>' + e(sum) + '</b>',
+    o.founder ? 'Основатель: цена ' + e(fmtRub(FOUNDERS.price)) + ' за 1 шт. «Принят» = подтвердить и выдать значок' : '',
     'Статус товара: ' + e(statusOf(productById(o.productId)).label) + ' · оплата: ' + (o.payUrl ? 'онлайн' : 'нет онлайн-оплаты, договориться'),
     '',
     'Город: ' + e(o.city),
@@ -137,12 +156,19 @@ export async function listOrders(kv, pid, h) {
 export async function shopRoute({ req, env, path, headers, ip, pilot, h }) {
   if (!path.startsWith('/shop/')) return null;
   if (!SHOP_CONFIG.enabled) return h.json({ error: 'shop disabled' }, 404, headers);
+  if (req.method === 'GET' && path === '/shop/founders') {
+    const lim = await h.limitOr429(env, headers, [['rl:shopf:ip:' + ip, 300, 3600]]); if (lim) return lim;
+    return h.json({ ok: true, ...foundersPublic(await foundersState(env.PITLANE, h)) }, 200, headers);
+  }
   if (req.method === 'GET' && path === '/shop/orders') {
     const denied = h.requireAuth(pilot, headers); if (denied) return denied;
     const lim = await h.limitOr429(env, headers, [['rl:shopget:p:' + pilot.id, 120, 3600]]); if (lim) return lim;
     const tgId = await h.tgChatOf(env, pilot.id); const un = tgId ? await h.tgUsernameOf(env, pilot.id) : null;
     // tg — есть ли Telegram во входе (для «Мой Telegram» в форме): '@username' | 'telegram' | null
-    return h.json({ ok: true, orders: (await listOrders(env.PITLANE, pilot.id, h)).map(publicOrder), tg: un ? '@' + un : (tgId ? 'telegram' : null), payments: !!(SHOP_CONFIG.payments && legalReady()) }, 200, headers);
+    const mine = await listOrders(env.PITLANE, pilot.id, h);
+    const fs = await foundersState(env.PITLANE, h);
+    const founder = mine.some((o) => FOUNDER_CONFIRMED.includes(o.status) && (o.founder || fs.ids.includes(o.id)));
+    return h.json({ ok: true, founder, founders: foundersPublic(fs), orders: mine.map(publicOrder), tg: un ? '@' + un : (tgId ? 'telegram' : null), payments: !!(SHOP_CONFIG.payments && legalReady()) }, 200, headers);
   }
   if (req.method === 'POST' && path === '/shop/order') {
     const denied = h.requireAuth(pilot, headers); if (denied) return denied;
@@ -171,6 +197,10 @@ export async function createOrder(env, buyer, rec, mine, h, { source = 'app', no
   const kv = env.PITLANE;
   const o = { id: 'o' + h.randB36(12), at: Date.now(), pid: buyer.pid, ...rec, status: 'new', payUrl: null, source,
     buyer: { nick: buyer.nick || '', username: buyer.username || null, tgId: buyer.tgId || null }, history: [{ st: 'new', at: Date.now() }] };
+  if (o.productId === FOUNDERS.productId && SHOP_CONFIG.foundersOpen) {
+    const fs = await foundersState(kv, h);
+    if (fs.ids.length < FOUNDERS.limit) { o.founder = true; o.total = founderTotal(productById(o.productId), o.qty); fs.ids.push(o.id); await kv.put(FKEY, JSON.stringify(fs)); }
+  }
   // PAYMENTS: if (SHOP_CONFIG.payments && legalReady() && o.total) o.payUrl = await createPayment(env, o);  — провайдер не подключён
   const owner = ownerChat(env);
   if (owner) {
@@ -213,11 +243,15 @@ export async function setOrderStatus(env, id, st, h) {
   const o = await h.kvJson(kv, orderKey(id));
   if (!o) return { error: 'not found' };
   if (o.status === st) return { o, changed: false };
+  if (o.productId === FOUNDERS.productId && (st === 'canceled' || o.status === 'canceled')) { // v222: отмена освобождает место основателя
+    const fs = await foundersState(kv, h);
+    if (st === 'canceled' && fs.ids.includes(id)) { fs.ids = fs.ids.filter((x) => x !== id); o.founder = false; await kv.put(FKEY, JSON.stringify(fs)); }
+  }
   o.status = st; o.history = [...(Array.isArray(o.history) ? o.history : []), { st, at: Date.now() }].slice(-12);
   const t = ttl();
   await kv.put(orderKey(id), JSON.stringify(o), { expirationTtl: t, metadata: { pid: o.pid } });
   const list = await listOrders(kv, o.pid, h);
-  await kv.put(ordersKey(o.pid), JSON.stringify(list.map((x) => (x.id === id ? { ...x, status: st, history: o.history } : x))), { expirationTtl: t });
+  await kv.put(ordersKey(o.pid), JSON.stringify(list.map((x) => (x.id === id ? { ...x, status: st, history: o.history, founder: !!o.founder } : x))), { expirationTtl: t });
   return { o, changed: true };
 }
 export const getOrder = (env, id, h) => (ID_RE.test(String(id || '')) ? h.kvJson(env.PITLANE, orderKey(id)) : null);
