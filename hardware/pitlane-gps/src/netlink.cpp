@@ -9,6 +9,7 @@
 #include <WebSocketsClient.h>
 #include <ArduinoJson.h>
 #include <sys/time.h>
+#include "lwip/dns.h"
 #include "certs.h"
 #include "marks.h"
 #include "netbuf.h"
@@ -52,6 +53,63 @@ static bool timeFromHttp() {
   return false;
 }
 static bool timeValid() { return time(nullptr) > 1700000000; }
+
+// ———————————————— 2.1.3: DNS и диагностика TLS ————————————————
+// TLS-клиент: в проде — проверка по PL_CA_BUNDLE; в отладочной сборке (PL_TLS_INSECURE) — без проверки.
+static void tlsSetup(WiFiClientSecure& c) {
+#ifdef PL_TLS_INSECURE
+  c.setInsecure();
+#else
+  c.setCACert(PL_CA_BUNDLE);
+#endif
+}
+static bool dnsChecked = false, tlsProbed = false;
+static uint32_t tlsProbeAt = 0, tlsProbeBackoff = 15000;
+static void setPublicDns() {
+  ip_addr_t d0, d1;
+  IP_ADDR4(&d0, 1, 1, 1, 1); IP_ADDR4(&d1, 8, 8, 8, 8);
+  dns_setserver(0, &d0); dns_setserver(1, &d1);
+}
+// Резолв PL_API_HOST: сначала DNS из DHCP (хотспот), при неудаче — 1.1.1.1 / 8.8.8.8 (IP от DHCP остаётся)
+static void checkDns() {
+  dnsChecked = true;
+  IPAddress ip;
+  Serial.printf("[pitlane-gps] сеть: IP %s, шлюз %s, DNS %s, RSSI %d\n", WiFi.localIP().toString().c_str(),
+                WiFi.gatewayIP().toString().c_str(), WiFi.dnsIP(0).toString().c_str(), (int)WiFi.RSSI());
+  if (WiFi.hostByName(PL_API_HOST, ip) == 1 && ip != IPAddress(0, 0, 0, 0)) {
+    Serial.printf("[pitlane-gps] DNS: %s → %s\n", PL_API_HOST, ip.toString().c_str());
+    return;
+  }
+  Serial.println("[pitlane-gps] DNS: хотспот не резолвит — переключаемся на 1.1.1.1 / 8.8.8.8");
+  setPublicDns();
+  if (WiFi.hostByName(PL_API_HOST, ip) == 1 && ip != IPAddress(0, 0, 0, 0))
+    Serial.printf("[pitlane-gps] DNS (1.1.1.1): %s → %s\n", PL_API_HOST, ip.toString().c_str());
+  else
+    Serial.printf("[pitlane-gps] DNS: ОШИБКА — %s не резолвится ни через хотспот, ни через 1.1.1.1/8.8.8.8\n", PL_API_HOST);
+}
+// Пробное TLS-соединение host:443: код и текст ошибки mbedTLS, heap, время. При ошибке с проверкой —
+// повтор без проверки сертификата ТОЛЬКО для диагноза (данные не передаются), чтобы отличить сертификат от сети.
+static bool tlsProbe() {
+  uint32_t t0 = millis();
+  Serial.printf("[pitlane-gps] TLS: проба %s:443 · heap %lu (макс. блок %lu) · time %ld\n", PL_API_HOST,
+                (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap(), (long)time(nullptr));
+  WiFiClientSecure c; tlsSetup(c); c.setHandshakeTimeout(15);
+  bool ok = c.connect(PL_API_HOST, 443, 15000);
+  char eb[128] = ""; int ec = c.lastError(eb, sizeof eb);
+  c.stop();
+  if (ok) { Serial.printf("[pitlane-gps] TLS: OK за %lu мс\n", (unsigned long)(millis() - t0)); return true; }
+  Serial.printf("[pitlane-gps] TLS: ОШИБКА за %lu мс · mbedTLS -0x%04X: %s · heap %lu\n", (unsigned long)(millis() - t0),
+                (unsigned)(-ec), eb, (unsigned long)ESP.getFreeHeap());
+#ifndef PL_TLS_INSECURE
+  WiFiClientSecure d; d.setInsecure(); d.setHandshakeTimeout(15);
+  bool ok2 = d.connect(PL_API_HOST, 443, 15000);
+  char eb2[128] = ""; int ec2 = d.lastError(eb2, sizeof eb2);
+  d.stop();
+  if (ok2) Serial.println("[pitlane-gps] TLS: без проверки сертификата соединяется → проблема в цепочке/корнях или во времени");
+  else Serial.printf("[pitlane-gps] TLS: без проверки тоже ошибка -0x%04X: %s → сеть/память, не сертификат\n", (unsigned)(-ec2), eb2);
+#endif
+  return false;
+}
 static uint32_t lastBatch = 0, lastStatus = 0, claimAt = 0, claimBackoff = 4000;
 static NetBuf buf;
 static marks::Tracker tracker;
@@ -218,9 +276,10 @@ static void stopPortal() {
 static void tryClaim(uint32_t now) {
   if (now - claimAt < claimBackoff) return;
   claimAt = now;
-  WiFiClientSecure cli; cli.setCACert(PL_CA_BUNDLE); cli.setTimeout(8);
+  WiFiClientSecure cli; tlsSetup(cli); cli.setTimeout(15); cli.setHandshakeTimeout(15);
   HTTPClient hc;
   if (!hc.begin(cli, "https://" PL_API_HOST "/gps/claim")) return;
+  Serial.printf("[pitlane-gps] привязка: POST /gps/claim (код %s)\n", code.c_str());
   hc.addHeader("Content-Type", "application/json");
   char body[160];
   snprintf(body, sizeof body, "{\"code\":\"%s\",\"name\":\"%s\",\"fw\":\"%s\"}", code.c_str(), devName, fwVer);
@@ -238,7 +297,10 @@ static void tryClaim(uint32_t now) {
     Serial.printf("[pitlane-gps] привязка не удалась: HTTP %d\n", st);
   } else {
     claimBackoff = min<uint32_t>(claimBackoff * 2, 60000);   // нет интернета / лимит — повторим
-    Serial.printf("[pitlane-gps] привязка: нет ответа (%d), повтор через %lu с\n", st, (unsigned long)(claimBackoff / 1000));
+    char eb[96] = ""; int ec = cli.lastError(eb, sizeof eb);
+    Serial.printf("[pitlane-gps] привязка: нет ответа (%d %s; mbedTLS -0x%04X %s; heap %lu), повтор через %lu с\n", st,
+                  st < 0 ? HTTPClient::errorToString(st).c_str() : "", (unsigned)(-ec), eb, (unsigned long)ESP.getFreeHeap(),
+                  (unsigned long)(claimBackoff / 1000));
   }
   hc.end();
 }
@@ -252,10 +314,14 @@ static void wsEvent(WStype_t type, uint8_t* payload, size_t len) {
     ws.sendTXT(j);
     Serial.println("[pitlane-gps] сервер: подключено");
   } else if (type == WStype_DISCONNECTED) {
-    if (wsOpen) Serial.println("[pitlane-gps] сервер: связь потеряна — копим точки в буфере");
+    if (wsOpen) Serial.printf("[pitlane-gps] сервер: связь потеряна (hello %s, heap %lu) — копим точки в буфере\n", gotHello ? "был" : "НЕ пришёл", (unsigned long)ESP.getFreeHeap());
+    else Serial.printf("[pitlane-gps] сервер: WS не открылся (heap %lu), повтор через 5 с\n", (unsigned long)ESP.getFreeHeap());
+    if (len) Serial.printf("[pitlane-gps] сервер: причина: %.*s\n", (int)len, (const char*)payload);
     wsOpen = false; gotHello = false;
     buf.rewind();
     for (auto& q : evq) if (q.used && !q.acked) q.lastSend = 0;
+  } else if (type == WStype_ERROR) {
+    Serial.printf("[pitlane-gps] сервер: ошибка WS: %.*s\n", (int)len, payload ? (const char*)payload : "");
   } else if (type == WStype_TEXT) {
     JsonDocument d;
     if (deserializeJson(d, payload, len)) return;
@@ -264,12 +330,14 @@ static void wsEvent(WStype_t type, uint8_t* payload, size_t len) {
         tokenErr = true; token = ""; prefs.remove("token");
         ws.disconnect(); wsStarted = false; wsOpen = false;
         Serial.println("[pitlane-gps] токен отозван — привяжите чип заново");
+      } else {
+        Serial.printf("[pitlane-gps] сервер: отказ «%s»\n", d["err"].as<const char*>());
       }
       return;
     }
     if (!d["ack"].isNull()) {
       int64_t a = d["ack"].as<int64_t>();
-      if (!gotHello) { buf.onHello(a); gotHello = true; } else buf.onAck(a);
+      if (!gotHello) { buf.onHello(a); gotHello = true; Serial.printf("[pitlane-gps] сервер: hello принят (ack %lld) — онлайн\n", (long long)a); } else buf.onAck(a);
     }
     if (!d["eack"].isNull()) {
       int64_t e = d["eack"].as<int64_t>();
@@ -279,11 +347,16 @@ static void wsEvent(WStype_t type, uint8_t* payload, size_t len) {
 }
 static void startWs() {
   String hdr = "Authorization: Bearer " + token;
+#ifdef PL_TLS_INSECURE
+  ws.beginSSL(PL_API_HOST, 443, "/gps/ws", "", "");   // отладка: без проверки сертификата
+#else
   ws.beginSslWithCA(PL_API_HOST, 443, "/gps/ws", PL_CA_BUNDLE, "");
+#endif
+  Serial.printf("[pitlane-gps] сервер: WS wss://%s/gps/ws · heap %lu\n", PL_API_HOST, (unsigned long)ESP.getFreeHeap());
   ws.setExtraHeaders(hdr.c_str());
   ws.onEvent(wsEvent);
-  ws.setReconnectInterval(2500);
-  ws.enableHeartbeat(15000, 5000, 2);
+  ws.setReconnectInterval(5000);          // 2.1.3: не чаще раза в 5 с (TLS-рукопожатие на C3 ~1–3 с)
+  ws.enableHeartbeat(15000, 10000, 3);    // pong ждём дольше: gps.begin() без модуля блокирует цикл ~5 с
   wsStarted = true;
 }
 
@@ -342,13 +415,20 @@ void loop(uint32_t now) {
     ntpStarted = true;
     Serial.println("[pitlane-gps] время: запрос NTP");
   }
-  if (!wifi) wifiUpAt = 0; else if (!wifiUpAt) wifiUpAt = now ? now : 1;
+  if (!wifi) { wifiUpAt = 0; dnsChecked = false; tlsProbed = false; tlsProbeBackoff = 15000; } else if (!wifiUpAt) wifiUpAt = now ? now : 1;
+  if (wifi && !dnsChecked) checkDns();
   if (wifi && !timeSet && !timeValid() && now - wifiUpAt > 8000 && now - httpTimeAt > httpTimeBackoff) {
     httpTimeAt = now;
     if (!timeFromHttp()) { httpTimeBackoff = min<uint32_t>(httpTimeBackoff * 2, 120000); httpTimeHost++; }
   }
   if (!timeSet && timeValid()) { timeSet = true; Serial.printf("[pitlane-gps] время: получено (%ld)\n", (long)time(nullptr)); }
   if (wifi && !timeSet && now - lastTimeLog > 5000) { lastTimeLog = now; Serial.println("[pitlane-gps] время: ждём NTP/GPS — привязка отложена"); }
+  // 2.1.3: перед привязкой/WS — пробное TLS-соединение с подробным логом; при ошибке повтор с паузой (≤ 2 мин)
+  if (wifi && timeSet && !tlsProbed && (token.length() || code.length()) && now - tlsProbeAt > tlsProbeBackoff) {
+    tlsProbeAt = now;
+    if (tlsProbe()) tlsProbed = true; else { tlsProbeBackoff = min<uint32_t>(tlsProbeBackoff * 2, 120000); if (!dnsChecked || tlsProbeBackoff >= 60000) setPublicDns(); return; }
+  }
+  if (!tlsProbed) { if (wsStarted) ws.loop(); return; }
   if (wifi && timeSet && !token.length() && code.length()) tryClaim(now);
   if (wifi && timeSet && token.length() && !wsStarted) startWs();
   if (wsStarted) ws.loop();

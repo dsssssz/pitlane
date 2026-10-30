@@ -10,7 +10,7 @@
 #include <Preferences.h>
 #include <esp_system.h>
 
-#define FW_VERSION "2.1.2"
+#define FW_VERSION "2.1.3"
 
 #ifndef GPS_RX_PIN
 #define GPS_RX_PIN 20

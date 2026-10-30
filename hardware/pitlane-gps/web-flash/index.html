@@ -33,9 +33,17 @@
     <span slot="unsupported">Этот браузер не поддерживает Web Serial — нужен Chrome/Edge на компьютере.</span>
     <span slot="not-allowed">Нужна страница по HTTPS.</span>
   </esp-web-install-button>
-  <p><b>Прошивка 2.1.2 (Wi-Fi):</b> при первой прошивке отметьте «стереть устройство» — изменилась таблица разделов.
+  <p><b>Прошивка 2.1.3 (Wi-Fi):</b> при первой прошивке отметьте «стереть устройство» — изменилась таблица разделов.
   После перезапуска чип сам включит сеть <code>PITLANE-GPS-XXXX</code> (пароль <code>pitlanegps</code>) для настройки
   хотспота и привязки к аккаунту — с iPhone тоже. Пошагово — в README чипа, раздел «Wi-Fi и iPhone».</p>
+  <h2 style="font-size:17px">⚠ Диагностика связи (только для отладки)</h2>
+  <esp-web-install-button manifest="manifest-debug.json">
+    <button slot="activate" style="background:#ffb020;color:#000">ДИАГНОСТИКА: комплект без проверки сертификата (ESP32-C3)</button>
+    <span slot="unsupported">Этот браузер не поддерживает Web Serial — нужен Chrome/Edge на компьютере.</span>
+    <span slot="not-allowed">Нужна страница по HTTPS.</span>
+  </esp-web-install-button>
+  <p class="muted">Отладочная сборка комплекта: соединение с сервером БЕЗ проверки сертификата, подробный лог в «Logs &amp; Console».
+  Только чтобы понять, сертификат мешает или сеть. После проверки прошейте обычный «комплект».</p>
   <p class="muted">Прошить с iPhone нельзя (в iOS нет Web Serial) — нужен один раз компьютер; дальше всё настраивается с телефона.</p>
   <p class="muted">Если порт не появляется: зажмите кнопку BOOT, нажмите RESET (или переподключите USB), отпустите BOOT — и повторите.</p>
   <p class="muted">Исходники: <code>hardware/pitlane-gps/</code> в репозитории pitlane.</p>

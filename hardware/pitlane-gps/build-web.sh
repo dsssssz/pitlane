@@ -7,8 +7,8 @@ PIO_PY="${PIO_PY:-$(dirname "$(command -v pio)")/python}"; [ -x "$PIO_PY" ] || P
 ESPTOOL="$HOME/.platformio/packages/tool-esptoolpy/esptool.py"
 BOOTAPP="$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
 mkdir -p web-flash
-for env in esp32c3 esp32s3 esp32c3kit; do
-  chip=${env%kit}
+for env in esp32c3 esp32s3 esp32c3kit esp32c3kit-debug; do
+  chip=${env%%kit*}
   b=.pio/build/$env
   "${PIO_PY:-python3}" "$ESPTOOL" --chip "$chip" merge_bin -o "web-flash/pitlane-gps-$env.bin" \
     --flash_mode dio --flash_size keep \

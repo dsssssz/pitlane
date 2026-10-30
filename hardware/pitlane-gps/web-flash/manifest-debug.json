@@ -1,0 +1,16 @@
+{
+  "name": "PITLANE GPS — ДИАГНОСТИКА (без проверки сертификата)",
+  "version": "2.1.3",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C3",
+      "parts": [
+        {
+          "path": "pitlane-gps-esp32c3kit-debug.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}
