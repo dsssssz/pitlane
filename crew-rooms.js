@@ -5,7 +5,7 @@ const TEAMS_OFF = true; // v198: команды/экипажи убраны
  */
 import { api } from './api.js';
 import { teamLapsPublic, setTeamLapsPublic } from './teams-ui.js';
-import { openCarDb } from './car-db.js';
+import { openCarDb, brandLogoEl } from './car-db.js';
 const CARX_KEY = 'pitlane-carx-v1'; // v220: год и доработки — только на устройстве, по названию машины
 function carX(model) { try { return (JSON.parse(localStorage.getItem(CARX_KEY) || '{}') || {})[model] || {}; } catch (_) { return {}; } }
 function setCarX(model, x) { try { const m = JSON.parse(localStorage.getItem(CARX_KEY) || '{}') || {}; m[model] = x; localStorage.setItem(CARX_KEY, JSON.stringify(m)); } catch (_) {} }
@@ -759,19 +759,15 @@ export function initCrewRooms(deps) {
  * Резина/паспорт берутся с текущей «Моей машины»; если их нет — открываем полный лист с выбранной машиной.
  */
 export function openQuickCarSheet() {
+  // v226: 0 своих машин → сразу сетка марок с эмблемами (car-db); есть свои → их карточки (один тап) + «Другая машина» → та же сетка.
   const body = document.getElementById('myCarBody');
   if (!body) return;
-  body.replaceChildren();
   const seen = new Set(); const cars = [];
-  const cur = D.currentCar?.();
-  if (st.car?.model) { seen.add(st.car.model); cars.push({ name: st.car.model, id: st.car.carId || '', mine: true }); }
-  for (const c of [cur, ...(D.garageCars() || []), ...(D.stockCars() || [])]) {
+  if (st.car?.model) { seen.add(st.car.model); cars.push({ name: st.car.model, id: st.car.carId || '', mine: true, tyre: st.car.tyre || '' }); }
+  for (const c of (D.garageCars() || [])) {
     if (!c || !c.name || seen.has(c.name)) continue;
     seen.add(c.name); cars.push(c);
   }
-  const hd = (t, sub) => { const sh = document.getElementById('myCarSheet'); const h = sh?.querySelector('.race-sheet-title'); const p = sh?.querySelector('.race-sheet-sub'); if (h) h.textContent = t; if (p) { p.textContent = sub; p.hidden = !sub; } };
-  hd('Машина', '');
-  const list = el('div', 'qc-list'); list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Машина');
   const pickCar = async (c) => {
     const base = st.car || null;
     if (!base || !base.tyre) { closeSheet('myCarSheet'); setTimeout(() => openMyCarSheet(c.db ? { dbCar: c.db } : { preselect: c.name }), 280); return; }
@@ -785,19 +781,26 @@ export function openQuickCarSheet() {
     cacheCar(car); D.hap?.(10);
     closeSheet('myCarSheet');
   };
-  cars.slice(0, 40).forEach((c) => {
-    const on = st.car?.model === c.name;
-    const b = btn('qc-row' + (on ? ' on' : ''), null, () => pickCar(c));
-    b.setAttribute('role', 'option'); b.setAttribute('aria-selected', on ? 'true' : 'false');
-    b.append(el('b', '', c.name));
-    if (on) b.append(el('span', '', st.car.tyre || ''));
-    list.appendChild(b);
-  });
-  body.appendChild(btn('qc-db', 'Все марки и модели', () => openCarDb({
+  const openDb = () => openCarDb({
     onPick: (c) => pickCar({ name: c.name, id: c.id, db: c }),
     onManual: () => { closeSheet('myCarSheet'); setTimeout(() => openMyCarSheet(), 280); },
-  })));
+  });
+  if (!cars.length) { closeSheet('myCarSheet'); openDb(); return; }
+  body.replaceChildren();
+  const sh = document.getElementById('myCarSheet'); const h = sh?.querySelector('.race-sheet-title'); const p = sh?.querySelector('.race-sheet-sub');
+  if (h) h.textContent = 'Машина'; if (p) { p.textContent = 'Ваши машины — выбор в одно касание'; p.hidden = false; }
+  const list = el('div', 'qc-cards'); list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Мои машины');
+  cars.slice(0, 12).forEach((c) => {
+    const on = st.car?.model === c.name;
+    const b = btn('qc-card' + (on ? ' on' : ''), null, () => pickCar(c));
+    b.setAttribute('role', 'option'); b.setAttribute('aria-selected', on ? 'true' : 'false');
+    const tx = el('span', 'qc-tx'); tx.append(el('b', '', c.name), el('span', '', on ? ('Сейчас · ' + (st.car.tyre || '')).replace(/ · $/, '') : (c.year ? String(c.year) : 'Мой гараж')));
+    b.append(brandLogoEl(c.name), tx, el('i', 'qc-tick'));
+    list.appendChild(b);
+  });
   body.appendChild(list);
-  body.appendChild(btn('qc-more', 'Нет в списке — указать вручную', () => { closeSheet('myCarSheet'); setTimeout(() => openMyCarSheet(), 280); }));
+  const other = btn('qc-other', null, openDb);
+  other.append(el('span', 'qc-plus', '+'), el('b', '', 'Другая машина'), el('span', '', 'все марки и модели'));
+  body.appendChild(other);
   openSheet('myCarSheet');
 }

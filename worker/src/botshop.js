@@ -12,9 +12,11 @@
  *   введённый на шагах текст удаляется; /start и команды заменяют прошлый экран (KV botscr:<chat>). Данные кнопок: <экран>[~<назад>],
  *   шаги назад: bq · bc · bt · bm; кнопки уведомлений: n:<данные> (открыть экран новым сообщением, уведомление не трогать).
  */
-import { SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, fmtRub, orderTotal } from '../../shop-config.js';
+import { SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, fmtRub, orderTotal, SHOP_DELIVERY, deliveryById, cartTotals, PAY_BADGES, trackUrl, MAX_CART_LINES } from '../../shop-config.js';
 import { APP_URL, RULE, esc, webAppBtn, START_CAPTION, TG_BANNER_URL } from './botcopy.js';
-import { createOrder, listOrders, setOrderStatus, getOrder, msgOrderOwner, adminStatusKeyboard, msgOrderStatusBuyer, msgOrderBuyer, shopAdmins, ownerChat, normPhone, SHOP_RL } from './shop.js';
+import { createOrder, listOrders, setOrderStatus, getOrder, msgOrderOwner, adminStatusKeyboard, msgOrderStatusBuyer, msgOrderBuyer, shopAdmins, ownerChat, normPhone, SHOP_RL, priceRec, findOrder, itemLines, sumLines, orderNo } from './shop.js';
+import { paymentsOn } from './robokassa.js';
+import { resolvePromo } from './promo.js';
 
 export const FLOW_TTL = 3600;
 export const SUPPORT_DAY_MAX = 100; // v184: обращений в поддержку через бота на весь сервис в сутки (спам с многих аккаунтов)
@@ -44,10 +46,11 @@ export const IMG = {
   gps: APP_URL + 'img/shop/tg/gps-hero.jpg',
   specs: APP_URL + 'img/shop/tg/gps-top.jpg',
   chip: APP_URL + 'img/shop/tg/gps-hand.jpg',
+  cart: APP_URL + 'img/shop/tg/pay.jpg', // v226: корзина — значки СБП / МИР / VISA / MC / SberPay / T-Pay
 };
 export const BACK = '← Назад';
 export const HOME = 'Главное меню';
-const BACK_RE = /^(m|sh|chip|faq|my|p:[a-z0-9-]{2,40}|pk:[a-z0-9-]{2,40}|mo:o[a-z0-9]{10,16})$/;
+const BACK_RE = /^(m|sh|ct|chip|faq|my|p:[a-z0-9-]{2,40}|pk:[a-z0-9-]{2,40}|mo:o[a-z0-9]{10,16})$/;
 /** Нижний ряд: «← Назад» (к предыдущему экрану) и «Главное меню»; с первого уровня «Назад» и есть меню. */
 export const navRow = (back) => (!back || back === 'm' ? [cb(BACK, 'm')] : [cb(BACK, back), cb(HOME, 'm')]);
 /** Кнопка перехода с подсказкой «куда вернуться»: chip~p:pitlane-gps. */
@@ -66,13 +69,14 @@ export const MENU_TEXT = START_CAPTION;
 /** Главное меню = экран /start: баннер, подпись, кнопки. */
 export const screenMenu = (caption = START_CAPTION, param = '') => pic(IMG.banner, caption, mainMenuRows(param));
 
-export function screenShop() {
-  const ps = visibleProducts();
+export function screenShop(cart) {
+  const ps = visibleProducts(); const n = cartCount(cart);
   const lines = ps.map((p) => '<b>' + esc(p.title) + '</b> — ' + esc(priceText(p)) + ' · ' + esc(statusOf(p).label.toLowerCase()) + '\n' + esc(p.subtitle || ''));
   return pic(IMG.gps,
     '<b>Магазин PITLANE</b>\n' + RULE + '\n' + lines.join('\n\n') + '\n' + RULE + '\n' +
-    (SHOP_CONFIG.payments ? '' : 'Онлайн-оплаты нет: оформляете предзаказ — мы пишем вам и согласуем оплату и доставку.'),
-    [...ps.map((p) => [cb(p.title + ' · ' + priceText(p), 'p:' + p.id)]), [cb('Мои заказы', 'my~sh')], navRow('m')],
+    'Доставка: СДЭК 390 ₽ · Почта 290 ₽ · самовывоз Краснодар.\n' +
+    'Оплата: ' + PAY_BADGES.join(' · ') + (SHOP_CONFIG.payments ? '' : ' — скоро. Сейчас оформляете заявку, мы пишем вам и согласуем оплату.'),
+    [...ps.map((p) => [cb(p.title + ' · ' + priceText(p), 'p:' + p.id)]), [cb('Корзина' + (n ? ' · ' + n : ''), 'ct'), cb('Мои заказы', 'my~sh')], navRow('m')],
   );
 }
 
@@ -89,11 +93,12 @@ export function productCaption(p) {
   ].filter(Boolean).join('\n');
   return cap.length <= 1024 ? cap : cap.slice(0, 1000);
 }
-const orderBtn = (p) => (orderable(p) ? [[cb(p.status === 'preorder' ? 'Оформить предзаказ' : 'Оформить заказ', 'ob:' + p.id)]] : []);
-export function screenProduct(p, back = 'sh') {
-  const self = 'p:' + p.id;
+const orderBtn = (p) => (orderable(p) ? [[cb('В корзину', 'ca:' + p.id), cb(p.status === 'preorder' ? 'Предзаказ сразу' : 'Купить сразу', 'ob:' + p.id)]] : []);
+export function screenProduct(p, back = 'sh', cart = null) {
+  const self = 'p:' + p.id; const n = cartCount(cart);
   const rows = [
     ...orderBtn(p),
+    ...(n ? [[cb('Корзина · ' + n, 'ct')]] : []),
     [cb('Характеристики', 'pk:' + p.id), ...(p.id === 'pitlane-gps' ? [go('Как работает чип', 'chip', self)] : [])],
     navRow(BACK_RE.test(back) ? back : 'sh'),
   ];
@@ -141,7 +146,7 @@ export const screenSupportSent = (ok, quote) => pic(IMG.banner,
   [[cb('Мои заказы', 'my')], navRow('m')]);
 
 /* ——— оформление ——— */
-const stepHead = (f, n, title) => '<b>' + (productById(f.pid)?.status === 'preorder' ? 'Предзаказ' : 'Заказ') + ' · ' + esc(productById(f.pid)?.title || '') + '</b>\nШаг ' + n + ' из 4 · ' + title;
+const stepHead = (f, n, title) => '<b>' + (productById(f.pid)?.status === 'preorder' ? 'Предзаказ' : 'Заказ') + ' · ' + esc(f.items && f.items.length > 1 ? 'корзина, ' + f.items.length + ' товара' : productById(f.pid)?.title || '') + '</b>\nШаг ' + n + ' из 5 · ' + title;
 const stepPic = (f) => productPhoto(productById(f.pid)) || IMG.gps;
 const warnLine = (w) => (w ? '\n<i>' + w + '</i>' : '');
 export function screenQty(f) {
@@ -149,37 +154,83 @@ export function screenQty(f) {
   return pic(stepPic(f), stepHead(f, 1, 'Количество') + '\nЦена за штуку — ' + esc(priceText(p)) + '.',
     [Array.from({ length: max }, (_, i) => cb(String(i + 1), 'oq:' + (i + 1))), navRow('p:' + f.pid)]);
 }
+/** v226: доставка (после города) и адрес. */
+export function screenDelivery(f) {
+  return pic(stepPic(f), stepHead(f, 3, 'Доставка') + '\nКуда привезти заказ?',
+    [...SHOP_DELIVERY.map((d) => [cb(d.title + ' · ' + (d.price ? fmtRub(d.price) : '0 ₽') + ' · ' + d.eta, 'od:' + d.id)]), navRow('bc')]);
+}
+export const screenAddr = (f, warn = '') => pic(stepPic(f), stepHead(f, 3, 'Адрес') + '\n' + esc(deliveryById(f.dl)?.title || '') + ': напишите ' + (f.dl === 'post' ? 'индекс и адрес' : 'адрес пункта выдачи СДЭК') + ' одним сообщением.' + warnLine(warn), [navRow('bd')]);
 export const screenCity = (f, warn = '') => pic(stepPic(f), stepHead(f, 2, 'Город доставки') + '\nНапишите город одним сообщением или выберите ниже.' + warnLine(warn),
-  [QUICK_CITIES.map((c, i) => cb(c, 'oc:' + i)), navRow('bq')]);
+  [QUICK_CITIES.map((c, i) => cb(c, 'oc:' + i)), navRow(f.fromCart ? 'ct' : 'bq')]);
 export function screenContact(f) {
-  return pic(stepPic(f), stepHead(f, 3, 'Связь') + '\nКак с вами связаться, чтобы подтвердить заказ?',
-    [[cb('Telegram — этот аккаунт' + (f.un ? ' (@' + f.un + ')' : ''), 'ot:tg')], [cb('Другой Telegram', 'ot:other'), cb('Телефон', 'ot:phone')], navRow('bc')]);
+  return pic(stepPic(f), stepHead(f, 4, 'Связь') + '\nКак с вами связаться, чтобы подтвердить заказ?',
+    [[cb('Telegram — этот аккаунт' + (f.un ? ' (@' + f.un + ')' : ''), 'ot:tg')], [cb('Другой Telegram', 'ot:other'), cb('Телефон', 'ot:phone')], navRow('bd')]);
 }
 export const ASK_TG_OTHER = 'Напишите имя пользователя Telegram, например <code>@pitlane_racer</code>.';
 export const ASK_PHONE = 'Отправьте номер кнопкой ниже или напишите его, например <code>+7 900 123-45-67</code>.';
-export const screenTgOther = (f, warn = '') => pic(stepPic(f), stepHead(f, 3, 'Связь') + '\n' + ASK_TG_OTHER + warnLine(warn), [navRow('bt')]);
-export const screenPhone = (f, warn = '') => pic(stepPic(f), stepHead(f, 3, 'Связь') + '\n' + ASK_PHONE + warnLine(warn), [navRow('bt')]);
-export const screenComment = (f) => pic(stepPic(f), stepHead(f, 4, 'Комментарий') + '\nНапример, удобное время для связи. Можно пропустить.', [[cb('Пропустить', 'on:skip')], navRow('bt')]);
+export const screenTgOther = (f, warn = '') => pic(stepPic(f), stepHead(f, 4, 'Связь') + '\n' + ASK_TG_OTHER + warnLine(warn), [navRow('bt')]);
+export const screenPhone = (f, warn = '') => pic(stepPic(f), stepHead(f, 4, 'Связь') + '\n' + ASK_PHONE + warnLine(warn), [navRow('bt')]);
+export const screenComment = (f) => pic(stepPic(f), stepHead(f, 5, 'Комментарий') + '\nНапример, удобное время для связи. Можно пропустить.', [[cb('Пропустить', 'on:skip')], navRow('bt')]);
 export function contactLabel(f) {
   if (f.cm === 'tg') return 'Telegram' + (f.un ? ' @' + esc(f.un) : ' — этот аккаунт');
   if (f.cm === 'tg_other') return 'Telegram ' + esc(f.cv);
   return 'Телефон ' + esc(f.cv);
 }
 export function screenConfirm(f) {
-  const p = productById(f.pid); const total = orderTotal(p, f.qty);
+  const o = flowRec(f);
   return pic(stepPic(f),
     '<b>Проверьте заказ</b>\n' + RULE + '\n' +
-    '<b>' + esc(p.title) + '</b> × ' + f.qty + ' — <b>' + esc(total != null ? fmtRub(total) : 'цена по запросу') + '</b>\n' +
-    esc(statusOf(p).label) + ' · без онлайн-оплаты\n' +
+    itemLines(o, esc).join('\n') + '\n' + sumLines(o, esc).join('\n') + '\n' +
+    esc(statusOf(productById(f.pid)).label) + (payOnNow ? ' · оплата СБП или картой после подтверждения' : ' · онлайн-оплата скоро') + '\n' +
     'Город: ' + esc(f.city) + '\n' +
     'Связь: ' + contactLabel(f) + '\n' +
     (f.cmt ? 'Комментарий: ' + esc(f.cmt) + '\n' : '') + RULE + '\n' +
-    'После подтверждения мы напишем вам, чтобы согласовать оплату и доставку.',
+    (payOnNow ? 'После подтверждения появится кнопка «Оплатить».' : 'После подтверждения мы напишем вам, чтобы согласовать оплату и доставку.'),
     [[cb('Подтвердить заказ', 'ok')], [cb('Изменить', 'oe'), cb('Отмена', 'ox')], navRow('bm')],
   );
 }
+let payOnNow = false; // выставляется по env в botCallback/botCommand (экраны — чистые функции)
+/** Запись заказа из состояния шага (суммы — тем же priceRec, что и для сайта). */
+export function flowRec(f) {
+  const items = (f.items && f.items.length ? f.items : [{ id: f.pid, qty: f.qty || 1 }]).map((x) => { const p = productById(x.id); return { productId: p.id, title: p.title, qty: x.qty, price: Number.isFinite(p.price) ? p.price : null }; });
+  const d = deliveryById(f.dl);
+  const delivery = d ? { id: d.id, title: d.title, price: d.price, addr: d.id === 'pickup' ? '' : (f.addr || '') } : null;
+  return priceRec({ items, delivery, promo: f.promo || null, payMethod: f.pm || null, city: f.city, contact: f.cm === 'tg' ? { method: 'tg' } : { method: f.cm, value: f.cv }, comment: f.cmt || '', cid: f.cid }, {}, null, !!SHOP_CONFIG.foundersOpen && items.some((x) => x.productId === 'pitlane-gps'));
+}
+
+/* ——— v226: корзина ——— */
+const cartKey = (chat) => 'botcart:' + chat;
+export const cartCount = (c) => (c && Array.isArray(c.items) ? c.items.reduce((a, x) => a + x.qty, 0) : 0);
+async function getCart(kv, chat) { try { const c = JSON.parse((await kv.get(cartKey(chat))) || 'null'); if (c && Array.isArray(c.items)) { c.items = c.items.filter((x) => orderable(productById(x.id))); return c; } } catch (_) {} return { items: [], dl: 'cdek', promo: null }; }
+const putCart = (kv, chat, c) => kv.put(cartKey(chat), JSON.stringify(c), { expirationTtl: 30 * 86400 });
+export function screenCart(c, warn = '') {
+  if (!c.items.length) return pic(IMG.cart, '<b>Корзина</b>\nПусто. Добавьте товар из магазина.' + warnLine(warn), [[cb('Магазин', 'sh')], navRow('m')]);
+  const lines = c.items.map((x) => ({ p: productById(x.id), qty: x.qty }));
+  const t = cartTotals(lines, c.dl, c.promo ? c.promo.off : 0); const d = deliveryById(c.dl);
+  const cap = '<b>Корзина</b>\n' + RULE + '\n' +
+    lines.map((l) => esc(l.p.title) + ' × ' + l.qty + ' — ' + esc(l.p.price ? fmtRub(l.p.price * l.qty) : 'цена по запросу')).join('\n') + '\n' + RULE + '\n' +
+    'Доставка: ' + esc(d ? d.title + ' · ' + d.eta : '—') + ' — ' + (d && d.price ? esc(fmtRub(d.price)) : '0 ₽') + '\n' +
+    (c.promo ? 'Промокод ' + esc(c.promo.code) + ': −' + esc(fmtRub(t.off)) + '\n' : '') +
+    '<b>Итого: ' + esc(t.total != null ? fmtRub(t.total) : 'по запросу') + '</b>\n' + RULE + '\n' +
+    'Оплата: ' + PAY_BADGES.join(' · ') + (payOnNow ? '' : '\n<i>Онлайн-оплата скоро. Сейчас — заявка: напишем вам и согласуем оплату.</i>') + warnLine(warn);
+  const rows = c.items.slice(0, MAX_CART_LINES).map((x, i) => [cb('−', 'cq:' + i + ':-'), cb(productById(x.id).title.slice(0, 24) + ' × ' + x.qty, 'p:' + x.id + '~ct'), cb('+', 'cq:' + i + ':+')]);
+  rows.push([cb('Доставка: ' + (d ? d.short : '—'), 'cd'), cb(c.promo ? 'Промокод ' + c.promo.code : 'Промокод', 'cp')]);
+  if (payOnNow) rows.push([cb('Оплатить по СБП', 'co:sbp')], [cb('Картой МИР / Visa / MC', 'co:card')]);
+  else rows.push([cb('СБП · скоро', 'co:soon'), cb('Карта · скоро', 'co:soon')], [cb('Оформить заявку', 'co:req')]);
+  rows.push([cb('Очистить', 'cx'), cb('Магазин', 'sh')], navRow('m'));
+  return pic(IMG.cart, cap, rows);
+}
+export const screenCartDelivery = (c) => pic(IMG.cart, '<b>Доставка</b>\nВыберите способ — сумма в корзине пересчитается.',
+  [...SHOP_DELIVERY.map((d) => [cb((c.dl === d.id ? '· ' : '') + d.title + ' · ' + (d.price ? fmtRub(d.price) : '0 ₽') + ' · ' + d.eta, 'cd:' + d.id)]), navRow('ct')]);
+export const screenPromo = (warn = '') => pic(IMG.cart, '<b>Промокод</b>\nНапишите промокод одним сообщением.' + warnLine(warn), [[cb('Убрать промокод', 'cp:x')], navRow('ct')]);
+export const TERMS_TEXT = '<b>Условия продажи</b>\n' + RULE + '\n' +
+  'Продавец — самозанятый (НПД), чек приходит из «Мой налог».\n' +
+  'Доставка: СДЭК до пункта выдачи 390 ₽ (2–4 дня), Почта России 290 ₽ (5–9 дней), самовывоз в Краснодаре — бесплатно.\n' +
+  'Возврат: товар надлежащего качества — 7 дней после получения (дистанционная продажа), с браком — по закону о защите прав потребителей. Напишите в поддержку.\n' + RULE + '\n' +
+  'Полный текст оферты и реквизиты — по кнопке ниже.';
+export const screenTerms = () => pic(IMG.banner, TERMS_TEXT, [[{ text: 'Оферта и реквизиты', url: APP_URL + 'sale.html' }], [cb('Поддержка', 'sup~m')], navRow('m')]);
 /** Экран после «Подтвердить»: то же сообщение превращается в «Заявка принята · номер». */
-export const screenPlaced = (o, H) => pic(stepPic({ pid: o.productId }), msgOrderBuyer(o, H), [[cb('Мои заказы', 'my'), cb('Открыть заказ', 'mo:' + o.id)], navRow('m')]);
+export const screenPlaced = (o, H) => pic(stepPic({ pid: o.productId }), msgOrderBuyer(o, H), [...(o.payUrl ? [[{ text: 'Оплатить · ' + (o.payMethod === 'card' ? 'картой' : 'СБП') + ' · ' + fmtRub(o.total), url: o.payUrl }]] : []), [cb('Мои заказы', 'my'), cb('Открыть заказ', 'mo:' + o.id)], navRow('m')]);
 export const CANCELED_TEXT = 'Оформление отменено.';
 export const EXPIRED_TEXT = 'Оформление устарело — начните заново.';
 export const screenNote = (t, rows = []) => pic(IMG.banner, '<b>PITLANE</b>\n' + t, [...rows, navRow('m')]);
@@ -188,21 +239,45 @@ export const screenNote = (t, rows = []) => pic(IMG.banner, '<b>PITLANE</b>\n' +
 export function screenMyOrders(orders, back = 'm') {
   const nav = navRow(BACK_RE.test(back) ? back : 'm');
   if (!orders.length) return pic(IMG.banner, '<b>Мои заказы</b>\nЗаказов пока нет.', [[go('PITLANE GPS', 'p:pitlane-gps', 'my')], nav]);
-  const lines = orders.slice(0, 8).map((o) => esc(o.title) + ' × ' + o.qty + ' · <b>' + esc(ORDER_SHORT[o.status] || ORDER_SHORT.new) + '</b>\n<code>' + esc(o.id) + '</code> · ' + esc(MSKd(o.at)));
+  const lines = orders.slice(0, 8).map((o) => esc(o.title) + ' × ' + o.qty + ' · <b>' + esc(ORDER_SHORT[o.status] || ORDER_SHORT.new) + '</b>\n' + esc(orderNo(o)) + ' · ' + esc(MSKd(o.at)) + (o.total != null ? ' · ' + esc(fmtRub(o.total)) : ''));
   return pic(IMG.banner, '<b>Мои заказы</b>\n' + RULE + '\n' + lines.join('\n\n'),
-    [...orders.slice(0, 5).map((o) => [cb(o.id + ' · ' + (ORDER_SHORT[o.status] || ORDER_SHORT.new), 'mo:' + o.id)]), [cb('Магазин', 'sh')], nav]);
+    [...orders.slice(0, 5).map((o) => [cb(orderNo(o) + ' · ' + (ORDER_SHORT[o.status] || ORDER_SHORT.new), 'mo:' + o.id)]), [cb('Магазин', 'sh')], nav]);
 }
+const TIMELINE = ['paid', 'assembling', 'shipped', 'delivered'];
+const TL_LABEL = { paid: 'Оплачен', assembling: 'Собран', shipped: 'Передан в доставку', delivered: 'Доставлен' };
 export function screenOrder(o) {
-  const hist = (Array.isArray(o.history) && o.history.length ? o.history : [{ st: o.status || 'new', at: o.at }])
-    .map((x) => '<code>' + esc(MSK(x.at)) + '</code>  ' + esc(ORDER_SHORT[x.st] || x.st)).join('\n');
+  const hist = Array.isArray(o.history) && o.history.length ? o.history : [{ st: o.status || 'new', at: o.at }];
+  const at = (st) => hist.find((x) => x.st === st)?.at;
+  const cur = TIMELINE.indexOf(o.status);
+  const tl = o.status === 'canceled' ? ['Отменён'] : TIMELINE.map((st, i) => (at(st) || i <= cur ? '● ' : '○ ') + TL_LABEL[st] + (at(st) ? ' · <code>' + esc(MSK(at(st))) + '</code>' : '') + (st === 'shipped' && o.track ? '\n   трек <code>' + esc(o.track) + '</code>' : ''));
+  const tu = trackUrl(o.delivery?.id, o.track);
   return pic(stepPic({ pid: o.productId }),
-    '<b>Заказ ' + esc(o.id) + '</b>\n' +
-    esc(o.title) + ' × ' + o.qty + (o.total != null ? ' — ' + esc(fmtRub(o.total)) : '') + '\n' +
-    'Статус: <b>' + esc(ORDER_STATUS[o.status] ? ORDER_SHORT[o.status] : ORDER_SHORT.new) + '</b>\n' +
-    'Город: ' + esc(o.city) + '\n' + RULE + '\n' + hist + '\n' + RULE + '\n' +
-    'Вопрос по заказу — «Написать в поддержку».',
-    [[go('Написать в поддержку', 'sup', 'mo:' + o.id)], navRow('my')],
+    '<b>Заказ ' + esc(orderNo(o)) + '</b> · ' + esc(MSKd(o.at)) + '\n' + RULE + '\n' +
+    itemLines(o, esc).join('\n') + '\n' + sumLines(o, esc).filter((l) => !/^Трек/.test(l)).join('\n') + '\n' +
+    'Статус: <b>' + esc(ORDER_STATUS[o.status] ? ORDER_SHORT[o.status] : ORDER_SHORT.new) + '</b>\n' + RULE + '\n' + tl.join('\n'),
+    [...(o.payUrl && o.status === 'new' ? [[{ text: 'Оплатить · ' + fmtRub(o.total), url: o.payUrl }]] : []), ...(tu ? [[{ text: 'Отследить посылку', url: tu }]] : []), [go('Написать в поддержку', 'sup', 'mo:' + o.id)], navRow('my')],
   );
+}
+
+/** v226: /track <№ или id> <трек> — только админ: трек + статус «Передан в доставку», покупателю — уведомление с кнопкой «Отследить». */
+export async function botTrackCommand(env, msg, ref, track, H) {
+  const chat = msg.chat.id;
+  if (!shopAdmins(env).has(String(msg.from?.id))) return null;
+  const say = (t) => H.tgCall(env, 'sendMessage', { chat_id: chat, text: t, parse_mode: 'HTML' });
+  if (!ref || !track) { await say('Формат: <code>/track 1001 1234567890</code> — номер заказа и трек-номер.'); return { cmd: 'track:usage' }; }
+  const o0 = await findOrder(env, ref, H);
+  if (!o0) { await say('Заказ ' + esc(ref) + ' не найден.'); return { cmd: 'track:none' }; }
+  const r = await setOrderStatus(env, o0.id, 'shipped', H, { track: track.toUpperCase() });
+  const o = r.o; let notified = false;
+  const tgId = o.buyer?.tgId || (await H.tgChatOf(env, o.pid));
+  if (tgId) {
+    const tu = trackUrl(o.delivery?.id, o.track);
+    const s = await H.tgCall(env, 'sendMessage', { chat_id: tgId, text: msgOrderStatusBuyer(o, H), parse_mode: 'HTML', link_preview_options: { is_disabled: true },
+      reply_markup: { inline_keyboard: [...(tu ? [[{ text: 'Отследить посылку', url: tu }]] : []), [cb('Мой заказ', 'n:mo:' + o.id), cb('Поддержка', 'n:sup')]] } });
+    notified = !!s?.ok;
+  }
+  await say('Заказ ' + esc(orderNo(o)) + ': трек <code>' + esc(o.track) + '</code>, статус «' + esc(ORDER_SHORT.shipped) + '»' + (notified ? ', покупатель уведомлён.' : ', покупателю не доставлено.'));
+  return { cmd: 'track', id: o.id, notified };
 }
 
 /* ——— состояние ——— */
@@ -298,16 +373,25 @@ export async function botStart(env, msg, route, H) {
 /** Команды бота, у которых свой экран (вызывается из tgHandleMessage). → { cmd } | null */
 export async function botCommand(env, msg, cmd, H) {
   const chat = msg.chat.id;
-  const map = { shop: () => screenShop(), chip: () => screenChip(), help: () => screenFaq(), faq: () => screenFaq(), menu: () => screenMenu(), support: () => screenFaq() };
+  payOnNow = paymentsOn(env);
+  const map = { shop: async () => screenShop(await getCart(env.PITLANE, chat)), cart: async () => screenCart(await getCart(env.PITLANE, chat)), terms: () => screenTerms(), chip: () => screenChip(), help: () => screenFaq(), faq: () => screenFaq(), menu: () => screenMenu(), support: () => screenFaq() };
   let spec = null;
   if (cmd === 'orders') spec = screenMyOrders(await myOrders(env, msg.from?.id || chat, H));
-  else if (map[cmd]) spec = map[cmd]();
+  else if (cmd === 'support') spec = screenSupport('m');
+  else if (map[cmd]) spec = await map[cmd]();
   if (!spec) return null;
   await leaveFlow(env, chat, H);
   const s = await showFresh(env, chat, spec, H, { userMsg: msg.message_id });
+  if (cmd === 'support') await putFlow(env.PITLANE, chat, { step: 'support', bk: 'm', mid: s.mid, ph: s.photo });
   return { cmd, sent: !!s.r?.ok, mode: 'fresh', mid: s.mid };
 }
 
+/** После города: доставка уже выбрана в корзине → адрес/связь, иначе — выбор доставки. */
+function afterCity(f) {
+  if (!f.dl) { f.step = 'dl'; return screenDelivery(f); }
+  if (f.dl !== 'pickup' && !f.addr) { f.step = 'addr'; return screenAddr(f); }
+  f.step = 'contact'; return screenContact(f);
+}
 /** Текст/контакт, пока идёт шаг оформления или поддержки. → { cmd } | null (не наш — обычный ответ).
  *  Сообщение человека удаляется, шаг перерисовывается в том же экране (f.mid). */
 export async function botFlowMessage(env, msg, H) {
@@ -332,11 +416,26 @@ export async function botFlowMessage(env, msg, H) {
     const s = await paint(screenSupportSent(!!r?.ok, tx));
     return { cmd: 'support:' + (r?.ok ? 'sent' : 'fail'), mode: modeOf(s) };
   }
+  payOnNow = paymentsOn(env);
+  if (f.step === 'promo') {
+    const c = await getCart(kv, chat);
+    const sub = cartTotals(c.items.map((x) => ({ p: productById(x.id), qty: x.qty })), null, 0).subtotal;
+    const r = resolvePromo(env, tx, sub);
+    if (!r.ok) return stay('promo?', screenPromo(r.error === 'min' ? 'Промокод действует от ' + esc(fmtRub(r.min)) + '.' : 'Такого промокода нет.'));
+    c.promo = { code: r.code, off: r.off }; await putCart(kv, chat, c);
+    await tidy(); await dropFlow(kv, chat); const s = await paint(screenCart(c, 'Промокод применён: −' + esc(fmtRub(r.off)))); return { cmd: 'promo', mode: modeOf(s) };
+  }
   if (f.step === 'city') {
     const city = H.cleanLabel(tx, 60);
     if (city.length < 2 || H.containsPhone(city)) return stay('order:city?', screenCity(f, 'Напишите название города, например <code>Казань</code>.'));
-    f.city = city; f.step = 'contact'; return stay('order:city', screenContact(f));
+    f.city = city; return stay('order:city', afterCity(f));
   }
+  if (f.step === 'addr') {
+    const a = H.cleanLabel(tx.replace(/\s+/g, ' '), 200);
+    if (a.length < 5) return stay('order:addr?', screenAddr(f, 'Слишком коротко — нужен адрес пункта или индекс и адрес.'));
+    f.addr = a; f.step = 'contact'; return stay('order:addr', screenContact(f));
+  }
+
   if (f.step === 'tg_other') {
     const m = TG_USER_RE.exec(tx);
     if (!m) return stay('order:tg?', screenTgOther(f, 'Не похоже на имя пользователя.'));
@@ -353,7 +452,7 @@ export async function botFlowMessage(env, msg, H) {
   if (f.step === 'comment') {
     f.cmt = H.cleanLabel(tx.replace(/\s+/g, ' '), 500); f.step = 'confirm'; return stay('order:comment', screenConfirm(f));
   }
-  if (f.step === 'confirm' || f.step === 'qty' || f.step === 'contact') { await tidy(); return { cmd: 'order:wait' }; } // выбор — кнопками на экране
+  if (f.step === 'confirm' || f.step === 'qty' || f.step === 'contact' || f.step === 'dl') { await tidy(); return { cmd: 'order:wait' }; } // выбор — кнопками на экране
   return null;
 }
 
@@ -392,8 +491,46 @@ export async function botCallback(env, cq, H) {
   const done = async (cmd, spec, toast, alert) => { await ack(toast, alert); const s = spec ? await paint(spec) : null; return { cmd, mode: modeOf(s), mid: s?.mid }; };
   const nav = async (cmd, spec) => { await leaveFlow(env, chat, H); return done(cmd, spec); };
   let m;
+  payOnNow = paymentsOn(env);
   if (key === 'm') return nav('cb:menu', screenMenu());
-  if (key === 'sh') return nav('cb:shop', screenShop());
+  if (key === 'sh') return nav('cb:shop', screenShop(await getCart(kv, chat)));
+  // v226: корзина
+  if (key === 'ct') return nav('cb:cart', screenCart(await getCart(kv, chat)));
+  if ((m = key.match(/^ca:([a-z0-9-]{2,40})$/))) {
+    const p = productById(m[1]); if (!orderable(p)) { await ack('Сейчас недоступно', true); return { cmd: 'cb:ca:na' }; }
+    const c = await getCart(kv, chat); const ex = c.items.find((x) => x.id === p.id);
+    if (ex) ex.qty = Math.min(p.maxQty || 5, ex.qty + 1); else if (c.items.length < MAX_CART_LINES) c.items.push({ id: p.id, qty: 1 }); else { await ack('В корзине уже ' + MAX_CART_LINES + ' товаров', true); return { cmd: 'cb:ca:full' }; }
+    await putCart(kv, chat, c);
+    return done('cb:ca', screenProduct(p, back || 'sh', c), 'В корзине: ' + cartCount(c));
+  }
+  if ((m = key.match(/^cq:(\d):([+-])$/))) {
+    const c = await getCart(kv, chat); const x = c.items[Number(m[1])]; if (!x) { await ack(); return { cmd: 'cb:cq:none' }; }
+    const p = productById(x.id); x.qty += m[2] === '+' ? 1 : -1;
+    if (x.qty > (p.maxQty || 5)) x.qty = p.maxQty || 5;
+    if (x.qty < 1) c.items.splice(Number(m[1]), 1);
+    if (c.promo) { const r = resolvePromo(env, c.promo.code, cartTotals(c.items.map((y) => ({ p: productById(y.id), qty: y.qty })), null, 0).subtotal); c.promo = r.ok ? { code: r.code, off: r.off } : null; }
+    await putCart(kv, chat, c); return nav('cb:cq', screenCart(c));
+  }
+  if (key === 'cd') return nav('cb:cd', screenCartDelivery(await getCart(kv, chat)));
+  if ((m = key.match(/^cd:(cdek|post|pickup)$/))) { const c = await getCart(kv, chat); c.dl = m[1]; await putCart(kv, chat, c); return nav('cb:cd:set', screenCart(c)); }
+  if (key === 'cp:x') { const c = await getCart(kv, chat); c.promo = null; await putCart(kv, chat, c); return nav('cb:cp:x', screenCart(c)); }
+  if (key === 'cp') {
+    await leaveFlow(env, chat, H); await ack(); const s = await paint(screenPromo());
+    await putFlow(kv, chat, { step: 'promo', mid: s.mid, ph: s.photo }); return { cmd: 'cb:cp', mode: modeOf(s), mid: s.mid };
+  }
+  if (key === 'cx') { await kv.delete(cartKey(chat)); return nav('cb:cx', screenCart({ items: [], dl: 'cdek', promo: null })); }
+  if (key === 'co:soon') { await ack('Онлайн-оплата скоро. Сейчас нажмите «Оформить заявку» — напишем и согласуем оплату.', true); return { cmd: 'cb:co:soon' }; }
+  if ((m = key.match(/^co:(sbp|card|req)$/))) {
+    if (m[1] !== 'req' && !payOnNow) { await ack('Онлайн-оплата скоро', true); return { cmd: 'cb:co:soon' }; }
+    const c = await getCart(kv, chat); if (!c.items.length) return nav('cb:co:empty', screenCart(c));
+    await leaveFlow(env, chat, H); await ack();
+    const f = { step: 'city', fromCart: 1, items: c.items, pid: c.items[0].id, qty: cartCount(c), dl: c.dl, promo: c.promo, pm: m[1] === 'req' ? null : m[1],
+      un: userName(from), nm: H.safeName([from.first_name, from.last_name].filter(Boolean).join(' '), ''), cid: H.randB36(16) };
+    const s = await paint(screenCity(f)); f.mid = s.mid; f.ph = s.photo;
+    await putFlow(kv, chat, f); return { cmd: 'cb:co', mode: modeOf(s), mid: s.mid };
+  }
+  if (key === 'terms') return nav('cb:terms', screenTerms());
+
   if (key === 'chip') return nav('cb:chip', screenChip(back || 'm'));
   if (key === 'faq') return nav('cb:faq', screenFaq(back || 'm'));
   if (key === 'my') return nav('cb:my', screenMyOrders(await myOrders(env, from.id, H), back || 'm'));
@@ -408,7 +545,7 @@ export async function botCallback(env, cq, H) {
     if (!o || !pid || o.pid !== pid) { await ack('Заказ не найден'); return { cmd: 'cb:mo:none' }; }
     return nav('cb:mo', screenOrder(o));
   }
-  if ((m = key.match(/^p:([a-z0-9-]{2,40})$/))) { const p = productById(m[1]); if (!p || p.hidden) { await ack('Товар не найден'); return { cmd: 'cb:p:none' }; } return nav('cb:product', screenProduct(p, back || 'sh')); }
+  if ((m = key.match(/^p:([a-z0-9-]{2,40})$/))) { const p = productById(m[1]); if (!p || p.hidden) { await ack('Товар не найден'); return { cmd: 'cb:p:none' }; } return nav('cb:product', screenProduct(p, back || 'sh', await getCart(kv, chat))); }
   if ((m = key.match(/^pk:([a-z0-9-]{2,40})$/))) { const p = productById(m[1]); if (!p || p.hidden) { await ack('Товар не найден'); return { cmd: 'cb:pk:none' }; } return nav('cb:specs', screenSpecs(p)); }
   if ((m = key.match(/^ob:([a-z0-9-]{2,40})$/))) {
     const p = productById(m[1]); if (!orderable(p)) { await ack('Сейчас недоступно', true); return { cmd: 'cb:ob:na' }; }
@@ -430,7 +567,7 @@ export async function botCallback(env, cq, H) {
   }
   if ((m = key.match(/^oc:(\d)$/)) && f.qty) {
     const c = QUICK_CITIES[Number(m[1])]; if (!c) { await ack(); return { cmd: 'cb:oc:bad' }; }
-    f.city = c; f.step = 'contact'; return step('cb:city', screenContact(f));
+    f.city = c; return step('cb:city', afterCity(f));
   }
   if ((m = key.match(/^ot:(tg|other|phone)$/)) && f.city) {
     if (m[1] === 'tg') { f.cm = 'tg'; f.cv = null; f.step = 'comment'; return step('cb:contact', screenComment(f)); }
@@ -443,15 +580,17 @@ export async function botCallback(env, cq, H) {
     }
     return res;
   }
+  if ((m = key.match(/^od:(cdek|post|pickup)$/)) && f.city) { f.dl = m[1]; f.addr = ''; return step('cb:dl', afterCity(f)); }
+  if (key === 'bd' && f.city) { await clearAux(env, chat, f, H); f.addr = ''; if (f.fromCart) { f.step = 'city'; return step('cb:back:city', screenCity(f)); } f.dl = null; f.step = 'dl'; return step('cb:back:dl', screenDelivery(f)); }
   // «← Назад» по шагам
   if (key === 'bq') { await clearAux(env, chat, f, H); f.step = 'qty'; return step('cb:back:qty', screenQty(f)); }
-  if (key === 'bc' && f.qty) { await clearAux(env, chat, f, H); f.step = 'city'; return step('cb:back:city', screenCity(f)); }
+  if (key === 'bc' && f.qty) { await clearAux(env, chat, f, H); f.step = 'city'; if (!f.fromCart) f.dl = null; return step('cb:back:city', screenCity(f)); }
   if (key === 'bt' && f.city) { await clearAux(env, chat, f, H); f.step = 'contact'; return step('cb:back:contact', screenContact(f)); }
   if (key === 'bm' && f.cm) { f.step = 'comment'; return step('cb:back:comment', screenComment(f)); }
   if (key === 'on:skip' && f.cm) { f.cmt = ''; f.step = 'confirm'; return step('cb:skip', screenConfirm(f)); }
-  if (key === 'oe') { await clearAux(env, chat, f, H); const g = { step: 'qty', pid: f.pid, un: f.un, nm: f.nm, cid: f.cid, mid: f.mid, ph: f.ph }; Object.keys(f).forEach((k) => delete f[k]); Object.assign(f, g); return step('cb:edit', screenQty(f)); }
+  if (key === 'oe') { await clearAux(env, chat, f, H); if (f.fromCart) { await dropFlow(kv, chat); return done('cb:edit', screenCart(await getCart(kv, chat))); } const g = { step: 'qty', pid: f.pid, un: f.un, nm: f.nm, cid: f.cid, mid: f.mid, ph: f.ph }; Object.keys(f).forEach((k) => delete f[k]); Object.assign(f, g); return step('cb:edit', screenQty(f)); }
   if (key === 'ok' && f.step === 'confirm' && f.qty && f.city && f.cm) {
-    if (!orderable(p)) { await ack('Товар сейчас недоступен', true); return { cmd: 'cb:ok:na' }; }
+    if (!(f.items || [{ id: p.id }]).every((x) => orderable(productById(x.id)))) { await ack('Товар сейчас недоступен', true); return { cmd: 'cb:ok:na' }; }
     // v184: двойное нажатие «Подтвердить» (Telegram шлёт апдейты параллельно) → раньше две заявки; замок на cid (best effort, KV)
     const lockKey = 'botlock:' + f.cid;
     if (await kv.get(lockKey)) { await ack('Заказ уже оформляется'); return { cmd: 'cb:ok:busy' }; }
@@ -465,11 +604,11 @@ export async function botCallback(env, cq, H) {
     if (await H.rateHit(kv, 'rl:shop:p:' + pilot.id, SHOP_RL.pilotDay, 86400) || await H.rateHit(kv, 'rl:shop:day:' + H.moscowDateKey(), SHOP_RL.globalDay, 86400)) {
       await ack('Слишком много заявок за сутки — напишите в поддержку', true); return { cmd: 'cb:ok:limited' };
     }
-    const rec = { productId: p.id, title: p.title, qty: f.qty, price: Number.isFinite(p.price) ? p.price : null, total: orderTotal(p, f.qty), city: f.city,
-      contact: f.cm === 'tg' ? { method: 'tg' } : { method: f.cm, value: f.cv }, comment: f.cmt || '', cid: f.cid };
+    if (f.promo) { const pr = resolvePromo(env, f.promo.code, flowRec({ ...f, promo: null }).subtotal); f.promo = pr.ok ? { code: pr.code, off: pr.off } : null; }
+    const rec = flowRec(f);
     const o = await createOrder(env, { pid: pilot.id, nick: f.nm || H.safeName(pilot.nick, ''), tgId: from.id, username: f.un }, rec, mine, H, { source: 'bot', notifyBuyer: false });
-    await dropFlow(kv, chat);
-    const r = await done('cb:ok', screenPlaced(o, H), 'Заказ ' + o.id + ' оформлен');
+    await dropFlow(kv, chat); if (f.fromCart) await kv.delete(cartKey(chat));
+    const r = await done('cb:ok', screenPlaced(o, H), 'Заказ ' + orderNo(o) + ' оформлен');
     return { ...r, id: o.id, forwarded: o.forwarded, buyerNotified: !!r.mid };
   }
   await ack(); return { cmd: 'cb:stale' };

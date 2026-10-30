@@ -11,7 +11,9 @@
  * Адресат заявок: env.SHOP_CHAT_ID, иначе env.FEEDBACK_CHAT_ID (владелец).
  * PAYMENTS: при SHOP_CONFIG.payments && legalReady() здесь появится ссылка на оплату (createInvoiceLink / провайдер) — сейчас выключено.
  */
-import { FOUNDERS, FOUNDER_CONFIRMED, founderTotal, SHOP_CONFIG, ORDER_STATUS, ORDER_ADMIN_STATUSES, ORDER_SHORT, productById, orderable, orderTotal, fmtRub, statusOf } from '../../shop-config.js';
+import { FOUNDERS, FOUNDER_CONFIRMED, founderTotal, SHOP_CONFIG, ORDER_STATUS, ORDER_ADMIN_STATUSES, ORDER_SHORT, productById, orderable, orderTotal, fmtRub, statusOf, deliveryById, cartTotals, lineTotal, trackUrl, MAX_CART_LINES, SHOP_PAY_METHODS } from '../../shop-config.js';
+import { paymentsOn, payUrl, verifyResult } from './robokassa.js';
+import { resolvePromo } from './promo.js';
 import { legalReady } from '../../legal-config.js';
 
 export const SHOP_ORDERS_MAX = 20;
@@ -51,12 +53,31 @@ export function normPhone(v) {
 }
 
 /** Валидация тела заявки → { rec } | { error, field } (без побочных эффектов). */
-export function sanitizeOrder(body, h, { hasTg }) {
-  const p = productById(String(body?.productId || ''));
-  if (!p) return { error: 'unknown product', field: 'productId' };
-  if (!orderable(p)) return { error: 'not available', field: 'productId' };
-  const qty = Number(body?.qty);
-  if (!Number.isInteger(qty) || qty < 1 || qty > (p.maxQty || 5)) return { error: 'qty 1..' + (p.maxQty || 5), field: 'qty' };
+export function sanitizeOrder(body, h, { hasTg, env } = {}) {
+  // v226: корзина {items:[{productId,qty}], delivery:{id,addr}, promo, payMethod}; старое тело {productId, qty} = корзина из одной строки
+  const raw = Array.isArray(body?.items) ? body.items : [{ productId: body?.productId, qty: body?.qty }];
+  if (!raw.length || raw.length > MAX_CART_LINES) return { error: 'items', field: 'items' };
+  const items = [];
+  for (const it of raw) {
+    const p = productById(String(it?.productId || ''));
+    if (!p) return { error: 'unknown product', field: 'productId' };
+    if (!orderable(p)) return { error: 'not available', field: 'productId', productId: p.id };
+    const qty = Number(it?.qty);
+    if (!Number.isInteger(qty) || qty < 1 || qty > (p.maxQty || 5)) return { error: 'qty 1..' + (p.maxQty || 5), field: 'qty' };
+    const ex = items.find((x) => x.productId === p.id);
+    if (ex) { ex.qty = Math.min(p.maxQty || 5, ex.qty + qty); continue; }
+    items.push({ productId: p.id, title: p.title, qty, price: Number.isFinite(p.price) ? p.price : null });
+  }
+  let delivery = null;
+  if (body?.delivery != null) {
+    const d = deliveryById(String(body.delivery?.id || body.delivery || ''));
+    if (!d) return { error: 'delivery', field: 'delivery' };
+    const addr = h.cleanLabel(String(body.delivery?.addr || '').replace(/\s+/g, ' '), 200);
+    if (d.id !== 'pickup' && addr.length < 5) return { error: 'address', field: 'addr' };
+    delivery = { id: d.id, title: d.title, price: d.price, addr: d.id === 'pickup' ? '' : addr };
+  }
+  const payMethod = SHOP_PAY_METHODS.some((m) => m.id === body?.payMethod) ? body.payMethod : null;
+  const promoCode = body?.promo ? String(body.promo).slice(0, 24) : '';
   const city = h.cleanLabel(body?.city, 60);
   if (city.length < 2) return { error: 'city required', field: 'city' };
   if (h.containsPhone(city)) return { error: 'bad city', field: 'city' };
@@ -69,15 +90,52 @@ export function sanitizeOrder(body, h, { hasTg }) {
   const comment = h.cleanLabel(String(body?.comment || '').replace(/\s+/g, ' '), 500);
   const cid = String(body?.cid || '');
   if (!CID_RE.test(cid)) return { error: 'cid required', field: 'cid' };
-  return { rec: { productId: p.id, title: p.title, qty, price: Number.isFinite(p.price) ? p.price : null, total: orderTotal(p, qty), city, contact, comment, cid } };
+  const rec = priceRec({ items, delivery, payMethod, city, contact, comment, cid }, env, promoCode);
+  if (rec.error) return rec;
+  return { rec };
 }
+
+/** v226: суммы заказа считает только сервер: строки, доставка, промокод, цена основателя (founder). Поля productId/title/qty/price —
+ *  первая строка (совместимость со старыми экранами и заявками). */
+export function priceRec(r, env, promoCode, founder = false) {
+  const lines = r.items.map((it) => ({ p: productById(it.productId), qty: it.qty, founder }));
+  const pre = cartTotals(lines, r.delivery?.id, 0);
+  let promo = null;
+  if (promoCode) {
+    const pr = resolvePromo(env, promoCode, pre.subtotal);
+    if (!pr.ok) return { error: 'promo', field: 'promo', reason: pr.error, min: pr.min };
+    promo = { code: pr.code, off: pr.off };
+  } else if (r.promo) promo = r.promo;
+  const t = cartTotals(lines, r.delivery?.id, promo ? promo.off : 0);
+  if (promo) promo = { ...promo, off: t.off };
+  const items = r.items.map((it, i) => ({ ...it, sum: lineTotal(lines[i].p, it.qty, founder) }));
+  const first = items[0]; const qty = items.reduce((a, x) => a + x.qty, 0);
+  return { ...r, items, promo, subtotal: t.subtotal, total: t.total,
+    productId: first.productId, title: items.length > 1 ? first.title + ' + ещё ' + (items.length - 1) : first.title, qty: items.length > 1 ? qty : first.qty, price: first.price };
+}
+const itemsOf = (o) => (Array.isArray(o.items) && o.items.length ? o.items : [{ productId: o.productId, title: o.title, qty: o.qty, price: o.price, sum: o.total }]);
+export const orderNo = (o) => (o.no ? '№' + o.no : o.id);
 
 /** То, что видит покупатель (без чужих полей). */
 export const publicOrder = (o) => ({
   id: o.id, at: o.at, productId: o.productId, title: o.title, qty: o.qty, price: o.price, total: o.total,
   city: o.city, contactMethod: o.contact?.method || null, contact: o.contact?.value || null, comment: o.comment || '',
-  founder: !!o.founder, status: ORDER_STATUS[o.status] ? o.status : 'new', statusLabel: ORDER_STATUS[o.status] || ORDER_STATUS.new, payUrl: o.payUrl || null,
+  founder: !!o.founder, status: ORDER_STATUS[o.status] ? o.status : 'new', statusLabel: ORDER_STATUS[o.status] || ORDER_STATUS.new, payUrl: o.status === 'new' ? (o.payUrl || null) : null,
+  no: o.no || null, items: itemsOf(o), delivery: o.delivery || null, promo: o.promo || null, subtotal: o.subtotal ?? o.total, payMethod: o.payMethod || null,
+  track: o.track || null, trackUrl: trackUrl(o.delivery?.id, o.track), history: Array.isArray(o.history) ? o.history : [{ st: o.status || 'new', at: o.at }],
 });
+/** Строки заказа для сообщений (HTML-экранировано). */
+export function itemLines(o, e) {
+  return itemsOf(o).map((it) => e(it.title) + ' × ' + it.qty + (it.sum != null ? ' — ' + e(fmtRub(it.sum)) : ''));
+}
+export function sumLines(o, e) {
+  const out = [];
+  if (o.delivery) out.push('Доставка: ' + e(o.delivery.title) + ' — ' + (o.delivery.price ? e(fmtRub(o.delivery.price)) : 'бесплатно') + (o.delivery.addr ? '\n' + e(o.delivery.addr) : ''));
+  if (o.promo) out.push('Промокод ' + e(o.promo.code) + ': −' + e(fmtRub(o.promo.off)));
+  if (o.total != null) out.push('<b>Итого: ' + e(fmtRub(o.total)) + '</b>');
+  if (o.track) out.push('Трек: <code>' + e(o.track) + '</code>');
+  return out;
+}
 
 /** Сообщение команде (HTML, весь пользовательский текст экранирован) + клавиатура «Написать покупателю». */
 export function msgOrderOwner(o, buyer, h) {
@@ -87,11 +145,12 @@ export function msgOrderOwner(o, buyer, h) {
     ? 'Telegram: ' + (buyer.username ? '@' + e(buyer.username) : 'id ' + e(buyer.tgId || '—')) + ' (из входа)'
     : o.contact.method === 'tg_other' ? 'Telegram: ' + e(o.contact.value) : 'Телефон: ' + e(o.contact.value);
   const text = [
-    '<b>PITLANE · заявка ' + e(o.id) + '</b>',
+    '<b>PITLANE · заявка ' + e(orderNo(o)) + '</b> · <code>' + e(o.id) + '</code>',
     '',
-    '<b>' + e(o.title) + '</b> × ' + o.qty + ' — <b>' + e(sum) + '</b>',
+    ...(o.items ? [...itemLines(o, e), ...sumLines(o, e)] : ['<b>' + e(o.title) + '</b> × ' + o.qty + ' — <b>' + e(sum) + '</b>']),
     o.founder ? 'Основатель: цена ' + e(fmtRub(FOUNDERS.price)) + ' за 1 шт. «Принят» = подтвердить и выдать значок' : '',
-    'Статус товара: ' + e(statusOf(productById(o.productId)).label) + ' · оплата: ' + (o.payUrl ? 'онлайн' : 'нет онлайн-оплаты, договориться'),
+    'Статус товара: ' + e(statusOf(productById(o.productId)).label) + ' · оплата: ' + (o.payUrl ? 'онлайн' + (o.payMethod ? ' (' + (o.payMethod === 'sbp' ? 'СБП' : 'карта') + ')' : '') : 'нет онлайн-оплаты, договориться'),
+    'Трек-номер: /track ' + (o.no || o.id) + ' &lt;трек&gt;',
     '',
     'Город: ' + e(o.city),
     contactLine,
@@ -113,13 +172,15 @@ function statusFooter(o) {
 /** v182: кнопки статуса для администратора — callback as:<id>:<status>; текущий отмечен точкой. */
 export function adminStatusKeyboard(o) {
   const btn = (st) => ({ text: (o.status === st ? '· ' : '') + ORDER_SHORT[st], callback_data: 'as:' + o.id + ':' + st });
-  const [a, b, c, d, x] = ORDER_ADMIN_STATUSES;
-  return [[btn(a), btn(b)], [btn(c), btn(d)], [btn(x)]];
+  const l = ORDER_ADMIN_STATUSES; const rows = [];
+  for (let i = 0; i < l.length; i += 2) rows.push(l.slice(i, i + 2).map(btn));
+  return rows;
 }
 const BUYER_NOTE = {
+  paid: 'Оплата получена, спасибо! Чек придёт от «Мой налог». Начинаем сборку.',
   accepted: 'Заказ принят в работу. Напишем, когда начнём сборку.',
   assembling: 'Собираем и проверяем прибор. Обычно это занимает несколько дней.',
-  shipped: 'Заказ передан в доставку. Трек-номер пришлём в этом чате.',
+  shipped: 'Заказ передан в доставку.',
   delivered: 'Заказ доставлен. Если что-то не так — ответьте на это сообщение или откройте «Поддержка».',
   canceled: 'Заказ отменён. Если это ошибка — напишите в «Поддержка».',
 };
@@ -127,10 +188,10 @@ const BUYER_NOTE = {
 export function msgOrderStatusBuyer(o, h) {
   const e = h.tgEsc;
   return [
-    '<b>Заказ ' + e(o.id) + ' · ' + e(ORDER_SHORT[o.status] || o.status) + '</b>',
+    '<b>Заказ ' + e(orderNo(o)) + ' · ' + e(ORDER_SHORT[o.status] || o.status) + '</b>',
     e(o.title) + ' × ' + o.qty + (o.total != null ? ' · ' + e(fmtRub(o.total)) : ''),
     '',
-    BUYER_NOTE[o.status] || '',
+    (BUYER_NOTE[o.status] || '') + (o.status === 'shipped' ? (o.track ? ' Трек-номер: <code>' + e(o.track) + '</code>' : ' Трек-номер пришлём в этом чате.') : ''),
   ].filter((l, i, a) => !(l === '' && i === a.length - 1)).join('\n');
 }
 
@@ -138,12 +199,14 @@ export function msgOrderBuyer(o, h) {
   const e = h.tgEsc;
   const sum = o.total != null ? ' — ' + fmtRub(o.total) : '';
   return [
-    '<b>Заявка принята · ' + e(o.id) + '</b>',
+    '<b>' + (o.payUrl ? 'Заказ оформлен' : 'Заявка принята') + ' · ' + e(orderNo(o)) + '</b>',
     '',
-    e(o.title) + ' × ' + o.qty + e(sum) + ' · ' + e(statusOf(productById(o.productId)).label.toLowerCase()),
-    'Город: ' + e(o.city),
+    ...(o.items ? [...itemLines(o, e), ...sumLines(o, e)] : [e(o.title) + ' × ' + o.qty + e(sum) + ' · ' + e(statusOf(productById(o.productId)).label.toLowerCase())]),
+    'Город: ' + e(o.city) + (o.delivery ? ' · ' + e(o.delivery.title) + (o.delivery.addr ? ', ' + e(o.delivery.addr) : '') : ''),
+    'Номер для поддержки: <code>' + e(o.id) + '</code>',
     '',
-    'Мы свяжемся с вами ' + (o.contact.method === 'phone' ? 'по телефону' : 'в Telegram') + ', чтобы подтвердить заказ, оплату и доставку. Онлайн-оплаты нет — платить ничего не нужно, пока мы не напишем.',
+    o.payUrl ? 'Оплатите по кнопке «Оплатить» — СБП или картой. Чек придёт автоматически.'
+      : 'Мы свяжемся с вами ' + (o.contact.method === 'phone' ? 'по телефону' : 'в Telegram') + ', чтобы подтвердить заказ, оплату и доставку. Онлайн-оплаты пока нет — платить ничего не нужно, пока мы не напишем.',
     'Статусы заказа будут приходить в этот чат.',
   ].join('\n');
 }
@@ -160,6 +223,22 @@ export async function shopRoute({ req, env, path, headers, ip, pilot, h }) {
     const lim = await h.limitOr429(env, headers, [['rl:shopf:ip:' + ip, 300, 3600]]); if (lim) return lim;
     return h.json({ ok: true, ...foundersPublic(await foundersState(env.PITLANE, h)) }, 200, headers);
   }
+  if (req.method === 'POST' && path === '/shop/promo') { // v226: проверка промокода (сумма — по серверным ценам)
+    const lim = await h.limitOr429(env, headers, [['rl:shoppromo:ip:' + ip, 30, 3600]]); if (lim) return lim;
+    const body = await h.readJson(req, 4 * 1024); if (!body) return h.json({ error: 'invalid json' }, 400, headers);
+    const raw = Array.isArray(body.items) ? body.items.slice(0, MAX_CART_LINES) : [];
+    let sub = 0;
+    for (const it of raw) { const p = productById(String(it?.productId || '')); const q = Number(it?.qty); if (!p || !Number.isFinite(p.price) || !Number.isInteger(q) || q < 1 || q > 5) { sub = null; break; } sub += p.price * q; }
+    const r = resolvePromo(env, body.code, raw.length ? sub : null);
+    return h.json(r.ok ? { ok: true, code: r.code, off: r.off } : { ok: false, error: r.error, min: r.min || undefined }, 200, headers);
+  }
+  if (path === '/shop/robokassa/result') return robokassaResult(req, env, h);
+  if (req.method === 'GET' && /^\/shop\/order\/o[a-z0-9]{10,16}$/.test(path)) {
+    const denied = h.requireAuth(pilot, headers); if (denied) return denied;
+    const o = await getOrder(env, path.slice('/shop/order/'.length), h);
+    if (!o || o.pid !== pilot.id) return h.json({ ok: false, error: 'not found' }, 404, headers);
+    return h.json({ ok: true, order: publicOrder(o) }, 200, headers);
+  }
   if (req.method === 'GET' && path === '/shop/orders') {
     const denied = h.requireAuth(pilot, headers); if (denied) return denied;
     const lim = await h.limitOr429(env, headers, [['rl:shopget:p:' + pilot.id, 120, 3600]]); if (lim) return lim;
@@ -168,14 +247,14 @@ export async function shopRoute({ req, env, path, headers, ip, pilot, h }) {
     const mine = await listOrders(env.PITLANE, pilot.id, h);
     const fs = await foundersState(env.PITLANE, h);
     const founder = mine.some((o) => FOUNDER_CONFIRMED.includes(o.status) && (o.founder || fs.ids.includes(o.id)));
-    return h.json({ ok: true, founder, founders: foundersPublic(fs), orders: mine.map(publicOrder), tg: un ? '@' + un : (tgId ? 'telegram' : null), payments: !!(SHOP_CONFIG.payments && legalReady()) }, 200, headers);
+    return h.json({ ok: true, founder, founders: foundersPublic(fs), orders: mine.map(publicOrder), tg: un ? '@' + un : (tgId ? 'telegram' : null), payments: paymentsOn(env) }, 200, headers);
   }
   if (req.method === 'POST' && path === '/shop/order') {
     const denied = h.requireAuth(pilot, headers); if (denied) return denied;
     const body = await h.readJson(req, 8 * 1024);
     if (!body) return h.json({ error: 'invalid json' }, 400, headers);
     const tgId = await h.tgChatOf(env, pilot.id);
-    const s = sanitizeOrder(body, h, { hasTg: !!tgId });
+    const s = sanitizeOrder(body, h, { hasTg: !!tgId, env });
     if (s.error) return h.json({ ok: false, ...s }, 400, headers);
     const kv = env.PITLANE;
     const mine = await listOrders(kv, pilot.id, h);
@@ -197,11 +276,19 @@ export async function createOrder(env, buyer, rec, mine, h, { source = 'app', no
   const kv = env.PITLANE;
   const o = { id: 'o' + h.randB36(12), at: Date.now(), pid: buyer.pid, ...rec, status: 'new', payUrl: null, source,
     buyer: { nick: buyer.nick || '', username: buyer.username || null, tgId: buyer.tgId || null }, history: [{ st: 'new', at: Date.now() }] };
-  if (o.productId === FOUNDERS.productId && SHOP_CONFIG.foundersOpen) {
+  const chipIn = itemsOf(o).some((it) => it.productId === FOUNDERS.productId);
+  if (chipIn && SHOP_CONFIG.foundersOpen) {
     const fs = await foundersState(kv, h);
-    if (fs.ids.length < FOUNDERS.limit) { o.founder = true; o.total = founderTotal(productById(o.productId), o.qty); fs.ids.push(o.id); await kv.put(FKEY, JSON.stringify(fs)); }
+    if (fs.ids.length < FOUNDERS.limit) {
+      o.founder = true; fs.ids.push(o.id); await kv.put(FKEY, JSON.stringify(fs));
+      if (o.items) Object.assign(o, priceRec(o, env, null, true)); else o.total = founderTotal(productById(o.productId), o.qty);
+    }
   }
-  // PAYMENTS: if (SHOP_CONFIG.payments && legalReady() && o.total) o.payUrl = await createPayment(env, o);  — провайдер не подключён
+  // v226: короткий номер заказа (№1001…) = InvId Robokassa; KV-счётчик (best effort) + индекс shopno:<no> → id
+  const seq = Math.max(1000, Number(await kv.get('shopseq')) || 1000) + 1;
+  await kv.put('shopseq', String(seq)); o.no = seq;
+  await kv.put('shopno:' + seq, o.id, { expirationTtl: ttl() });
+  o.payUrl = payUrl(env, o); // null, пока оплата выключена (SHOP_CONFIG.payments / legalReady / ключи)
   const owner = ownerChat(env);
   if (owner) {
     const m = msgOrderOwner(o, buyer, h);
@@ -214,9 +301,9 @@ export async function createOrder(env, buyer, rec, mine, h, { source = 'app', no
   } else o.forwarded = false;
   // v183: в боте подтверждение — сам экран «Заявка принята» (то же сообщение), отдельное сообщение не нужно
   if (buyer.tgId && notifyBuyer) {
-    const r = await h.tgCall(env, 'sendMessage', { chat_id: buyer.tgId, text: msgOrderBuyer(o, h), parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: source === 'bot'
+    const r = await h.tgCall(env, 'sendMessage', { chat_id: buyer.tgId, text: msgOrderBuyer(o, h), parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: (source === 'bot'
       ? [[{ text: 'Мои заказы', callback_data: 'n:my' }], [h.webAppBtn('Открыть PITLANE', {})]]
-      : [[h.webAppBtn('Мои заявки', { screen: 'shop', skipIntro: '1' })]] } });
+      : [[h.webAppBtn('Мои заявки', { screen: 'shop', skipIntro: '1' })]]).concat(o.payUrl ? [[{ text: 'Оплатить · СБП / карта', url: o.payUrl }]] : []) } });
     o.buyerNotified = !!r?.ok;
   } else o.buyerNotified = notifyBuyer ? false : null;
   const t = ttl();
@@ -237,21 +324,23 @@ export function shopAdmins(env) {
 }
 
 /** v182: смена статуса (только админ; проверка — у вызывающего). Обновляет обе копии в KV, историю; возвращает { o, changed }. */
-export async function setOrderStatus(env, id, st, h) {
+export async function setOrderStatus(env, id, st, h, extra = {}) {
   if (!ID_RE.test(String(id || '')) || !ORDER_ADMIN_STATUSES.includes(st)) return { error: 'bad' };
   const kv = env.PITLANE;
   const o = await h.kvJson(kv, orderKey(id));
   if (!o) return { error: 'not found' };
-  if (o.status === st) return { o, changed: false };
+  if (extra.track) o.track = extra.track;
+  if (o.status === st && !extra.track) return { o, changed: false };
   if (o.productId === FOUNDERS.productId && (st === 'canceled' || o.status === 'canceled')) { // v222: отмена освобождает место основателя
     const fs = await foundersState(kv, h);
     if (st === 'canceled' && fs.ids.includes(id)) { fs.ids = fs.ids.filter((x) => x !== id); o.founder = false; await kv.put(FKEY, JSON.stringify(fs)); }
   }
-  o.status = st; o.history = [...(Array.isArray(o.history) ? o.history : []), { st, at: Date.now() }].slice(-12);
+  if (o.status !== st) { o.status = st; o.history = [...(Array.isArray(o.history) ? o.history : []), { st, at: Date.now() }].slice(-12); }
+  if (st !== 'new') o.payUrl = null;
   const t = ttl();
   await kv.put(orderKey(id), JSON.stringify(o), { expirationTtl: t, metadata: { pid: o.pid } });
   const list = await listOrders(kv, o.pid, h);
-  await kv.put(ordersKey(o.pid), JSON.stringify(list.map((x) => (x.id === id ? { ...x, status: st, history: o.history, founder: !!o.founder } : x))), { expirationTtl: t });
+  await kv.put(ordersKey(o.pid), JSON.stringify(list.map((x) => (x.id === id ? { ...x, status: st, history: o.history, founder: !!o.founder, track: o.track || null, payUrl: o.payUrl } : x))), { expirationTtl: t });
   return { o, changed: true };
 }
 export const getOrder = (env, id, h) => (ID_RE.test(String(id || '')) ? h.kvJson(env.PITLANE, orderKey(id)) : null);
@@ -263,4 +352,31 @@ export async function deleteAccountShop(kv, pid, h) {
   await kv.delete(ordersKey(pid));
   for (const k of await h.kvListAll(kv, 'shoporder:')) if (k.metadata && k.metadata.pid === pid) { await kv.delete(k.name); n++; }
   return { shopOrders: n };
+}
+
+/** v226: заказ по короткому номеру (1001) или id. */
+export async function findOrder(env, ref, h) {
+  const r = String(ref || '').replace(/^№/, '').trim();
+  if (/^\d{4,9}$/.test(r)) { const id = await env.PITLANE.get('shopno:' + r); return id ? getOrder(env, id, h) : null; }
+  return getOrder(env, r, h);
+}
+/** v226: Robokassa ResultURL — подпись Pass2, сумма = сумме заказа → «Оплачен», сообщение покупателю и команде. Ответ "OK<InvId>". */
+export async function robokassaResult(req, env, h) {
+  const txt = (s, st = 200) => new Response(s, { status: st, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+  if (!paymentsOn(env)) return txt('payments off', 404);
+  let f = {};
+  if (req.method === 'POST') { const t = await req.text(); f = Object.fromEntries(new URLSearchParams(t.slice(0, 8192))); }
+  else f = Object.fromEntries(new URL(req.url).searchParams);
+  const v = verifyResult(env, f);
+  if (!v.ok) return txt('bad sign', 400);
+  const o = await getOrder(env, v.oid, h);
+  if (!o || o.no !== v.inv || Math.abs(Number(o.total) - v.sum) > 0.009) return txt('bad order', 400);
+  if (o.status === 'new') {
+    const r = await setOrderStatus(env, o.id, 'paid', h);
+    const ox = r.o || o;
+    if (ox.buyer?.tgId) await h.tgCall(env, 'sendMessage', { chat_id: ox.buyer.tgId, text: msgOrderStatusBuyer(ox, h), parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: [[{ text: 'Мои заказы', callback_data: 'n:my' }]] } });
+    const owner = ownerChat(env);
+    if (owner) await h.tgCall(env, 'sendMessage', { chat_id: owner, text: '<b>Оплачен заказ ' + h.tgEsc(orderNo(ox)) + '</b> — ' + h.tgEsc(fmtRub(ox.total)) + ' (Robokassa)', parse_mode: 'HTML', reply_markup: { inline_keyboard: adminStatusKeyboard(ox) } });
+  }
+  return txt('OK' + v.inv);
 }

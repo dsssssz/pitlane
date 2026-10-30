@@ -46,6 +46,16 @@ export function searchCarDb(q, lim = 60) {
 /** Синхронный поиск по id (после загрузки) — для класса/стока в топах. */
 export function carDbById(id) { const f = flat(); return f ? f.find((r) => r.id === id) || null : null; }
 
+/** v226: эмблема по имени машины («BMW M3 …» → bmw) — для карточек своих машин, без загрузки базы. */
+export function brandLogoEl(name) {
+  const n = String(name || '').toLowerCase().replace(/[^a-z]/g, '');
+  let k = null; for (const x of LOGOS) if (n.startsWith(x) && (!k || x.length > k.length)) k = x;
+  const w = el('span', 'cdb-logo');
+  if (k) { const i = el('i'); i.style.setProperty('--logo', `url("./img/brands/${k}.svg")`); w.appendChild(i); }
+  else { w.classList.add('txt'); w.textContent = String(name || '?').trim().slice(0, 1).toUpperCase(); }
+  w.setAttribute('aria-hidden', 'true');
+  return w;
+}
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
 function logoEl(b, big) {
   const w = el('span', 'cdb-logo' + (big ? ' big' : ''));

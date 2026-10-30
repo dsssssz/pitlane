@@ -823,6 +823,8 @@ export const api = {
   async shopOrder(payload) { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/order', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), timeoutMs: 15000 }); },
   async trackSuggest(payload) { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/tracks/suggest', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), timeoutMs: 15000 }); },
   async shopFounders() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/founders'); },
+  async shopPromo(payload) { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/promo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload), timeoutMs: 10000 }); },
+  async shopOrderGet(id) { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/order/' + encodeURIComponent(id)); },
   async shopOrders() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/shop/orders'); },
   async gpsPair() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/gps/pair', { method: 'POST', body: '{}' }); },
   async gpsDevices() { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/gps/devices'); },

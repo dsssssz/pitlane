@@ -113,7 +113,10 @@ export const BOT_COMMANDS = [
   { command: 'shop', description: 'Магазин и PITLANE GPS' },
   { command: 'orders', description: 'Мои заказы' },
   { command: 'chip', description: 'Как работает чип' },
-  { command: 'help', description: 'Вопросы и поддержка' },
+  { command: 'cart', description: 'Корзина' },
+  { command: 'help', description: 'Вопросы и ответы' },
+  { command: 'support', description: 'Поддержка' },
+  { command: 'terms', description: 'Условия продажи и возврата' },
   { command: 'stop_notify', description: 'Выключить уведомления' },
 ];
 export const BOT_DESCRIPTION =

@@ -9,7 +9,7 @@ import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, lo
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
 import { gpsRoute, deleteAccountGps, GpsLive } from './gpslive.js';
 import { shopRoute, deleteAccountShop } from './shop.js';
-import { botCallback, botFlowMessage, botCommand, botStart, mainMenuRows } from './botshop.js';
+import { botCallback, botFlowMessage, botCommand, botStart, mainMenuRows, botTrackCommand } from './botshop.js';
 import { trackSuggestRoute, deleteAccountTrackSug } from './tracksug.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, roomsRefundedPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
@@ -1931,7 +1931,9 @@ async function tgHandleMessage(env, msg) {
   // v182: экраны бота — магазин, мои заказы, чип, вопросы и поддержка, меню
   {
     const tx = typeof msg.text === 'string' ? msg.text.trim() : '';
-    const bm = tx.match(/^\/(shop|orders|chip|help|faq|menu|support)(?:@[A-Za-z0-9_]{3,64})?$/i) || (/^\/start(?:@\S+)?\s+(shop|orders|chip|faq)$/i.exec(tx));
+    const tm = tx.match(/^\/track(?:@[A-Za-z0-9_]{3,64})?(?:\s+(\S+)\s+([A-Za-z0-9-]{6,40}))?$/i); // v226: админ — трек-номер
+    if (tm) { const r = await botTrackCommand(env, msg, tm[1], tm[2], BOT_H); if (r) return r; }
+    const bm = tx.match(/^\/(shop|orders|chip|help|faq|menu|support|terms|cart)(?:@[A-Za-z0-9_]{3,64})?$/i) || (/^\/start(?:@\S+)?\s+(shop|orders|chip|faq|cart|support|terms)$/i.exec(tx));
     if (bm) { const r = await botCommand(env, msg, bm[1].toLowerCase(), BOT_H); if (r) return r; }
   }
   // v115: аудио → музыка в профиле автора сообщения
