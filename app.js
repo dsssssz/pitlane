@@ -6053,7 +6053,7 @@ renderSlips();
 
 
 /* -------- Viral share card -------- */
-const SHARE_ORIGIN = 'https://dsssssz.github.io/pitlane/';
+const SHARE_ORIGIN = 'https://pitlanegps.ru/';
 let _sharePayload = null;
 
 function b64urlEncode(obj) {
@@ -6649,7 +6649,7 @@ function drawStoryCard(p) {
   if (Number.isFinite(p.pbD)) tags.push(fmtPbDelta(p.pbD) + ' к лучшему');
   x.font = F(500, 40); x.fillText(tags.join(' · ').slice(0, 48), 90, 1400);
   x.fillStyle = '#3a3a3c'; x.fillRect(90, 1700, 900, 3);
-  x.fillStyle = '#9a9a9a'; x.font = F(500, 38); x.fillText('dsssssz.github.io/pitlane', 90, 1770);
+  x.fillStyle = '#9a9a9a'; x.font = F(500, 38); x.fillText('pitlanegps.ru', 90, 1770);
   return c;
 }
 async function shareStory(p) {
@@ -13202,7 +13202,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v243';
+const APP_VERSION = 'v244';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13363,7 +13363,7 @@ window.__hud = hudZones; /* скриншоты/отладка */ window.__rd = {
 let _vtMod = null;
 async function openVideoTele(scope, opts = {}) {
   try { _vtMod = _vtMod || await import('./video-tele.js'); } catch (_) { return; }
-  _vtMod.openVideo({ getSpeed: () => displayKmh(), getLabel: () => (scope === 'lap' ? 'круг' : 'время'), hap, webUrl: 'https://dsssssz.github.io/pitlane/', autostart: !!opts.autostart });
+  _vtMod.openVideo({ getSpeed: () => displayKmh(), getLabel: () => (scope === 'lap' ? 'круг' : 'время'), hap, webUrl: 'https://pitlanegps.ru/', autostart: !!opts.autostart });
 }
 /* v154: «С видео» — тихая кнопка под «Старт» (Замер) и «Старт круга» (Трек): запускает замер/круг и сразу запись с камеры + телеметрия */
 document.getElementById('h54Video')?.addEventListener('click', () => {

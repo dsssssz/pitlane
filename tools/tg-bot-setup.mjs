@@ -23,7 +23,7 @@ if (args.has('--dry')) {
   console.log('\nsetMyShortDescription:', BOT_SHORT_DESCRIPTION);
   console.log('\nsetMyDescription:\n' + BOT_DESCRIPTION);
   console.log('\nsetWebhook allowed_updates: message, pre_checkout_query, callback_query');
-  console.log('setChatMenuButton: web_app «PITLANE» → https://dsssssz.github.io/pitlane/');
+  console.log('setChatMenuButton: web_app «PITLANE» → https://pitlanegps.ru/');
   process.exit(0);
 }
 const secret = String(process.env.TGA || '').trim();
