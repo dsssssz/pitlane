@@ -7661,3 +7661,16 @@ html.v159:not(#_):not(#_) .z61-rows .ds-row.z61-gmini { min-height: 44px; }
 html.v159:not(#_):not(#_) .z61-gmini .ds-row-v { font-size: 13px; color: var(--ds-sub); }
 html.v159:not(#_):not(#_) .z61-rows .ds-row[hidden] { display: none !important; }
 .share-card-actions .sc-own[hidden] { display: none !important; }
+/* v258: замер в чате */
+.pad-run { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(255,255,255,.08); background: rgba(255,255,255,.03); }
+.pad-run .cdb-logo { flex: none; width: 36px; height: 36px; }
+.pad-run-car { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pad-run-car > b { font: 650 14px/1.2 var(--font-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pad-run-car > small { display: flex; flex-wrap: wrap; gap: 6px; font: 600 11px/1.2 var(--font-ui); color: rgba(255,255,255,.55); }
+.pad-run-src, .pad-run-ok { padding: 2px 7px; border-radius: 999px; border: 1px solid rgba(255,255,255,.14); }
+.pad-run-src.chip { border-color: rgba(var(--acc-rgb), .45); color: rgb(var(--acc-rgb)); }
+.pad-run-ok { color: rgba(255,255,255,.8); }
+.pad-run-t { flex: none; font: 700 26px/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.pad-run-t small { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.5); }
+.pad-tops-h { margin: 14px 2px 8px; font: 650 11px/1.2 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.45); }
+.pad-top-card .pad-run { margin-bottom: 0; }

@@ -942,9 +942,32 @@ async function enrichSectorAvatars(kv, rows) {
 }
 
 const PULSE_CH = ['gen', 'runs', 'tracks', 'q'];
+/** v258: замер внутри сообщения — {d: дисциплина, t: секунды, src: chip|phone, car}. ok (в топе) ставит только сервер. */
+function sanitizeRunAtt(r) {
+  if (!r || typeof r !== 'object') return null;
+  const d = dragDisc(r.d); const t = Number(r.t);
+  if (!d || !Number.isFinite(t) || t < DRAG_DISCIPLINES[d].lo || t > DRAG_DISCIPLINES[d].hi) return null;
+  const car = cleanLabel(r.car, 60);
+  return { d, t: Math.round(t * 100) / 100, src: r.src === 'chip' ? 'chip' : 'phone', car: car && !containsPhone(car) ? car : '' };
+}
+function publicRunAtt(r) {
+  const x = sanitizeRunAtt(r); if (!x) return null;
+  return { ...x, ...(r.ok === 1 ? { ok: 1 } : {}) };
+}
+/** v258: замер подтверждается, если такой же результат пилота лежит в топе (A/B или C). Источник — из строки топа. */
+async function verifyRunAtt(kv, pid, run) {
+  for (const c of ['ab', 'c']) {
+    const rows = await readList(kv, boardKey('drag', run.d, c));
+    const r = rows.find((x) => x && x.pilotId === pid && Math.abs(Number(x.t) - run.t) < 0.006);
+    if (r) { run.ok = 1; run.src = r.src === 'ext' ? 'chip' : 'phone'; if (!run.car && typeof r.car === 'string') run.car = cleanLabel(r.car, 60); return run; }
+  }
+  run.src = 'phone'; // неподтверждённый — никогда не «чип»
+  return run;
+}
 function sanitizePulse(body, pilot) {
   const text = cleanText(body?.text, 280);
-  if (!text) return null;
+  const run = sanitizeRunAtt(body?.run);
+  if (!text && !run) return null;
   const img = body?.img ? String(body.img) : '';
   const car = cleanLabel(body?.car, 80);
   return {
@@ -959,6 +982,7 @@ function sanitizePulse(body, pilot) {
     likes: [],
     cc: 0,
     pilotId: pilot.id || null,
+    ...(run ? { run } : {}),
     // v205: раздел чата (gen|runs|tracks|q) и трасса для «Треки»; старые посты без поля → «Общий»
     ...(PULSE_CH.includes(body?.ch) && body.ch !== 'gen' ? { ch: body.ch } : {}),
     ...(body?.ch === 'tracks' && slugOk(body?.trk) ? { trk: String(body.trk) } : {}),
@@ -987,6 +1011,8 @@ function publicPulse(p, viewer = '') {
     commentCount: Math.max(0, Number(p.cc) || 0),
     pilotId: pubId(p.pilotId),
     ch: PULSE_CH.includes(p.ch) ? p.ch : 'gen',
+    ...(p.run ? (() => { const r = publicRunAtt(p.run); return r ? { run: r } : {}; })() : {}),
+    ...(p.auto ? { auto: 1 } : {}),
     ...(p.ch === 'tracks' && typeof p.trk === 'string' && slugOk(p.trk) ? { trk: p.trk } : {}),
     ...(p.pp && typeof p.pp === 'object' ? { pp: p.pp } : {}),
     ...(typeof p._ava === 'string' ? { ava: p._ava } : {}),
@@ -3579,6 +3605,12 @@ export default {
           await applyWeather(env, row, res.geo); // v128
           const stored = await upsertDrag(env.PITLANE, disc, row, (b, a, k) => defer(dragOvertake(env, disc, k, b, a, pilot.id)));
           const c = row.cls === 'c';
+          // v258: опубликованный (вошедший в топ) замер сам становится сообщением во вкладке «Замеры»
+          if (stored) defer(pulseOp(env, { t: 'add', row: {
+            id: Date.now().toString(36) + '-' + randB36(8), who: safeName(rec?.nick, '') || safeName(pilot.name, '') || 'Пилот', text: '', img: null,
+            car: typeof row.car === 'string' && !containsPhone(row.car) ? cleanLabel(row.car, 80) : '', at: Date.now(), likes: [], cc: 0, pilotId: pilot.id, ch: 'runs', auto: 1,
+            run: { d: disc, t: Math.round(Number(row.t) * 100) / 100, src: row.src === 'ext' ? 'chip' : 'phone', car: typeof row.car === 'string' && !containsPhone(row.car) ? cleanLabel(row.car, 60) : '', ok: 1 },
+          } }));
           if (disc === '0-100' && !c) await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114 (сезон — только A/B)
           const rows = (await readList(env.PITLANE, boardKey('drag', disc, c ? 'c' : 'ab'))).filter(c ? isClassCRow : isValidGpsRow).sort((a, b) => a.t - b.t);
           return json({ ok: true, cls: c ? 'c' : 'ab', stored, chip: row.chip ?? null, valid: row.valid, wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
@@ -3658,6 +3690,7 @@ export default {
           const body = await readJson(req, BODY_LIMITS.pulse);
           const row = sanitizePulse(body, pilot);
           if (!row) return json({ error: 'invalid pulse' }, 400, headers);
+          if (row.run) await verifyRunAtt(env.PITLANE, pilot.id, row.run); // v258
           const { res, rows } = await pulseOp(env, { t: 'add', row });
           const h2 = { ...headers, 'X-Pulse-Id': String(res.id || ''), ...(res.dup ? { 'X-Pulse-Dup': '1' } : {}) };
           return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30), viewer), 200, h2);

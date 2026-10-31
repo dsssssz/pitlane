@@ -65,6 +65,7 @@ import * as LB from './lap-battle.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { flushRunQueue, runQueueSize } from './api.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
+import { brandLogoEl } from './car-db.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 // v207: подсказки удалены полностью
@@ -6411,7 +6412,8 @@ function openShareCard(payload) {
   // v89: a ghost race shows its own result sheet first; the card opens from «Поделиться» there
   if (typeof ghostRace !== 'undefined' && ghostRace?.holdShare && payload && !payload.ghost) { ghostRace.pendingShare = payload; return; }
   { const own = _shareOwn && payload && !payload.ghost && payload.kind !== 'lap'; const gb = document.getElementById('shareCardGhost'), jb = document.getElementById('shareCardJournal');
-    if (gb) { gb.hidden = !own; gb.disabled = false; gb.textContent = 'Сохранить как призрак'; } if (jb) jb.hidden = !_shareOwn; }
+    if (gb) { gb.hidden = !own; gb.disabled = false; gb.textContent = 'Сохранить как призрак'; } if (jb) jb.hidden = !_shareOwn;
+    const cb = document.getElementById('shareCardChat'); if (cb) { cb.hidden = !(_shareOwn && padRunFromShare(payload)); cb.disabled = false; cb.textContent = 'Отправить в чат'; } }
   const card = document.getElementById('shareCard');
   if (!card) return;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -6763,6 +6765,13 @@ document.getElementById('shareCardBtn')?.addEventListener('click', () => { void 
 document.getElementById('shareCardGhost')?.addEventListener('click', (e) => {
   try { ghostRace.run.choice = 'best'; ghostSaveChoice(); ghostApplyChoice('run'); } catch (_) {}
   hap(8); e.currentTarget.textContent = 'Призрак сохранён'; e.currentTarget.disabled = true;
+});
+document.getElementById('shareCardChat')?.addEventListener('click', (e) => {
+  const run = padRunFromShare(_sharePayload); if (!run) return;
+  const b = e.currentTarget;
+  if (!padSendRun(run)) return;
+  hap(8); b.textContent = 'Отправлено в «Замеры»'; b.disabled = true;
+  setTimeout(() => { closeShareCard(); try { CP.ch = 'runs'; openChatPage(); cpSetTab('runs'); } catch (_) {} }, 650);
 });
 document.getElementById('shareCardJournal')?.addEventListener('click', () => {
   try { localStorage.setItem('pitlane-journal-f', 'run'); } catch (_) {}
@@ -10092,7 +10101,7 @@ function buildPostCard(p, { compact = false } = {}) {
   const card = padEl('article', 'pulse-card' + (compact ? ' compact' : ''));
   card.dataset.post = p.id;
   const head = padEl('header', 'pad-head');
-  const meta = [p.car, padAgo(p.at)].filter(Boolean).join(' · ');
+  const meta = [p.run ? (p.auto ? 'личный рекорд' : '') : p.car, padAgo(p.at)].filter(Boolean).join(' · ');
   head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, avatar: padAvaUrl(p.pilotId, p.ava), meta, pp: p.pp || null }));
   const myPid = accountPilotId();
   if (p.pilotId && myPid && p.pilotId === myPid) {
@@ -10105,6 +10114,7 @@ function buildPostCard(p, { compact = false } = {}) {
   }
   card.appendChild(head);
   if (!compact && p.ch === 'tracks' && p.trk) { const tg = padEl('button', 'pad-trk', trackShortName(p.trk)); tg.type = 'button'; tg.dataset.trk = p.trk; card.appendChild(tg); }
+  if (p.run) card.appendChild(padRunCard(p.run, p.car));
   if (p.text) card.appendChild(padEl('p', 'pad-text', p.text));
   if (p.img && PAD_IMG_RE.test(String(p.img))) {
     const img = document.createElement('img');
@@ -10123,6 +10133,76 @@ function buildPostCard(p, { compact = false } = {}) {
   card.appendChild(bar);
   setTimeout(() => padSyncActions(p.id), 0);
   return card;
+}
+
+/* v258: замер как сообщение — эмблема, машина, время, дисциплина, источник */
+const PAD_DISC = { '0-100': '0–100', '100-200': '100–200', '0-200': '0–200', '60-100': '60–100', '402m': '¼ мили', '201m': '⅛ мили' };
+function padDiscLabel(d) { return PAD_DISC[d] || String(d || ''); }
+function padRunCard(run, car0) {
+  const car = run.car || car0 || 'Машина';
+  const box = padEl('div', 'pad-run');
+  try { box.appendChild(brandLogoEl(car)); } catch (_) {}
+  const mid = padEl('div', 'pad-run-car');
+  mid.appendChild(padEl('b', '', car));
+  const sub = padEl('small', '');
+  sub.appendChild(padEl('span', 'pad-run-d', padDiscLabel(run.d)));
+  sub.appendChild(padEl('span', 'pad-run-src' + (run.src === 'chip' ? ' chip' : ''), run.src === 'chip' ? 'Чип' : 'Телефон'));
+  if (run.ok) sub.appendChild(padEl('span', 'pad-run-ok', 'в топе'));
+  mid.appendChild(sub);
+  box.appendChild(mid);
+  const t = padEl('b', 'pad-run-t', Number(run.t).toFixed(2));
+  t.appendChild(padEl('small', '', ' с'));
+  box.appendChild(t);
+  return box;
+}
+/** v258: «Замеры» никогда не пустые — свежие результаты из топов. */
+let _padTopsFeed = null, _padTopsAt = 0;
+async function padTopsFeed() {
+  if (_padTopsFeed && Date.now() - _padTopsAt < 120e3) return _padTopsFeed;
+  const out = [];
+  for (const d of ['0-100', '402m', '100-200']) {
+    for (const cls of ['', 'c']) { try { const rows = await api.listDrag(d, cls ? { cls } : {}); (Array.isArray(rows) ? rows : []).forEach((r) => { if (r && Number(r.t) > 0) out.push({ d, ...r }); }); } catch (_) {} }
+  }
+  const seen = new Set();
+  const uniq = out.filter((r) => { const k = r.d + '|' + (r.pilotId || r.name) + '|' + r.t; if (seen.has(k)) return false; seen.add(k); return true; });
+  uniq.sort((a, b) => (Number(b.at) || 0) - (Number(a.at) || 0));
+  _padTopsFeed = uniq.slice(0, 12); _padTopsAt = Date.now();
+  return _padTopsFeed;
+}
+function padPaintTopsFeed(feed, n) {
+  if (CP.ch !== 'runs' || n >= 6) return;
+  void padTopsFeed().then((rows) => {
+    if (CP.ch !== 'runs' || !feed.isConnected || feed.querySelector('.pad-tops')) return;
+    if (!rows.length) return;
+    if (!n) feed.replaceChildren();
+    const sec = padEl('section', 'pad-tops');
+    sec.appendChild(padEl('h4', 'pad-tops-h', 'Свежие замеры из топов'));
+    for (const r of rows) {
+      const c = padEl('article', 'pulse-card pad-top-card');
+      const head = padEl('header', 'pad-head');
+      head.appendChild(padAuthor({ name: r.name || 'пилот', pilotId: r.pilotId || '', avatar: r.avatar || '', meta: padAgo(r.at) }));
+      c.appendChild(head);
+      c.appendChild(padRunCard({ d: r.d, t: r.t, src: r.src === 'ext' || r.chip ? 'chip' : 'phone', car: r.car, ok: 1 }));
+      sec.appendChild(c);
+    }
+    feed.appendChild(sec);
+  }).catch(() => {});
+}
+/** v258: «Отправить в чат» с карточки своего заезда. */
+function padRunFromShare(pl) {
+  if (!pl || pl.ghost || pl.kind === 'lap') return null;
+  const d = String(pl.type || '');
+  if (!PAD_DISC[d]) return null;
+  const t = parseFloat(String(pl.time || '').replace(',', '.'));
+  if (!(t > 0)) return null;
+  return { d, t: Math.round(t * 100) / 100, src: pl.src === 'ext' || pl.src === 'chip' ? 'chip' : 'phone', car: String(pl.car && pl.car !== '—' ? pl.car : '').slice(0, 60) };
+}
+function padSendRun(run) {
+  if (!currentUser()) { needLogin('Сообщение в чат — после входа'); return false; }
+  const it = { cid: padNewCid(), text: '', img: null, at: Date.now(), car: run.car || currentCar()?.name || '', status: 'sending', ch: 'runs', run };
+  _padOut.push(it); padOutSave();
+  void padDeliver(it);
+  return true;
 }
 
 async function renderPulse() {
@@ -10151,6 +10231,7 @@ function renderPulseRows(rows0) {
     empty.appendChild(padIcon('bubble', 'pad-empty-ico'));
     empty.appendChild(padEl('p', '', cpEmptyText()));
     feed.appendChild(empty);
+    padPaintTopsFeed(feed, 0);
     return;
   }
   for (const p of rows) {
@@ -10160,6 +10241,7 @@ function renderPulseRows(rows0) {
     feed.appendChild(buildPostCard(p));
   }
   padPaintOut();
+  padPaintTopsFeed(feed, rows.length);
 }
 
 async function padToggleLike(id, btn) {
@@ -10923,7 +11005,7 @@ function padSyncSendBtn() {
 }
 async function padDeliver(it) {
   it.status = 'sending'; it.kind = ''; padOutSave(); padPaintOut();
-  const r = await api.sendPulse({ cid: it.cid, id: 'p' + it.at, who: pulseWho(), text: it.text, img: it.img || null, at: it.at, likes: [], car: it.car || '', ch: it.ch || 'gen', ...(it.trk ? { trk: it.trk } : {}) });
+  const r = await api.sendPulse({ cid: it.cid, id: 'p' + it.at, who: pulseWho(), text: it.text, img: it.img || null, at: it.at, likes: [], car: it.car || '', ch: it.ch || 'gen', ...(it.trk ? { trk: it.trk } : {}), ...(it.run ? { run: it.run } : {}) });
   if (r.ok) {
     it.status = 'sent';
     it.post = (r.rows || []).find((p) => p && (p.cid === it.cid || (r.id && p.id === r.id))) || null;
@@ -13262,7 +13344,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v257';
+const APP_VERSION = 'v258';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -17511,7 +17593,7 @@ document.querySelector('[data-n3="zamer"]')?.addEventListener('click', () => { t
    Назад — Telegram BackButton (через общий список SHEETS) или ‹ в шапке. */
 const CP_TABS = { gen: 'Общий', runs: 'Замеры', tracks: 'Треки', q: 'Вопросы' };
 const CP_TO = { gen: 'в Общий', runs: 'в Замеры', tracks: 'в Треки', q: 'в Вопросы' };
-const CP_PH = { gen: 'Написать в чат…', runs: 'Время, машина, условия…', tracks: 'Трасса, настройки, впечатления…', q: 'Спроси пилотов…' };
+const CP_PH = { gen: 'Написать в чат…', runs: 'Поделиться замером…', tracks: 'Трасса, настройки, впечатления…', q: 'Спроси пилотов…' };
 function cpEmptyText() {
   if (CP.ch === 'runs') return 'Замеров пока нет — поделись своим 0–100 или ¼ мили.';
   if (CP.ch === 'tracks') return CP.trk ? 'По трассе «' + trackShortName(CP.trk) + '» пока пусто — напиши первым.' : 'Про трассы пока тихо — выбери трассу и напиши.';
