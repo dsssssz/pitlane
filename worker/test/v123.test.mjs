@@ -26,7 +26,8 @@ ok(/privacy\.html/.test(menu) && /terms\.html/.test(menu), 'правовая и�
 ok(/\['plMenu', 'plMenuClose'\]/.test(app), 'Telegram BackButton закрывает меню первым');
 ok(/plMenuScrim'\)\?\.addEventListener\('click', plMenuClose\)/.test(app) && /touchend[\s\S]{0,80}dx > 70\) plMenuClose\(\)/.test(app) && /e\.key === 'Escape'\) plMenuClose\(\)/.test(app), 'закрытие: фон, свайп вправо, Esc');
 console.log('[виджеты Главной]');
-for (const id of ['hwCar', 'hwRec', 'hwDuels', 'hwPad', 'hwTeam', 'hwTop']) ok(new RegExp(`id="${id}"[^>]*data-hw=`).test(html), 'виджет ' + id);
+for (const id of ['hwCar', 'hwRec', 'hwDuels', 'hwTeam']) ok(new RegExp(`id="${id}"[^>]*data-hw=`).test(html), 'виджет ' + id);
+for (const id of ['hwPad', 'hwTop']) ok(!html.includes(`id="${id}"`), 'v261: дубль нижней панели убран — ' + id);
 for (const id of ['homeHero', 'homeQuick', 'homeDuelsSec', 'homeTrackSec', 'homeLeadersSec', 'homeStatsSec']) ok(new RegExp(`class="[^"]*v123-off"[^>]*id="${id}"[^>]*hidden|id="${id}" hidden`).test(html) || new RegExp(`v123-off" id="${id}" hidden`).test(html), 'старый блок скрыт (не удалён): ' + id);
 ok(/e\.hidden = !on \|\| e\.classList\.contains\('v123-off'\)/.test(app), 'скрытые блоки не всплывают через showWhen');
 const blk = app.slice(app.indexOf('/* ——— v123: Главная из окошек'), app.indexOf('/* v120: главная кнопка'));

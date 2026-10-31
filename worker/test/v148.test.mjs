@@ -16,7 +16,7 @@ ok(keys[0] === 'tops' && keys[1] === 'duels', 'Профиль: Топы и Ду�
 // v154: вторичные разделы — в меню ☰, круг/трассы/аналитика — вкладка «Трек», видео — «С видео» под стартом
 const menu = html.slice(html.indexOf('id="plMenu"'), html.indexOf('</aside>', html.indexOf('id="plMenu"')));
 for (const k of ['history', 'pulse', 'team', 'suggest', 'shop']) ok(menu.includes(`data-plm="${k}"`) && app.includes(`k === '${k}'`), 'v154: из меню ☰ доступно: ' + k);
-ok(/id="h54Video"/.test(html) && /id="l54Video"/.test(html) && /id="btnAutodromesLap"/.test(html), 'v154: видео — под стартом, трассы — во вкладке «Трек»');
+ok(!/id="h54Video"/.test(html) && /data-plm="video"/.test(html) && /id="l54Video"/.test(html) && /id="btnAutodromesLap"/.test(html), 'v154: видео — под стартом, трассы — во вкладке «Трек»');
 const c = css.slice(css.indexOf('v148: Старт / Гараж / Профиль'));
 ok(/html\.v148 main, html\.v148\.nav-widgets main \{ padding-bottom: calc\(var\(--n3-h\) \+ var\(--sab, 0px\) \+ 28px\) !important/.test(c), 'контент не уходит под нижнюю панель (высота + safe area)');
 ok(/\.nav3-btn\.on \{ color: rgb\(201,198,191\)/.test(c) && /\.h48-start \{[^}]*background: #ecebe8 !important[^}]*text-transform: none/.test(c), 'мята — активный пункт; «Старт» светлый, без капса');

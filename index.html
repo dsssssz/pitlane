@@ -36,8 +36,8 @@
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-PWV2UPWO.js" />
-    <link rel="stylesheet" href="./styles-2E8AB58B.css" />
+    <link rel="modulepreload" href="./b/app-46RM7FJ3.js" />
+    <link rel="stylesheet" href="./styles-347CB745.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -160,24 +160,12 @@
           <!-- v152: карусель баннеров (scroll-snap, точки, авто 6 с, пауза на касании). v163: светлые фото, скрим только под текстом, CTA; каждый ведёт в свой раздел -->
           <section class="bn52" id="bn52" aria-roledescription="карусель" aria-label="Pitlane">
             <div class="bn52-track" id="bn52Track">
-              <button type="button" class="bn52-s b-chip" data-bn52="shop" role="group" aria-roledescription="баннер" aria-label="Чип 25 Гц">
-                <img src="./img/banners/bn-gps-800.webp" srcset="./img/banners/bn-gps-800.webp 800w, ./img/banners/bn-gps-1560.webp 1560w" sizes="100vw" alt="" loading="eager" decoding="async" />
-                <span class="bn52-k">PITLANE GPS</span><b class="bn52-t">Чип 25 Гц</b><span class="bn52-d">25 точек в секунду — точнее телефона</span><span class="bn52-cta" aria-hidden="true">Подробнее</span>
-              </button>
-              <button type="button" class="bn52-s b-tops" data-bn52="tops" role="group" aria-roledescription="баннер" aria-label="Кто быстрее в Москве">
-                <img src="./img/banners/bn-tops-800.webp" srcset="./img/banners/bn-tops-800.webp 800w, ./img/banners/bn-tops-1560.webp 1560w" sizes="100vw" alt="" loading="lazy" decoding="async" />
-                <span class="bn52-k">Топы города</span><b class="bn52-t">Кто быстрее в Москве</b><span class="bn52-d">Разгоны и круги по трассам</span><span class="bn52-cta" aria-hidden="true">Смотреть топ</span>
-              </button>
               <button type="button" class="bn52-s b-video" data-bn52="video" role="group" aria-roledescription="баннер" aria-label="С телеметрией">
                 <img src="./img/banners/bn-video-800.webp" srcset="./img/banners/bn-video-800.webp 800w, ./img/banners/bn-video-1560.webp 1560w" sizes="100vw" alt="" loading="lazy" decoding="async" />
                 <span class="bn52-k">Видео</span><b class="bn52-t">С телеметрией</b><span class="bn52-d">Скорость и время прямо на видео</span><span class="bn52-cta" aria-hidden="true">Снять</span>
               </button>
-              <button type="button" class="bn52-s b-track" data-bn52="suggest" role="group" aria-roledescription="баннер" aria-label="Предложи трассу">
-                <img src="./img/banners/bn-track-800.webp" srcset="./img/banners/bn-track-800.webp 800w, ./img/banners/bn-track-1560.webp 1560w" sizes="100vw" alt="" loading="lazy" decoding="async" />
-                <span class="bn52-k">Трассы</span><b class="bn52-t">Предложи трассу</b><span class="bn52-d">Откалибруем и добавим в топы</span><span class="bn52-cta" aria-hidden="true">Предложить</span>
-              </button>
             </div>
-            <div class="bn52-dots" id="bn52Dots" role="tablist" aria-label="Баннеры"><button type="button" class="bn52-dot on" data-i="0" role="tab" aria-label="Баннер 1"></button><button type="button" class="bn52-dot" data-i="1" role="tab" aria-label="Баннер 2"></button><button type="button" class="bn52-dot" data-i="2" role="tab" aria-label="Баннер 3"></button><button type="button" class="bn52-dot" data-i="3" role="tab" aria-label="Баннер 4"></button></div>
+            <div class="bn52-dots" hidden id="bn52Dots" role="tablist" aria-label="Баннеры"><button type="button" class="bn52-dot on" data-i="0" role="tab" aria-label="Баннер 1"></button></div>
           </section>
           <!-- v120: баннеры скрыты (код остаётся); первым — главная кнопка замера -->
           <section class="home-go hg-a" id="homeGo">
@@ -221,8 +209,6 @@
             <!-- v158: статистика — место в топе, замеры за неделю, последняя сессия (только реальные данные; пусто — скрыто). v163: три равные плитки сетки -->
             <div class="hw-stats" id="hwStats" data-hw="stats" role="group" aria-label="Моя статистика" hidden><button type="button" class="hw hw58-c" id="hw58Place" data-hw="tops" aria-label="Место в топе города — открыть топы" hidden><span class="hw58-k">Топ города</span><b class="hw58-v" id="hw58PlaceV">—</b><span class="hw58-s" id="hw58PlaceS"></span></button><button type="button" class="hw hw58-c" id="hw58Week" data-hw="stats" aria-label="Заезды за 7 дней — открыть Журнал" hidden><span class="hw58-k">За 7 дней</span><b class="hw58-v" id="hw58WeekV">—</b><span class="hw58-s" id="hw58WeekS"></span></button><button type="button" class="hw hw58-c" id="hw58Last" data-hw="stats" aria-label="Последний заезд — открыть Журнал" hidden><span class="hw58-k">Последняя</span><b class="hw58-v" id="hw58LastV">—</b><span class="hw58-s" id="hw58LastS"></span></button></div>
             <button type="button" class="hw" id="hwRec" data-hw="records"><span class="hw-k">Мои рекорды</span><span class="hw-body" id="hwRecBody"></span></button>
-            <button type="button" class="hw hw-wide hw-chat" id="hwPad" data-hw="pulse" aria-label="Чат пилотов"><span class="hw-k">Чат <span class="hw-k-sub">· пилоты</span></span><span class="hw-body" id="hwPadBody"></span></button>
-            <button type="button" class="hw hw-wide hw-slim" id="hwTop" data-hw="tops"><span class="hw-k">Топ 0–100</span><span class="hw-body" id="hwTopBody"></span></button>
           </div>
           <div class="home-carousel v120-off" id="homeCarousel" hidden role="region" aria-roledescription="карусель" aria-label="Разделы Pitlane">
             <div class="hc-track" id="homeCarouselTrack">
@@ -341,10 +327,7 @@
             <p class="z202-hint" id="z202Hint">Сядь в машину и нажми Старт</p>
             <div class="z61-rows" role="group" aria-label="Параметры замера">
               <button type="button" class="ds-row z61-src" id="z61Gps" data-src="phone" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="z61-src-v"><b><i class="z61-dot" aria-hidden="true"></i><span id="z61SrcV">Телефон</span></b><small id="z61SrcS">справочно</small></span></button>
-              <button type="button" class="ds-row z61-gmini" id="z61Ghost" aria-haspopup="dialog" aria-controls="ghost74" hidden><span class="ds-row-k">Призрак</span><span class="ds-row-v" id="z61GhostV">Без призрака</span></button>
             </div>
-            <button type="button" class="v54-video" id="h54Video" aria-label="Старт с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>
-            <button type="button" class="z202-top" id="z202Top" data-view="tops" hidden><span class="z202-top-k">Топ 0–100</span><ol class="z202-top-l" id="z202TopL"></ol></button>
           </section>
         </section>
 
@@ -818,19 +801,24 @@
           <section class="card sc92" id="sc92" aria-label="Витрина"></section>
           <!-- v206: всё остальное — сгруппированными строками, как настройки Telegram -->
           <div class="pf6-list" id="pf6List">
+            <div class="pf6-g pf6-chip">
+              <button type="button" class="pf6-row pf6-chip-row" data-pf6="chip" id="pf6Chip"><i class="pf6-ic ic-c"></i><span class="pf6-k">GPS-чип<small class="pf6-chip-s" id="pf6ChipS">точные замеры в зачёт топов</small></span><span class="pf6-v" id="pf6ChipV">не подключён</span><b class="pf6-ch"></b></button>
+            </div>
             <div class="pf6-g">
-              <button type="button" class="pf6-row" data-pf6="mycar"><i class="pf6-ic ic-r"></i><span class="pf6-k">Моя машина</span><span class="pf6-v" data-mycar-line></span><b class="pf6-ch"></b></button>
-              <button type="button" class="pf6-row" data-pf6="garage"><i class="pf6-ic ic-g"></i><span class="pf6-k">Гараж и покраска</span><b class="pf6-ch"></b></button>
+              <button type="button" class="pf6-row" data-pf6="garage"><i class="pf6-ic ic-g"></i><span class="pf6-k">Бокс</span><span class="pf6-v" data-mycar-line></span><b class="pf6-ch"></b></button>
               <button type="button" class="pf6-row" data-pf6="history"><i class="pf6-ic ic-b"></i><span class="pf6-k">Журнал заездов</span><b class="pf6-ch"></b></button>
             </div>
             <div class="pf6-g">
               <button type="button" class="pf6-row" data-pf6="pass"><i class="pf6-ic ic-p"></i><span class="pf6-k">Paddock Pass</span><span class="pf6-v" id="pf6PassV"></span><b class="pf6-ch"></b></button>
-              <button type="button" class="pf6-row" data-pf6="shop"><i class="pf6-ic ic-s"></i><span class="pf6-k">Магазин</span><span class="pf6-v">GPS-чип 25 Гц</span><b class="pf6-ch"></b></button>
+              <button type="button" class="pf6-row" data-pf6="shop"><i class="pf6-ic ic-s"></i><span class="pf6-k">Магазин</span><b class="pf6-ch"></b></button>
             </div>
             <div class="pf6-g">
               <button type="button" class="pf6-row" data-pf6="settings"><i class="pf6-ic ic-x"></i><span class="pf6-k">Настройки</span><b class="pf6-ch"></b></button>
-              <button type="button" class="pf6-row" data-pf6="suggest"><i class="pf6-ic ic-t"></i><span class="pf6-k">Предложить трассу</span><b class="pf6-ch"></b></button>
               <button type="button" class="pf6-row" data-pf6="feedback"><i class="pf6-ic ic-f"></i><span class="pf6-k">Обратная связь</span><b class="pf6-ch"></b></button>
+            </div>
+            <p class="pf6-gh">Справка</p>
+            <div class="pf6-g pf6-help">
+              <button type="button" class="pf6-row" data-pf6="suggest"><i class="pf6-ic ic-t"></i><span class="pf6-k">Предложить трассу</span><b class="pf6-ch"></b></button>
               <a class="pf6-row" href="./method.html"><i class="pf6-ic ic-m"></i><span class="pf6-k">Как считаем время</span><b class="pf6-ch"></b></a>
             </div>
           </div>
@@ -1371,6 +1359,8 @@
         <!-- v166: меню — три группы: разделы, ещё, приложение. Документы — в Настройках -->
         <p class="plm-h">Разделы</p>
         <ul class="plm-list">
+          <li><button type="button" data-plm="ghost"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 20V11a6 6 0 0 1 12 0v9l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5z"/></svg><span>Призрак<small>гонка с лучшим замером</small></span></button></li>
+          <li><button type="button" data-plm="video"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2"/><path d="M16 11l5-3v8l-5-3"/></svg><span>Замер с видео<small>камера + телеметрия</small></span></button></li>
           <li><button type="button" data-plm="history"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7.5"/><path d="M12 8v4l3 2"/></svg><span>Журнал<small>замеры и сессии</small></span></button></li>
           <li><button type="button" data-plm="tops"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/></svg><span>Топы<small>лучшие разгоны и круги</small></span></button></li>
           <li><button type="button" data-plm="pulse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v10H9l-5 4z"/></svg><span>Чат<small>чат пилотов</small></span></button></li>
@@ -1645,6 +1635,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-PWV2UPWO.js"></script>
+    <script type="module" src="./b/app-46RM7FJ3.js"></script>
   </body>
 </html>

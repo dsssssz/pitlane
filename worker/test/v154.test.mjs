@@ -31,7 +31,7 @@ ok(!fs.existsSync(new URL('img/cars/hero', root)) && !/-1560\./.test(app + sw) &
 ok(/function studioSrcset\(id, ext\) \{ return \[780, 1170\]/.test(app) && /img\.src = `\.\/img\/cars\/studio\/\$\{m\.id\}-1170\.webp`;/.test(app), 'v155: «Моя машина» — studio srcset 780w/1170w');
 
 // «С видео»
-ok(/id="h54Video"[^>]*>[\s\S]{0,300}С видео/.test(html) && /id="l54Video"[^>]*>[\s\S]{0,300}С видео/.test(html), '«С видео» под «Старт» (Замер) и «Старт круга» (Трек)');
+ok(!/id="h54Video"/.test(html) && /data-plm="video"/.test(html) && /id="l54Video"[^>]*>[\s\S]{0,300}С видео/.test(html), 'v261: «С видео» — в меню (Замер) и под «Старт круга» (Трек)');
 ok(/withSafety\(\(\) => \{ armRun\(\); void openVideoTele\('run', \{ autostart: true \}\); \}\)\(\)/.test(app) && /lapStartFlow\(\(\) => \{ void openVideoTele\('lap', \{ autostart: true \}\); \}\)/.test(app), '«С видео» запускает замер/круг и запись сразу');
 ok(/if \(autostart\) void \(async \(\) => \{ await step\(\); if \(phase === 'ready'\) await step\(\); \}\)\(\);/.test(vt), 'видео: камера и запись включаются без лишних нажатий');
 ok(/\.v54-video \{[^}]*min-height: 44px/.test(c), '«С видео» — тихая кнопка, 44 px');

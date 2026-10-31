@@ -13473,7 +13473,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v260';
+const APP_VERSION = 'v261';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13898,6 +13898,8 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     else if (k === 'suggest') { goToView('lap'); const d = document.querySelector('#trackSuggestCard details'); if (d) { d.open = true; d.dispatchEvent(new Event('toggle')); } scrollTo('trackSuggestCard'); }
     else if (k === 'team') openCrewSheet();
     else if (k === 'video') void openVideoTele('run');
+    else if (k === 'ghost') { goToView('zamer'); setTimeout(() => { try { window.__ghost74?.open(); } catch (_) {} }, 200); } // v261: призрак — из меню
+    else if (k === 'chip') { try { window.__gps61?.open(); } catch (_) {} } // v261: единая точка чипа — Профиль
     else if (k === 'shop') void openShopSheet();
   }
   window.__route48 = route48;
@@ -17469,6 +17471,8 @@ document.addEventListener('click', (e) => {
       row.dataset.src = st; row.dataset.q = bar?.dataset.q || '';
       const a = document.getElementById('z61SrcV'), b = document.getElementById('z61SrcS');
       if (a && a.textContent !== V) a.textContent = V; if (b && b.textContent !== S) b.textContent = S;
+      const pv = document.getElementById('pf6ChipV'); const pt = { chip: 'подключён' + hzT, sim: 'симулятор', conn: 'подключение…', phone: 'не подключён' }[st];
+      if (pv && pv.textContent !== pt) { pv.textContent = pt; pv.dataset.on = st === 'chip' ? '1' : '0'; }
     }
   };
   if (bar) new MutationObserver(paint).observe(bar, { childList: true, characterData: true, subtree: true });
@@ -17938,7 +17942,7 @@ document.getElementById('pf6List')?.addEventListener('click', (e) => {
   const r = e.target.closest('[data-pf6]'); if (!r) return;
   const k = r.dataset.pf6; hap(6);
   if (k === 'mycar') { try { openMyCarSheet({}); } catch (_) {} }
-  else if (k === 'garage') { goToView('garage'); window.scrollTo(0, 0); }
+  else if (k === 'garage') { goToView('garage'); window.scrollTo(0, 0); } // v261: единственный вход в Бокс (покраска — «Цвет и детали»)
   else if (k === 'pass') openPassSheet();
   else window.__route48?.(k);
 });

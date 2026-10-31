@@ -33,7 +33,7 @@ console.log('[иконка-облачко]');
 ok((html.match(/class="ico ico-pad ico-chat"/g) || []).length === 2 && !/class="ico-ring"/.test(html), 'кружок заменён облачками: панель, скрытая вкладка rail, меню');
 ok(/class="ico-d ico-d1"/.test(html) && /@keyframes chatType/.test(css) && /\.nav-btn\.active \.ico-chat \.ico-d3[^{]*\{ animation-delay: \.24s; \}/.test(css), 'анимация «печатает…» при нажатии');
 console.log('[виджет]');
-ok(/id="hwPad" data-hw="pulse"/.test(html) && /class="hw hw-wide hw-chat" id="hwPad"/.test(html) && /чат пилотов/.test(html), 'широкий виджет «Paddock · чат пилотов»');
+ok(!/id="hwPad"/.test(html), 'v261: виджет чата убран с Главной (есть в нижней панели)');
 ok(/padStack\(d\.who\)/.test(app) && /padAvatar\(w\.name, (''|padAvaUrl\(w\.pilotId, w\.ava\)), size\)/.test(app), 'стопка аватарок (инициалы)');
 ok(/d\.items\.slice\(0, 2\)/.test(app) && /kind: 'reply'/.test(app) && /withCom = rows\.filter\(\(p\) => Number\(p\.commentCount\) > 0\)\.slice\(0, 2\)/.test(app), '1–2 последние реплики: посты и ответы, ≤2 запроса комментариев');
 ok(/active: !!last && Date\.now\(\) - last < 3600e3/.test(app) && /'новое', 'новых', 'новых'/.test(app), 'зелёная точка «активно» (за час) и счётчик новых');

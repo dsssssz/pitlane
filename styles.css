@@ -7724,3 +7724,13 @@ html.chat-open .crew-sheet.pad-sheet { z-index: 12060; } /* v259: ветка п�
 .cp-share-run span { text-align: left; white-space: nowrap; }
 .pad-com.best { flex-wrap: wrap; } .pad-com .pad-best-tag { flex-basis: 100%; order: -1; } .pad-com .pad-best-btn { flex-basis: auto; } .pad-photo { background: #000; }
 .pad-com .pad-best-tag { grid-column: 1 / -1; grid-row: 1; margin-bottom: 4px; }
+/* v261: чистка — GPS-чип главным пунктом Профиля, «Справка» отдельно */
+.ic-c { background: #1c1d21; border: 1px solid rgba(255,255,255,.14); position: relative; }
+.ic-c::before { content: ''; width: 12px; height: 12px; border-radius: 3px; border: 1.8px solid #f2efe9; }
+.ic-c::after { content: ''; position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #f2efe9; }
+.pf6-chip { border-color: rgba(255,255,255,.12); background: linear-gradient(180deg, #17181c, #121316); }
+.pf6-chip-row { min-height: 64px; }
+.pf6-chip-row .pf6-k { display: flex; flex-direction: column; gap: 3px; font-weight: 600; font-size: 16px; }
+.pf6-chip-s { color: #8d9096; font: 400 12.5px/1.2 var(--font-ui); }
+#pf6ChipV[data-on="1"] { color: #f2efe9; }
+.pf6-gh { margin: 4px 4px -8px; color: #6f7278; font: 500 12px/1 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; }
