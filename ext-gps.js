@@ -79,7 +79,7 @@ export function extGpsUnsupportedReason({ isTMA = false } = {}) {
   const ua = navigator.userAgent || '';
   const ios = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1);
   if (isTMA) {
-    return 'Внутри Telegram Bluetooth недоступен. Откройте Pitlane в Chrome на Android (pitlanegps.ru) — или дождитесь приложения Pitlane.';
+    return 'Внутри Telegram Bluetooth недоступен. Откройте Pitlane в Chrome на Android (dsssssz.github.io/pitlane) — или дождитесь приложения Pitlane.';
   }
   if (ios) {
     return 'На iPhone/iPad браузеры не поддерживают Web Bluetooth. Нужен Android + Chrome, либо будущее приложение Pitlane для iOS.';

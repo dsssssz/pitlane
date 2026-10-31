@@ -1,8 +1,8 @@
-const CACHE = 'pitlane-v245';
+const CACHE = 'pitlane-v246';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
-const BUILD = /*BUILD*/["./b/app-W2JVRXHE.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-CE26E442.css"]/*END*/;
+const BUILD = /*BUILD*/["./b/app-PF6GI5B5.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-CE26E442.css"]/*END*/;
 const CORE = [
   ...BUILD,
   './',
@@ -160,7 +160,7 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   const p = url.pathname;
   // v80: never touch authenticated or Worker API traffic (no caching of personal responses, ever)
-  if (e.request.headers.has('authorization') || url.hostname.endsWith('.workers.dev') || (url.origin === self.location.origin && (p === '/api' || p.startsWith('/api/')))) return;
+  if (e.request.headers.has('authorization') || url.hostname.endsWith('.workers.dev')) return;
   // API + live map tiles: never SW-cache (online-first; graceful app fallback offline)
   if (
     p.includes('/auth/') ||

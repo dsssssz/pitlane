@@ -1,10 +1,10 @@
 {
-  "id": "/",
+  "id": "/pitlane/",
   "name": "PITLANE",
   "short_name": "PITLANE",
   "description": "Замеряй. Сравнивай. Побеждай.",
-  "start_url": "/",
-  "scope": "/",
+  "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "display_override": [
     "standalone",

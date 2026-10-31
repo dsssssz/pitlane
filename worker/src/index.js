@@ -1830,7 +1830,7 @@ async function prepareTmaShare(env, v, body) {
 
 /* ———————————————————— Telegram bot @pitlane_official_bot (v81) ———————————————————— */
 
-const APP_URL = 'https://pitlanegps.ru/';
+const APP_URL = 'https://dsssssz.github.io/pitlane/';
 
 /** Webhook URL path segment derived from the secret (so the URL alone is also unguessable). */
 function tgWebhookPath(secret) {

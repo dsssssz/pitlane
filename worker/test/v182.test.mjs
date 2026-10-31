@@ -41,14 +41,14 @@ console.log('\n[меню /start]');
 await say('/start');
 let m = last(BUYER); keep('start', m);
 ok(m.method === 'sendPhoto' && /^<b>PITLANE<\/b>/.test(m.body.caption) && /Предзаказ — прямо в этом чате/.test(m.body.caption), '/start: баннер, PITLANE, предзаказ в чате');
-ok(kbOf(m)[0][0].web_app?.url === 'https://pitlanegps.ru/' && datas(m).join() === 'p:pitlane-gps,sh,my,chip,faq', 'кнопки: открыть Mini App, PITLANE GPS, магазин, мои заказы, чип, вопросы', datas(m));
+ok(kbOf(m)[0][0].web_app?.url === 'https://dsssssz.github.io/pitlane/' && datas(m).join() === 'p:pitlane-gps,sh,my,chip,faq', 'кнопки: открыть Mini App, PITLANE GPS, магазин, мои заказы, чип, вопросы', datas(m));
 ok(BOT_COMMANDS.map((c) => c.command).join() === 'start,shop,orders,chip,cart,help,support,terms,stop_notify', 'команды меню (v226): start, shop, orders, chip, cart, help, support, terms, stop_notify');
 
 console.log('\n[магазин и карточка]');
 await say('/shop'); m = last(BUYER); keep('shop', m);
 ok(/Магазин PITLANE/.test(txt(m)) && /8\u00a0499\u00a0₽/.test(txt(m)) && datas(m).includes('p:pitlane-gps') && datas(m).some((d) => /^my(~|$)/.test(d)), '/shop: витрина с ценой, кнопки товаров');
 await tap('p:pitlane-gps'); m = last(BUYER); keep('product', m);
-ok(m.method === 'sendPhoto' && m.body.photo === 'https://pitlanegps.ru/img/shop/tg/gps-hero.jpg' && fs.existsSync(path.join(process.cwd(), '..', 'img/shop/tg/gps-hero.jpg')), 'карточка: фото из репо (JPEG для Telegram)', m.body.photo);
+ok(m.method === 'sendPhoto' && m.body.photo === 'https://dsssssz.github.io/pitlane/img/shop/tg/gps-hero.jpg' && fs.existsSync(path.join(process.cwd(), '..', 'img/shop/tg/gps-hero.jpg')), 'карточка: фото из репо (JPEG для Telegram)', m.body.photo);
 ok(/<b>8\u00a0499\u00a0₽<\/b> · Предзаказ/.test(m.body.caption) && /В комплекте/.test(m.body.caption) && productById('pitlane-gps').inBox.every((x) => m.body.caption.includes(x.replace(/&/g, '&amp;'))) && m.body.caption.length <= 1024, 'цена 8 499 ₽, «Предзаказ», состав комплекта, ≤ 1024 символов');
 ok(datas(m)[0] === 'ob:pitlane-gps' && datas(m).includes('pk:pitlane-gps') && datas(m).some((d) => /^chip(~|$)/.test(d)), 'кнопки: оформить предзаказ, характеристики, как работает чип');
 ok(sent.some((x) => x.method === 'answerCallbackQuery'), 'каждое нажатие отвечено answerCallbackQuery');

@@ -4,7 +4,7 @@
  * Весь пользовательский текст (имена команд/пилотов, машины, резина) — только через esc().
  * Чистые функции: без KV и сети (легко тестировать и показывать превью).
  */
-export const APP_URL = 'https://pitlanegps.ru/';
+export const APP_URL = 'https://dsssssz.github.io/pitlane/';
 export const RULE = '───────────────';
 /** Баннер бота (/start и главное меню). ?v= меняется вместе с картинкой — Telegram кэширует по URL. */
 export const TG_BANNER_URL = APP_URL + 'img/tg/banner.jpg?v=4';
