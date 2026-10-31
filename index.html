@@ -36,8 +36,8 @@
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-MS6GPZ46.js" />
-    <link rel="stylesheet" href="./styles-7EC7C6CA.css" />
+    <link rel="modulepreload" href="./b/app-AKOXZGKS.js" />
+    <link rel="stylesheet" href="./styles-40593DEF.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -366,6 +366,8 @@
 
         <section id="view-lap" class="view">
           <h2 data-i18n="lap.title">Трек</h2>
+          <!-- v267t: сверху — машина и источник GPS, без прокрутки -->
+          <div class="t267-top" role="group" aria-label="Машина и GPS"><button type="button" class="mycar-chip" id="btnMyCarLap"><span>машина для зачёта</span><b data-mycar-line>не выбрана</b><i class="mycar-chip-go" aria-hidden="true">выбрать</i></button><button type="button" class="ds-row" id="t61Gps" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="ds-row-v" data-gps61>Телефон</span></button></div>
           <!-- v190: список трасс с контурами OSM и карточка трассы (2D-карта) -->
           <div class="tv2" id="tv2"><div class="tv2-sk" aria-hidden="true"><i></i><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></div></div>
           <div class="grid-2 lap-grid">
@@ -373,10 +375,8 @@
               <select id="trackSelect" class="sr-select"></select>
               <button type="button" class="ad-linkish" id="btnAutodromesLap">Автодромы · справочник</button>
               <button type="button" class="vt-open vt-open-lap" id="btnVideoLap">Видео с телеметрией</button>
-              <button type="button" class="mycar-chip" id="btnMyCarLap"><span>машина для зачёта</span><b data-mycar-line>не выбрана</b><i class="mycar-chip-go" aria-hidden="true">выбрать</i></button>
               <!-- v161: сессия как в Track Precision — трасса выбрана карточкой, ниже параметры сессии строками, затем «Начать сессию» -->
               <div class="t61-sess" role="group" aria-label="Параметры сессии">
-                <button type="button" class="ds-row" id="t61Gps" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="ds-row-v" data-gps61>Телефон</span></button>
                 <button type="button" class="ds-row" data-view="history" data-jf="lap"><span class="ds-row-k">Журнал сессий</span><span class="ds-row-v" id="t61Last">—</span></button>
               </div>
               <div class="lap-track-actions">
@@ -388,9 +388,7 @@
             </article>
           </div>
           <section class="card ts-card t61-suggest" id="trackSuggestCard">
-            <h3>Нет вашей трассы?</h3>
-            <p class="tiny muted">Откалибруйте по GPS: старт/финиш и сектора. После проверки — в списке.</p>
-            <details class="ts-det"><summary>Предложить трассу</summary><div id="trackSuggestHost"></div></details>
+                        <details class="ts-det"><summary>Предложить трассу</summary><div id="trackSuggestHost"></div></details>
           </section>        </section>
 
         <!-- v161: Журнал — замеры, сессии кругов в одном месте -->
@@ -1464,6 +1462,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-MS6GPZ46.js"></script>
+    <script type="module" src="./b/app-AKOXZGKS.js"></script>
   </body>
 </html>

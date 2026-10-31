@@ -7817,3 +7817,19 @@ html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-tabs { margin-top: 0 !import
 .pf6-pt.on .pt-card { border-color: rgba(201,168,92,.5); }
 .pf6-pt:active .pt-card { transform: scale(.985) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
 @media (prefers-reduced-motion: reduce) { .pt-card { transform: none !important; transition: none; } .pt-card::after { animation: none; transform: translateX(-20%); opacity: .5; } }
+/* v267t: Трек — сверху машина + GPS, затем трассы с геометрией; «без геометрии» свёрнуто; одна кнопка «Начать сессию» в карточке трассы */
+#view-lap { display: flex; flex-direction: column; }
+#view-lap > h2 { order: 0; } #view-lap > .t267-top { order: 1; } #view-lap > #tv2 { order: 2; } #view-lap > .lap-grid { order: 3; } #view-lap > #trackSuggestCard { order: 4; }
+html:not(#_):not(#_):not(#_) #view-lap .t267-top { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top > * { min-width: 0; margin: 0 !important; width: 100%; display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: center !important; text-align: left !important; gap: 2px; padding: 10px 12px !important; min-height: 52px; border-radius: 14px !important; background: var(--ds-bg-1, #121214) !important; border: 1px solid var(--ds-line, rgba(255,255,255,.08)) !important; text-align: left; }
+html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top > * > :first-child { font-size: 11px !important; letter-spacing: .04em; color: var(--ds-text-3, rgba(236,235,232,.55)) !important; text-transform: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top > * > :nth-child(2) { font: 600 14px/1.2 var(--font-ui) !important; color: var(--ds-text, #ecebe8) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top .mycar-chip-go, html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top .ds-row-v::after, html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top svg { display: none !important; }
+/* в списке — только трассы; старт сессии из карточки трассы */
+html:not(#_):not(#_):not(#_) #view-lap .lap-grid { display: none !important; }
+html:not(#_):not(#_):not(#_) #view-lap .tv2-nogeo > summary { cursor: pointer; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+html:not(#_):not(#_):not(#_) #view-lap .tv2-nogeo > summary::-webkit-details-marker { display: none; }
+html:not(#_):not(#_):not(#_) #view-lap .tv2-nogeo > summary::after { content: ''; width: 7px; height: 7px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); margin-right: 4px; opacity: .6; transition: transform .2s; }
+html:not(#_):not(#_):not(#_) #view-lap .tv2-nogeo[open] > summary::after { transform: rotate(-135deg); }
+html:not(#_):not(#_):not(#_) #trackSuggestCard { background: none !important; border: 0 !important; padding: 0 !important; margin: 8px 0 0 !important; box-shadow: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top > *::after, html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top > *::before { display: none !important; }

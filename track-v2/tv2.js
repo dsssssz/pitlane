@@ -115,9 +115,9 @@ export async function mountList(host,B){
      <span class="tv2-sil">${s?`<svg viewBox="-60 -60 120 120"><path d="${s.d}"/></svg>`:'<svg viewBox="-60 -60 120 120"><rect x="-34" y="-26" width="68" height="52" rx="22" class="tv2-dash"/></svg>'}</span>
      <span class="tv2-tx"><b>${esc(t.name)}</b><span>${esc(WHERE[id]||'')}</span>${s?(mb?`<span class="tv2-mine">ваш лучший <i>${B.fmt(mb)}</i></span>`:''):'<span class="tv2-unc">контур не подтверждён</span>'}</span>
      <span class="tv2-kv">${s?`<b>${km(f.L)}<small> км</small></b><span>${f.turns} пов.</span>`:'<b class="m">—</b>'}</span></button>`};
-  host.innerHTML=`<div class="tv2-cap">${ORDER.length} трасс · Россия</div>
-   <div class="tv2-box"><div class="tv2-h">Подтверждённые · OSM</div>${ORDER.filter(i=>I[i]).map(row).join('')}</div>
-   <div class="tv2-box"><div class="tv2-h">Без геометрии</div>${ORDER.filter(i=>!I[i]).map(row).join('')}</div>`;
+  host.innerHTML=`<div class="tv2-cap">${ORDER.filter(i=>I[i]).length} трасс с геометрией · Россия</div>
+   <div class="tv2-box"><div class="tv2-h">Готовы к заезду</div>${ORDER.filter(i=>I[i]).map(row).join('')}</div>
+   <details class="tv2-box tv2-nogeo"><summary class="tv2-h">Без геометрии · ${ORDER.filter(i=>!I[i]).length}</summary>${ORDER.filter(i=>!I[i]).map(row).join('')}</details>`;
   host.onclick=e=>{const b=e.target.closest('[data-tv2]');if(!b)return;const id=b.dataset.tv2;B.pick(id);if(I[id])openCard(id,B)}}
 let SHEET=null;
 async function openCard(id,B){
@@ -131,7 +131,7 @@ async function openCard(id,B){
   const mb=B.myBest(id);const laps=B.laps(id);const th=B.theo(laps);const bl=laps.length?laps.reduce((a,l)=>l.ms<a.ms?l:a):null;const sp=bl?B.full(bl):null;
   const tl=n=>n; // номера по геометрии
   body.innerHTML=`<div class="tv2-eb">${esc(WHERE[id]||'')}</div><h2 class="tv2-h1">${esc(t.name)}</h2>
-   <div class="tv2-tags">${[T.cw?'По часовой':'Против часовой','Геометрия OSM'].filter(Boolean).map(x=>`<span>${x}</span>`).join('')}</div>
+   <div class="tv2-tags">${[T.cw?'По часовой':'Против часовой','Геометрия OSM',B.sf?B.sf(id):''].filter(Boolean).map(x=>`<span>${x}</span>`).join('')}</div>
    <div class="tv2-stage"><div class="tv2-pane" data-p="map">${mapSvg(T,T.ter,W,Math.round(W*.97))}
      <div class="tv2-leg">${SEC.map((c,k)=>`<span><i style="background:${c}"></i>S${k+1}</span>`).join('')}${T.pit?'<span><i class="p"></i>Пит</span>':''}<span><i class="b"></i>Торможение</span><span><i class="r"></i>Траектория</span></div>
      <div class="tv2-note">Зоны торможения и траектория — приблизительный расчёт по геометрии трассы, рекомендация, а не замер. Номера поворотов — по официальной схеме.</div>
@@ -145,9 +145,9 @@ async function openCard(id,B){
      :'<div class="tv2-empty">Ещё нет кругов на этой трассе. Проедьте круг — здесь появятся время, сектора и разница с рекордом.</div>'}</div>
    <div class="tv2-lbl tv2-lr"><span>Профиль высот</span><small>м · номера поворотов</small></div><div class="tv2-card tv2-ele">${eleSvg(T,W-12,128)}</div>
    ${goHtml(id)}
-   <button type="button" class="tv2-cta">Выбрать для сессии</button>
+   <button type="button" class="tv2-cta">Начать сессию</button>
    <div class="tv2-src">Геометрия: OpenStreetMap · высоты: Copernicus DEM 90 м · номера поворотов — по официальным схемам, сектора — по геометрии${OFFICIAL[id]?.km?' · длина — официальная':''}</div>`;
-  body.querySelector('.tv2-cta').onclick=()=>{B.pick(id);SHEET.classList.remove('on');document.documentElement.classList.remove('tv2-open')};
+  body.querySelector('.tv2-cta').onclick=()=>{if(RAF){cancelAnimationFrame(RAF);RAF=0}B.pick(id);SHEET.classList.remove('on');document.documentElement.classList.remove('tv2-open');if(B.start)B.start(id)}; // v267t: одна кнопка — выбор трассы и сразу старт сессии
   void B.record(id).then(r=>{const e=body.querySelector('.tv2-rec');if(!e)return;
     if(!r){const R=INFO[id]?.rec||[];if(!R.length){e.querySelector('.tv2-rn b').textContent='Официальный рекорд не найден';e.querySelector('.tv2-rn small').textContent='первый зачётный круг в Pitlane станет рекордом';return}
       e.outerHTML=R.map(x=>`<div class="tv2-card tv2-rec"><span class="tv2-av">${esc(x[1][0])}</span><span class="tv2-rn"><b>${esc(x[1])}</b><small>${esc([x[2],x[3],x[4]].filter(Boolean).join(' · '))}</small><a href="${x[5]}" target="_blank" rel="noopener">официальный рекорд · источник</a></span><b class="tv2-rt">${x[0].replace('.',',')}</b></div>`).join('');return}

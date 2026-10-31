@@ -13473,7 +13473,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v266';
+const APP_VERSION = 'v267';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -17360,6 +17360,8 @@ function ls58Close() { const box = document.getElementById('ls58'); if (!box) re
   const tv2Boot = () => { if (tv2Booted) return; const host = document.getElementById('tv2'); if (!host) return; tv2Booted = true;
     const B = { tracks: TRACKS, myBest: tk58MyBest, laps: tk58Laps, fmt: fmtLapTime, theo: lh58Theo, full: lh58Full,
       pick: (id) => { try { tk58Pick(id, {}); } catch (_) {} },
+      start: (id) => { try { tk58Pick(id, {}); const s = document.getElementById('trackSelect'); if (s && s.value !== id) { s.value = id; s.dispatchEvent(new Event('change')); } } catch (_) {} setTimeout(() => document.getElementById('btnLapStart')?.click(), 60); }, // v267t
+      sf: (id) => { const g = TRACK_GEO[id]; const t = TRACKS.find((x) => x.id === id); return !g ? 'С/Ф не задан' : g.rough ? 'С/Ф приблизителен' : (t?.cult ? 'С/Ф проверен' : 'С/Ф по геометрии'); },
       record: async (id) => { TK58.recAt[id] = 0; await tk58Record(id); return TK58.rec[id] || null; } };
     tv2Mod().then((m) => m.mountList(host, B)).catch((e) => { tv2Booted = false; console.warn('tv2', e); }); };
   if (lv) { new MutationObserver(() => { if (lv.classList.contains('active')) tv2Boot(); }).observe(lv, { attributes: true, attributeFilter: ['class'] }); if (lv.classList.contains('active')) tv2Boot(); }
