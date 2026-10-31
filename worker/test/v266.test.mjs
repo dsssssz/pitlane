@@ -1,0 +1,10 @@
+import fs from 'node:fs'; import assert from 'node:assert';
+const r=(f)=>fs.readFileSync(new URL('../../'+f,import.meta.url),'utf8');
+const css=r('styles.css'), app=r('app.js'), html=r('index.html');
+assert.ok(!/ptst|__passToast|pl-pass-toast/.test(app+css+html),'pass toast removed');
+assert.ok(/id="pf6PassTile" data-pf6="pass"/.test(html) && html.indexOf('pf6PassTile') > html.indexOf('pf6Chip'),'tile after chip');
+assert.ok(/PITLANE <i>PASS<\/i>/.test(html) && /id="ptNick"/.test(html) && /id="ptCar"/.test(html) && /id="ptSeason"/.test(html),'tile content');
+assert.ok(/'Активен до ' \+/.test(app) && /'Не активен'/.test(app),'status');
+assert.ok(/deviceorientation/.test(app) && /@keyframes pt-sheen/.test(css) && /prefers-reduced-motion: reduce\) \{ \.pt-card/.test(css),'motion');
+assert.ok(!/#[0-9a-f]{3,6}[^;]*neon|0 0 \d+px rgba\(201/.test(css.slice(css.indexOf('v266: живая'))),'no glow');
+console.log('v266 ok');

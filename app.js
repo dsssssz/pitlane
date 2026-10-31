@@ -4201,7 +4201,6 @@ function onWifiEvent(ev) {
 }
 function finishRun() {
   if (!run.armed || run.summary) return;
-  try { window.__passToast?.afterRun(); } catch (_) {} // v265
   run.pendingEnd = null;
   stopRun();
   run.summary = true;
@@ -13474,7 +13473,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v265';
+const APP_VERSION = 'v266';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -17926,6 +17925,7 @@ function renderPf6() {
     const im = document.createElement('img'); im.src = './img/awards/pass_s.webp'; im.alt = '';
     ps.append(im, padEl('span', '', pf6Active() ? 'Paddock Pass · до ' + new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : 'Paddock Pass — рамка и пин'));
   }
+  try { pf6PaintPassTile(u); } catch (_) {}
   const pv = document.getElementById('pf6PassV'); if (pv) pv.textContent = pf6Active() ? 'активен' : 'от ' + PASS_STARS_206 + ' ★';
   const eb = document.getElementById('pf6EditBtn'); if (eb) eb.hidden = !u;
   pf6NavAva();
@@ -18121,36 +18121,30 @@ document.addEventListener('click', (e) => {
 }, true);
 document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('[data-pin]')) { e.preventDefault(); e.target.click(); } });
 
-/* v265: Pass — промо-плашка слева (раз за сессию, через ~25 с или после заезда; крестик/свайп влево — пауза 3 дня; не для владельцев Pass) */
+
+/* v266: живая плитка Pass в профиле — металлическая карта, медленный блик, наклон от гироскопа/пальца */
+function pf6PaintPassTile(u) {
+  const t = document.getElementById('pf6PassTile'); if (!t) return;
+  const on = pf6Active();
+  const mc = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+  set('ptNick', pf6Nick() || (u ? 'Без ника' : 'Гость'));
+  set('ptCar', mc ? shortCarName(mc.model, mc.carId) : 'Машина не выбрана');
+  set('ptSeason', (PF6.pass && PF6.pass.season) ? String(PF6.pass.season) : 'Сезон ' + new Date().getFullYear());
+  set('ptStatus', on ? 'Активен до ' + new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : 'Не активен');
+  const cta = document.getElementById('ptCta'); if (cta) cta.hidden = on;
+  t.classList.toggle('on', on);
+}
 (() => {
-  const OFF = 'pl-pass-toast-off', SES = 'pl-pass-toast', DAYS3 = 3 * 86400e3;
-  let el = null, hideT = 0, timer = 0;
-  const has = () => { try { return pf6Active(); } catch (_) { return false; } };
-  const blocked = () => { try { if (sessionStorage.getItem(SES)) return true; const t = +localStorage.getItem(OFF) || 0; return Date.now() - t < DAYS3; } catch (_) { return false; } };
-  const busy = () => !!document.querySelector('.race-sheet:not(.hidden), .share-card:not(.hidden), .ds-sheet.on, html.run-active');
-  function hide(dismiss) {
-    clearTimeout(hideT); if (!el) return;
-    if (dismiss) { try { localStorage.setItem(OFF, String(Date.now())); } catch (_) {} }
-    const e = el; el = null; e.classList.remove('on'); e.classList.add('out');
-    setTimeout(() => e.remove(), 420);
-  }
-  function show(force) {
-    if (el || (!force && (has() || blocked() || busy() || document.hidden))) return false;
-    try { sessionStorage.setItem(SES, '1'); } catch (_) {}
-    el = document.createElement('div'); el.className = 'ptst'; el.setAttribute('role', 'status');
-    el.innerHTML = '<button type="button" class="ptst-b" aria-label="Открыть Paddock Pass"><img src="./img/awards/pass_s.webp" alt="" width="28" height="28"><span class="ptst-t"><b>Paddock Pass</b><small>Рамка, пин и бонусы — посмотреть</small></span></button><button type="button" class="ptst-x" aria-label="Закрыть"></button><i class="ptst-bar"></i>';
-    document.body.appendChild(el);
-    el.querySelector('.ptst-b').addEventListener('click', () => { try { hap(6); } catch (_) {} hide(false); openPassSheet(); });
-    el.querySelector('.ptst-x').addEventListener('click', () => hide(true));
-    let x0 = null, dx = 0; const me = el;
-    me.addEventListener('pointerdown', (e) => { x0 = e.clientX; dx = 0; clearTimeout(hideT); me.style.transition = 'none'; });
-    me.addEventListener('pointermove', (e) => { if (x0 == null) return; dx = Math.min(0, e.clientX - x0); me.style.transform = 'translateX(' + dx + 'px)'; });
-    const up = () => { if (x0 == null) return; x0 = null; me.style.transition = ''; me.style.transform = ''; if (dx < -50) hide(true); else hideT = setTimeout(() => hide(false), 4000); };
-    me.addEventListener('pointerup', up); me.addEventListener('pointercancel', up);
-    requestAnimationFrame(() => requestAnimationFrame(() => me.classList.add('on')));
-    hideT = setTimeout(() => hide(false), 6000);
-    return true;
-  }
-  timer = setTimeout(() => show(false), 25000);
-  window.__passToast = { show, hide, afterRun: () => { clearTimeout(timer); setTimeout(() => show(false), 2500); } };
+  const t = document.getElementById('pf6PassTile'); if (!t) return;
+  const card = t.querySelector('.pt-card');
+  const reduce = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } };
+  let raf = 0, tx = 0, ty = 0;
+  const apply = () => { raf = 0; card.style.setProperty('--rx', ty.toFixed(2) + 'deg'); card.style.setProperty('--ry', tx.toFixed(2) + 'deg'); card.style.setProperty('--gx', (50 + tx * 6).toFixed(1) + '%'); };
+  const tilt = (x, y) => { if (reduce()) return; tx = Math.max(-6, Math.min(6, x)); ty = Math.max(-6, Math.min(6, y)); if (!raf) raf = requestAnimationFrame(apply); };
+  t.addEventListener('pointermove', (e) => { const r = card.getBoundingClientRect(); tilt(((e.clientX - r.left) / r.width - .5) * 10, -((e.clientY - r.top) / r.height - .5) * 10); });
+  const reset = () => tilt(0, 0);
+  t.addEventListener('pointerleave', reset); t.addEventListener('pointercancel', reset); t.addEventListener('pointerup', reset);
+  window.addEventListener('deviceorientation', (e) => { if (e.gamma == null || !t.offsetParent) return; tilt(e.gamma / 6, -((e.beta || 45) - 45) / 8); }, { passive: true });
+  try { pf6PaintPassTile(currentUser()); } catch (_) {}
 })();

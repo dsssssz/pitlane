@@ -7791,19 +7791,29 @@ html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-bar { height: var(--tg-band)
 html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-title { justify-content: center; }
 html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-title b { font-size: 17px !important; line-height: 20px !important; }
 html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-tabs { margin-top: 0 !important; margin-bottom: 6px !important; }
-/* Pass — плашка слева */
-.ptst { position: fixed; left: 10px; top: calc(var(--tg-sa) + var(--tg-band) + 10px); z-index: 12500; display: flex; align-items: center; max-width: min(340px, calc(100vw - 20px)); background: rgba(22,21,19,.94); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(201,168,92,.35); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.45); overflow: hidden; transform: translateX(calc(-100% - 24px)); opacity: 0; transition: transform .6s cubic-bezier(.34,1.36,.64,1), opacity .3s ease; touch-action: pan-y; }
-.ptst.on { transform: none; opacity: 1; }
-.ptst.out { transform: translateX(calc(-100% - 24px)); opacity: 0; transition: transform .38s cubic-bezier(.4,0,.2,1), opacity .3s ease; }
-.ptst-b { display: flex; align-items: center; gap: 10px; padding: 10px 6px 10px 12px; background: none; border: 0; color: #ecebe8; text-align: left; font: inherit; cursor: pointer; }
-.ptst-b img { flex: none; border-radius: 8px; }
-.ptst-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.ptst-t b { font: 600 14px/18px var(--font-ui, system-ui); color: #d8bd7a; }
-.ptst-t small { font: 400 12px/16px var(--font-ui, system-ui); color: rgba(236,235,232,.7); }
-.ptst-x { flex: none; width: 36px; height: 44px; background: none; border: 0; color: rgba(236,235,232,.6); cursor: pointer; position: relative; }
-.ptst-x::before, .ptst-x::after { content: ''; position: absolute; left: 12px; top: 21px; width: 12px; height: 1.5px; background: currentColor; transform: rotate(45deg); }
-.ptst-x::after { transform: rotate(-45deg); }
-.ptst-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: rgba(201,168,92,.55); transform-origin: left; transform: scaleX(0); }
-.ptst.on .ptst-bar { animation: ptst-bar 6s linear forwards; }
-@keyframes ptst-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-@media (prefers-reduced-motion: reduce) { .ptst, .ptst.out { transition: opacity .2s ease; transform: none; } .ptst.on .ptst-bar { animation: none; } }
+
+/* v266: живая плитка Pass — графит/чёрный металл, тонкое золото, медленный блик, без неона */
+.pf6-pt { display: block; width: 100%; margin: 0 0 12px; padding: 0; background: none; border: 0; cursor: pointer; perspective: 900px; -webkit-tap-highlight-color: transparent; text-align: left; font: inherit; color: inherit; }
+.pt-card { position: relative; aspect-ratio: 1.586; width: 100%; border-radius: 18px; overflow: hidden; isolation: isolate; padding: 18px 20px; box-sizing: border-box; display: grid; grid-template-rows: auto 1fr auto; color: #ecebe8;
+  background: radial-gradient(120% 90% at 0% 0%, #2b2b2e 0%, #161618 45%, #0b0b0c 100%); border: 1px solid rgba(201,168,92,.28); box-shadow: 0 1px 0 rgba(255,255,255,.06) inset, 0 18px 40px rgba(0,0,0,.5);
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); transform-style: preserve-3d; transition: transform .5s cubic-bezier(.2,.8,.2,1); }
+.pt-card::before { content: ''; position: absolute; inset: 0; z-index: -1; background: repeating-linear-gradient(90deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px); }
+.pt-card::after { content: ''; position: absolute; inset: -40% -60%; z-index: 1; pointer-events: none; background: linear-gradient(105deg, transparent 40%, rgba(255,240,210,.10) 48%, rgba(255,255,255,.16) 50%, rgba(255,240,210,.10) 52%, transparent 60%); transform: translateX(-60%); animation: pt-sheen 7s cubic-bezier(.45,0,.2,1) infinite; }
+@keyframes pt-sheen { 0%, 18% { transform: translateX(-60%); } 70%, 100% { transform: translateX(60%); } }
+.pt-top { display: flex; justify-content: space-between; align-items: flex-start; }
+.pt-wm { font: 600 13px/1 var(--font-ui, system-ui); letter-spacing: .32em; color: #ecebe8; }
+.pt-wm i { font-style: normal; color: #c9a85c; }
+.pt-season { font: 500 11px/1 var(--font-ui, system-ui); letter-spacing: .08em; color: rgba(236,235,232,.55); text-transform: uppercase; }
+.pt-chipm { width: 34px; height: 26px; margin-top: 16px; border-radius: 6px; background: linear-gradient(135deg, #b89a5a, #6f5c34 55%, #a88c50); opacity: .8; }
+.pt-bot { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.pt-who { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pt-who b { font: 600 17px/1.2 var(--font-ui, system-ui); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pt-who small { font: 400 12px/1.2 var(--font-ui, system-ui); color: rgba(236,235,232,.6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pt-st { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex: none; }
+.pt-st span { font: 500 12px/1 var(--font-ui, system-ui); color: rgba(236,235,232,.6); }
+.pf6-pt.on .pt-st span { color: #d8bd7a; }
+.pt-cta { padding: 7px 14px; border-radius: 999px; background: #c9a85c; color: #111; font: 600 12px/1 var(--font-ui, system-ui); }
+.pt-cta[hidden] { display: none; }
+.pf6-pt.on .pt-card { border-color: rgba(201,168,92,.5); }
+.pf6-pt:active .pt-card { transform: scale(.985) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
+@media (prefers-reduced-motion: reduce) { .pt-card { transform: none !important; transition: none; } .pt-card::after { animation: none; transform: translateX(-20%); opacity: .5; } }
