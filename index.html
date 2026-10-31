@@ -36,7 +36,7 @@
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-HQXMLMR7.js" />
+    <link rel="modulepreload" href="./b/app-2IFEOQR4.js" />
     <link rel="stylesheet" href="./styles-CE26E442.css" />
   </head>
   <body>
@@ -382,7 +382,7 @@
               <picture><source srcset="./img/sil/empty-car.webp" type="image/webp"><img id="emptySil" class="empty-sil empty-sil-dotted" src="./img/sil/empty-car.webp" alt="" width="932" height="475" decoding="async" /></picture>
             </div>
             <h2 data-i18n="garage.empty">Гараж пока пуст</h2>
-            <p class="muted" data-i18n="garage.hint">Добавьте машину — и замеры будут сохраняться за ней.</p>
+            <p class="muted" data-i18n="garage.hint">Добавь машину — замеры запишутся за ней.</p>
             <button type="button" id="btnAddCar" class="cta-light" data-i18n="garage.add">Добавить машину</button>
           </div>
           <div id="addWizard" class="add-wizard hidden">
@@ -579,7 +579,7 @@
           </div>
           <section class="card ts-card t61-suggest" id="trackSuggestCard">
             <h3>Нет вашей трассы?</h3>
-            <p class="tiny muted">Откалибруйте её по GPS — старт/финиш и сектора. После проверки она появится в списке.</p>
+            <p class="tiny muted">Откалибруйте по GPS: старт/финиш и сектора. После проверки — в списке.</p>
             <details class="ts-det"><summary>Предложить трассу</summary><div id="trackSuggestHost"></div></details>
           </section>        </section>
 
@@ -605,7 +605,7 @@
           </article>          <article class="card" id="compareCard">
             <h3>Сравнение</h3>
             <div id="compareBody">
-              <p class="muted tiny">Сток vs ваш GPS по текущей машине и трассе.</p>
+              <p class="muted tiny">Сток против твоего GPS.</p>
               <div id="compareStats" class="compare-stats"></div>
             </div>
             <div id="comparePaywall" class="paywall-card hidden">
@@ -620,7 +620,7 @@
             </div>
           </article>          <article class="card la-card" id="lapAnalyticsCard">
             <h3>Аналитика круга</h3>
-            <p class="tiny muted">Скорость, ускорение и боковая G по дистанции. Наложение на лучший круг и разбор, где ушло время.</p>
+            <p class="tiny muted">Скорость, ускорение и боковая G. Наложение на лучший круг — видно, где ушло время.</p>
             <div class="la-pick seg-control" role="group" aria-label="Сравнение">
               <button type="button" class="seg-btn on" data-la="best" aria-pressed="true">vs мой лучший</button>
               <button type="button" class="seg-btn" data-la="prev" aria-pressed="false">vs прошлый</button>
@@ -854,14 +854,14 @@
           <!-- Audio: JaimeLopes «Lambo Start Up Sound» Freesound #564373 — CC0 -->
           <form id="authForm" class="card auth-card">
             <h3 data-i18n="acc.login">Вход</h3>
-            <p class="muted" data-i18n="acc.hint">Вход через Telegram нужен для топа и постов. Замеры, гараж и история работают и без него — на устройстве.</p>
+            <p class="muted" data-i18n="acc.hint">Telegram нужен для топа и постов. Остальное работает без входа.</p>
             <div id="authProviders" class="auth-providers">
               <button type="button" id="btnTgLogin" class="go-btn auth-tg-btn hidden">
                 <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M21.9 4.3 18.7 19.4c-.2 1-.9 1.3-1.8.8l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L6.2 13.1l-4.8-1.5c-1-.3-1-1 .2-1.5l18.9-7.3c.9-.3 1.6.2 1.4 1.5z"/></svg>
                 <span>Войти через Telegram</span>
               </button>
               <button type="button" id="btnSmsToggle" class="auth-alt-btn hidden">Войти по SMS</button>
-              <p class="tiny auth-none hidden" id="authNone">Вход через Telegram сейчас недоступен. Замеры, гараж и история работают без аккаунта.</p>
+              <p class="tiny auth-none hidden" id="authNone">Вход через Telegram недоступен. Остальное работает без аккаунта.</p>
               <p class="tiny" id="authMsgTop"></p>
             </div>
             <div id="authSmsBox" class="auth-sms-box hidden">
@@ -917,7 +917,7 @@
             <button type="button" class="st66-row" data-st="garage"><span class="st66-k">Гараж и покраска</span><i class="st66-chev" aria-hidden="true"></i></button>
             <article class="card carphoto-card" id="accCarPhoto" hidden>
             <h3>Фото машины</h3>
-            <p class="muted tiny">Твоя машина на главной и в профиле. Без фото — студийный рендер модели.</p>
+            <p class="muted tiny">На главной и в профиле. Без фото — рендер модели.</p>
             <div class="cph-frame" id="cphFrame">
               <img class="cph-img" id="cphImg" alt="" decoding="async">
               <span class="cph-tag" id="cphTag"></span>
@@ -942,7 +942,7 @@
             <button type="button" class="st66-row" data-st="gps"><span class="st66-k">Источник GPS</span><span class="st66-v" data-gps61>Телефон</span><i class="st66-chev" aria-hidden="true"></i></button>
             <article class="card" id="imuCard">
             <h3>Датчики движения</h3>
-            <p class="muted tiny">На iPhone датчики движения включаются только по нажатию — так GPS и акселерометр работают вместе и точнее.</p>
+            <p class="muted tiny">На iPhone датчики включаются по нажатию. GPS + акселерометр — точнее.</p>
             <button type="button" id="btnEnableImu" class="go-btn">Включить датчики движения</button>
             <p class="tiny" id="imuTip"></p>
           </article>
@@ -956,12 +956,12 @@
             <p class="muted tiny" id="accNotifyState"></p>
             <a class="btn-secondary notify-bot-link" id="accNotifyBot" href="https://t.me/pitlane_official_bot" target="_blank" rel="noopener" hidden>Открыть бота</a>
             <div class="notify-list" id="accNotifyList"></div>
-            <p class="tiny muted">Только твои события, не больше 5 в сутки; несколько сразу — одной сводкой. В боте: /stop_notify.</p>
+            <p class="tiny muted">Только твои события, до 5 в сутки, сводкой. Выключить: /stop_notify.</p>
             <p class="tiny" id="accNotifyMsg" role="status"></p>
           </article>
             <article class="card follow-card" id="accFollows" hidden>
             <h3>Подписки</h3>
-            <p class="muted tiny">Бот напишет, когда пилот улучшит зачтённый круг или разгон. Те же правила: не больше 5 в сутки, сводкой.</p>
+            <p class="muted tiny">Бот напишет, когда пилот улучшит круг или разгон. До 5 в сутки, сводкой.</p>
             <ul class="follow-list" id="accFollowList"></ul>
             <p class="tiny muted" id="accFollowNote"></p>
           </article>
@@ -1305,7 +1305,7 @@
       <div class="ds-sheet-scrim" data-close74></div>
       <div class="ds-sheet-panel">
         <header class="ds-sheet-hd"><b>Призрак</b><button type="button" class="ds-sheet-x pl-x pl-inline" id="ghost74Close" data-close74 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
-        <div class="ds-sheet-body"><p class="gh74-hint">С кем соревноваться в заезде — призрак едет рядом, дельта видна в реальном времени.</p><div class="ghost-pick gh74" id="runGhostPick" data-scope="run"></div></div>
+        <div class="ds-sheet-body"><p class="gh74-hint">Призрак едет рядом, дельта — вживую.</p><div class="ghost-pick gh74" id="runGhostPick" data-scope="run"></div></div>
       </div>
     </div>
     <div class="ds-sheet hidden" id="gps61" role="dialog" aria-modal="true" aria-label="Источник GPS" aria-hidden="true">
@@ -1353,7 +1353,7 @@
               </details>
               <label class="wifi-hap tiny"><input type="checkbox" id="markHaptic" /> Короткая вибрация на отметке</label>
             </div>
-            <p class="tiny muted">Внешний чип PITLANE GPS до 25 Гц: по Bluetooth — Android + Chrome; по Wi-Fi (режим модема телефона) — iPhone и Telegram. Топ разгонов (0–100, 100–200, 80–120, ¼ мили) принимает только его; телефон и симулятор — в личную историю. Время на экране — справочно, в топ — после проверки сервером по сырым точкам.</p>
+            <p class="tiny muted">PITLANE GPS, до 25 Гц. Android + Chrome — Bluetooth, iPhone и Telegram — Wi-Fi через модем. Топ разгонов — только с чипа, после проверки сервером. Телефон и симулятор — в личную историю.</p>
           </article>        </div>
       </div>
     </div>
@@ -1440,7 +1440,7 @@
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title crew-title">Обратная связь</h2>
-          <p class="race-sheet-sub crew-lead">Ошибка, идея или жалоба — сообщение уйдёт команде Pitlane</p>
+          <p class="race-sheet-sub crew-lead">Ошибка, идея или жалоба — команде Pitlane</p>
         </header>
         <form id="feedbackForm" class="race-sheet-body" novalidate>
           <div class="seg-control fb-types" role="radiogroup" aria-label="Тип обращения">
@@ -1463,7 +1463,7 @@
             <img id="fbShotPreview" class="fb-shot-preview" alt="" hidden />
             <button type="button" class="fb-shot-clear" id="fbShotClear" aria-label="Убрать скриншот" hidden>×</button>
           </div>
-          <p class="tiny muted fb-diag">К сообщению добавятся версия приложения, браузер, режим 3D и вкладка. Геопозиция и телефон не передаются.</p>
+          <p class="tiny muted fb-diag">Приложим версию, браузер, режим 3D и вкладку. Геопозицию и телефон — нет.</p>
           <p class="tiny fb-msg" id="fbMsg" role="status"></p>
           <button type="button" class="go-btn race-cta" id="fbSend">Отправить</button>
         </form>
@@ -1641,6 +1641,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-HQXMLMR7.js"></script>
+    <script type="module" src="./b/app-2IFEOQR4.js"></script>
   </body>
 </html>

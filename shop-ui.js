@@ -51,12 +51,12 @@ function soonPh(cls) {
 /* v198: «Что внутри» — разбор с цифрами-выносками и легендой, разрез, короткие строки */
 function insideBlock(x) {
   const s = el('section', 'shop-sec shop-in'); s.appendChild(el('h3', 'shop-h3', 'Что внутри'));
-  s.appendChild(el('p', 'shop-in-lead', 'Внутри нет ничего лишнего: GPS-модуль с антенной, процессор и светодиод.'));
+  s.appendChild(el('p', 'shop-in-lead', 'GPS-модуль с антенной, процессор, светодиод. Всё.'));
   const fig = el('figure', 'shop-in-fig'); fig.appendChild(picture(x.img, 'shop-in-img', false));
   for (const [l, t, n] of x.pins) { const b = el('span', 'shop-in-pin', String(n)); b.style.left = l + '%'; b.style.top = t + '%'; b.setAttribute('aria-hidden', 'true'); fig.appendChild(b); }
   s.appendChild(fig);
   const ol = el('ol', 'shop-in-parts'); x.parts.forEach(([k, v], i) => { const li = el('li'); li.appendChild(el('i', '', String(i + 1))); const t = el('div'); t.appendChild(el('b', '', k)); t.appendChild(el('span', '', v)); li.appendChild(t); ol.appendChild(li); }); s.appendChild(ol);
-  if (x.section) { const f2 = el('figure', 'shop-in-fig shop-in-sec'); f2.appendChild(picture(x.section, 'shop-in-img', false)); f2.appendChild(el('figcaption', '', 'Разрез: антенна сразу под крышкой и смотрит в небо')); s.appendChild(f2); }
+  if (x.section) { const f2 = el('figure', 'shop-in-fig shop-in-sec'); f2.appendChild(picture(x.section, 'shop-in-img', false)); f2.appendChild(el('figcaption', '', 'Антенна под крышкой, смотрит в небо')); s.appendChild(f2); }
   if (x.rows?.length) { const g = el('div', 'shop-in-rows'); for (const [k, v] of x.rows) { const c = el('div'); c.appendChild(el('span', '', k)); c.appendChild(el('b', '', v)); g.appendChild(c); } s.appendChild(g); }
   return s;
 }
@@ -112,7 +112,7 @@ function viewList() {
   }
   f.appendChild(ordersBlock());
   { const pay = el('section', 'shop-payinfo'); pay.append(el('p', 'shop-muted', 'Доставка: СДЭК 390 ₽ · Почта 290 ₽ · самовывоз в Краснодаре'), payBadges()); f.appendChild(pay); }
-  f.appendChild(el('p', 'shop-foot', st.payOn ? 'Оплата СБП или картой — чек НПД придёт автоматически.' : 'Онлайн-оплата скоро. Сейчас оформляете заявку — мы пишем вам в Telegram и согласуем оплату и доставку.'));
+  f.appendChild(el('p', 'shop-foot', st.payOn ? 'СБП или карта. Чек придёт сам.' : 'Онлайн-оплата скоро. Пока — заявка, оплату и доставку согласуем в Telegram.'));
   { const d = el('a', 'shop-docs-link', 'Продавец, доставка, возврат и оферта →'); d.href = './docs.html'; f.appendChild(d); }
   return f;
 }
@@ -221,7 +221,7 @@ function viewForm(v) {
   const ys = el('div', 'shop-opts shop-opts-2'); ys.setAttribute('role', 'radiogroup');
   const syncP = () => [...ys.children].forEach((b) => { const on = st.payOn && b.dataset.id === d.pm; b.classList.toggle('on', on); b.setAttribute('aria-checked', String(on)); });
   for (const o of SHOP_PAY_METHODS) { const b = el('button', 'shop-opt'); b.type = 'button'; b.dataset.id = o.id; b.setAttribute('role', 'radio'); b.disabled = !st.payOn; const t = el('span', 'shop-opt-t'); t.append(el('b', '', o.title), el('span', '', st.payOn ? (o.sub || '') : 'Скоро')); b.append(el('i', 'shop-opt-dot'), t); b.addEventListener('click', () => { d.pm = o.id; D.hap?.(4); syncP(); }); ys.appendChild(b); }
-  yw.append(ys, payBadges()); if (!st.payOn) yw.appendChild(el('p', 'shop-muted shop-hint', 'Онлайн-оплата скоро. Сейчас — заявка: напишем вам и согласуем оплату.')); form.appendChild(yw); syncP();
+  yw.append(ys, payBadges()); if (!st.payOn) yw.appendChild(el('p', 'shop-muted shop-hint', 'Онлайн-оплата скоро. Пока — заявка.')); form.appendChild(yw); syncP();
   // способ связи
   const m = el('div', 'shop-field'); m.appendChild(el('span', 'shop-label', 'Как связаться'));
   const seg = el('div', 'seg-control shop-seg'); seg.setAttribute('role', 'radiogroup');
@@ -245,7 +245,7 @@ function viewForm(v) {
   const sendLabel = st.payOn ? 'Перейти к оплате' : 'Оформить заявку';
   const send = el('button', 'shop-cta', sendLabel); send.type = 'submit'; send.id = 'shopSend';
   form.append(tot, msg, send); syncD();
-  form.appendChild(el('p', 'shop-muted shop-pd', 'Сохраняем только город, способ связи и комментарий — для этой заявки. Удаляются вместе с аккаунтом. Подробнее — в политике конфиденциальности.'));
+  form.appendChild(el('p', 'shop-muted shop-pd', 'Храним город, контакт и комментарий — только для заявки. Удаляются с аккаунтом. Подробнее — в политике конфиденциальности.'));
   { const lg = el('p', 'shop-muted shop-pd'); lg.append('Отправляя заявку, вы соглашаетесь с '); const a1 = el('a', '', 'офертой'); a1.href = './sale.html'; const a2 = el('a', '', 'политикой конфиденциальности'); a2.href = './privacy.html'; const a3 = el('a', '', 'условиями доставки и возврата'); a3.href = './delivery.html'; lg.append(a1, ', ', a2, ' и ', a3, '.'); form.appendChild(lg); }
   form.addEventListener('submit', async (e) => {
     e.preventDefault(); if (st.busy) return;
@@ -259,12 +259,12 @@ function viewForm(v) {
     st.busy = false; send.disabled = false; send.textContent = sendLabel;
     if (r && r.ok && r.order && r.order.payUrl) { delete st.draft.co; cart.set([]); location.href = r.order.payUrl; return; }
     if (r && r.ok && r.order) { delete st.draft.co; cart.set([]); st.orders = [r.order, ...(st.orders || []).filter((o) => o.id !== r.order.id)]; st.stack = [{ k: 'list' }, { k: 'done', order: r.order }]; D.hap?.(12); render(); return; }
-    msg.textContent = r?.status === 429 ? 'Слишком много заявок за сутки — попробуйте завтра или напишите в бота.'
+    msg.textContent = r?.status === 429 ? 'Лимит заявок на сегодня. Завтра или в бота.'
       : r?.status === 401 ? 'Сессия истекла — войдите снова.'
       : r?.code === 'no_tg' ? 'В аккаунте нет Telegram — выберите другой способ связи.'
       : r?.field === 'promo' ? 'Промокод не подошёл — уберите его.' : r?.field === 'delivery' ? 'Проверьте адрес доставки.' : r?.field === 'items' ? 'Товара нет в наличии — обновите корзину.'
       : r?.field === 'city' ? 'Проверьте город.' : r?.field === 'contact' ? 'Проверьте контакт.'
-      : 'Не отправилось — проверьте интернет и нажмите ещё раз (повтор не создаст вторую заявку).';
+      : 'Не отправилось. Проверьте интернет и повторите — дубля не будет.';
   });
   return f.appendChild(form), f;
 }
@@ -275,7 +275,7 @@ function viewDone(v) {
   const w = el('div', 'shop-done');
   const ic = el('div', 'shop-done-ic'); ic.appendChild(svg('M5 12.5l4.5 4.5L19 7.5')); w.appendChild(ic);
   w.appendChild(el('h2', 'shop-title', 'Заявка принята'));
-  w.appendChild(el('p', 'shop-sub', 'Свяжемся ' + (o.contactMethod === 'phone' ? 'по телефону' : 'в Telegram') + ', чтобы договориться об оплате и доставке. Заранее ничего платить не нужно.'));
+  w.appendChild(el('p', 'shop-sub', 'Свяжемся ' + (o.contactMethod === 'phone' ? 'по телефону' : 'в Telegram') + ' — договоримся об оплате и доставке. Заранее не платите.'));
   const card = el('div', 'shop-done-card');
   const row = (k, val) => { const r = el('div', 'shop-done-row'); r.append(el('span', '', k), el('b', '', val)); card.appendChild(r); };
   row('Номер', o.no ? '№' + o.no : o.id); (o.items || [{ title: o.title, qty: o.qty }]).forEach((x) => row('Товар', x.title + ' × ' + x.qty)); if (o.delivery) row('Доставка', o.delivery.title); if (o.total != null) row('Сумма', fmtRub(o.total)); if (o.founder) row('Цена', 'Основатель · ' + fmtRub(FOUNDERS.price)); row('Город', o.city); row('Статус', o.statusLabel || ORDER_STATUS.new);

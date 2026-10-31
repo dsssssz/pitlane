@@ -3710,7 +3710,7 @@ const REJECT_TEXT = {
   phone_source: 'Замер телефоном идёт в зачёт C (свой топ), а не в A/B.',
   low_hz: 'GPS обновлялся реже раза в секунду — замер не принят.',
   phone_disc: 'Телефон (~1 Гц) эту короткую отметку не меряет — в зачёт C идут 0–100, 100–200, ⅛ и ¼ мили, круги.',
-  class_mismatch: 'Это вызов класса A/B (внешний GPS). Телефонный заезд с ним несопоставим — брось ответный вызов «телефон на телефон».',
+  class_mismatch: 'Вызов A/B — нужен внешний GPS. С телефона брось свой вызов «телефон на телефон».',
   crew_ab_only: 'Борд экипажа и сезон — только A/B (внешний GPS). Круг телефоном — в топе «C · телефон».',
   stale: 'Замер слишком старый — отправьте свежий.',
   no_trace: 'Нет сырых точек GPS — обновите приложение и повторите замер.',
@@ -4002,7 +4002,7 @@ function wifiRender(info, bar) {
   const p = info.last;
   let txt; let q;
   if (w.link !== 'up') { txt = 'Wi-Fi: нет связи с сервером PITLANE — переподключаемся…'; q = 'bad'; }
-  else if (!w.chipOn) { txt = 'Wi-Fi: чип не в сети. iPhone: Режим модема → «Разрешать другим» + «Максимальная совместимость» — чип подключится сам.'; q = 'bad'; }
+  else if (!w.chipOn) { txt = 'Чип не в сети. iPhone: Режим модема → «Разрешать другим» + «Максимальная совместимость».'; q = 'bad'; }
   else if (!p || w.stale) { txt = 'Wi-Fi: чип в сети, ждём точки (нужен фикс GPS — открытое небо)…'; q = 'mid'; }
   else {
     const parts = ['PITLANE GPS · Wi-Fi', `${info.hz ? info.hz.toFixed(1) : '—'} Гц`];
@@ -4057,7 +4057,7 @@ async function wifiPair() {
   }
   box?.classList.remove('hidden');
   setRunText('wifiPairCode', r.code);
-  setRunText('wifiPairWait', 'Введите код на странице настройки чипа (сеть PITLANE-GPS-XXXX). Привязка пройдёт, как только чип выйдет в интернет через ваш хотспот.');
+  setRunText('wifiPairWait', 'Введите код на странице чипа (сеть PITLANE-GPS-XXXX). Привяжется, когда чип выйдет в сеть.');
   const n0 = (wifiDevCache?.devices || []).length;
   const until = Date.now() + (r.ttl || 1200) * 1000;
   clearInterval(_pairPoll);
@@ -4075,7 +4075,7 @@ async function wifiPair() {
 function startWifiSource() {
   if (!isRemoteApi() || !currentUser()) {
     document.getElementById('extGpsWifi')?.classList.remove('hidden');
-    extGpsMsg('Wi-Fi-чип привязывается к аккаунту: войдите через Telegram (вкладка «Аккаунт») и вернитесь сюда.');
+    extGpsMsg('Чтобы привязать чип, войдите через Telegram во вкладке «Аккаунт».');
     return;
   }
   extGps.connectWifi({
@@ -4332,7 +4332,7 @@ function renderChipOnlySummary(ev) {
   }
   document.getElementById('rdChartBox')?.classList.add('empty');
   const b = document.getElementById('rdBadge'); if (b) { b.textContent = 'только чип · не в топ'; b.dataset.q = 'off'; }
-  setRunText('rdNote', 'Только отметки чипа (справочно): разгон начался, пока точки не доходили до приложения — в топ этот заезд не отправлялся.');
+  setRunText('rdNote', 'Только отметки чипа: точки не дошли до приложения. В топ не ушло.');
   rdFinalButtons();
   rdDeltas();
 }
@@ -4350,7 +4350,7 @@ function initExtGps() {
         setRunText('runStatus', 'PITLANE GPS по Wi-Fi: стоите — замер вооружится сам, трогайтесь');
       } else if (state === 'ble' || state === 'sim') {
         stopGeoWatch();
-        extGpsMsg(state === 'sim' ? 'Симулятор: 4 с стоим, затем разгон до 230 км/ч и торможение — по кругу. Жмите «Старт». Симулятор не идёт в топ и дуэли.' : '');
+        extGpsMsg(state === 'sim' ? 'Симулятор: стоим 4 с, разгон до 230, торможение — по кругу. Жмите «Старт». В топ и дуэли не идёт.' : '');
         if (run.armed || lapRun.active) void keepAwake(true);
         setRunText('runStatus', state === 'sim' ? 'Симулятор PITLANE GPS: жмите «Старт»' : 'PITLANE GPS подключён — жмите «Старт»');
       } else if (state === 'off') {
@@ -4376,7 +4376,7 @@ function initExtGps() {
       const note = document.getElementById('extGpsIosNote');
       if (note) {
         note.hidden = false;
-        note.textContent = 'На iPhone Bluetooth для веба недоступен — PITLANE GPS подключается по Wi-Fi: чип выходит в интернет через Режим модема iPhone, точки идут через сервер сюда (задержка обычно меньше секунды). Замеры телефоном идут в отдельный зачёт C («телефон · зачёт C», точность ≈ ±0,3 с) и не смешиваются с A/B.';
+        note.textContent = 'На iPhone чип работает по Wi-Fi через Режим модема, задержка меньше секунды. Телефон — отдельный зачёт C (≈ ±0,3 с), с A/B не смешивается.';
       }
     }
   } catch (_) {}
@@ -4399,7 +4399,7 @@ function initExtGps() {
     }
     const why = extGps.unsupportedReason();
     if (why) { extGpsMsg(why); return; }
-    extGpsMsg('Выберите «PITLANE-GPS-…» в списке. Bluetooth и геолокация на телефоне должны быть включены.');
+    extGpsMsg('Выберите «PITLANE-GPS-…». Нужны Bluetooth и геолокация.');
     try {
       await extGps.connect();
       extGpsMsg('');
@@ -4438,9 +4438,9 @@ function showGeoDenied() {
   if (txt) {
     txt.textContent = isTMA
       ? (canSettings
-        ? 'Без GPS замер и круг не работают. Нажмите «Открыть настройки» и разрешите Telegram доступ к геопозиции, затем «Повторить».'
-        : 'Без GPS замер и круг не работают. Разрешите Telegram доступ к геопозиции в настройках телефона (Настройки → Telegram → Геопозиция → «При использовании»), затем «Повторить».')
-      : 'Без GPS замер и круг не работают. Разрешите доступ к геопозиции для этого сайта в настройках браузера, затем «Повторить».';
+        ? 'Нужен GPS. «Открыть настройки» → разрешите геопозицию → «Повторить».'
+        : 'Нужен GPS. Настройки → Telegram → Геопозиция → «При использовании», затем «Повторить».')
+      : 'Нужен GPS. Разрешите геопозицию сайту в браузере → «Повторить».';
   }
   box.classList.remove('hidden');
 }
@@ -7291,7 +7291,7 @@ async function refreshAuthProviders(force) {
     tgBtn.classList.add('hidden');
     smsBtn.classList.add('hidden');
     smsBox.classList.add('hidden');
-    none.textContent = 'Нет связи с сервером — вход сейчас недоступен. Замеры, гараж и история работают офлайн.';
+    none.textContent = 'Нет связи с сервером. Замеры, гараж и история — офлайн.';
     none.classList.remove('hidden');
     _authCfg = undefined; // retry next time
     return;
@@ -9821,7 +9821,7 @@ const I18N = {
     'dyno.title':'Паспорт динамики','dyno.hint':'Цифры разгона — только после своего заезда.','dyno.acc':'Разгон','dyno.mass':'Масса и отдача',
     'lap.title':'Трек','lap.track':'Трасса','lap.gps':'Круг по GPS','lap.sess':'Сессии','lap.start':'Начать сессию','lap.finish':'Финиш круга',
     'top.title':'Топы','pad.title':'Чат','pad.send':'Опубликовать','pad.ph':'Написать в чат…','pad.empty':'Пока тихо — напиши первым.',
-    'acc.title':'Профиль','acc.login':'Вход','acc.hint':'Вход через Telegram нужен для топа и постов. Замеры, гараж и история работают и без него — на устройстве.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
+    'acc.title':'Профиль','acc.login':'Вход','acc.hint':'Telegram нужен для топа и постов. Остальное работает без входа.','acc.in':'OK','acc.reg':'Получить код','acc.nick':'ник'
   },
   en: {
     'nav.home':'Home','nav.duels':'Duels','nav.ride':'Drive','nav.box':'Box','nav.dyno':'Specs','nav.run':'Run','nav.lap':'Lap','nav.top':'Leaderboard','nav.paddock':'Chat','nav.park':'Park',
@@ -10389,7 +10389,7 @@ function renderPilotProfile(pr) {
     secRuns.appendChild(grid);
   }
   if (!zh.length && !laps.length && !dragKeys.length) {
-    secRuns.appendChild(padEmptyLine('пока нет валидных заездов — результаты появятся после замеров A/B, проверенных сервером.'));
+    secRuns.appendChild(padEmptyLine('пока пусто — нужны замеры A/B, проверенные сервером.'));
   }
   if (zh.length) {
     secRuns.appendChild(padEl('h4', 'pilot-sub', '0–100 км/ч'));
@@ -10770,7 +10770,7 @@ async function sendDispute(ctx, msgEl) {
   reason = reason.trim();
   if (reason.length < 3) { say('Опишите, что не так — хотя бы пару слов.'); return; }
   const res = await api.dispute({ ...ctx, reason: reason.slice(0, 500) });
-  say(res && res.ok ? 'Отправлено на проверку. Результат не удаляется автоматически — решение после разбора.' : (res && res.status === 429 ? 'Слишком много жалоб за сутки — попробуйте завтра.' : 'Не удалось отправить — попробуйте позже.'));
+  say(res && res.ok ? 'Отправлено на проверку. Решим после разбора.' : (res && res.status === 429 ? 'Слишком много жалоб за сутки — попробуйте завтра.' : 'Не удалось отправить — попробуйте позже.'));
 }
 document.getElementById('pilotClose')?.addEventListener('click', () => { _pilotOpen = null; padShow('pilotSheet', false); });
 document.getElementById('pilotSheet')?.addEventListener('click', (e) => {
@@ -12572,7 +12572,7 @@ async function showCrewView(id) {
   const hint = document.getElementById('crewHint');
   if (hint) {
     if (!isRemoteApi()) hint.textContent = 'Нужен Worker API (meta pitlane-api).';
-    else hint.textContent = 'После круга A/B на треке экипажа результат попадает на борд автоматически.';
+    else hint.textContent = 'Круг A/B на треке экипажа сам попадает на борд.';
   }
   const joinHere = document.getElementById('crewJoinHere');
   if (joinHere) {
@@ -13124,7 +13124,7 @@ const FEATURE_HELP = {
   autodrome: {
     title: 'Автодромы',
     lines: [
-      'Справочник культовых колец России: длина, повороты, конфигурации, сайт.',
+      'Кольца России: длина, повороты, конфигурации.',
       '<strong>Как:</strong> открой трек в списке → «Выбрать этот трек» переключает Кольцо на него.',
       'Бронирование сессий в Pitlane не встроено — только справка.',
     ],
@@ -13132,7 +13132,7 @@ const FEATURE_HELP = {
   session: {
     title: 'Сессия дня',
     lines: [
-      'Каждый день — один культовый трек. Здесь топ кругов за сегодня и чекин «Я на месте».',
+      'Трек дня: топ кругов за сегодня и чекин «Я на месте».',
       '<strong>Как:</strong> «Открыть трек» ведёт в Кольцо на этот автодром. «Я на месте» — короткая отметка, что ты на треке.',
       'Нужна карточка автодрома — кнопка ниже.',
     ],
@@ -13141,7 +13141,7 @@ const FEATURE_HELP = {
   sectorBattle: {
     title: 'Битва секторов',
     lines: [
-      'Личный разбор круга по секторам: этот круг vs твои лучшие секторы на этой трассе.',
+      'Этот круг против твоих лучших секторов.',
       'Зелёный — быстрее PB сектора, красный — медленнее. «Оптимал» — сумма лучших секторов.',
       '<strong>Как:</strong> проедь 2+ валидных круга с секторами на выбранной трассе (экран Кольцо).',
     ],
@@ -13210,7 +13210,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v240';
+const APP_VERSION = 'v241';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13965,7 +13965,7 @@ async function renderTrackHistory(trackId0, { hud } = {}) {
   lineEl.textContent = sum + (sum && cls === 'c' ? ' · зачёт C' : '');
   lineEl.hidden = !sum;
   if (!laps.length) {
-    note.textContent = h ? 'Здесь ещё нет твоих зачтённых кругов. Проедь круг по GPS — появятся место в топе, сектора и прогресс.' : 'Войди и проедь круг по GPS — здесь появятся место в топе, сектора и прогресс.';
+    note.textContent = h ? 'Зачтённых кругов нет. Проедь круг по GPS.' : 'Войди и проедь круг по GPS.';
     card.classList.add('is-empty');
     return h;
   }
@@ -15498,7 +15498,7 @@ function renderHomeCars() {
     box.dataset.cur = '';
     const e = padEl('div', 'home-empty');
     e.appendChild(padEl('b', '', 'пока нет валидных заездов'));
-    e.appendChild(padEl('span', '', 'Машины появятся здесь после первых результатов A/B, проверенных сервером.'));
+    e.appendChild(padEl('span', '', 'Машины появятся после первых проверенных A/B.'));
     box.appendChild(e);
     return;
   }
@@ -17389,7 +17389,7 @@ async function renderAwards92() {
           return 'Счёт открыт';
         }
         window.open(r.link, '_blank', 'noopener');
-        return 'Счёт открыт в Telegram. После оплаты вернись в профиль.';
+        return 'Счёт в Telegram. Оплати и вернись в профиль.';
       },
       onCustomize: () => { closePassSheet(); setTimeout(() => openPfEdit({ focusPass: true }), 120); },
       onSave: async (c) => { const r = await api.putPassCosmetics(c); if (!r || r.ok === false) return 'Не сохранилось: ' + (r?.error || 'сеть'); AW92.at = 0; void renderAwards92(); return 'Сохранено'; },
@@ -17490,7 +17490,7 @@ function cpPaintPin() {
     void Promise.resolve(api.listDrag('0-100', {})).then((rows) => {
       if (seq !== _cpTopSeq) return;
       rows = (rows || []).filter((r) => r && Number.isFinite(Number(r.t))).sort((a, b) => a.t - b.t).slice(0, 3);
-      if (!rows.length) { ol.replaceWith(padEl('p', 'cp-note', 'В топе пока пусто — первый валидный замер займёт П1.')); return; }
+      if (!rows.length) { ol.replaceWith(padEl('p', 'cp-note', 'Топ пуст — первый замер займёт П1.')); return; }
       rows.forEach((r, i) => {
         const li = padEl('li', 'cp-mrow p' + (i + 1));
         li.append(padEl('span', 'cp-pos', 'P' + (i + 1)));
@@ -17716,7 +17716,7 @@ function renderPfEdit() {
   inp.addEventListener('input', () => { d.nick = inp.value.trim(); pfePreview(); });
   lab.append(inp); g1.append(lab);
   b.append(g1);
-  b.append(padEl('p', 'pfe-hint', 'Ник видят все: в топах, в чате и в твоём профиле. До 24 символов.'));
+  b.append(padEl('p', 'pfe-hint', 'Ник видят все. До 24 символов.'));
   const g2 = padEl('div', 'pfe-g');
   const rowBtn = (k, v, fn) => { const r = padEl('button', 'pfe-row'); r.type = 'button'; r.append(padEl('span', 'pfe-k', k)); if (v) r.append(padEl('span', 'pfe-v', v)); r.append(padEl('b', 'pf6-ch')); r.addEventListener('click', fn); return r; };
   const mc = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
@@ -17819,7 +17819,7 @@ function openPin209(k, own) {
   const ov = padEl('div', 'pin209'); ov.id = 'pin209'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', m[0]);
   const c = padEl('div', 'pin209-c');
   let im; if (k === 'helmet') { im = helmet3d('pin209-i', true, true); } else { im = document.createElement('img'); im.src = awardImg(k); im.alt = ''; im.className = 'pin209-i'; } // v213: шлем — 3D 360°, крутится сам и пальцем
-  c.append(im, padEl('span', 'pin209-k', 'PADDOCK PASS'), padEl('h3', '', m[0]), padEl('p', '', m[1] + '. Это украшение из Paddock Pass — только внешний вид, на время и места в топах не влияет.'));
+  c.append(im, padEl('span', 'pin209-k', 'PADDOCK PASS'), padEl('h3', '', m[0]), padEl('p', '', m[1] + '. Украшение Paddock Pass — на время и топ не влияет.'));
   if (own && currentUser()) { const b = padEl('button', 'pin209-b', 'Сменить пин'); b.type = 'button'; b.addEventListener('click', () => { close(); setTimeout(() => openPfEdit({ focusPass: true }), 150); }); c.append(b); }
   const x = padEl('button', 'pin209-x', 'Закрыть'); x.type = 'button'; x.addEventListener('click', () => close()); c.append(x);
   ov.append(c);
