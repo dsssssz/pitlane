@@ -1,0 +1,43 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>RusWaitBar (RWB) — демо</title><meta name="robots" content="noindex">
+<style>
+:root{--bg:#0b0b0c;--p:#141416;--l:#232326;--t:#e9e7e2;--m:#8a8883;--up:#7fa88a;--dn:#b07a72;--g:#c8b68a}
+*{box-sizing:border-box;margin:0;padding:0}body{background:var(--bg);color:var(--t);font:15px/1.5 -apple-system,"Helvetica Neue",Arial,sans-serif}
+.w{max-width:1180px;margin:0 auto;padding:0 24px}header{border-bottom:1px solid var(--l)}
+.nav{display:flex;align-items:center;justify-content:space-between;height:68px}.logo{font-weight:700;letter-spacing:.42em;font-size:20px}.logo small{display:block;font-size:9px;letter-spacing:.3em;color:var(--m);font-weight:400}
+.badge{border:1px solid var(--g);color:var(--g);padding:5px 12px;font-size:11px;letter-spacing:.15em;text-transform:uppercase}
+.tick{overflow:hidden;white-space:nowrap;border-bottom:1px solid var(--l);font-size:13px;color:var(--m)}.tick div{display:inline-block;padding:10px 0;animation:s 40s linear infinite}.tick span{margin-right:36px}@keyframes s{to{transform:translateX(-50%)}}
+.hero{padding:90px 0 60px}.hero h1{font-size:clamp(36px,6vw,72px);font-weight:300;letter-spacing:-.02em;line-height:1.05}.hero p{color:var(--m);margin-top:18px;max-width:560px}
+.grid{display:grid;grid-template-columns:2fr 1fr;gap:16px}.card{background:var(--p);border:1px solid var(--l);padding:20px}.card h3{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--m);font-weight:500;margin-bottom:14px}
+.price{font-size:34px;font-weight:300}canvas{width:100%;height:280px;display:block}
+.ob div{display:flex;justify-content:space-between;font:12px/1.9 ui-monospace,Menlo,monospace;position:relative}.ob i{position:absolute;right:0;top:2px;bottom:2px;opacity:.13}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:12px 8px;border-bottom:1px solid var(--l);text-align:right}td:first-child,th:first-child{text-align:left}th{color:var(--m);font-weight:400;font-size:12px}
+.up{color:var(--up)}.dn{color:var(--dn)}section{margin:56px 0}.cs{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.cs p{color:var(--m);font-size:14px}
+footer{border-top:1px solid var(--l);padding:30px 0;color:var(--m);font-size:12px}@media(max-width:800px){.grid,.cs{grid-template-columns:1fr}}
+</style></head><body>
+<header><div class="w nav"><div class="logo">RWB<small>RUSWAITBAR</small></div><div class="badge">Демо · не настоящая биржа</div></div><div class="tick"><div id="tk"></div></div></header>
+<main class="w">
+<div class="hero"><h1>Наша будущая<br>криптобиржа</h1><p>RusWaitBar — концепт. Все цифры на этой странице сгенерированы случайно и не являются реальными котировками. Торговли, счетов и приёма средств нет.</p></div>
+<div class="grid"><div class="card"><h3>BTC / USDT · симуляция</h3><div class="price" id="pr">—</div><canvas id="ch"></canvas></div>
+<div class="card"><h3>Стакан · симуляция</h3><div class="ob" id="ob"></div></div></div>
+<section class="card"><h3>Рынки · симулированные данные</h3><table><thead><tr><th>Пара</th><th>Цена</th><th>24ч</th><th>Объём</th></tr></thead><tbody id="mk"></tbody></table></section>
+<section><h3 style="font-size:11px;letter-spacing:.2em;color:var(--m);font-weight:500;margin-bottom:14px">СКОРО</h3><div class="cs">
+<div class="card"><h3>Спот</h3><p>Чистый интерфейс без лишнего шума.</p></div><div class="card"><h3>Мобильное приложение</h3><p>Тот же минимализм в кармане.</p></div><div class="card"><h3>Аналитика</h3><p>Графики, которые читаются за секунду.</p></div></div></section>
+</main>
+<footer><div class="w">© 2026 RusWaitBar (RWB) — демонстрационный концепт. Не является биржей, не оказывает финансовых услуг, не принимает средства и не собирает данные.</div></footer>
+<script>
+const M=[["BTC",68000],["ETH",3400],["SOL",160],["TON",6.2],["XRP",.55],["DOGE",.14],["ADA",.45],["LTC",82]].map(([s,p])=>({s,p,o:p,v:Math.random()*9e8}));
+const f=x=>x>=100?x.toLocaleString('ru-RU',{maximumFractionDigits:2}):x.toFixed(4);
+let H=[],b=M[0];for(let i=0;i<120;i++){b.p*=1+(Math.random()-.5)*.004;H.push(b.p)}
+function step(){M.forEach(m=>{m.p*=1+(Math.random()-.5)*.003});H.push(b.p);H.shift();draw()}
+function draw(){const c=document.getElementById('ch'),r=devicePixelRatio,W=c.clientWidth,Hh=c.clientHeight;c.width=W*r;c.height=Hh*r;const x=c.getContext('2d');x.scale(r,r);
+const mn=Math.min(...H),mx=Math.max(...H);x.strokeStyle='#232326';for(let i=1;i<4;i++){x.beginPath();x.moveTo(0,Hh*i/4);x.lineTo(W,Hh*i/4);x.stroke()}
+x.beginPath();H.forEach((v,i)=>{const px=i/(H.length-1)*W,py=Hh-10-(v-mn)/(mx-mn||1)*(Hh-20);i?x.lineTo(px,py):x.moveTo(px,py)});x.strokeStyle='#c8b68a';x.lineWidth=1.5;x.stroke();
+document.getElementById('pr').textContent='$'+f(b.p);
+let o='';for(let i=7;i>0;i--)o+=`<div class="dn"><span>${f(b.p*(1+i*.0002))}</span><span>${(Math.random()*2).toFixed(3)}</span><i style="width:${Math.random()*90}%;background:var(--dn)"></i></div>`;
+o+=`<div style="color:var(--t);font-size:15px;padding:6px 0">${f(b.p)}</div>`;for(let i=1;i<8;i++)o+=`<div class="up"><span>${f(b.p*(1-i*.0002))}</span><span>${(Math.random()*2).toFixed(3)}</span><i style="width:${Math.random()*90}%;background:var(--up)"></i></div>`;
+document.getElementById('ob').innerHTML=o;
+document.getElementById('mk').innerHTML=M.map(m=>{const d=(m.p/m.o-1)*100;return`<tr><td>${m.s}/USDT</td><td>${f(m.p)}</td><td class="${d<0?'dn':'up'}">${d.toFixed(2)}%</td><td>${(m.v/1e6).toFixed(1)} млн</td></tr>`}).join('');
+const t=M.map(m=>{const d=(m.p/m.o-1)*100;return`<span>${m.s} ${f(m.p)} <b class="${d<0?'dn':'up'}">${d.toFixed(2)}%</b></span>`}).join('')+'<span>· СИМУЛЯЦИЯ ·</span>';document.getElementById('tk').innerHTML=t+t}
+draw();setInterval(step,1200);addEventListener('resize',draw);
+</script></body></html>
