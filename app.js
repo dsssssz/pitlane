@@ -9944,6 +9944,7 @@ function padAvatar(name, avatar, size = 40) {
   const el = padEl('span', 'pad-ava');
   el.style.width = el.style.height = size + 'px';
   el.style.setProperty('--ava-h', String(padAvaHue(name)));
+  if (avatar && apiBase() && String(avatar).startsWith('https://pitlane-api.pitlane-taksimaga.workers.dev/')) avatar = apiBase() + String(avatar).slice(49);
   const apiAva = avatar && apiBase() && String(avatar).startsWith(apiBase() + '/pilot/');
   if (avatar && (PAD_IMG_RE.test(avatar) || PAD_AVA_RE.test(avatar) || apiAva)) {
     el.classList.add('has-img');
@@ -11547,7 +11548,7 @@ function ghostSaveChoice() {
 }
 /** Simulator against the production API never feeds public tops / ghosts / duels. */
 function simOnProd() {
-  try { return extGps?.state() === 'sim' && /workers\.dev/i.test(apiBase() || ''); } catch (_) { return false; }
+  try { return extGps?.state() === 'sim' && /workers\.dev|pitlanegps\.ru|apigw\.yandexcloud/i.test(apiBase() || ''); } catch (_) { return false; }
 }
 function ghostCanUpload() {
   const tok = getSessionToken();
@@ -13202,7 +13203,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v244';
+const APP_VERSION = 'v245';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

@@ -6,13 +6,17 @@ export function apiBase() {
   try {
     const meta = document.querySelector('meta[name="pitlane-api"]');
     const fromMeta = meta?.content?.trim();
-    if (fromMeta) return fromMeta.replace(/\/+$/, '');
+    // v245: '/api' — тот же домен (Yandex API Gateway → прокси на воркер), first-party и без блокировок CF в РФ
+    if (fromMeta) return (fromMeta.startsWith('/') ? location.origin + fromMeta : fromMeta).replace(/\/+$/, '');
     if (typeof window !== 'undefined' && window.PITLANE_API) {
       return String(window.PITLANE_API).replace(/\/+$/, '');
     }
   } catch (_) {}
   return '';
 }
+
+/** v245: WebSocket живого GPS идёт напрямую на воркер (API Gateway не проксирует WS на внешний хост). */
+export const WS_BASE = 'wss://pitlane-api.pitlane-taksimaga.workers.dev';
 
 export function getSessionToken() {
   try {
@@ -875,7 +879,7 @@ export const api = {
   gpsLiveSocket() {
     const b = apiBase(); const tok = getSessionToken();
     if (!b || !tok || typeof WebSocket === 'undefined') return null;
-    return new WebSocket(b.replace(/^http/i, 'ws') + '/gps/live', ['pitlane.v1', 'bearer.' + tok]);
+    return new WebSocket(WS_BASE + '/gps/live', ['pitlane.v1', 'bearer.' + tok]);
   },
   teamAvatarUrl(id, v) { const b = apiBase(); return b && v ? b + '/teams/' + encodeURIComponent(id) + '/avatar?v=' + encodeURIComponent(v) : ''; },
   teamImgUrl(id, pid) { const b = apiBase(); return b ? b + '/teams/' + encodeURIComponent(id) + '/img/' + encodeURIComponent(pid) : ''; },

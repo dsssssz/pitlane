@@ -1,0 +1,36 @@
+openapi: 3.0.0
+info: {title: pitlane, version: 1.0.0}
+paths:
+  /api:
+    x-yc-apigateway-any-method:
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4ep8at91oqn99omcl24
+        tag: $latest
+        service_account_id: ajeabi6g68v05t0muiu3
+  /api/{path+}:
+    x-yc-apigateway-any-method:
+      parameters:
+        - {name: path, in: path, required: false, schema: {type: string}}
+      x-yc-apigateway-integration:
+        type: cloud_functions
+        function_id: d4ep8at91oqn99omcl24
+        tag: $latest
+        service_account_id: ajeabi6g68v05t0muiu3
+  /:
+    get:
+      x-yc-apigateway-integration:
+        type: object_storage
+        bucket: pitlanegps.ru
+        object: index.html
+        service_account_id: ajeabi6g68v05t0muiu3
+  /{file+}:
+    get:
+      parameters:
+        - {name: file, in: path, required: true, schema: {type: string}}
+      x-yc-apigateway-integration:
+        type: object_storage
+        bucket: pitlanegps.ru
+        object: '{file}'
+        error_object: 404.html
+        service_account_id: ajeabi6g68v05t0muiu3

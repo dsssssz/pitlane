@@ -493,3 +493,27 @@ Deployed wrangler@3.114.17 from `worker/`: version `2135cb57-740d-4396-945e-cebb
 
 ## Сборка (v230+)
 Перед каждым коммитом: `cd tools && npm i` (один раз), затем `node tools/build.mjs`. Деплоится собранное: `b/` (JS) и `styles-HASH.css`, index.html и список в sw.js переписываются сборкой. Исходники (app.js, styles.css) правим как раньше.
+
+## Yandex Cloud (основной хостинг с v245)
+
+Cloudflare (pages.dev / workers.dev / прокси CF) в РФ режется ТСПУ, поэтому сайт и Mini App отдаются из Yandex Cloud:
+
+- **Object Storage**: бакет `pitlanegps.ru` (приватный) — статика.
+- **API Gateway** `pitlane` (`d5d2q75bd18nke44st5o.s183zexc.apigw.yandexcloud.net`, спецификация `yc/gateway.yaml`):
+  `/` и `/{file+}` → бакет (SA `pitlane-gw`, storage.viewer), `/api` и `/api/*` → Cloud Function `pitlane-api-proxy`.
+- **Cloud Function** `pitlane-api-proxy` (`yc/api-proxy/index.js`, nodejs22) — прозрачный прокси на воркер `pitlane-api`
+  (метод, тело, заголовки, Set-Cookie). Коннектится к «живым» anycast-IP Cloudflare с SNI воркера (IP из DNS `*.workers.dev` из РФ режутся).
+  Список IP — env `UPSTREAM_IPS`. Фронт ходит на `/api` того же домена (meta `pitlane-api` = `/api`).
+- WebSocket `/gps/live` идёт напрямую на `wss://pitlane-api…workers.dev` (API Gateway не проксирует WS на внешний хост) — в РФ может не работать.
+- **Cloud DNS** зона `pitlanegps.ru.`; NS у регистратора: `ns1.yandexcloud.net`, `ns2.yandexcloud.net`.
+- **Certificate Manager**: Let's Encrypt на `pitlanegps.ru`, `www.pitlanegps.ru` (DNS-01, CNAME `_acme-challenge` в зоне).
+
+Деплой статики (после `node tools/build.mjs`, тестов и коммита):
+
+```bash
+bash scripts/deploy-yc.sh        # git ls-files → /tmp/plsite → s3 sync в бакет, index.html и sw.js с no-cache
+```
+
+Ключи: статический ключ SA `pitlane-deploy` в `~/.yckeys/s3.json` (или AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY).
+Обновить прокси: `yc serverless function version create --function-name pitlane-api-proxy --runtime nodejs22 --entrypoint index.handler --memory 256m --execution-timeout 30s --source-path yc/api-proxy`.
+Обновить шлюз: `yc serverless api-gateway update pitlane --spec yc/gateway.yaml`.
