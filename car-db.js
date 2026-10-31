@@ -1,10 +1,10 @@
 /**
  * v220: большая база машин — Марка → Модель (по сериям/поколениям) → Версия.
- * База лениво грузится из cars-db.json (≈17 КБ gzip) только при открытии выбора; v252: вместо эмблем — нейтральные монограммы (без товарных знаков); v2: + крутящий момент и привод.
+ * База лениво грузится из cars-db.json (≈17 КБ gzip) только при открытии выбора; v256: настоящие эмблемы (монохромная маска), монограмма — если эмблемы нет; v2: + крутящий момент и привод.
  * Цифры (л.с., 0–100) — заводские; null = не уверены, не показываем. id версии: db.<марка>.<hash> (стабильный, проходит slug на сервере).
  * Весь текст → textContent.
  */
-const LOGOS = new Set(['acura','alfaromeo','astonmartin','audi','bentley','bmw','bugatti','byd','cadillac','chery','chevrolet','cupra','dodge','ferrari','ford','geely','haval','honda','hyundai','infiniti','jaguar','jeep','kia','koenigsegg','lada','lamborghini','landrover','lexus','lixiang','lucid','maserati','mazda','mclaren','mercedes','mini','mitsubishi','nissan','opel','peugeot','polestar','porsche','ram','renault','rollsroyce','seat','skoda','subaru','tesla','toyota','volkswagen','volvo','zeekr']);
+const LOGOS = new Set(['acura','alfaromeo','astonmartin','audi','bentley','bmw','bugatti','byd','cadillac','chery','chevrolet','cupra','dodge','ferrari','ford','geely','haval','honda','hyundai','infiniti','jaguar','jeep','kia','koenigsegg','lada','lamborghini','landrover','lexus','lixiang','lucid','maserati','mazda','mclaren','mercedes','mini','mitsubishi','nissan','opel','peugeot','polestar','porsche','ram','renault','rollsroyce','seat','skoda','subaru','tesla','toyota','volkswagen','volvo','zeekr','genesis','tank','lancia','alpine','moskvich','omoda','changan']);
 /** v252: нейтральные монограммы вместо фирменных эмблем (товарные знаки не используем). */
 const MONO = { bmw:'BMW', mercedes:'MB', volkswagen:'VW', alfaromeo:'AR', astonmartin:'AM', landrover:'LR', rollsroyce:'RR', mclaren:'McL', lixiang:'Li', lamborghini:'L', koenigsegg:'K', mini:'MINI', ram:'RAM', byd:'BYD', seat:'SEAT', lada:'LADA', moskvich:'М', kia:'KIA', mitsubishi:'MMC', chevrolet:'CH', cadillac:'CA', genesis:'G', infiniti:'IN', haval:'HA', changan:'CA', chery:'CH', cupra:'CU', polestar:'PS', porsche:'P', audi:'AUDI', tesla:'T' };
 function monoOf(k, t) { return MONO[k] || String(t || k || '?').replace(/[^A-Za-zА-Яа-я0-9]/g, '').slice(0, 2).toUpperCase() || '?'; }
@@ -54,10 +54,11 @@ export function carDbById(id) { const f = flat(); return f ? f.find((r) => r.id 
 export function brandLogoEl(name) {
   const n = String(name || '').toLowerCase().replace(/[^a-z]/g, '');
   let k = null; for (const x of LOGOS) if (n.startsWith(x) && (!k || x.length > k.length)) k = x;
-  return k ? monoEl(k, null, 'cdb-logo') : monoEl('', name, 'cdb-logo');
+  return k ? emblemEl(k, 'cdb-logo') : monoEl('', name, 'cdb-logo');
 }
 function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-function logoEl(b, big) { return monoEl(b.k, b.t, 'cdb-logo' + (big ? ' big' : '')); }
+function emblemEl(k, cls) { const w = el('span', cls); const i = el('i'); i.style.setProperty('--logo', `url("./img/brands/${k}.svg")`); w.appendChild(i); w.setAttribute('aria-hidden', 'true'); return w; }
+function logoEl(b, big) { const c = 'cdb-logo' + (big ? ' big' : ''); return LOGOS.has(b.k) ? emblemEl(b.k, c) : monoEl(b.k, b.t, c); }
 const DRV = { RWD: 'задний', AWD: 'полный', FWD: 'передний' };
 function specLine(hp, t, nm, d) { return [hp ? hp + ' л.с.' : '', nm ? nm + ' Нм' : '', d ? DRV[d] || '' : '', t ? '0–100 ' + String(t).replace('.', ',') + ' с' : ''].filter(Boolean).join(' · '); }
 

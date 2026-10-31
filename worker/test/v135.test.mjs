@@ -35,7 +35,8 @@ ok(!/cb-logo/.test(app + css + html), 'нет класса логотипа в U
 // v136: эмблем нет вообще — ни папки img/brands, ни кода показа, ни пометки «превью» (больше нечего помечать)
 // v226: решение изменено — реальные эмблемы марок разрешены (выбор машины по логотипам)
 // v253: эмблемы заменены монограммами — img/brands удалена
-ok(!fs.existsSync(U('img/brands')) && /\.cdb-logo\.mono\b/.test(css), 'v253: монограммы вместо эмблем, img/brands нет');
+// v256: владелец вернул настоящие эмблемы; монограмма — запасной вариант
+ok(fs.existsSync(U('img/brands/porsche.svg')) && /\.cdb-logo\.mono\b/.test(css) && /img\/brands/.test(fs.readFileSync(U('car-db.js'),'utf8')), 'v256: эмблемы + монограмма-фолбэк');
 ok(!/brandMark|BRAND_MARKS|applyBrandMark|brandKeyFromName|brand-mark|img\/brands/.test(app + css + html + sw), 'кода/стилей/кэша эмблем нет');
 ok(!/brandDisclaimer|эмблемы марок/.test(html + css), 'пометки про эмблемы нет');
 ok(!/<img[^>]+(emblem|logo|brand)[^>]*>/i.test(html), 'в разметке нет картинок-эмблем');
