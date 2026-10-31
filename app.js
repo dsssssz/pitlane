@@ -6410,6 +6410,8 @@ function openShareCard(payload) {
   _shareCand = (_shareOwn && _lastDuelCandidate && _lastDuelCandidate.at === payload.at) ? _lastDuelCandidate : null;
   // v89: a ghost race shows its own result sheet first; the card opens from «Поделиться» there
   if (typeof ghostRace !== 'undefined' && ghostRace?.holdShare && payload && !payload.ghost) { ghostRace.pendingShare = payload; return; }
+  { const own = _shareOwn && payload && !payload.ghost && payload.kind !== 'lap'; const gb = document.getElementById('shareCardGhost'), jb = document.getElementById('shareCardJournal');
+    if (gb) { gb.hidden = !own; gb.disabled = false; gb.textContent = 'Сохранить как призрак'; } if (jb) jb.hidden = !_shareOwn; }
   const card = document.getElementById('shareCard');
   if (!card) return;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -6757,6 +6759,15 @@ document.getElementById('shareCard')?.addEventListener('click', (e) => {
   if (e.target?.id === 'shareCard') closeShareCard();
 });
 document.getElementById('shareCardBtn')?.addEventListener('click', () => { void shareResult(_sharePayload); });
+// v257: после заезда — «Сохранить как призрак» и «Журнал заездов» (с экрана до старта убраны)
+document.getElementById('shareCardGhost')?.addEventListener('click', (e) => {
+  try { ghostRace.run.choice = 'best'; ghostSaveChoice(); ghostApplyChoice('run'); } catch (_) {}
+  hap(8); e.currentTarget.textContent = 'Призрак сохранён'; e.currentTarget.disabled = true;
+});
+document.getElementById('shareCardJournal')?.addEventListener('click', () => {
+  try { localStorage.setItem('pitlane-journal-f', 'run'); } catch (_) {}
+  closeShareCard(); try { journalGo61('run'); } catch (_) {}
+});
 document.getElementById('shareCardCopy')?.addEventListener('click', async () => {
   if (!_sharePayload) return;
   const url = sharePublicUrl(_sharePayload);
@@ -11712,6 +11723,8 @@ function ghostRowValue74() {
   const disc = (GHOST_DISCS.find(([id]) => id === g.disc) || [, ''])[1];
   const t = g.choice === 'none' ? 'Без призрака' : (o ? lab + ' · ' + fmtGhostT(kind, o.tMs) : (g.status === 'loading' ? lab + ' · …' : lab + ' · нет записи'));
   const parts = (g.choice === 'none' || !o ? t : t + ' · ' + disc).split(' · ');
+  const row = document.getElementById('z61Ghost'); // v257: до старта — только компактный индикатор, если призрак реально выбран (дуэль или есть запись)
+  if (row) row.hidden = !(g.choice === 'duel' || (g.choice !== 'none' && o));
   v.replaceChildren(...parts.flatMap((x, i) => { const sp = document.createElement('span'); sp.className = 'nw74'; sp.textContent = x; return i ? [document.createTextNode(' · '), sp] : [sp]; })); // куски не рвутся посередине («0–100»)
 }
 function ghostPickClick(scope, e) {
@@ -13249,7 +13262,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v256';
+const APP_VERSION = 'v257';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -17232,6 +17245,20 @@ document.addEventListener('click', (e) => {
     const t = (bar?.textContent || '').replace(/^Источник:\s*/i, '').replace(/\s*\(.*$/, '').trim() || 'телефон';
     const v = t.charAt(0).toUpperCase() + t.slice(1);
     document.querySelectorAll('[data-gps61]').forEach((x) => { if (x.textContent !== v) x.textContent = v; });
+    // v257: Замер — статус источника сильнее остальных строк: чип = в зачёт топов, телефон = справочно
+    const row = document.getElementById('z61Gps');
+    if (row) {
+      const raw = bar?.textContent || ''; const on = document.body.classList.contains('ext-gps-on');
+      const conn = /подключение/i.test(raw); const hz = (raw.match(/([\d.]+)\s*Гц/) || [])[1];
+      const sim = /^Симулятор/.test(raw);
+      const st = on ? (sim ? 'sim' : 'chip') : (conn ? 'conn' : 'phone');
+      const hzT = hz && hz !== '—' ? ' · ' + Math.round(Number(hz)) + ' Гц' : '';
+      const V = { chip: 'Чип' + hzT, sim: 'Симулятор' + hzT, conn: 'Чип · подключение…', phone: 'Телефон' }[st];
+      const S = { chip: 'в зачёт топов', sim: 'тест, не в зачёт', conn: '', phone: 'справочно · подключить чип' }[st];
+      row.dataset.src = st; row.dataset.q = bar?.dataset.q || '';
+      const a = document.getElementById('z61SrcV'), b = document.getElementById('z61SrcS');
+      if (a && a.textContent !== V) a.textContent = V; if (b && b.textContent !== S) b.textContent = S;
+    }
   };
   if (bar) new MutationObserver(paint).observe(bar, { childList: true, characterData: true, subtree: true });
   paint();

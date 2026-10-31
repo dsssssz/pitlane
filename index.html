@@ -36,8 +36,8 @@
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-EKCQI3GC.js" />
-    <link rel="stylesheet" href="./styles-924CFB27.css" />
+    <link rel="modulepreload" href="./b/app-YDJSTOWT.js" />
+    <link rel="stylesheet" href="./styles-34EC5F1D.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -340,9 +340,8 @@
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
             <p class="z202-hint" id="z202Hint">Сядь в машину и нажми Старт</p>
             <div class="z61-rows" role="group" aria-label="Параметры замера">
-              <button type="button" class="ds-row" id="z61Gps" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="ds-row-v" data-gps61>Телефон</span></button>
-              <button type="button" class="ds-row" id="z61Ghost" aria-haspopup="dialog" aria-controls="ghost74"><span class="ds-row-k">Призрак</span><span class="ds-row-v" id="z61GhostV">Без призрака</span></button>
-              <button type="button" class="ds-row" data-view="history" data-jf="run"><span class="ds-row-k">Журнал замеров</span><span class="ds-row-v" id="z61Last">—</span></button>
+              <button type="button" class="ds-row z61-src" id="z61Gps" data-src="phone" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="z61-src-v"><b><i class="z61-dot" aria-hidden="true"></i><span id="z61SrcV">Телефон</span></b><small id="z61SrcS">справочно</small></span></button>
+              <button type="button" class="ds-row z61-gmini" id="z61Ghost" aria-haspopup="dialog" aria-controls="ghost74" hidden><span class="ds-row-k">Призрак</span><span class="ds-row-v" id="z61GhostV">Без призрака</span></button>
             </div>
             <button type="button" class="v54-video" id="h54Video" aria-label="Старт с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>
             <button type="button" class="z202-top" id="z202Top" data-view="tops" hidden><span class="z202-top-k">Топ 0–100</span><ol class="z202-top-l" id="z202TopL"></ol></button>
@@ -1262,6 +1261,8 @@
           <button type="button" class="go-btn" id="shareCardBtn">Поделиться</button>
           <button type="button" id="shareCardCopy">Копировать ссылку</button>
           <button type="button" id="shareCardStory" title="Картинка 9:16 для историй">В историю</button>
+          <button type="button" class="sc-own" id="shareCardGhost" hidden>Сохранить как призрак</button>
+          <button type="button" class="sc-own" id="shareCardJournal" hidden>Журнал заездов</button>
         </div>
       </div>
     </div>
@@ -1642,6 +1643,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-EKCQI3GC.js"></script>
+    <script type="module" src="./b/app-YDJSTOWT.js"></script>
   </body>
 </html>

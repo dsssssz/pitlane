@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const U = (p) => new URL('../../' + p, import.meta.url);
+const html = fs.readFileSync(U('index.html'), 'utf8'), app = fs.readFileSync(U('app.js'), 'utf8'), css = fs.readFileSync(U('styles.css'), 'utf8');
+let f = 0; const ok = (c, m) => { console.log((c ? '  ✓ ' : '  ✗ ') + m); if (!c) f++; };
+const z = html.slice(html.indexOf('id="view-zamer"'), html.indexOf('id="view-garage"'));
+ok(/class="ds-row z61-src"[^>]*id="z61Gps"/.test(z) && /id="z61SrcS"/.test(z) && /\.z61-src-v b\s*\{[^}]*600 18px/.test(css), 'источник GPS — сильнее остальных строк');
+ok(/'в зачёт топов'/.test(app) && /справочно/.test(app), 'чип — в зачёт, телефон — справочно');
+ok(!/Журнал замеров/.test(z) && /id="z61Ghost"[^>]*hidden/.test(z) && /row\.hidden = !\(g\.choice === 'duel'/.test(app), 'журнал убран, призрак — индикатор только при выборе');
+ok(/id="shareCardGhost"/.test(html) && /id="shareCardJournal"/.test(html) && /data-plm="history"/.test(html), 'после заезда: «Сохранить как призрак», «Журнал заездов»; журнал в ☰');
+console.log(f ? '\n✗ ' + f + ' failed' : '\nall ok'); process.exit(f ? 1 : 0);
