@@ -4201,6 +4201,7 @@ function onWifiEvent(ev) {
 }
 function finishRun() {
   if (!run.armed || run.summary) return;
+  try { window.__passToast?.afterRun(); } catch (_) {} // v265
   run.pendingEnd = null;
   stopRun();
   run.summary = true;
@@ -13473,7 +13474,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v264';
+const APP_VERSION = 'v265';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -18119,3 +18120,37 @@ document.addEventListener('click', (e) => {
   openPin209(p.dataset.pin, p.dataset.own === '1' && !p.closest('#pfEdit'));
 }, true);
 document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('[data-pin]')) { e.preventDefault(); e.target.click(); } });
+
+/* v265: Pass — промо-плашка слева (раз за сессию, через ~25 с или после заезда; крестик/свайп влево — пауза 3 дня; не для владельцев Pass) */
+(() => {
+  const OFF = 'pl-pass-toast-off', SES = 'pl-pass-toast', DAYS3 = 3 * 86400e3;
+  let el = null, hideT = 0, timer = 0;
+  const has = () => { try { return pf6Active(); } catch (_) { return false; } };
+  const blocked = () => { try { if (sessionStorage.getItem(SES)) return true; const t = +localStorage.getItem(OFF) || 0; return Date.now() - t < DAYS3; } catch (_) { return false; } };
+  const busy = () => !!document.querySelector('.race-sheet:not(.hidden), .share-card:not(.hidden), .ds-sheet.on, html.run-active');
+  function hide(dismiss) {
+    clearTimeout(hideT); if (!el) return;
+    if (dismiss) { try { localStorage.setItem(OFF, String(Date.now())); } catch (_) {} }
+    const e = el; el = null; e.classList.remove('on'); e.classList.add('out');
+    setTimeout(() => e.remove(), 420);
+  }
+  function show(force) {
+    if (el || (!force && (has() || blocked() || busy() || document.hidden))) return false;
+    try { sessionStorage.setItem(SES, '1'); } catch (_) {}
+    el = document.createElement('div'); el.className = 'ptst'; el.setAttribute('role', 'status');
+    el.innerHTML = '<button type="button" class="ptst-b" aria-label="Открыть Paddock Pass"><img src="./img/awards/pass_s.webp" alt="" width="28" height="28"><span class="ptst-t"><b>Paddock Pass</b><small>Рамка, пин и бонусы — посмотреть</small></span></button><button type="button" class="ptst-x" aria-label="Закрыть"></button><i class="ptst-bar"></i>';
+    document.body.appendChild(el);
+    el.querySelector('.ptst-b').addEventListener('click', () => { try { hap(6); } catch (_) {} hide(false); openPassSheet(); });
+    el.querySelector('.ptst-x').addEventListener('click', () => hide(true));
+    let x0 = null, dx = 0; const me = el;
+    me.addEventListener('pointerdown', (e) => { x0 = e.clientX; dx = 0; clearTimeout(hideT); me.style.transition = 'none'; });
+    me.addEventListener('pointermove', (e) => { if (x0 == null) return; dx = Math.min(0, e.clientX - x0); me.style.transform = 'translateX(' + dx + 'px)'; });
+    const up = () => { if (x0 == null) return; x0 = null; me.style.transition = ''; me.style.transform = ''; if (dx < -50) hide(true); else hideT = setTimeout(() => hide(false), 4000); };
+    me.addEventListener('pointerup', up); me.addEventListener('pointercancel', up);
+    requestAnimationFrame(() => requestAnimationFrame(() => me.classList.add('on')));
+    hideT = setTimeout(() => hide(false), 6000);
+    return true;
+  }
+  timer = setTimeout(() => show(false), 25000);
+  window.__passToast = { show, hide, afterRun: () => { clearTimeout(timer); setTimeout(() => show(false), 2500); } };
+})();

@@ -7778,3 +7778,32 @@ html:not(#_):not(#_):not(#_) .chat-page .cp-bar { min-height: 0 !important; padd
 html:not(#_):not(#_):not(#_) .chat-page .cp-title { display: flex !important; flex-direction: row !important; align-items: baseline; gap: 8px; min-width: 0; }
 html:not(#_):not(#_):not(#_) .chat-page .cp-title b { font-size: 20px !important; line-height: 24px !important; }
 html:not(#_):not(#_):not(#_) .chat-page .cp-title #cpSub { font-size: 12px !important; line-height: 16px !important; margin: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* v265: шапка — логотип по центру в полосе нативных кнопок Telegram (safeAreaInset.top … +contentSafeAreaInset.top); вне Telegram — тонкая шапка */
+:root { --tg-sa: env(safe-area-inset-top, 0px); --tg-ca: 0px; --tg-band: 44px; }
+html.tma { --tg-band: max(var(--tg-ca, 0px), 44px); }
+html.v159:not(#_):not(#_):not(#_):not(#_) .brand-bar { position: sticky; min-height: 0 !important; height: calc(var(--tg-sa) + var(--tg-band)) !important; padding: var(--tg-sa) 0 0 !important; display: flex !important; align-items: center; justify-content: center; box-sizing: border-box; }
+html.v159:not(#_):not(#_):not(#_):not(#_) .brand-bar b.bb-logo { margin: 0 auto; }
+html.v159:not(#_):not(#_):not(#_):not(#_) .brand-bar b.bb-logo svg { height: 22px; }
+html.v159:not(#_):not(#_):not(#_):not(#_) .brand-bar .bb-title, html.v159:not(#_):not(#_):not(#_):not(#_) .brand-bar .bb-actions { display: none !important; }
+/* чат: «Чат» по центру той же полосы, вкладки сразу под ней */
+html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-head { padding-top: var(--tg-sa) !important; }
+html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-bar { height: var(--tg-band); padding: 0 96px !important; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-title { justify-content: center; }
+html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-title b { font-size: 17px !important; line-height: 20px !important; }
+html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-tabs { margin-top: 0 !important; margin-bottom: 6px !important; }
+/* Pass — плашка слева */
+.ptst { position: fixed; left: 10px; top: calc(var(--tg-sa) + var(--tg-band) + 10px); z-index: 12500; display: flex; align-items: center; max-width: min(340px, calc(100vw - 20px)); background: rgba(22,21,19,.94); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid rgba(201,168,92,.35); border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,.45); overflow: hidden; transform: translateX(calc(-100% - 24px)); opacity: 0; transition: transform .6s cubic-bezier(.34,1.36,.64,1), opacity .3s ease; touch-action: pan-y; }
+.ptst.on { transform: none; opacity: 1; }
+.ptst.out { transform: translateX(calc(-100% - 24px)); opacity: 0; transition: transform .38s cubic-bezier(.4,0,.2,1), opacity .3s ease; }
+.ptst-b { display: flex; align-items: center; gap: 10px; padding: 10px 6px 10px 12px; background: none; border: 0; color: #ecebe8; text-align: left; font: inherit; cursor: pointer; }
+.ptst-b img { flex: none; border-radius: 8px; }
+.ptst-t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ptst-t b { font: 600 14px/18px var(--font-ui, system-ui); color: #d8bd7a; }
+.ptst-t small { font: 400 12px/16px var(--font-ui, system-ui); color: rgba(236,235,232,.7); }
+.ptst-x { flex: none; width: 36px; height: 44px; background: none; border: 0; color: rgba(236,235,232,.6); cursor: pointer; position: relative; }
+.ptst-x::before, .ptst-x::after { content: ''; position: absolute; left: 12px; top: 21px; width: 12px; height: 1.5px; background: currentColor; transform: rotate(45deg); }
+.ptst-x::after { transform: rotate(-45deg); }
+.ptst-bar { position: absolute; left: 0; bottom: 0; height: 2px; width: 100%; background: rgba(201,168,92,.55); transform-origin: left; transform: scaleX(0); }
+.ptst.on .ptst-bar { animation: ptst-bar 6s linear forwards; }
+@keyframes ptst-bar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .ptst, .ptst.out { transition: opacity .2s ease; transform: none; } .ptst.on .ptst-bar { animation: none; } }

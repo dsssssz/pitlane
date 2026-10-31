@@ -126,6 +126,7 @@ function applyInsets() {
   const ca = (WebApp.contentSafeAreaInset || {});
   const n = (v) => (Number.isFinite(+v) ? +v : 0);
   root.setProperty('--tma-top', (n(sa.top) + n(ca.top)) + 'px');
+  root.setProperty('--tg-sa', n(sa.top) + 'px'); root.setProperty('--tg-ca', n(ca.top) + 'px'); // v265: полоса нативных кнопок Telegram
   root.setProperty('--tma-bottom', (n(sa.bottom) + n(ca.bottom)) + 'px');
   root.setProperty('--tma-left', (n(sa.left) + n(ca.left)) + 'px');
   root.setProperty('--tma-right', (n(sa.right) + n(ca.right)) + 'px');
