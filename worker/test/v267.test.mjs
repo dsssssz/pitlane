@@ -21,3 +21,5 @@ assert.ok(/#view-lap \.lap-grid \{ display: none !important; \}/.test(css), 'д�
 assert.ok(lap.indexOf('id="trackSuggestCard"') > lap.indexOf('id="tv2"'), '«Предложить трассу» внизу');
 assert.ok(/id="btnLapStart"/.test(html) && /lapStartFlow/.test(app), 'логика сессии на месте');
 console.log('v267 ok');
+// v270: вкладка «Трек» не должна перекрывать другие вкладки
+assert.ok(!/^#view-lap \{ display:/m.test(css) && /^#view-lap\.active \{ display: flex/m.test(css), 'display только для активной вкладки');

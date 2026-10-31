@@ -7818,7 +7818,7 @@ html:not(#_):not(#_):not(#_):not(#_) .chat-page .cp-tabs { margin-top: 0 !import
 .pf6-pt:active .pt-card { transform: scale(.985) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); }
 @media (prefers-reduced-motion: reduce) { .pt-card { transform: none !important; transition: none; } .pt-card::after { animation: none; transform: translateX(-20%); opacity: .5; } }
 /* v267t: Трек — сверху машина + GPS, затем трассы с геометрией; «без геометрии» свёрнуто; одна кнопка «Начать сессию» в карточке трассы */
-#view-lap { display: flex; flex-direction: column; }
+#view-lap.active { display: flex; flex-direction: column; }
 #view-lap > h2 { order: 0; } #view-lap > .t267-top { order: 1; } #view-lap > #tv2 { order: 2; } #view-lap > .lap-grid { order: 3; } #view-lap > #trackSuggestCard { order: 4; }
 html:not(#_):not(#_):not(#_) #view-lap .t267-top { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 12px; }
 html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top > * { min-width: 0; margin: 0 !important; width: 100%; display: flex !important; flex-direction: column !important; align-items: flex-start !important; justify-content: center !important; text-align: left !important; gap: 2px; padding: 10px 12px !important; min-height: 52px; border-radius: 14px !important; background: var(--ds-bg-1, #121214) !important; border: 1px solid var(--ds-line, rgba(255,255,255,.08)) !important; text-align: left; }
