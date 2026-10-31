@@ -65,7 +65,7 @@ import * as LB from './lap-battle.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { flushRunQueue, runQueueSize } from './api.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
-import { brandLogoEl, loadCarDb, carDbById } from './car-db.js';
+import { brandLogoEl } from './car-db.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 // v207: подсказки удалены полностью
@@ -3781,7 +3781,6 @@ function onGpsPoint(pos) {
     return;
   }
   const vShow = displayKmh();
-  try { rvGps(pos, vShow); } catch (_) {}
   setRunText('liveSpeed', String(vShow));
   hudZones(vShow);
   setRunText('boxLive', String(vShow));
@@ -3986,7 +3985,7 @@ function as56Ui() {
   const sb = document.getElementById('h48Start'); if (!sb) return;
   const auto = as56Mode(); const st = !auto ? 'manual' : !AS56.wait ? 'ready' : AS56.stillSince ? 'still' : 'wait';
   if (AS56.st === st) return; AS56.st = st;
-  const L = { manual: ['Взвести', ''], ready: ['Взвести', 'старт — когда тронетесь'], wait: ['Ждём', 'остановитесь · нажмите — отмена'], still: ['Трогайтесь', 'замер начнётся сам'] }[st];
+  const L = { manual: ['Старт', ''], ready: ['Готов', 'старт — когда тронетесь'], wait: ['Ждём', 'остановитесь · нажмите — отмена'], still: ['Трогайтесь', 'замер начнётся сам'] }[st];
   if (sb.firstChild?.nodeType === 3) sb.firstChild.nodeValue = L[0]; else sb.prepend(L[0]);
   const sub = document.getElementById('h56Sub'); if (sub) sub.textContent = L[1];
   sb.classList.toggle('h56-wait', st === 'wait' || st === 'still');
@@ -13474,7 +13473,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v268';
+const APP_VERSION = 'v267';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -18150,124 +18149,4 @@ function pf6PaintPassTile(u) {
   t.addEventListener('pointerleave', reset); t.addEventListener('pointercancel', reset); t.addEventListener('pointerup', reset);
   window.addEventListener('deviceorientation', (e) => { if (e.gamma == null || !t.offsetParent) return; tilt(e.gamma / 6, -((e.beta || 45) - 45) / 8); }, { passive: true });
   try { pf6PaintPassTile(currentUser()); } catch (_) {}
-})();
-
-/* ——— v268: «Замер» как прибор. Готовность одной строкой, шкала 0–300 с целью (свой рекорд · заводская цифра),
- * дистанция — свайпом по шкале или тапом по подписи. Дистанция влияет только на то, что показываем как цель/главное;
- * сам замер (gps-core) по-прежнему пишет все отметки. ——— */
-const RV = { last: null, lastAt: 0, dist: '0-100' };
-const RV_KEY = 'pitlane-rv-dist-v1';
-const RV_DISTS = [{ k: '60ft', l: '60 ft' }, { k: '0-100', l: '0–100' }, { k: '100-200', l: '100–200' }, { k: '402m', l: '¼ мили' }];
-const RV_REDUCE = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } })();
-try { const d = localStorage.getItem(RV_KEY); if (RV_DISTS.some((x) => x.k === d)) RV.dist = d; } catch (_) {}
-/** Шкала: 240°, 0…max, длинные риски каждые max/6. on — доля «зажжённых» рисок 0…1. */
-function rvGaugeSvg(svg, on = 0, max = 300) {
-  if (!svg) return;
-  if (!svg.dataset.built) {
-    const NS = 'http://www.w3.org/2000/svg'; const cx = 160; const cy = 160; const r = 150;
-    for (let i = 0; i <= 60; i++) {
-      const a = (150 + 240 * i / 60) * Math.PI / 180; const big = i % 10 === 0; const r1 = r - (big ? 14 : 7);
-      const ln = document.createElementNS(NS, 'line');
-      ln.setAttribute('x1', (cx + r * Math.cos(a)).toFixed(1)); ln.setAttribute('y1', (cy + r * Math.sin(a)).toFixed(1));
-      ln.setAttribute('x2', (cx + r1 * Math.cos(a)).toFixed(1)); ln.setAttribute('y2', (cy + r1 * Math.sin(a)).toFixed(1));
-      ln.setAttribute('class', 'rv-tk' + (big ? ' big' : '')); ln.dataset.i = String(i); svg.appendChild(ln);
-      if (big) { const t = document.createElementNS(NS, 'text'); const rl = r - 30;
-        t.setAttribute('x', (cx + rl * Math.cos(a)).toFixed(1)); t.setAttribute('y', (cy + rl * Math.sin(a) + 4).toFixed(1));
-        t.setAttribute('class', 'rv-tl'); t.setAttribute('text-anchor', 'middle'); t.textContent = String(Math.round(max * i / 60)); svg.appendChild(t); }
-    }
-    svg.dataset.built = '1';
-  }
-  const n = Math.round(Math.max(0, Math.min(1, on)) * 60);
-  if (svg.dataset.on === String(n)) return; svg.dataset.on = String(n);
-  for (const ln of svg.querySelectorAll('.rv-tk')) ln.classList.toggle('on', Number(ln.dataset.i) <= n && n > 0);
-}
-function rvNum(x) { const v = Number(String(x ?? '').replace(',', '.')); return Number.isFinite(v) && v > 0 ? v : null; }
-/** Свой лучший на дистанции (локальная история заездов). */
-function rvPb(k) {
-  const f = { '0-100': 'v0100', '100-200': 'v100200', '60ft': 'v60ft', '402m': 'v402' }[k];
-  const xs = (state.slips || []).map((x) => rvNum(x?.[f])).filter(Boolean);
-  return xs.length ? Math.min(...xs) : null;
-}
-/** Заводская цифра: машина из «Моя машина» (база cars-db) или паспорт машины в боксе. */
-function rvFactory(k) {
-  if (k !== '0-100' && k !== '100-200') return null;
-  try {
-    const m = myCarLocal();
-    if (m?.carId && k === '0-100') { const r = carDbById(m.carId); if (r && rvNum(r.v0100)) return rvNum(r.v0100); }
-    const st = getPassportStock(passportId());
-    return rvNum(k === '0-100' ? st.v0100 : st.v100200);
-  } catch (_) { return null; }
-}
-function rvFmt(v) { return v == null ? '—' : v.toFixed(2); }
-function rvRender() {
-  const d = RV_DISTS.find((x) => x.k === RV.dist) || RV_DISTS[1];
-  setRunText('rvDistK', d.l);
-  const pb = rvPb(d.k); const fac = rvFactory(d.k);
-  setRunText('rvTargetV', pb != null ? rvFmt(pb) : fac != null ? rvFmt(fac) : '—');
-  const sub = pb != null ? ('твой рекорд' + (fac != null ? ` · завод ${rvFmt(fac)}` : '')) : fac != null ? 'заводская цифра · рекорда пока нет' : 'рекорда пока нет';
-  setRunText('rvTargetS', sub);
-  const box = document.getElementById('rvDist');
-  if (box) {
-    if (!box.children.length) RV_DISTS.forEach((x) => { const b = document.createElement('button'); b.type = 'button'; b.setAttribute('role', 'radio'); b.dataset.rv = x.k; b.textContent = x.l; box.appendChild(b); });
-    for (const b of box.children) b.setAttribute('aria-checked', String(b.dataset.rv === d.k));
-  }
-}
-function rvSetDist(k, dir = 0) {
-  if (!RV_DISTS.some((x) => x.k === k) || k === RV.dist) return;
-  RV.dist = k; try { localStorage.setItem(RV_KEY, k); } catch (_) {}
-  const c = document.querySelector('#rvGauge .rv-g-c');
-  if (c && !RV_REDUCE && dir) { c.classList.remove('rv-sl', 'rv-sr'); void c.offsetWidth; c.classList.add(dir > 0 ? 'rv-sl' : 'rv-sr'); }
-  _hapKey = true; try { hap(8); } finally { _hapKey = false; }
-  rvRender();
-}
-/** Строка готовности: источник · Гц · спутники · точность · АКБ чипа. Без GPS — честно «включится на старте». */
-function rvReadyLine() {
-  const el = document.getElementById('rvReady'); if (!el) return;
-  const st = extGps?.state?.() || 'off'; const ext = st === 'wifi' || st === 'ble' || st === 'sim';
-  const fresh = RV.last && Date.now() - RV.lastAt < 3000 ? RV.last : null;
-  const parts = []; let q = 'idle';
-  if (ext) {
-    const info = extGps.info?.() || {}; const s = info.status || {};
-    parts.push(st === 'sim' ? 'Симулятор' : 'Чип');
-    const hz = info.hz || s.rateHz; if (hz) parts.push(`${hz >= 9.5 ? Math.round(hz) : Number(hz).toFixed(1)} Гц`);
-    const sv = fresh?.ext?.numSV; if (Number.isFinite(sv)) parts.push(`${sv} спутн.`);
-    const acc = Number(fresh?.coords?.accuracy); if (Number.isFinite(acc)) parts.push(`±${acc < 10 ? acc.toFixed(1) : Math.round(acc)} м`);
-    if (s.battPct) parts.push(`АКБ ${s.battPct}%`);
-    q = fresh ? (Number.isFinite(acc) && acc > 5 ? 'mid' : 'good') : 'mid';
-
-  } else if (fresh) {
-    const acc = Number(fresh.coords?.accuracy);
-    parts.push('Телефон', '≈1 Гц'); if (Number.isFinite(acc)) parts.push(`±${Math.round(acc)} м`); parts.push('справочно');
-    q = 'mid';
-  } else parts.push('Телефон · справочно', 'GPS включится на старте');
-  const t = parts.join(' · ');
-  if (el.textContent !== t) el.textContent = t;
-  if (el.dataset.q !== q) el.dataset.q = q;
-}
-let _rvT = 0;
-function rvGps(pos, kmh) {
-  RV.last = pos; RV.lastAt = Date.now();
-  const now = performance.now(); if (now - _rvT < 250) return; _rvT = now;
-  if (!document.getElementById('view-zamer')?.classList.contains('active')) return;
-  rvReadyLine();
-  rvGaugeSvg(document.getElementById('rvGaugeSvg'), (Number(kmh) || 0) / 300);
-}
-(function rvInit() {
-  const g = document.getElementById('rvGauge'); if (!g) return;
-  document.documentElement.classList.add('rv268');
-  rvGaugeSvg(document.getElementById('rvGaugeSvg'), 0); rvRender(); rvReadyLine();
-  document.getElementById('rvReady')?.addEventListener('click', () => document.getElementById('z61Gps')?.click());
-  try { loadCarDb().then(() => rvRender(), () => {}); } catch (_) {}
-  const idx = () => RV_DISTS.findIndex((x) => x.k === RV.dist);
-  document.getElementById('rvDist')?.addEventListener('click', (e) => { const b = e.target.closest('[data-rv]'); if (b) rvSetDist(b.dataset.rv, RV_DISTS.findIndex((x) => x.k === b.dataset.rv) > idx() ? 1 : -1); });
-  let x0 = null; let y0 = 0;
-  g.addEventListener('pointerdown', (e) => { x0 = e.clientX; y0 = e.clientY; });
-  g.addEventListener('pointerup', (e) => {
-    if (x0 == null) return; const dx = e.clientX - x0; const dy = e.clientY - y0; x0 = null;
-    if (Math.abs(dx) < 36 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
-    const i = idx() + (dx < 0 ? 1 : -1); if (i >= 0 && i < RV_DISTS.length) rvSetDist(RV_DISTS[i].k, dx < 0 ? 1 : -1);
-  });
-  g.addEventListener('pointercancel', () => { x0 = null; });
-  setInterval(() => { if (!document.hidden && document.getElementById('view-zamer')?.classList.contains('active')) { rvReadyLine(); rvRender(); } }, 2000);
-  window.__rv = { set: rvSetDist, render: rvRender, st: () => ({ ...RV, last: !!RV.last }) };
 })();
