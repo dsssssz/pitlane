@@ -7770,3 +7770,11 @@ html:not(#_):not(#_):not(#_) #chatFoot .file-btn { order: 0; width: 36px !import
 html:not(#_):not(#_):not(#_) #chatFoot #pulseSend { order: 2; width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; padding: 0 !important; margin: 0 !important; border-radius: 50% !important; flex: none; }
 html:not(#_):not(#_):not(#_) #chatFoot #pulseCount, html:not(#_):not(#_):not(#_) #chatFoot #pulseMsg:empty { display: none !important; }
 html:not(#_):not(#_):not(#_) #chatFoot #pulseMsg { order: 3; flex-basis: 100%; margin: 2px 0 0 !important; }
+/* v264: в Чате шапки PITLANE нет — чат от safe area Telegram (--tg-top); заголовок одной компактной строкой */
+html.chat-open:not(#_):not(#_):not(#_) .brand-bar { visibility: hidden !important; }
+html:not(#_):not(#_):not(#_) .chat-page { top: 0 !important; }
+html:not(#_):not(#_):not(#_) .chat-page .cp-head { padding-top: calc(var(--tg-top, 0px) + 8px) !important; }
+html:not(#_):not(#_):not(#_) .chat-page .cp-bar { min-height: 0 !important; padding: 0 4px 6px !important; }
+html:not(#_):not(#_):not(#_) .chat-page .cp-title { display: flex !important; flex-direction: row !important; align-items: baseline; gap: 8px; min-width: 0; }
+html:not(#_):not(#_):not(#_) .chat-page .cp-title b { font-size: 20px !important; line-height: 24px !important; }
+html:not(#_):not(#_):not(#_) .chat-page .cp-title #cpSub { font-size: 12px !important; line-height: 16px !important; margin: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
