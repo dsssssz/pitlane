@@ -7734,3 +7734,14 @@ html.chat-open .crew-sheet.pad-sheet { z-index: 12060; } /* v259: ветка п�
 .pf6-chip-s { color: #8d9096; font: 400 12.5px/1.2 var(--font-ui); }
 #pf6ChipV[data-on="1"] { color: #f2efe9; }
 .pf6-gh { margin: 4px 4px -8px; color: #6f7278; font: 500 12px/1 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; }
+/* v262: Чат — обычная вкладка: под шапкой PITLANE, над нижней панелью, тот же переход, что у экранов (ds-view) */
+html:not(#_):not(#_) .chat-page { top: var(--cp-top, 0px); bottom: calc(var(--n3-h, 64px) + var(--sab, 0px)); z-index: 10900; opacity: 1; transform: none; transition: none; }
+html:not(#_):not(#_) .chat-page.on { animation: ds-view var(--ds-t, .2s) var(--ds-ease, ease) both; }
+html:not(#_):not(#_) .chat-page .cp-head { padding-top: 6px; }
+html:not(#_):not(#_) .chat-page #chatBack { display: none !important; }
+html:not(#_):not(#_) .chat-page .cp-bar { padding-left: 4px; }
+@media (max-width: 900px) { html.chat-open:not(#_) .nav3 { visibility: visible !important; } }
+@media (min-width: 901px) { html:not(#_):not(#_) .chat-page, html:not(#_):not(#_) .chat-page.on { transform: translateX(-50%); bottom: 0; } }
+@media (prefers-reduced-motion: reduce) { html:not(#_):not(#_) .chat-page.on { animation: none; } }
+html.chat-open:not(#_) .view.active:not(#view-pulse) { visibility: hidden; }
+html.chat-open:not(#_) .brand-bar { visibility: visible; }

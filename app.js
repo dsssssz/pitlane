@@ -1631,7 +1631,7 @@ const VIEW_ALIAS61 = { run: 'zamer', cars: 'garage', journal: 'history', measure
 function goToView(id, opts = {}) {
   id = VIEW_ALIAS61[id] || id;
   if (id === 'pulse') { openChatPage(); return; } // v205: Чат — отдельная полноэкранная страница
-  if (CP.open) closeChatPage({ instant: true });
+  if (CP.open) closeChatPage({ instant: true }); // v262: смена вкладки — чат закрывается мгновенно, как обычный экран
   if (DUELS_OFF && id === 'duels') id = 'home';
   if (['duels', 'crews', 'crew', 'rooms', 'teams'].includes(id)) id = 'zamer'; // v206: убранные разделы // v197: дуэли убраны
   const next = document.getElementById('view-' + id);
@@ -13473,7 +13473,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v261';
+const APP_VERSION = 'v262';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -17826,6 +17826,7 @@ function openChatPage() {
     const cmp = v.querySelector('.pulse-compose') || document.querySelector('.pulse-compose');
     if (cmp) { document.getElementById('chatFoot')?.appendChild(cmp); cmp.classList.add('pc-foot'); }
     CP.open = true;
+    try { window.scrollTo(0, 0); const hd = document.querySelector('.brand-bar'); const hb = hd && hd.offsetParent ? Math.max(0, Math.round(hd.getBoundingClientRect().bottom)) : 0; document.documentElement.style.setProperty('--cp-top', hb + 'px'); } catch (_) {} // v262: чат — обычная вкладка под шапкой приложения
     pg.classList.remove('hidden'); pg.setAttribute('aria-hidden', 'false');
     document.documentElement.classList.add('chat-open');
     requestAnimationFrame(() => requestAnimationFrame(() => pg.classList.add('on')));
