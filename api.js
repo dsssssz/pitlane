@@ -461,6 +461,10 @@ export const api = {
     if (!apiBase()) return { ok: false, error: 'offline' };
     return remoteKeep('/pulse/' + encodeURIComponent(postId) + '/comments', { method: 'POST', body: JSON.stringify({ text }) });
   },
+  /** v260: автор вопроса отмечает лучший ответ (cid=null — снять). */
+  async setBestAnswer(postId, cid) {
+    return remoteKeep('/pulse/' + encodeURIComponent(postId) + '/best', { method: 'POST', body: JSON.stringify({ cid: cid || null }) });
+  },
   async delComment(postId, commentId) {
     if (!apiBase()) return { ok: false, error: 'offline' };
     return remoteKeep('/pulse/' + encodeURIComponent(postId) + '/comments/' + encodeURIComponent(commentId), { method: 'DELETE' });

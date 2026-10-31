@@ -10114,7 +10114,13 @@ function buildPostCard(p, { compact = false } = {}) {
   }
   card.appendChild(head);
   if (p.ch === 'q') card.classList.add('is-q');
-  if (p.ch === 'q') { const qb = padEl('span', 'pad-qbadge', 'Вопрос'); card.insertBefore(qb, head.nextSibling); }
+  if (p.ch === 'q') { // v260: вопрос + статус «без ответа / есть ответы / решён»
+    const qr = padEl('div', 'pad-qrow');
+    qr.appendChild(padEl('span', 'pad-qbadge', 'Вопрос'));
+    const st = p.best ? ['solved', 'Решён'] : Number(p.commentCount) > 0 ? ['ans', 'Есть ответы'] : ['open', 'Без ответа'];
+    qr.appendChild(padEl('span', 'pad-qst ' + st[0], st[1]));
+    card.insertBefore(qr, head.nextSibling);
+  }
   if (!compact && p.ch === 'tracks' && p.trk) { const tg = padEl('button', 'pad-trk', trackShortName(p.trk)); tg.type = 'button'; tg.dataset.trk = p.trk; card.appendChild(tg); }
   const ctx = p.run && p.text && p.ch !== 'runs';
   if (p.run && !ctx) card.appendChild(padRunCard(p.run, p.car));
@@ -10135,6 +10141,8 @@ function buildPostCard(p, { compact = false } = {}) {
     img.alt = '';
     img.loading = 'lazy';
     img.src = p.img;
+    img.dataset.full = '1';
+    img.setAttribute('role', 'button'); img.setAttribute('aria-label', 'Открыть фото');
     card.appendChild(img);
   }
   const bar = padEl('div', 'pad-actions');
@@ -10221,8 +10229,9 @@ function padLastRun() {
 function padPaintAttach() {
   const b = document.getElementById('cpAttach'); if (!b) return;
   { const cmp = b.closest('.pulse-compose'); if (cmp && cmp.parentNode && b.parentNode === cmp) cmp.parentNode.insertBefore(b, cmp); } // над полем ввода, отдельной строкой
+  padPaintMode(b);
   const c = currentCar(); const r = padLastRun();
-  if (!c || !r) { b.hidden = true; CP.att = false; return; }
+  if (!c || !r || CP.ch === 'runs') { b.hidden = true; CP.att = false; return; }
   b.hidden = false;
   b.setAttribute('aria-pressed', CP.att ? 'true' : 'false');
   b.replaceChildren();
@@ -10230,6 +10239,36 @@ function padPaintAttach() {
   b.appendChild(padEl('span', '', (CP.att ? '' : '+ ') + c.name + ' · ' + padDiscLabel(r.d) + ' ' + r.t.toFixed(2)));
   if (CP.att) b.appendChild(padEl('i', 'cp-att-x', '×'));
 }
+/** v260: поле ввода зависит от вкладки — «Поделиться замером» / трасса + текст / «Задать вопрос». */
+function padPaintMode(anchor) {
+  let m = document.getElementById('cpMode');
+  if (!m) { m = padEl('div', 'cp-mode'); m.id = 'cpMode'; anchor.parentNode.insertBefore(m, anchor); }
+  else if (m.nextSibling !== anchor) anchor.parentNode.insertBefore(m, anchor);
+  m.replaceChildren(); m.hidden = true;
+  if (CP.ch === 'runs') {
+    const r = padLastRun(); m.hidden = false;
+    const b = padEl('button', 'cp-share-run'); b.type = 'button'; b.id = 'cpShareRun';
+    if (r) { try { b.appendChild(brandLogoEl(r.car)); } catch (_) {} b.appendChild(padEl('span', '', 'Поделиться замером')); b.appendChild(padEl('b', '', padDiscLabel(r.d) + ' ' + r.t.toFixed(2) + ' с')); }
+    else { b.dataset.go = 'zamer'; b.appendChild(padEl('span', '', 'Сделай замер — он появится здесь')); }
+    m.appendChild(b);
+  } else if (CP.ch === 'tracks') {
+    m.hidden = false;
+    const lab = padEl('label', 'cp-trk-pick');
+    lab.appendChild(padEl('span', '', 'Трасса'));
+    const sel = document.createElement('select'); sel.id = 'cpTrkSel'; sel.setAttribute('aria-label', 'Трасса для сообщения');
+    const o0 = document.createElement('option'); o0.value = ''; o0.textContent = 'Выбери трассу'; sel.appendChild(o0);
+    for (const t of TRACKS) { const o = document.createElement('option'); o.value = t.id; o.textContent = trackShortName(t.id); if (t.id === CP.trk) o.selected = true; sel.appendChild(o); }
+    lab.appendChild(sel); m.appendChild(lab);
+  }
+}
+document.addEventListener('change', (e) => { if (e.target?.id === 'cpTrkSel') cpSetTab('tracks', { trk: e.target.value }); });
+document.addEventListener('click', (e) => {
+  const b = e.target.closest?.('#cpShareRun'); if (!b) return;
+  if (b.dataset.go === 'zamer') { try { closeChatPage(); } catch (_) {} try { goToView('zamer'); } catch (_) {} return; }
+  const r = padLastRun(); if (!r) return;
+  if (pulseText?.value.trim()) { CP.att = true; void padSendFromComposer(); return; } // текст + замер
+  if (padSendRun(r)) { hap(8); b.disabled = true; setTimeout(() => { b.disabled = false; }, 1500); }
+});
 document.addEventListener('click', (e) => { if (e.target.closest?.('#cpAttach')) { CP.att = !CP.att; hap(6); padPaintAttach(); } });
 /** v258: «Отправить в чат» с карточки своего заезда. */
 function padRunFromShare(pl) {
@@ -10277,8 +10316,15 @@ function renderPulseRows(rows0) {
     padPaintTopsFeed(feed, 0);
     return;
   }
+  if (CP.ch === 'tracks' && !CP.trk) { // v260: обсуждение по трассам — группы, свежая активность сверху
+    const g = new Map();
+    for (const p of rows) { const k = p.trk || ''; if (!g.has(k)) g.set(k, []); g.get(k).push(p); }
+    rows = [];
+    for (const [k, list] of g) { list[0]._grp = k ? trackShortName(k) : 'Без трассы'; list[0]._grpN = list.length; list[0]._grpId = k; rows.push(...list); }
+  }
   for (const p of rows) {
     if (!p || !p.id) continue;
+    if (p._grp) { const h = padEl('button', 'pad-group-h'); h.type = 'button'; if (p._grpId) h.dataset.trkGo = p._grpId; h.appendChild(padEl('b', '', p._grp)); h.appendChild(padEl('span', '', padRu(p._grpN, p._grpN + ' сообщение', p._grpN + ' сообщения', p._grpN + ' сообщений') + (p._grpId ? ' · открыть →' : ''))); feed.appendChild(h); delete p._grp; }
     // v82 API compatibility (likes array) → count
     if (p.likeCount == null && Array.isArray(p.likes)) p.likeCount = p.likes.length;
     feed.appendChild(buildPostCard(p));
@@ -10326,7 +10372,23 @@ async function padToggleLike(id, btn) {
   padSyncActions(id);
 }
 
+/* v260: фото на весь экран по тапу */
+function padOpenPhoto(src) {
+  if (!src || !PAD_IMG_RE.test(String(src))) return;
+  const ov = padEl('div', 'pad-photo'); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Фото');
+  const im = document.createElement('img'); im.src = src; im.alt = '';
+  const x = padEl('button', 'pad-photo-x pl-x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть');
+  ov.append(im, x);
+  const close = () => { ov.classList.remove('on'); setTimeout(() => ov.remove(), 180); document.removeEventListener('keydown', esc); };
+  const esc = (e) => { if (e.key === 'Escape') close(); };
+  ov.addEventListener('click', close); document.addEventListener('keydown', esc);
+  document.body.appendChild(ov); requestAnimationFrame(() => ov.classList.add('on'));
+}
 async function padOnCardClick(e) {
+  const tg = e.target.closest('[data-trk-go]');
+  if (tg) { cpSetTab('tracks', { trk: tg.dataset.trkGo }); return; }
+  const ph = e.target.closest('img[data-full]');
+  if (ph) { padOpenPhoto(ph.src); return; }
   const pil = e.target.closest('[data-pilot]');
   if (pil) { void openPilotProfile(pil.dataset.pilot); return; }
   const like = e.target.closest('[data-like]');
@@ -10366,9 +10428,14 @@ function renderComments(list) {
     box.appendChild(empty);
     return;
   }
+  const post = _padPosts.get(_comPost);
+  const isQ = post && post.ch === 'q';
+  const canBest = isQ && post.pilotId && post.pilotId === accountPilotId();
+  if (isQ && post.best) list = [...list.filter((c) => c.id === post.best), ...list.filter((c) => c.id !== post.best)];
   for (const c of list) {
     const row = padEl('div', 'pad-com');
     row.dataset.cid = c.id;
+    if (isQ && post.best === c.id) { row.classList.add('best'); { const bt = padEl('span', 'pad-best-tag', 'Лучший ответ'); bt.style.gridColumn = '1 / -1'; bt.style.gridRow = '1'; row.prepend(bt); } }
     row.appendChild(padAuthor({ name: c.who, pilotId: c.pilotId, avatar: padAvaUrl(c.pilotId, c.ava), meta: padAgo(c.at), size: 34 }));
     if (c.mine) {
       const del = padEl('button', 'pad-act pad-del');
@@ -10379,6 +10446,7 @@ function renderComments(list) {
       row.appendChild(del);
     }
     row.appendChild(padEl('p', 'pad-com-text', c.text));
+    if (canBest && !c.mine) { const bb = padEl('button', 'pad-best-btn', post.best === c.id ? 'Снять отметку' : 'Отметить лучшим'); bb.type = 'button'; bb.dataset.best = post.best === c.id ? '' : c.id; row.appendChild(bb); }
     box.appendChild(row);
   }
 }
@@ -10469,6 +10537,14 @@ document.getElementById('padCommentsSheet')?.addEventListener('click', async (e)
   if (e.target?.id === 'padCommentsSheet') { padShow('padCommentsSheet', false); return; }
   const pil = e.target.closest('[data-pilot]');
   if (pil) { void openPilotProfile(pil.dataset.pilot); return; }
+  const bb = e.target.closest('[data-best]');
+  if (bb && _comPost) {
+    const postId = _comPost; bb.disabled = true;
+    const res = await api.setBestAnswer(postId, bb.dataset.best || null);
+    if (res && res.ok) { const p = _padPosts.get(postId); if (p) { if (res.best) p.best = res.best; else delete p.best; } hap(8); void openComments(postId); renderPulseRows(CP.all); }
+    else { bb.disabled = false; const msg = document.getElementById('padComMsg'); if (msg) msg.textContent = res && res.status === 429 ? 'Слишком часто — подожди немного' : 'Не удалось отметить'; }
+    return;
+  }
   const del = e.target.closest('[data-cdel]');
   if (del && _comPost) {
     if (!confirm('Удалить комментарий?')) return;
@@ -11085,6 +11161,7 @@ async function padSendFromComposer() {
   if (needLogin('Войди, чтобы писать в чат.')) return;
   const text = (pulseText?.value || '').trim();
   if (!text) { padSyncSendBtn(); return; }
+  if (CP.ch === 'tracks' && !CP.trk) { if (msg) msg.textContent = 'Выбери трассу — сообщение попадёт в её обсуждение'; try { document.getElementById('cpTrkSel')?.focus(); } catch (_) {} return; }
   if (_padSendLock && Date.now() - _padSendLock < 600) return; // двойной тап
   _padSendLock = Date.now();
   const inp = document.getElementById('pulseImg');
@@ -11095,7 +11172,7 @@ async function padSendFromComposer() {
   if (inp) inp.value = '';
   if (msg) msg.textContent = '';
   padSyncSendBtn();
-  const att = CP.att ? padLastRun() : null;
+  const att = CP.att || CP.ch === 'runs' ? padLastRun() : null;
   const it = { cid: padNewCid(), text: text.slice(0, 280), img: null, at: Date.now(), car: currentCar()?.name || '', status: 'sending', ch: CP.ch, ...(CP.ch === 'tracks' && CP.trk ? { trk: CP.trk } : {}), ...(att ? { run: att } : {}) };
   _padOut.push(it); padOutSave(); padPaintOut();
   document.getElementById('tgSheetBody')?.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -13396,7 +13473,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v259';
+const APP_VERSION = 'v260';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -17645,7 +17722,7 @@ document.querySelector('[data-n3="zamer"]')?.addEventListener('click', () => { t
    Назад — Telegram BackButton (через общий список SHEETS) или ‹ в шапке. */
 const CP_TABS = { gen: 'Общий', runs: 'Замеры', tracks: 'Треки', q: 'Вопросы' };
 const CP_TO = { gen: 'в Общий', runs: 'в Замеры', tracks: 'в Треки', q: 'в Вопросы' };
-const CP_PH = { gen: 'Написать в чат…', runs: 'Поделиться замером…', tracks: 'Трасса, настройки, впечатления…', q: 'Спроси пилотов…' };
+const CP_PH = { gen: 'Написать в чат…', runs: 'Поделиться замером…', tracks: 'Трасса, настройки, впечатления…', q: 'Задать вопрос…' };
 function cpEmptyText() {
   if (CP.ch === 'runs') return 'Замеров пока нет — поделись своим 0–100 или ¼ мили.';
   if (CP.ch === 'tracks') return CP.trk ? 'По трассе «' + trackShortName(CP.trk) + '» пока пусто — напиши первым.' : 'Про трассы пока тихо — выбери трассу и напиши.';
