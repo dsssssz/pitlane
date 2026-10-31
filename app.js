@@ -6952,6 +6952,11 @@ window.addEventListener('pitlane:session-lost', () => {
   authDb.session = null; authDb.token = null;
   saveAuth();
   try { refreshAccount(); } catch (_) {}
+  // v248: в Mini App сессию молча восстанавливаем по свежему initData (cookie не используются вообще) — пилот не видит выхода
+  if (isTMA && tmaInitData && isRemoteApi()) {
+    void Promise.resolve(tmaAutoLogin('silent')).then((ok) => { if (!ok) setAuthTopMsg('Сессия закончилась — войдите через Telegram ещё раз. Замеры и гараж на месте.'); }, () => {});
+    return;
+  }
   try { setAuthTopMsg('Сессия закончилась — войдите через Telegram ещё раз. Замеры и гараж на месте.'); } catch (_) {}
 });
 
@@ -13243,7 +13248,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v247';
+const APP_VERSION = 'v248';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
