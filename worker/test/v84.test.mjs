@@ -1,3 +1,4 @@
+globalThis.PL_PHONE_TOPS = true; // v247: по умолчанию телефон в топ не идёт — тут проверяется прежний зачёт C
 // v84: per-discipline straight-line tops + Paddock top-of-day — node test/v84.test.mjs
 import rawWorker from '../src/index.js';
 import { withAutoRefresh } from './autorefresh.mjs';

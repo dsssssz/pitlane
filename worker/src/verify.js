@@ -29,6 +29,10 @@ const AC = {
   futureMs: 5 * 60_000,
 };
 /** v118: зачёт C (телефон, ~1 Гц). 60 ft и 0–50 короче 2–3 точек телефона — не зачитываются. */
+/** v247: топ и рекорды — только чип PITLANE GPS; телефон только справочно. true → вернуть зачёт C. */
+export const PHONE_TOPS = false;
+/** Тесты старого зачёта C включают его через globalThis.PL_PHONE_TOPS = true. */
+const phoneTops = () => PHONE_TOPS || globalThis.PL_PHONE_TOPS === true;
 export const PHONE_RULE = { minHz: 0.8, dragGapMs: 2600, lapGapMs: 4000, noDiscs: ['60ft', '0-50'] };
 
 function flagsOf(pts, gapMs) {
@@ -114,6 +118,7 @@ export function verifyLap(body, trackId, now = Date.now()) {
   let pass;
   if (b.dec.src === 'ext') pass = { ...passport(st, grade, b.dec.src), cls: 'ab' };
   else {
+    if (!phoneTops()) return { ok: false, code: 'phone_source' };
     if (!(st.hz >= PHONE_RULE.minHz)) return { ok: false, code: 'low_hz' };
     pass = classC(st, grade, b.dec.src);
   }
@@ -142,7 +147,7 @@ export function verifyDrag(body, disc, bounds, now = Date.now(), { allowC = true
   const hash = traceHash(b.dec.pts);
   const geo = dragGeo(b.dec);
   if (b.dec.src === 'ext' && st.hz >= DRAG_TOP_MIN_HZ - 0.5) return { ok: true, t, hash, geo, pass: { ...passport(st, grade, b.dec.src), cls: 'ab' } };
-  if (!allowC) return { ok: false, code: b.dec.src !== 'ext' ? 'phone_source' : 'low_hz' };
+  if (!allowC || !phoneTops()) return { ok: false, code: b.dec.src !== 'ext' ? 'phone_source' : 'low_hz' };
   if (PHONE_RULE.noDiscs.includes(disc)) return { ok: false, code: 'phone_disc' };
   if (!(st.hz >= PHONE_RULE.minHz)) return { ok: false, code: 'low_hz' };
   return { ok: true, t, hash, geo, pass: classC(st, grade, b.dec.src) };

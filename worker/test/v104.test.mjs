@@ -1,3 +1,4 @@
+globalThis.PL_PHONE_TOPS = true; // v247: по умолчанию телефон в топ не идёт — тут проверяется прежний зачёт C
 // v104: вход только с аккаунтом, access+refresh, серверный зачёт по сырым точкам, коды причин,
 // общий gps-core (интерполяция порогов) — node test/v104.test.mjs (MemKV, без прода)
 import rawWorker from '../src/index.js';

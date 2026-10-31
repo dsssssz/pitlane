@@ -4,6 +4,7 @@ import {
   isTMA, WebApp as TG, tmaInitData, tmaAtLeast, telegramDeviceClass, START_ROUTE, setupTmaChrome,
   setBackHandler, showBack, setClosingGuard, tmaHaptic, canOpenLocationSettings, openLocationSettings,
   tmaStartLink, tmaShare, keepAwake,
+  tmaLocationReady, tmaGetLocation,
 } from './tma.js';
 /* v119: three.js + аддоны + номера (plates.js) — dynamic import при первой надобности (Бокс, chase Сочи).
  * На первом экране их нет. Тот же origin (importmap → ./vendor/three) — CSP script-src 'self' не трогаем. */
@@ -3644,6 +3645,8 @@ function pushRawFix(pos, now) {
   // её не пишем повторно: dt = 0 сервер считает телепортом (а телефон теперь идёт в зачёт C)
   const last = rawTrace[rawTrace.length - 1];
   if (last && last.src === src && now <= last.t) return;
+  // v247: iOS/Telegram отдают тот же кэшированный фикс с новой меткой времени — одинаковые lat/lon/скорость не пишем (иначе завышенные Гц)
+  if (last && src === 'phone' && last.src === 'phone' && now - last.t < 1500 && last.lat === c.latitude && last.lon === c.longitude && (last.v ?? -1) === (c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : -1)) return;
   const alt = c.altitude != null && Number.isFinite(Number(c.altitude)) ? Number(c.altitude) : null; // v117: высота — только если источник её даёт (телефон); в трек для сервера не уходит
   const sAcc = Number(c.sAcc ?? c.speedAccuracy); const sv = Number(pos.ext?.numSV); // v215: точность доплера и спутники — в движок замера (гейт выбросов, флаги)
   const vK = c.speed != null && Number.isFinite(sp) && sp >= 0 ? sp * 3.6 : null;
@@ -3666,6 +3669,22 @@ function traceSource(pts) {
 }
 /** Короткие отметки, которые телефон (~1 Гц) не меряет — на доске C их нет (сервер тоже не принимает). */
 const PHONE_NO_DISCS = ['60ft', '0-50'];
+/** v247: телефон < 5 Гц или без доплера — 60 ft / 201 м / 100–200 не показываем вовсе (короче 1–3 обновлений GPS). */
+function phoneOffDiscs(tp, S) {
+  if (!tp || tp.src !== 'phone') return [];
+  const lowQ = !((tp.hz || 0) >= 5) || (S && (S.reasons || []).includes('no_doppler'));
+  return lowQ ? [...PHONE_NO_DISCS, '201m', '100-200'] : PHONE_NO_DISCS.slice();
+}
+/** v247: честная погрешность телефона, с: ~половина интервала между фиксами + доплер/IMU. */
+function phoneErrSec(tp, S) {
+  const hz = Math.max(0.5, Number(tp?.hz) || 1);
+  let e = 0.35 / hz + 0.05;
+  if (S && (S.reasons || []).includes('no_doppler')) e += 0.15;
+  return Math.round(Math.min(0.8, Math.max(0.1, e)) * 10) / 10;
+}
+function fmtPhoneSec(sec, tp, S) { return `≈${Number(sec).toFixed(2)} ± ${phoneErrSec(tp, S).toFixed(1).replace('.', ',')} с`; }
+const ROLLOUT_KEY = 'pitlane-rollout-v1';
+function rolloutOn() { try { return localStorage.getItem(ROLLOUT_KEY) === '1'; } catch (_) { return false; } }
 const CLASS_C_NOTE = 'телефон · зачёт C (≈ ±0,3 с, отдельный топ)';
 /** v118: класс зачёта по сырому треку (то же правило, что на сервере): внешний ≥10 Гц → 'ab', иначе 'c'. */
 function runClassOf(pts, { lap = false } = {}) {
@@ -3689,6 +3708,7 @@ function passportLine(tp) {
   parts.push(tp.avgAcc != null && Number.isFinite(tp.avgAcc) ? `±${Number(tp.avgAcc).toFixed(1)} м` : '±— м');
   parts.push(`${tp.n || 0} точек`);
   parts.push(tp.gpsQ || 'C');
+  if (tp.src === 'phone') parts.push('телефон');
   return parts.join(' · ');
 }
 const SRC_LABEL = { ext: 'внешний GPS', phone: 'телефон', sim: 'симулятор' };
@@ -3707,7 +3727,7 @@ const REJECT_TEXT = {
   too_short: 'Дистанция не набрана или трек обрезан — замер не принят в топ.',
   simulator: 'Симулятор — только для проверки, в топ не идёт.',
   track_uncalibrated: 'Трасса ещё не откалибрована — круг только в личной истории.',
-  phone_source: 'Замер телефоном идёт в зачёт C (свой топ), а не в A/B.',
+  phone_source: 'Топ и рекорды — только с чипом PITLANE GPS. Замер телефоном сохранён у вас (справочно, ≈).',
   low_hz: 'GPS обновлялся реже раза в секунду — замер не принят.',
   phone_disc: 'Телефон (~1 Гц) эту короткую отметку не меряет — в зачёт C идут 0–100, 100–200, ⅛ и ¼ мили, круги.',
   class_mismatch: 'Вызов A/B — нужен внешний GPS. С телефона брось свой вызов «телефон на телефон».',
@@ -3856,8 +3876,9 @@ function startWatch() {
     return;
   }
   if (run.watchId != null) return;
+  phoneSrc.pick = 'nat'; phoneSrc.nat = [0, 0]; phoneSrc.tg = [0, 0];
   run.watchId = navigator.geolocation.watchPosition(
-    (pos) => { hideGeoDenied(); onGpsPoint(pos); },
+    (pos) => { hideGeoDenied(); onPhoneFix(pos, 'nat'); },
     (err) => {
       if (err && err.code === 1) {
         // PERMISSION_DENIED: stop polling, explain in Russian, offer the settings shortcut.
@@ -3875,13 +3896,25 @@ function startWatch() {
   );
   if (run.pollId) clearInterval(run.pollId);
   run.pollId = setInterval(() => {
-    navigator.geolocation.getCurrentPosition(onGpsPoint, () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 1800 });
+    navigator.geolocation.getCurrentPosition((p) => onPhoneFix(p, 'nat'), () => {}, { enableHighAccuracy: true, maximumAge: 0, timeout: 1800 });
+    if (tmaLocationReady() && !phoneSrc.busy) { phoneSrc.busy = true; tmaGetLocation((p) => { phoneSrc.busy = false; if (p) onPhoneFix(p, 'tg'); }); }
   }, 400);
   // Screen Wake Lock; where it's missing (older iOS WebViews, Telegram) fall back to a muted looping video.
   void keepAwake(true);
   setRunText('runStatus', 'Запрос разрешения на геолокацию…');
 }
 
+/** v247: два источника телефона — браузерный Geolocation и Telegram LocationManager. Берём тот, что даёт доплер (speed). */
+const phoneSrc = { pick: 'nat', nat: [0, 0], tg: [0, 0], busy: false };
+function onPhoneFix(pos, s) {
+  const st = phoneSrc[s]; st[0]++; if (pos?.coords?.speed != null && Number.isFinite(pos.coords.speed)) st[1]++;
+  const r = (x) => (x[0] ? x[1] / x[0] : 0);
+  if (phoneSrc.pick === 'nat' && phoneSrc.nat[0] >= 4 && phoneSrc.tg[0] >= 4 && r(phoneSrc.nat) < 0.5 && r(phoneSrc.tg) >= 0.8) phoneSrc.pick = 'tg';
+  else if (phoneSrc.pick === 'tg' && r(phoneSrc.nat) >= 0.8) phoneSrc.pick = 'nat';
+  if (s !== phoneSrc.pick) return;
+  onGpsPoint(pos);
+}
+window.__phoneSrc = phoneSrc; // QA: какой источник выбран
 function stopGeoWatch() {
   try { if (run.watchId != null) navigator.geolocation.clearWatch(run.watchId); } catch (_) {}
   run.watchId = null;
@@ -4196,7 +4229,7 @@ function rdShareAugment() {
   try {
     const tp = tracePassport(run.sumPts); p.n = tp.n; p.hz = tp.hz; p.avgAcc = tp.avgAcc;
     // v118: на карточке телефона — только отметки зачёта C (60 ft / 0–50 телефон не меряет)
-    if (tp.gpsQ === 'C' && tp.src !== 'sim' && p.splits) for (const k of PHONE_NO_DISCS) delete p.splits[k];
+    if (tp.gpsQ === 'C' && tp.src !== 'sim' && p.splits) for (const k of (tp.src === 'phone' ? phoneOffDiscs(tp, S) : PHONE_NO_DISCS)) delete p.splits[k];
   } catch (_) {}
 }
 /** Дельты под главным результатом: к своему лучшему и к стоку (те же, что на карточке). */
@@ -4232,7 +4265,7 @@ function rdBadge(tp) {
   if (!b) return;
   const topOk = /в топе · проверено|в зачёте C · телефон/.test(run.topMsg || '');
   let text; let q;
-  if (tp.src === 'phone') { text = 'телефон · зачёт C'; q = 'C'; }
+  if (tp.src === 'phone') { text = 'телефон · справочно ≈'; q = 'C'; }
   else if (tp.src === 'sim') { text = 'симулятор · не в топ'; q = 'off'; }
   else { text = `GPS ${tp.gpsQ}` + (topOk ? ' · в топе' : tp.gpsQ === 'C' ? ' · не в топ' : ''); q = tp.gpsQ === 'C' ? 'off' : tp.gpsQ; }
   b.textContent = text;
@@ -4259,15 +4292,19 @@ function renderRunSummary() {
   const pts = rawSince(run.rawSeq0 || 0);
   run.sumPts = pts;
   let S = null;
-  try { S = coreDragSplits(pts); } catch (_) { S = { t0: null, marks: {}, dist: 0, vmax: 0 }; }
+  try { S = coreDragSplits(pts, undefined, { rollout: rolloutOn() }); } catch (_) { S = { t0: null, marks: {}, dist: 0, vmax: 0 }; }
   if (!run.rm) run.rm = createRunMarks();
   run.rm.S = S;
   rdPhase('final');
   const M = S.marks;
   const chip = (k) => (run.pops?.[k]?.src === 'chip' ? run.pops[k].sec : null);
-  const heroK = ['0-100', '402m', '201m', '0-60', '60ft'].find((k) => M[k]) || (chip('0-100') ? '0-100' : null);
-  setRunText('rdHeroK', heroK ? RM_LABEL[heroK] : 'Vmax');
-  setRunText('rdHeroV', heroK ? fmtRunSec(M[heroK]?.sec ?? chip(heroK)) : (S.vmax > 0 ? `${Math.round(S.vmax)} км/ч` : '—'));
+  const tp0 = tracePassport(pts);
+  const off0 = phoneOffDiscs(tp0, S); const isPh = tp0.src === 'phone';
+  for (const k of off0) if (isPh && off0.length > PHONE_NO_DISCS.length) delete M[k]; // v247: при < 5 Гц / без доплера — не показываем
+  const fmtS = (sec, k) => (isPh && M[k] ? fmtPhoneSec(sec, tp0, S) : fmtRunSec(sec));
+  const heroK = ['0-100', '402m', '201m', '0-60', '60ft'].filter((k) => !(isPh && PHONE_NO_DISCS.includes(k))).find((k) => M[k]) || (chip('0-100') ? '0-100' : null);
+  setRunText('rdHeroK', heroK ? RM_LABEL[heroK] + (isPh ? ' · телефон' : '') : 'Vmax');
+  setRunText('rdHeroV', heroK ? fmtS(M[heroK]?.sec ?? chip(heroK), heroK) : (S.vmax > 0 ? `${Math.round(S.vmax)} км/ч` : '—'));
   setRunText('rdStDist', S.t0 != null ? `${Math.round(S.dist)} м` : '—');
   const q = M['402m'] ? '402m' : M['201m'] ? '201m' : null;
   setRunText('rdStQK', q ? RM_LABEL[q] : '¼ мили');
@@ -4288,14 +4325,14 @@ function renderRunSummary() {
     const head = padEl('tr', 'h'); head.append(padEl('th', '', 'отметка'), padEl('td', '', 'время'), padEl('td', '', 'скорость · путь')); tb.appendChild(head);
     // v118: у телефона (зачёт C) 60 ft короче 2–3 точек — показываем справочно, с пометкой «вне зачёта»
     const offC = (k) => tp.gpsQ === 'C' && tp.src !== 'sim' && PHONE_NO_DISCS.includes(k);
-    for (const k of RM_DIST) if (M[k]) rdRow(tb, RM_LABEL[k] + (offC(k) ? ' · вне зачёта' : ''), M[k].sec.toFixed(2) + ' с', `${Math.round(M[k].v)} км/ч`, offC(k) ? 'off' : '');
+    for (const k of RM_DIST) if (M[k] && !(isPh && offC(k))) rdRow(tb, RM_LABEL[k], isPh ? fmtPhoneSec(M[k].sec, tp0, S) : M[k].sec.toFixed(2) + ' с', `${Math.round(M[k].v)} км/ч`, offC(k) ? 'off' : '');
     const span = (a, b) => (M[a]?.d != null && M[b]?.d != null ? `${Math.round(M[b].d - M[a].d)} м` : '');
     const speedRows = [['0-60', ''], ['0-100', ''], ['100-200', span('0-100', '0-200')], ['0-200', ''], ['200-300', span('0-200', '0-300')], ['0-300', ''], ['80-120', '']];
     for (const [k, path] of speedRows) {
       const sec = M[k]?.sec ?? chip(k);
       if (!(sec > 0)) continue;
       const via = !M[k] ? 'чип' : k.startsWith('0-') && M[k].d != null ? `${Math.round(M[k].d)} м` : path;
-      rdRow(tb, RM_LABEL[k], sec.toFixed(2) + ' с', via, k === heroK ? 'hero' : '');
+      rdRow(tb, RM_LABEL[k], isPh && M[k] ? fmtPhoneSec(sec, tp0, S) : sec.toFixed(2) + ' с', via, k === heroK ? 'hero' : '');
     }
     if (S.vmax > 0) rdRow(tb, 'Vmax', `${Math.round(S.vmax)} км/ч`, '');
     if (tb.children.length === 1) rdRow(tb, 'До 60 км/ч не дошло', '—', '');
@@ -10990,6 +11027,10 @@ document.getElementById('btnOpenZamerPage')?.addEventListener('click', () => {
 });
 
 
+{ // v247: учёт первого фута (rollout, как Dragy) — по умолчанию выкл.
+  const cb = document.getElementById('rolloutToggle');
+  if (cb) { cb.checked = rolloutOn(); cb.addEventListener('change', () => { try { localStorage.setItem(ROLLOUT_KEY, cb.checked ? '1' : '0'); } catch (_) {} }); }
+}
 document.getElementById('btnEnableImu')?.addEventListener('click', async () => {
   const tip = document.getElementById('imuTip');
   try {
@@ -13202,7 +13243,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v246';
+const APP_VERSION = 'v247';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

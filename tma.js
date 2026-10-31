@@ -228,6 +228,26 @@ export function openLocationSettings() {
   return true;
 }
 
+/**
+ * v247: геолокация Telegram (LocationManager, 8.0+) — один фикс без лишнего запроса доступа.
+ * cb(pos|null), pos в формате Geolocation API. Запрос доступа не делаем: только если уже разрешено.
+ */
+export function tmaLocationReady() { return canOpenLocationSettings(); }
+export function tmaGetLocation(cb) {
+  if (!canOpenLocationSettings()) return cb(null);
+  const LM = WebApp.LocationManager;
+  const get = () => {
+    if (!LM.isLocationAvailable || !LM.isAccessGranted) return cb(null);
+    call(() => LM.getLocation((d) => {
+      if (!d || !Number.isFinite(d.latitude)) return cb(null);
+      cb({ timestamp: Date.now(), _tg: true, coords: { latitude: d.latitude, longitude: d.longitude, altitude: d.altitude ?? null,
+        speed: Number.isFinite(d.speed) && d.speed >= 0 ? d.speed : null, accuracy: d.horizontal_accuracy ?? null,
+        speedAccuracy: d.speed_accuracy ?? null, heading: d.course ?? null } });
+    }));
+  };
+  if (LM.isInited) get(); else call(() => LM.init(get));
+}
+
 /* ---------- sharing ---------- */
 export function tmaStartLink(bot, param) {
   bot = String(bot || '').replace(/^@/, '');
