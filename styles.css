@@ -7487,6 +7487,10 @@ canvas.pin209-i { width: 150px; height: 150px; display: block; margin: 0 auto; }
 .cdb-logo.txt { border-radius: 50%; background: #232427; font: 700 18px/1 var(--font-ui); }
 .cdb-logo.big { width: 48px; height: 48px; }
 .cdb-row .cdb-logo { width: 28px; height: 28px; }
+.cdb-logo.mono { border-radius: 50%; background: #1c1d20; border: 1px solid rgba(242,239,233,.14); color: #f2efe9; font: 600 13px/1 var(--font-ui); letter-spacing: .04em; }
+.cdb-logo.mono.long { font-size: 10px; letter-spacing: .02em; }
+.cdb-row .cdb-logo.mono { font-size: 10px; }
+.cdb-row .cdb-logo.mono.long { font-size: 8px; }
 .cdb-grp { margin: 18px 2px 8px; font: 500 11px/16px var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: #7a7c82; }
 .cdb-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin: 0 0 6px; padding: 14px 16px; border: 0; border-radius: 14px; background: #141516; color: #f2efe9; text-align: left; cursor: pointer; }
 .cdb-l { display: flex; align-items: center; gap: 12px; min-width: 0; }

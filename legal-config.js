@@ -12,7 +12,7 @@ export const LEGAL_CONFIG = {
   city: 'г. Краснодар',          // город продавца (Robokassa: для самозанятого достаточно города)
   taxStatus: 'плательщик налога на профессиональный доход (самозанятый)',    // например: 'плательщик налога на профессиональный доход (самозанятый)'
 };
-export const LEGAL_REVISION = '11.10.2026'; // v137: + заявки магазина
+export const LEGAL_REVISION = '01.11.2026'; // v252: возврат 14 дней, доставка, справочные замеры, где хранятся данные
 export const LEGAL_CONTACT_BOT = 'pitlane_official_bot';
 /** Можно продавать платное (Pro, сезон комнаты) только при заполненных реквизитах. */
 export function legalReady(c = LEGAL_CONFIG) {
