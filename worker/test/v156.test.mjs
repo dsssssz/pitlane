@@ -25,7 +25,7 @@ ok(/will-change: clip-path/.test(c) && !/rd53Clip[^}]*(width|height|top|left):/.
 ok(/if \(document\.body\.classList\.contains\('run-drive-on'\)\) return; \/\/ v156/.test(app), 'под спидометром «Замер» не перерисовывается');
 // (3) автостарт
 ok(/id="h56Mode" role="radiogroup"[\s\S]{0,200}data-as56="0"[^>]*>Вручную<[\s\S]{0,120}data-as56="1"[^>]*>Автостарт</.test(html), '«Замер»: режим Вручную / Автостарт');
-ok(/ready: \['Готов', /.test(app) && /if \(as56Mode\(\)\) \{ if \(AS56\.wait\) as56Stop\(\); else withSafety\(as56Start\)\(\); return; \}/.test(app), 'в автостарте кнопка = «Готов» (повторно — отмена)');
+ok(/ready: \['(?:Готов|Взвести)', /.test(app) && /if \(as56Mode\(\)\) \{ if \(AS56\.wait\) as56Stop\(\); else withSafety\(as56Start\)\(\); return; \}/.test(app), 'в автостарте кнопка = «Готов» (повторно — отмена)');
 ok(/if \(AS56\.wait && !run\.armed\) as56Tick\(pos, v, now\);/.test(app) && /run\.rawSeq0 = opts\.rawSeq0 != null \? opts\.rawSeq0 : rawSeq;/.test(app), 'GPS-точки → автостарт; трек с момента остановки');
 { // поведение as56Tick: стоим ≥ 1 с → трогание > 1.5 км/ч две точки подряд
   const src = app.slice(app.indexOf('function as56Tick('), app.indexOf('function as56Fire('));

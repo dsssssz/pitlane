@@ -36,8 +36,8 @@
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-AKOXZGKS.js" />
-    <link rel="stylesheet" href="./styles-40593DEF.css" />
+    <link rel="modulepreload" href="./b/app-TJL2AVDZ.js" />
+    <link rel="stylesheet" href="./styles-2B245030.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -148,9 +148,15 @@
         <section id="view-zamer" class="view active">
           <!-- v152: вкладка «Замер» — одна кнопка «Старт», под ней машина и GPS -->
           <section class="h48" id="h48" aria-label="Замер">
-            <div class="h56-mode" id="h56Mode" role="radiogroup" aria-label="Режим старта"><button type="button" role="radio" data-as56="0" aria-checked="true">Вручную</button><button type="button" role="radio" data-as56="1" aria-checked="false">Автостарт</button></div>
+            <!-- v268: прибор — строка готовности, шкала с целью (рекорд · завод), дистанция свайпом по шкале -->
+            <button type="button" class="rv-ready" id="rvReady" aria-live="polite" aria-haspopup="dialog" aria-controls="gps61">GPS включится на старте</button>
+            <div class="rv-g" id="rvGauge" role="group" aria-label="Дистанция и цель — свайп по шкале">
+              <svg class="rv-g-svg" id="rvGaugeSvg" viewBox="0 0 320 320" aria-hidden="true"></svg>
+              <div class="rv-g-c"><span class="rv-g-k" id="rvDistK">0–100</span><strong class="rv-g-v" id="rvTargetV">—</strong><span class="rv-g-s" id="rvTargetS">рекорда пока нет</span></div>
+              <div class="rv-dist" id="rvDist" role="radiogroup" aria-label="Дистанция"></div>
+            </div>
+            <div class="rv-row"><button type="button" class="h48-car" id="h48Car" aria-haspopup="dialog" aria-label="Выбрать машину">Машина не выбрана</button><div class="h56-mode" id="h56Mode" role="radiogroup" aria-label="Режим старта"><button type="button" role="radio" data-as56="0" aria-checked="true">Вручную</button><button type="button" role="radio" data-as56="1" aria-checked="false">Автостарт</button></div></div>
             <button type="button" class="h48-start" id="h48Start">Старт<small class="h56-sub" id="h56Sub"></small></button>
-            <button type="button" class="h48-car" id="h48Car" aria-haspopup="dialog" aria-label="Выбрать машину">Машина не выбрана</button>
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
             <p class="z202-hint" id="z202Hint">Сядь в машину и нажми Старт</p>
             <div class="z61-rows" role="group" aria-label="Параметры замера">
@@ -1462,6 +1468,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-AKOXZGKS.js"></script>
+    <script type="module" src="./b/app-TJL2AVDZ.js"></script>
   </body>
 </html>
