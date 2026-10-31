@@ -14,7 +14,7 @@ ok(fs.existsSync(root + 'fonts/Inter-OFL.txt') && /SIL OPEN FONT LICENSE/i.test(
 ok(/@font-face \{ font-family: "PL Num"; src: url\("\.\/fonts\/pl-num\.woff2"\)/.test(css) && /unicode-range: U\+0020-003A/.test(css), '@font-face c unicode-range (только цифры)');
 ok(!/Barlow Condensed|Oswald/.test(css) && !/Barlow\+Condensed|Oswald/.test(html), 'Barlow/Oswald убраны — один шрифт для цифр');
 ok(/body \{ font-variant-numeric: tabular-nums; \}/.test(css), 'tabular-nums');
-ok(/font-src 'self' data: https:\/\/fonts\.gstatic\.com;/.test(html) && /script-src 'self'/.test(html), 'CSP не менялся');
+ok(/font-src 'self' data:;/.test(html) && !/fonts\.(gstatic|googleapis)\.com/.test(html) && /script-src 'self'/.test(html), 'CSP: шрифты только свои (v250 — Google Fonts убраны)');
 ok(/pl-num\.woff2/.test(sw) && /pl-sans\.woff2/.test(sw), 'шрифт в precache SW');
 console.log('[токены и акцент]');
 for (const t of ['--c-acc', '--r-lg', '--sp-4', '--sh-1', '--font-num', '--c-line']) ok(css.includes(t + ':'), 'токен ' + t);

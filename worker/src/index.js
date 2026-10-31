@@ -39,7 +39,7 @@ import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPaym
 import { decodeGhost, checkGhost, encodeGhost, GHOST_MAX_CHARS } from '../../ghost-codec.js';
 import { verifyLap, verifyDrag, verifyLapLoose } from './verify.js';
 
-const DEFAULT_ORIGINS = ['https://dsssssz.github.io', 'https://pitlanegps.ru', 'https://www.pitlanegps.ru', 'https://pitlane-a84.pages.dev'];
+const DEFAULT_ORIGINS = ['https://dsssssz.github.io']; // v250: только боевой origin; прочие — через EXTRA_ORIGINS
 
 const SHARE_TTL = 30 * 24 * 60 * 60; // 30 days
 const SESS_TTL = 90 * 24 * 60 * 60; // 90 days — индекс сессий и старые (до v104) токены
