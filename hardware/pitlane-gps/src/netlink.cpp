@@ -13,10 +13,30 @@
 #include "certs.h"
 #include "marks.h"
 #include "netbuf.h"
+#include "mbedtls/sha256.h"
+#include <esp_mac.h>
 
 namespace netlink {
 
 static Preferences prefs;
+// v248: адрес сервера настраивается на странице чипа (по умолчанию PL_API_HOST), хранится в prefs "host"
+static String apiHost = PL_API_HOST;
+// v248: уникальный пароль точки настройки — из MAC чипа + соль сборки (PL_AP_SALT), 10 символов без I/O/0/1
+static char apPass[12] = "";
+static void makeApPass() {
+  uint8_t mac[6] = {0}; esp_efuse_mac_get_default(mac);
+  String in = String(PL_AP_SALT) + ":";
+  char hx[13]; snprintf(hx, sizeof hx, "%02X%02X%02X%02X%02X%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]); in += hx;
+  uint8_t h[32]; mbedtls_sha256((const unsigned char*)in.c_str(), in.length(), h, 0);
+  static const char* A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  for (int i = 0; i < 10; i++) apPass[i] = A[h[i] & 31];
+  apPass[10] = 0;
+}
+static bool hostOk(const String& h) {
+  if (h.length() < 4 || h.length() > 80 || h.indexOf('.') < 1 || h.startsWith(".") || h.endsWith(".")) return false;
+  for (size_t i = 0; i < h.length(); i++) { char c = h[i]; if (!((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '.' || c == '-')) return false; }
+  return true;
+}
 static String ssid, pass, code, token;
 static char devName[24] = "PITLANE-GPS", fwVer[16] = "2.0.0", bid[10] = "";
 static WebServer* http = nullptr;
@@ -76,16 +96,16 @@ static void checkDns() {
   IPAddress ip;
   Serial.printf("[pitlane-gps] сеть: IP %s, шлюз %s, DNS %s, RSSI %d\n", WiFi.localIP().toString().c_str(),
                 WiFi.gatewayIP().toString().c_str(), WiFi.dnsIP(0).toString().c_str(), (int)WiFi.RSSI());
-  if (WiFi.hostByName(PL_API_HOST, ip) == 1 && ip != IPAddress(0, 0, 0, 0)) {
-    Serial.printf("[pitlane-gps] DNS: %s → %s\n", PL_API_HOST, ip.toString().c_str());
+  if (WiFi.hostByName(apiHost.c_str(), ip) == 1 && ip != IPAddress(0, 0, 0, 0)) {
+    Serial.printf("[pitlane-gps] DNS: %s → %s\n", apiHost.c_str(), ip.toString().c_str());
     return;
   }
   Serial.println("[pitlane-gps] DNS: хотспот не резолвит — переключаемся на 1.1.1.1 / 8.8.8.8");
   setPublicDns();
-  if (WiFi.hostByName(PL_API_HOST, ip) == 1 && ip != IPAddress(0, 0, 0, 0))
-    Serial.printf("[pitlane-gps] DNS (1.1.1.1): %s → %s\n", PL_API_HOST, ip.toString().c_str());
+  if (WiFi.hostByName(apiHost.c_str(), ip) == 1 && ip != IPAddress(0, 0, 0, 0))
+    Serial.printf("[pitlane-gps] DNS (1.1.1.1): %s → %s\n", apiHost.c_str(), ip.toString().c_str());
   else
-    Serial.printf("[pitlane-gps] DNS: ОШИБКА — %s не резолвится ни через хотспот, ни через 1.1.1.1/8.8.8.8\n", PL_API_HOST);
+    Serial.printf("[pitlane-gps] DNS: ОШИБКА — %s не резолвится ни через хотспот, ни через 1.1.1.1/8.8.8.8\n", apiHost.c_str());
 }
 // Пробное TLS-соединение host:443: код и текст ошибки mbedTLS, heap, время. При ошибке с проверкой —
 // повтор без проверки сертификата ТОЛЬКО для диагноза (данные не передаются), чтобы отличить сертификат от сети.
@@ -93,18 +113,18 @@ static bool tlsProbe() {
   uint32_t t0 = millis();
   if (ESP.getMaxAllocHeap() < 40000)
     Serial.printf("[pitlane-gps] TLS: мало памяти одним куском (%lu Б) — рукопожатие может упасть с -32512\n", (unsigned long)ESP.getMaxAllocHeap());
-  Serial.printf("[pitlane-gps] TLS: проба %s:443 · heap %lu (макс. блок %lu) · time %ld\n", PL_API_HOST,
+  Serial.printf("[pitlane-gps] TLS: проба %s:443 · heap %lu (макс. блок %lu) · time %ld\n", apiHost.c_str(),
                 (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap(), (long)time(nullptr));
   WiFiClientSecure c; tlsSetup(c); c.setHandshakeTimeout(15);
-  bool ok = c.connect(PL_API_HOST, 443, 15000);
+  bool ok = c.connect(apiHost.c_str(), 443, 15000);
   char eb[128] = ""; int ec = c.lastError(eb, sizeof eb);
   c.stop();
   if (ok) { Serial.printf("[pitlane-gps] TLS: OK за %lu мс\n", (unsigned long)(millis() - t0)); return true; }
   Serial.printf("[pitlane-gps] TLS: ОШИБКА за %lu мс · mbedTLS -0x%04X: %s · heap %lu\n", (unsigned long)(millis() - t0),
                 (unsigned)(-ec), eb, (unsigned long)ESP.getFreeHeap());
-#ifndef PL_TLS_INSECURE
+#if defined(PL_TLS_DIAG) && !defined(PL_TLS_INSECURE)   // v248: проба без проверки сертификата — только в отладочной сборке
   WiFiClientSecure d; d.setInsecure(); d.setHandshakeTimeout(15);
-  bool ok2 = d.connect(PL_API_HOST, 443, 15000);
+  bool ok2 = d.connect(apiHost.c_str(), 443, 15000);
   char eb2[128] = ""; int ec2 = d.lastError(eb2, sizeof eb2);
   d.stop();
   if (ok2) Serial.println("[pitlane-gps] TLS: без проверки сертификата соединяется → проблема в цепочке/корнях или во времени");
@@ -194,6 +214,10 @@ static void handleRoot() {
        "<input name=pass type=password maxlength=63 placeholder='" + String(pass.length() ? "оставьте пустым, чтобы не менять" : "") + "'>"
        "<label>Код привязки из PITLANE (Замер → Внешний GPS (Wi-Fi) → «Привязать чип»)</label>"
        "<input name=code maxlength=6 autocapitalize=characters autocomplete=off placeholder='" + String(token.length() ? "не нужен — уже привязан" : "например K7P2QX") + "'>"
+       "<details><summary>Сервер (менять, только если попросила поддержка PITLANE)</summary>"
+       "<label>Адрес сервера · сейчас " + esc(apiHost) + "</label>"
+       "<input name=host maxlength=80 autocapitalize=off autocomplete=off placeholder='оставьте пустым; «-» — по умолчанию'>"
+       "<p>Смена адреса сбрасывает привязку — понадобится новый код.</p></details>"
        "<button type=submit>Сохранить</button></form>"
        "<p>После «Сохранить» выйдите из этой сети и включите Режим модема с «Разрешать другим» и «Максимальная совместимость». "
        "Индикатор связи станет голубым, когда поток пойдёт в PITLANE.</p>";
@@ -207,6 +231,15 @@ static void handleSave() {
   if (!s.length() || s.length() > 32) { sendPage("<h1>Нужно имя сети</h1><p><a href=/>Назад</a></p>"); return; }
   bool codeOk = c.length() == 6;
   for (size_t i = 0; codeOk && i < c.length(); i++) { char ch = c[i]; codeOk = (ch >= 'A' && ch <= 'Z' && ch != 'I' && ch != 'O') || (ch >= '2' && ch <= '9'); }
+  String hs = http->arg("host"); hs.trim(); hs.toLowerCase();
+  if (hs.startsWith("https://")) hs = hs.substring(8);
+  while (hs.endsWith("/")) hs.remove(hs.length() - 1);
+  if (hs == "-") hs = PL_API_HOST;
+  if (hs.length() && !hostOk(hs)) { sendPage("<h1>Неверный адрес сервера</h1><p>Только домен, например pitlane-api.example.ru. <a href=/>Назад</a></p>"); return; }
+  if (hs.length() && hs != apiHost) {   // токен не уезжает на новый сервер: привязка сбрасывается
+    apiHost = hs; prefs.putString("host", apiHost);
+    token = ""; prefs.remove("token"); tokenErr = false; buf.clear();
+  }
   if (c.length() && !codeOk) { sendPage("<h1>Код — 6 символов</h1><p>Буквы и цифры из PITLANE, без I/O/0/1. <a href=/>Назад</a></p>"); return; }
   if (s != ssid || p.length()) { ssid = s; if (p.length() || s != prefs.getString("ssid", "")) pass = p; prefs.putString("ssid", ssid); prefs.putString("pass", pass); }
   if (codeOk) { code = c; prefs.putString("code", code); token = ""; prefs.remove("token"); pairErr = tokenErr = false; buf.clear(); }
@@ -246,7 +279,7 @@ void startPortal(uint32_t minutes) {
   WiFi.disconnect(false, false);
   WiFi.mode(WIFI_AP_STA); txPower();
   WiFi.softAPConfig(IPAddress(192, 168, 4, 1), IPAddress(192, 168, 4, 1), IPAddress(255, 255, 255, 0));
-  WiFi.softAP(devName, PL_AP_PASS);
+  WiFi.softAP(devName, apPass);
   WiFi.scanNetworks(true);
   if (!dns) dns = new DNSServer();
   dns->start(53, "*", IPAddress(192, 168, 4, 1));
@@ -262,7 +295,7 @@ void startPortal(uint32_t minutes) {
   http->begin();
   portalOn = true; portalSaved = false; portalStopAt = 0;
   portalUntil = minutes ? millis() + minutes * 60000UL : 0;
-  Serial.printf("[pitlane-gps] настройка Wi-Fi: сеть %s, пароль %s, http://192.168.4.1\n", devName, PL_AP_PASS);
+  Serial.printf("[pitlane-gps] настройка Wi-Fi: сеть %s, пароль %s, http://192.168.4.1\n", devName, apPass);
 }
 static void stopPortal() {
   if (!portalOn) return;
@@ -284,7 +317,7 @@ static void tryClaim(uint32_t now) {
   claimAt = now;
   WiFiClientSecure cli; tlsSetup(cli); cli.setTimeout(15); cli.setHandshakeTimeout(15);
   HTTPClient hc;
-  if (!hc.begin(cli, "https://" PL_API_HOST "/gps/claim")) return;
+  if (!hc.begin(cli, "https://" + apiHost + "/gps/claim")) return;
   Serial.printf("[pitlane-gps] привязка: POST /gps/claim (код %s) · heap %lu, блок %lu\n", code.c_str(), (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
   hc.addHeader("Content-Type", "application/json");
   char body[160];
@@ -354,11 +387,11 @@ static void wsEvent(WStype_t type, uint8_t* payload, size_t len) {
 static void startWs() {
   String hdr = "Authorization: Bearer " + token;
 #ifdef PL_TLS_INSECURE
-  ws.beginSSL(PL_API_HOST, 443, "/gps/ws", "", "");   // отладка: без проверки сертификата
+  ws.beginSSL(apiHost.c_str(), 443, "/gps/ws", "", "");   // отладка: без проверки сертификата
 #else
-  ws.beginSslWithCA(PL_API_HOST, 443, "/gps/ws", PL_CA_BUNDLE, "");
+  ws.beginSslWithCA(apiHost.c_str(), 443, "/gps/ws", PL_CA_BUNDLE, "");
 #endif
-  Serial.printf("[pitlane-gps] сервер: WS wss://%s/gps/ws · heap %lu, блок %lu\n", PL_API_HOST, (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
+  Serial.printf("[pitlane-gps] сервер: WS wss://%s/gps/ws · heap %lu, блок %lu\n", apiHost.c_str(), (unsigned long)ESP.getFreeHeap(), (unsigned long)ESP.getMaxAllocHeap());
   ws.setExtraHeaders(hdr.c_str());
   ws.onEvent(wsEvent);
   ws.setReconnectInterval(5000);          // 2.1.3: не чаще раза в 5 с (TLS-рукопожатие на C3 ~1–3 с)
@@ -376,6 +409,8 @@ void begin(const char* name, const char* fw) {
   prefs.begin("plnet", false);
   ssid = prefs.getString("ssid", ""); pass = prefs.getString("pass", "");
   code = prefs.getString("code", ""); token = prefs.getString("token", "");
+  { String h = prefs.getString("host", ""); if (hostOk(h)) apiHost = h; }
+  makeApPass();
   WiFi.persistent(false);
   WiFi.setHostname(devName);
   if (!ssid.length()) { startPortal(0); return; }   // первый запуск: сразу режим настройки

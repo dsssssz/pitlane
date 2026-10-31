@@ -9,8 +9,10 @@
 #ifndef PL_API_HOST
 #define PL_API_HOST "pitlane-api.pitlane-taksimaga.workers.dev"
 #endif
-#ifndef PL_AP_PASS
-#define PL_AP_PASS "pitlanegps"   // пароль точки доступа чипа для настройки (README); не секрет сервера
+// v248: пароль точки настройки у каждого чипа свой — SHA-256(PL_AP_SALT + ":" + MAC) → 10 символов (tools/ap-pass.mjs).
+// Соль для серийных чипов задавать флагом сборки -DPL_AP_SALT=\"...\" (не хранить в репозитории).
+#ifndef PL_AP_SALT
+#define PL_AP_SALT "pitlane-dev"
 #endif
 #ifndef PL_BATCH_MS
 #define PL_BATCH_MS 200           // пачка точек раз в 200 мс (25 Гц → 5 точек); отметки уходят сразу
