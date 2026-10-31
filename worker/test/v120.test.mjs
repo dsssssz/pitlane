@@ -35,8 +35,8 @@ for (const id of ['seasonCard', 'sectorTopsCard', 'sessionDayCard', 'btnSectorTo
 ok(/showWhen\(card, !!_season/.test(app) && /showWhen\('sectorTopsCard', rows\.length >= SHOW_MIN\.sectors\)/.test(app) && /showWhen\('sessionDayCard'/.test(app), 'сезон/секторы/сессия дня появляются по данным');
 ok(/if \(q\.sales === false\) return document\.createComment/.test(rooms), 'инвойсы комнат: без продаж блок оплаты не показывается');
 const headActions = (html.match(/<div class="tops-head">([\s\S]*?)<\/div>/) || [])[1] || '';
-ok((headActions.match(/<button/g) || []).length === 1 && /id="btnTopsMenu"/.test(headActions), 'шапка Топов: одна кнопка «Фильтры»');
-ok(/id="topsMenu"[\s\S]*id="topsCls"[\s\S]*id="topValidOnly"[\s\S]*id="topPrepChips"[\s\S]*id="btnAutodromesOpen"/.test(html), 'класс, фильтры и разделы — в меню (id прежние)');
+ok((headActions.match(/<button/g) || []).length === 0, 'шапка Топов без кнопки-меню (v271)');
+ok(/id="topsCls"[\s\S]*id="topsChips"[\s\S]*id="topMyCityOnly"[\s\S]*id="topsMore"[\s\S]*id="topValidOnly"[\s\S]*id="topPrepChips"[\s\S]*id="btnAutodromesOpen"/.test(html), 'v271: класс и дисциплина сверху, остальное — в «Ещё фильтры»');
 ok(/id="accMusic"/.test(html) && /id="sfxToggle"/.test(html) && /id="accBanner"/.test(html), 'музыка/звук/баннер — в профиле');
 ok(/msFromOpen/.test(app) && !/fetch\([^)]*first-run/.test(app), 'метрика первого замера — только локально');
 const ver = (app.match(/APP_VERSION = '(v\d+)'/) || [])[1];

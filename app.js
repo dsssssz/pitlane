@@ -13347,27 +13347,18 @@ async function checkLegacyRooms() {
   } catch (_) {}
 }
 setTimeout(() => { void checkLegacyRooms(); }, 2500);
-/* v120: шапка Топов — одно меню «Фильтры» */
+/* v271: «Ещё фильтры» — в свёрнутом блоке, в заголовке число активных */
 function topsActiveLine() {
-  const bits = [];
-  try { bits.push(_topsCls === 'c' ? 'C · телефон' : 'A/B · внешний GPS'); } catch (_) {}
-  const m = document.getElementById('topModelFilter'); if (m && m.value) bits.push(m.selectedOptions?.[0]?.textContent || m.value);
-  if (document.getElementById('topMyCarOnly')?.checked) bits.push('моя машина');
-  if (document.getElementById('topValidOnly') && !document.getElementById('topValidOnly').checked) bits.push('все GPS');
-  const wx = document.querySelector('#topWeatherChips .wx-chip.on'); if (wx && wx.dataset.wx !== 'all') bits.push(wx.textContent.toLowerCase());
-  const pr = document.querySelector('#topPrepChips .wx-chip.on'); if (pr && pr.dataset.prep !== 'all') bits.push(pr.textContent);
-  if (topsTodFilter !== 'all') bits.push(topsTodFilter === 'day' ? 'днём' : 'вечером');
-  const el = document.getElementById('topsActive'); if (el) el.textContent = bits.join(' · ');
+  let n = 0;
+  const m = document.getElementById('topModelFilter'); if (m && m.value) n++;
+  if (document.getElementById('topValidOnly') && !document.getElementById('topValidOnly').checked) n++;
+  const wx = document.querySelector('#topWeatherChips .wx-chip.on'); if (wx && wx.dataset.wx !== 'dry') n++;
+  const pr = document.querySelector('#topPrepChips .wx-chip.on'); if (pr && pr.dataset.prep !== 'all') n++;
+  if (topsTodFilter !== 'all') n++;
+  const el = document.getElementById('topsActive'); if (el) el.textContent = n ? String(n) : '';
 }
-document.getElementById('btnTopsMenu')?.addEventListener('click', () => {
-  const menu = document.getElementById('topsMenu'); const b = document.getElementById('btnTopsMenu');
-  if (!menu || !b) return;
-  menu.hidden = !menu.hidden;
-  b.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
-  b.classList.toggle('on', !menu.hidden);
-});
-document.getElementById('topsMenu')?.addEventListener('click', (e) => { if (e.target.closest?.('.tops-menu-links button')) { const m = document.getElementById('topsMenu'); if (m) m.hidden = true; document.getElementById('btnTopsMenu')?.setAttribute('aria-expanded', 'false'); document.getElementById('btnTopsMenu')?.classList.remove('on'); } setTimeout(topsActiveLine, 0); });
-document.getElementById('topsMenu')?.addEventListener('change', () => setTimeout(topsActiveLine, 0));
+document.getElementById('topsMore')?.addEventListener('click', (e) => { if (e.target.closest?.('.tops-menu-links button')) { const m = document.getElementById('topsMore'); if (m) m.open = false; } setTimeout(topsActiveLine, 0); });
+document.getElementById('topsMore')?.addEventListener('change', () => setTimeout(topsActiveLine, 0));
 setTimeout(topsActiveLine, 0);
 document.getElementById('h48Car')?.addEventListener('click', () => openQuickCarSheet());
 document.getElementById('btnMyCarAcc')?.addEventListener('click', () => openMyCarSheet());
@@ -13473,7 +13464,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v270';
+const APP_VERSION = 'v271';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -16791,34 +16782,51 @@ let _topsSel = (() => {
   } catch (_) {}
   return { kind: 'drag', id: '0-100' };
 })();
+/* v271: дисциплины — разгоны + «Круг»; список трасс показывается только для круга */
+let _topsLastTrack = (() => { try { return localStorage.getItem('pitlane-tops-track-v1') || ''; } catch (_) { return ''; } })();
 function renderTopsChips() {
   const box = document.getElementById('topsChips');
+  const trk = document.getElementById('topsTracks');
   if (!box) return;
+  if (_topsSel.kind === 'lap' && _topsSel.id) { _topsLastTrack = _topsSel.id; try { localStorage.setItem('pitlane-tops-track-v1', _topsSel.id); } catch (_) {} }
+  const mk = (host, kind, id, label, icon) => {
+    const b = padEl('button', 'tchip');
+    b.type = 'button'; b.dataset.kind = kind; b.dataset.id = id;
+    if (icon) b.appendChild(icon);
+    b.appendChild(padEl('span', '', label));
+    host.appendChild(b);
+  };
   if (!box.childElementCount) {
-    const mk = (kind, id, label, icon) => {
-      const b = padEl('button', 'tchip');
-      b.type = 'button';
-      b.dataset.kind = kind;
-      b.dataset.id = id;
-      if (icon) b.appendChild(icon);
-      b.appendChild(padEl('span', '', label));
-      box.appendChild(b);
-    };
-    DRAG_DISC.forEach((d) => mk('drag', d.id, d.label, null));
-    box.appendChild(padEl('span', 'tchip-sep'));
-    TRACKS.forEach((t) => mk('lap', t.id, t.name, trackSilhouetteSvg(t.id, 16, 'tchip-trk')));
+    DRAG_DISC.forEach((d) => mk(box, 'drag', d.id, d.label, null));
+    mk(box, 'lap', '', 'Круг', null);
   }
-  let onEl = null;
+  if (trk && !trk.childElementCount) TRACKS.forEach((t) => mk(trk, 'lap', t.id, t.name, trackSilhouetteSvg(t.id, 16, 'tchip-trk')));
+  const isLap = _topsSel.kind === 'lap';
+  if (trk) trk.hidden = !isLap;
+  let onEl = null, onTrk = null;
   box.querySelectorAll('.tchip').forEach((b) => {
-    const on = b.dataset.kind === _topsSel.kind && b.dataset.id === _topsSel.id;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-pressed', String(on));
+    const on = b.dataset.kind === 'lap' ? isLap : (!isLap && b.dataset.id === _topsSel.id);
+    b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
     if (on) onEl = b;
   });
-  if (onEl && !box.dataset.scrolled) {
-    box.dataset.scrolled = '1';
-    try { box.scrollLeft = Math.max(0, box.scrollLeft + onEl.getBoundingClientRect().left - box.getBoundingClientRect().left - 16); } catch (_) {}
+  trk?.querySelectorAll('.tchip').forEach((b) => {
+    const on = isLap && b.dataset.id === _topsSel.id;
+    b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
+    if (on) onTrk = b;
+  });
+  for (const [host, el] of [[box, onEl], [trk, onTrk]]) {
+    if (!host || !el || host.dataset.scrolled === (el.dataset.id || 'lap')) continue;
+    host.dataset.scrolled = el.dataset.id || 'lap';
+    try { host.scrollLeft = Math.max(0, host.scrollLeft + el.getBoundingClientRect().left - host.getBoundingClientRect().left - 16); } catch (_) {}
   }
+  syncTopsQuick();
+}
+function syncTopsQuick() {
+  for (const [lab, id] of [['tqCity', 'topMyCityOnly'], ['tqCar', 'topMyCarOnly']]) {
+    const l = document.getElementById(lab); const c = document.getElementById(id);
+    if (l && c) l.classList.toggle('on', !!c.checked);
+  }
+  const cs = document.querySelector('#tqCity span'); if (cs) cs.textContent = document.getElementById('topMyCityOnly')?.checked && myCity() ? myCity() : 'Мой город';
 }
 function lapMs(t) {
   try { const v = parseLapMsClient(t); if (Number.isFinite(v) && v > 0) return v; } catch (_) {}
@@ -16887,8 +16895,8 @@ function topsClassPass(r) {
   if (document.getElementById('topMyCarOnly')?.checked) {
     const mc = myCarLocal();
     if (!mc) return false;
-    if (mc.carId && r.carId) return mc.carId === r.carId;
-    return String(mc.model).trim().toLowerCase() === String(r.car || '').trim().toLowerCase();
+    if (mc.carId && r.carId) { if (mc.carId !== r.carId) return false; }
+    else if (String(mc.model).trim().toLowerCase() !== String(r.car || '').trim().toLowerCase()) return false;
   }
   if (topsCityOn() && topsCityKey(r.city) !== topsCityKey(myCity())) return false; // v234
   return true;
@@ -16910,7 +16918,7 @@ async function askMyCity() {
 document.getElementById('topCitySet')?.addEventListener('click', async (e) => { e.preventDefault(); e.stopPropagation(); hap(6); await askMyCity(); void renderTopsBoard(); });
 document.getElementById('topMyCityOnly')?.addEventListener('change', async (e) => {
   if (e.target.checked && !myCity() && !(await askMyCity())) e.target.checked = false;
-  void renderTopsBoard();
+  syncTopsQuick(); hap(6); void renderTopsBoard();
 });
 syncTopsCity();
 document.getElementById('topPrepChips')?.addEventListener('click', (e) => {
@@ -16921,14 +16929,14 @@ document.getElementById('topPrepChips')?.addEventListener('click', (e) => {
   hap(6);
   void renderTopsBoard();
 });
-document.getElementById('topMyCarOnly')?.addEventListener('change', () => { void renderTopsBoard(); });
+document.getElementById('topMyCarOnly')?.addEventListener('change', (e) => { if (e.target.checked && !myCarLocal()) { e.target.checked = false; try { openMyCarSheet(); } catch (_) {} } syncTopsQuick(); hap(6); void renderTopsBoard(); });
 let _topsBoardSeq = 0;
 /* v192: Неделя / Всё время (только круги) */
-let _topsPeriod = (() => { try { return localStorage.getItem('pitlane-tops-period') === 'week' ? 'week' : 'all'; } catch (_) { return 'all'; } })();
+let _topsPeriod = (() => { try { return (v => (v === 'week' || v === 'today') ? v : 'all')(localStorage.getItem('pitlane-tops-period')); } catch (_) { return 'all'; } })();
 function syncTopsPeriod() { document.querySelectorAll('#topsPeriod [data-per]').forEach((b) => { const on = b.dataset.per === _topsPeriod; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); }); }
 document.getElementById('topsPeriod')?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('[data-per]'); if (!b) return;
-  _topsPeriod = b.dataset.per === 'week' ? 'week' : 'all';
+  _topsPeriod = ['week', 'today'].includes(b.dataset.per) ? b.dataset.per : 'all';
   try { localStorage.setItem('pitlane-tops-period', _topsPeriod); } catch (_) {}
   syncTopsPeriod(); hap(6); void renderTopsBoard();
 });
@@ -16959,6 +16967,12 @@ document.getElementById('topsCls')?.addEventListener('click', (e) => {
   syncTopsCls();
   void renderTopsBoard();
 });
+function topsPeriodFilter(rows) {
+  if (_topsPeriod === 'all') return rows;
+  if (_topsPeriod === 'week') { const ws = awWeekStart(); return rows.filter((r) => Number(r.at) >= ws); }
+  const key = moscowDateKeyClient();
+  return rows.filter((r) => r && r.at && moscowDateKeyClient(Number(r.at)) === key);
+}
 async function renderTopsBoard() {
   const ol = document.getElementById('topsBoard');
   if (!ol) return;
@@ -16975,7 +16989,7 @@ async function renderTopsBoard() {
   if (title) title.textContent = sel.kind === 'lap' ? trackShortName(sel.id) : (dragDiscMeta(sel.id)?.title || sel.id);
   if (sub) {
     const tr = sel.kind === 'lap' ? TRACKS.find((t) => t.id === sel.id) : null;
-    sub.textContent = [sel.kind === 'lap' ? (tr?.km ? tr.km + ' км' : 'круг') : (cls === 'c' ? '' : 'GPS A/B'), cls === 'c' ? CLASS_C_NOTE : '', sel.kind === 'lap' ? wxLab : '', model ? shortCarName(model) : 'все машины'].filter(Boolean).join(' · ');
+    sub.textContent = [cls === 'c' ? 'телефон · C' : 'чип · A/B', sel.kind === 'lap' ? (tr?.km ? tr.km + ' км' : 'круг') : '', sel.kind === 'lap' ? wxLab : '', document.getElementById('topMyCarOnly')?.checked ? 'моя машина' : (model ? shortCarName(model) : 'все машины'), topsCityOn() ? myCity() : ''].filter(Boolean).join(' · ');
   }
   const bm = document.getElementById('topsBoardMap');
   if (bm) {
@@ -16996,8 +17010,7 @@ async function renderTopsBoard() {
   ol.setAttribute('aria-busy', 'true');
   let rows = [];
   let lapRaw = [];
-  const per = document.getElementById('topsPeriod'); if (per) per.hidden = sel.kind !== 'lap';
-  if (cls === 'c' && sel.kind !== 'lap' && PHONE_NO_DISCS.includes(sel.id)) {
+    if (cls === 'c' && sel.kind !== 'lap' && PHONE_NO_DISCS.includes(sel.id)) {
     ol.replaceChildren();
     ol.removeAttribute('aria-busy');
     const li = padEl('li', 'tb-empty');
@@ -17009,8 +17022,7 @@ async function renderTopsBoard() {
   try {
     if (sel.kind === 'lap') {
       lapRaw = ((await api.listLapBoard(sel.id, wx, cls)) || []).filter(topsClassPass);
-      const ws = _topsPeriod === 'week' ? awWeekStart() : 0;
-      const raw = ws ? lapRaw.filter((r) => Number(r.at) >= ws) : lapRaw;
+      const raw = topsPeriodFilter(lapRaw);
       const best = new Map();
       raw.forEach((r) => {
         const k = r.pilotId || ('n:' + (r.name || '') + ':' + (r.car || ''));
@@ -17030,13 +17042,14 @@ async function renderTopsBoard() {
   else try { rows = filterTopRows(rows, { model }); } catch (_) {}
   if (cls === 'c' && model) rows = rows.filter((r) => String(r.car || '') === model);
   try { rows = rows.filter(topsClassPass); } catch (_) {}
+  if (sel.kind !== 'lap') rows = topsPeriodFilter(rows); // v271: период и для разгонов
   rows = filterRowsByTod(rows); // v128
   rows.sort((a, b) => (sel.kind === 'lap' ? (a._ms ?? lapMs(a.t)) - (b._ms ?? lapMs(b.t)) : Number(a.t) - Number(b.t)));
   ol.replaceChildren();
   ol.removeAttribute('aria-busy');
   if (!rows.length) {
     const li = padEl('li', 'tb-empty');
-    const filtered = _topsPrep !== 'all' || document.getElementById('topMyCarOnly')?.checked || topsCityOn();
+    const filtered = _topsPrep !== 'all' || _topsPeriod !== 'all' || document.getElementById('topMyCarOnly')?.checked || topsCityOn();
     li.appendChild(padEl('b', '', filtered ? 'В этом срезе пока пусто' : (sel.kind === 'lap' ? 'Кругов пока нет' : 'Заездов пока нет')));
     const go = padEl('button', 'tb-empty-go', sel.kind === 'lap' ? 'Проехать круг' : 'Сделать замер');
     go.type = 'button';
@@ -17051,15 +17064,15 @@ async function renderTopsBoard() {
   ol.appendChild(frag);
   try { topsRise(ol, `${sel.kind}:${cls}:${sel.id}:${model || ''}:${_topsPrep}${topsCityOn() ? ':' + topsCityKey(myCity()) : ''}`); } catch (_) {} // v153: подъём в топе
 }
-document.getElementById('topsChips')?.addEventListener('click', (e) => {
+['topsChips', 'topsTracks'].forEach((hid) => document.getElementById(hid)?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('.tchip');
   if (!b) return;
-  _topsSel = { kind: b.dataset.kind, id: b.dataset.id };
+  _topsSel = { kind: b.dataset.kind, id: b.dataset.id || (TRACKS.some((t) => t.id === _topsLastTrack) ? _topsLastTrack : TRACKS[0]?.id) };
   try { localStorage.setItem(TOPS_SEL_KEY, JSON.stringify(_topsSel)); } catch (_) {}
   hap(6);
   try { b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch (_) {}
   void renderTopsBoard();
-});
+}));
 document.getElementById('topsBoard')?.addEventListener('click', (e) => {
   const li = e.target?.closest?.('.tb-row[data-pilot]');
   if (li) {

@@ -7833,3 +7833,28 @@ html:not(#_):not(#_):not(#_) #view-lap .tv2-nogeo > summary::after { content: ''
 html:not(#_):not(#_):not(#_) #view-lap .tv2-nogeo[open] > summary::after { transform: rotate(-135deg); }
 html:not(#_):not(#_):not(#_) #trackSuggestCard { background: none !important; border: 0 !important; padding: 0 !important; margin: 8px 0 0 !important; box-shadow: none !important; }
 html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top > *::after, html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top > *::before { display: none !important; }
+/* v271: Топы — класс сверху, дисциплины, трассы только для круга, быстрые срезы, «Ещё фильтры» */
+#view-tops .tops-cls { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0 0 10px; padding: 3px; border-radius: 8px; border: 1px solid var(--h-line-2, #333); background: rgba(255,255,255,.03); }
+#view-tops .tops-cls .seg-btn { min-height: 38px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border-radius: 6px; border: 0; background: transparent; color: #9a9a9a; font: 700 14px/1 var(--font-ui); }
+#view-tops .tops-cls .seg-btn small { font: 600 11px/1 var(--font-ui); opacity: .6; letter-spacing: .04em; }
+#view-tops .tops-cls .seg-btn.on { background: #f2f2f2; color: #0a0a0a; }
+#view-tops .tops-chips { margin-bottom: 8px; }
+#view-tops .tops-tracks .tchip { min-height: 30px; font-size: 12px; }
+.tops-quick { display: flex; align-items: center; gap: 6px; margin: 0 0 10px; flex-wrap: wrap; }
+.tq-chip { display: inline-flex; align-items: center; min-height: 32px; padding: 0 12px; border-radius: 6px; border: 1px solid var(--h-line-2, #333); color: #bdbdbd; font: 600 12.5px/1 var(--font-ui); cursor: pointer; user-select: none; }
+.tq-chip input { position: absolute; opacity: 0; width: 0; height: 0; pointer-events: none; }
+.tq-chip.on { background: #f2f2f2; border-color: #f2f2f2; color: #0a0a0a; }
+.tops-quick .tops-per { margin-left: auto; display: inline-flex; gap: 0; border: 1px solid var(--h-line-2, #333); border-radius: 6px; padding: 2px; }
+.tops-quick .tops-per .seg-btn { min-height: 26px; padding: 0 9px; border: 0; border-radius: 4px; background: transparent; color: #8f8f8f; font: 600 12px/1 var(--font-ui); }
+.tops-quick .tops-per .seg-btn.on { background: rgba(255,255,255,.12); color: #f2f2f2; }
+.tops-more { margin: 0 0 12px; border-top: 1px solid var(--h-line, #222); border-bottom: 1px solid var(--h-line, #222); }
+.tops-more > summary { list-style: none; display: flex; align-items: center; gap: 8px; min-height: 40px; color: var(--h-sub, #9a9a9a); font: 600 13px/1 var(--font-ui); cursor: pointer; }
+.tops-more > summary::-webkit-details-marker { display: none; }
+.tops-more > summary::after { content: ''; margin-left: auto; width: 13px; height: 13px; background: currentColor; -webkit-mask: var(--chev-ico) center/contain no-repeat; mask: var(--chev-ico) center/contain no-repeat; transition: transform .2s ease; }
+.tops-more[open] > summary::after { transform: rotate(180deg); }
+.tops-more .tops-active:not(:empty) { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #f2f2f2; color: #0a0a0a; font: 700 11px/1 var(--font-ui); }
+.tops-more .tops-filters { padding: 2px 0 10px; }
+.tops-more .tops-menu-links { padding: 0 0 12px; }
+#view-tops .tops-tracks[hidden] { display: none !important; }
+#view-tops .tops-cls .seg-btn.on { background: #f2f2f2 !important; color: #0a0a0a !important; }
+.tops-quick .tops-per { margin-left: 0; flex: 1 1 100%; display: grid; grid-template-columns: repeat(3, 1fr); }

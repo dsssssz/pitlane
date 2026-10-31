@@ -36,8 +36,8 @@
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-BRJSJCNT.js" />
-    <link rel="stylesheet" href="./styles-AEEB5146.css" />
+    <link rel="modulepreload" href="./b/app-VVFCTKCA.js" />
+    <link rel="stylesheet" href="./styles-EB97BF31.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -465,64 +465,65 @@
         <section id="view-tops" class="view">
           <div class="tops-head">
             <h2 data-i18n="top.title">Топы</h2>
-            <button type="button" class="tops-menu-btn" id="btnTopsMenu" aria-expanded="false" aria-controls="topsMenu">Фильтры<i aria-hidden="true"></i></button>
+            <a class="method-link" href="./method.html" id="topsMethodLink">Методика</a>
           </div>
-          <div class="tops-chips" id="topsChips" role="tablist" aria-label="Трасса или замер"></div>
-          <p class="tiny muted tops-active" id="topsActive"></p>
-          <!-- v120: всё второстепенное шапки Топов — в одном меню (элементы и id прежние) -->
-          <div class="tops-menu card" id="topsMenu" hidden>
-            <p class="tops-weather-label">класс зачёта</p>
-            <div class="seg-control tops-cls" id="topsCls" role="tablist" aria-label="Класс зачёта">
-            <button type="button" class="seg-btn on" data-cls="ab" role="tab" aria-selected="true">A/B · внешний GPS</button>
-            <button type="button" class="seg-btn" data-cls="c" role="tab" aria-selected="false">C · телефон</button>
+          <!-- v271: сверху — что за топ (класс + дисциплина), рядом быстрые срезы, глубже — «Ещё фильтры» -->
+          <div class="seg-control tops-cls" id="topsCls" role="tablist" aria-label="Класс зачёта">
+            <button type="button" class="seg-btn on" data-cls="ab" role="tab" aria-selected="true">Чип<small>A/B</small></button>
+            <button type="button" class="seg-btn" data-cls="c" role="tab" aria-selected="false">Телефон<small>C</small></button>
           </div>
-            <div class="tops-menu-filters" id="topsMenuFilters">
-          <div class="tops-filters">
-            <label class="tops-check"><input type="checkbox" id="topValidOnly" checked /> только валидные GPS</label>
-            <label class="tops-model">модель
-              <select id="topModelFilter"><option value="">все модели</option></select>
-            </label>
-            <div class="tops-weather" id="topWeatherChips" role="group" aria-label="Погода кольца">
-              <span class="tops-weather-label">кольцо · погода</span>
-              <button type="button" class="wx-chip" data-wx="all">Все</button>
-              <button type="button" class="wx-chip on" data-wx="dry">Сухо</button>
-              <button type="button" class="wx-chip" data-wx="damp">Сыро</button>
-              <button type="button" class="wx-chip" data-wx="wet">Мокро</button>
+          <div class="tops-chips" id="topsChips" role="tablist" aria-label="Дисциплина"></div>
+          <div class="tops-chips tops-tracks" id="topsTracks" role="tablist" aria-label="Трасса" hidden></div>
+          <div class="tops-quick" id="topsQuick">
+            <label class="tq-chip" id="tqCity"><input type="checkbox" id="topMyCityOnly" /><span>Мой город</span></label>
+            <label class="tq-chip" id="tqCar"><input type="checkbox" id="topMyCarOnly" /><span>Моя машина</span></label>
+            <div class="seg-control tops-per" id="topsPeriod" role="tablist" aria-label="Период">
+              <button type="button" class="seg-btn" data-per="today" role="tab">Сегодня</button>
+              <button type="button" class="seg-btn" data-per="week" role="tab">Неделя</button>
+              <button type="button" class="seg-btn on" data-per="all" role="tab">Всё</button>
             </div>
-            <p class="tiny muted tops-weather-cap" id="topWeatherCaption">Показаны круги: сухо.</p>
-            <div class="tops-weather" id="topTodChips" role="group" aria-label="Время суток">
-              <span class="tops-weather-label">время суток · метеосервис</span>
-              <button type="button" class="wx-chip on" data-tod="all">Любое</button>
-              <button type="button" class="wx-chip" data-tod="day">День</button>
-              <button type="button" class="wx-chip" data-tod="evening">Вечер</button>
-            </div>
-            <div class="tops-weather" id="topPrepChips" role="group" aria-label="Класс подготовки">
-              <span class="tops-weather-label">класс · со слов пилота</span>
-              <button type="button" class="wx-chip on" data-prep="all">Все</button>
-              <button type="button" class="wx-chip" data-prep="stock">Сток</button>
-              <button type="button" class="wx-chip" data-prep="st1">Stage 1</button>
-              <button type="button" class="wx-chip" data-prep="st2">Stage 2+</button>
-              <button type="button" class="wx-chip" data-prep="semi">Полуслик</button>
-              <button type="button" class="wx-chip" data-prep="none">Не указан</button>
-            </div>
-            <label class="tops-check"><input type="checkbox" id="topMyCarOnly" /> только моя машина (та же модель)</label>
-            <label class="tops-check"><input type="checkbox" id="topMyCityOnly" /> только мой город <button type="button" class="tops-city" id="topCitySet">указать</button></label>
           </div>
+          <details class="tops-more" id="topsMore">
+            <summary>Ещё фильтры<span class="tops-active" id="topsActive"></span></summary>
+            <div class="tops-filters" id="topsMenuFilters">
+              <label class="tops-check"><input type="checkbox" id="topValidOnly" checked /> только валидные GPS</label>
+              <label class="tops-model">модель
+                <select id="topModelFilter"><option value="">все модели</option></select>
+              </label>
+              <div class="tops-weather" id="topWeatherChips" role="group" aria-label="Погода кольца">
+                <span class="tops-weather-label">кольцо · погода</span>
+                <button type="button" class="wx-chip" data-wx="all">Все</button>
+                <button type="button" class="wx-chip on" data-wx="dry">Сухо</button>
+                <button type="button" class="wx-chip" data-wx="damp">Сыро</button>
+                <button type="button" class="wx-chip" data-wx="wet">Мокро</button>
+              </div>
+              <p class="tiny muted tops-weather-cap" id="topWeatherCaption">Показаны круги: сухо.</p>
+              <div class="tops-weather" id="topTodChips" role="group" aria-label="Время суток">
+                <span class="tops-weather-label">время суток</span>
+                <button type="button" class="wx-chip on" data-tod="all">Любое</button>
+                <button type="button" class="wx-chip" data-tod="day">День</button>
+                <button type="button" class="wx-chip" data-tod="evening">Вечер</button>
+              </div>
+              <div class="tops-weather" id="topPrepChips" role="group" aria-label="Класс подготовки">
+                <span class="tops-weather-label">подготовка · со слов пилота</span>
+                <button type="button" class="wx-chip on" data-prep="all">Все</button>
+                <button type="button" class="wx-chip" data-prep="stock">Сток</button>
+                <button type="button" class="wx-chip" data-prep="st1">Stage 1</button>
+                <button type="button" class="wx-chip" data-prep="st2">Stage 2+</button>
+                <button type="button" class="wx-chip" data-prep="semi">Полуслик</button>
+                <button type="button" class="wx-chip" data-prep="none">Не указан</button>
+              </div>
+              <p class="tiny muted">Город: <button type="button" class="tops-city" id="topCitySet">указать</button></p>
             </div>
             <div class="tops-menu-links race-toolbar">
               <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen" hidden>Секторы</button>
               <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
-              <a class="method-link" href="./method.html" id="topsMethodLink">Методика</a>
             </div>
-          </div>
+          </details>
           <article class="card tops-board-card">
             <div class="tops-board-head">
               <h3 id="topsBoardTitle">0–100 км/ч</h3>
               <span class="tiny muted" id="topsBoardSub">все машины · GPS A/B</span>
-            </div>
-            <div class="seg-control lb92-per" id="topsPeriod" role="tablist" aria-label="Период" hidden>
-              <button type="button" class="seg-btn" data-per="week" role="tab">Неделя</button>
-              <button type="button" class="seg-btn on" data-per="all" role="tab">Всё время</button>
             </div>
             <div class="tops-board-map track-map hidden" id="topsBoardMap" aria-hidden="true"></div>
             <ol id="topsBoard" class="tops-board" aria-live="polite"></ol>
@@ -1462,6 +1463,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-BRJSJCNT.js"></script>
+    <script type="module" src="./b/app-VVFCTKCA.js"></script>
   </body>
 </html>
