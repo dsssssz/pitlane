@@ -37,7 +37,7 @@ ok(/animation: ln61-gone 1ms linear (6|20)s forwards/.test(sys), 'страхов
 ok(/introBlocking3d = false;/.test(app.slice(app.indexOf('function setupLaunch'), app.indexOf('function setupLaunch') + 1500)), '3D ждёт конца запуска, как раньше');
 
 // 2. старые входы
-ok(/const VIEW_ALIAS61 = \{ run: 'zamer', cars: 'garage', journal: 'history'/.test(app) && /function goToView\(id, opts = \{\}\) \{\n  id = VIEW_ALIAS61\[id\] \|\| id;/.test(app), 'маршрут run → Замер, cars → Гараж (все вызовы goToView)');
+ok(/const VIEW_ALIAS61 = \{ home: 'zamer', run: 'zamer', cars: 'garage', journal: 'history'/.test(app) && /function goToView\(id, opts = \{\}\) \{\n  id = VIEW_ALIAS61\[id\] \|\| id;/.test(app), 'маршрут run → Замер, cars → Гараж (все вызовы goToView)');
 ok(!/ride-seg/.test(html) && !/class="seg-btn[^"]*" data-view="run"/.test(html), 'сегмент «Замер / Круг» со старым экраном удалён');
 ok(/<section id="view-run" class="view v61-legacy" hidden aria-hidden="true">/.test(html) && /#view-run, html\.v159:not\(#_\):not\(#_\) #view-cars \{ display: none !important; \}/.test(sys), 'старый спидометр и «Парк» не показываются');
 ok(!/#view-run\b|\.ride-seg\b|\.l53-open\b/.test(base), 'стили старых экранов удалены');

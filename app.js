@@ -1627,12 +1627,12 @@ function playEngineStart() {
 }
 
 /* v161: все старые входы ведут в новые экраны: «run» (старый спидометр) → Замер, «cars» (Парк) → Гараж, «journal» → Журнал */
-const VIEW_ALIAS61 = { run: 'zamer', cars: 'garage', journal: 'history', measure: 'zamer', track: 'lap' };
+const VIEW_ALIAS61 = { home: 'zamer', run: 'zamer', cars: 'garage', journal: 'history', measure: 'zamer', track: 'lap' };
 function goToView(id, opts = {}) {
   id = VIEW_ALIAS61[id] || id;
   if (id === 'pulse') { openChatPage(); return; } // v205: Чат — отдельная полноэкранная страница
   if (CP.open) closeChatPage({ instant: true }); // v262: смена вкладки — чат закрывается мгновенно, как обычный экран
-  if (DUELS_OFF && id === 'duels') id = 'home';
+  if (DUELS_OFF && id === 'duels') id = 'zamer';
   if (['duels', 'crews', 'crew', 'rooms', 'teams'].includes(id)) id = 'zamer'; // v206: убранные разделы // v197: дуэли убраны
   const next = document.getElementById('view-' + id);
   if (!next) return;
@@ -2563,7 +2563,7 @@ try {
 
 const DEEP_VIEWS = new Set(['home', 'garage', 'run', 'lap', 'tops', 'pulse', 'account', 'cars', 'zamer', 'history', 'journal']); // v161: run/cars — алиасы новых экранов
 /** v81: ?screen=duel|crew|feedback|autodromes — opens a sheet (used by the Telegram bot's web_app buttons). */
-const DEEP_SCREENS = { shop: 'home', duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account', mycar: 'lap', rooms: 'tops', teams: 'tops' };
+const DEEP_SCREENS = { shop: 'zamer', duel: 'tops', crew: 'tops', autodromes: 'tops', feedback: 'account', mycar: 'lap', rooms: 'tops', teams: 'tops' };
 const SCREEN_PARAM = (() => {
   try {
     const s = String(new URLSearchParams(location.search).get('screen') || '').toLowerCase();
@@ -13473,7 +13473,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v262';
+const APP_VERSION = 'v263';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13587,7 +13587,7 @@ function fbDownscaleShot(file) {
 /* v137: магазин — модуль грузится при первом открытии (витрина/карточка/заявка/«принята»), см. shop-ui.js и shop-config.js */
 let _shopMod = null;
 /* v158: магазин — отдельная страница (view-shop) с шапкой и «назад»; витрина → товар → заявка. BackButton Telegram: шаг назад, потом — откуда пришли */
-let _shopFrom = 'home';
+let _shopFrom = 'zamer';
 async function openShopSheet(productId) {
   const prev = document.querySelector('.view.active')?.id?.replace('view-', '');
   if (prev && prev !== 'shop') _shopFrom = prev;
@@ -13598,7 +13598,7 @@ async function openShopSheet(productId) {
   try { _shopMod = _shopMod || await import('./shop-ui.js'); } catch (_) { const b = document.getElementById('shopBody'); if (b) b.textContent = 'Магазин не загрузился — проверьте интернет'; return; }
   _shopMod.openShop({ api, currentUser, needLogin, hap, close: shop58Leave, page: true }, productId);
 }
-function shop58Leave() { goToView(_shopFrom && document.getElementById('view-' + _shopFrom) ? _shopFrom : 'home'); }
+function shop58Leave() { goToView(_shopFrom && document.getElementById('view-' + _shopFrom) ? _shopFrom : 'zamer'); }
 function shop58Back() { if (_shopMod && _shopMod.shopBack()) return; shop58Leave(); }
 /* v142: телеметрия кругов (локально, последние 8 на трассу, прорежено) + аналитика */
 const TELE_KEY = 'pitlane-tele-v1';
@@ -13653,7 +13653,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
 (() => {
   const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
   const sync = () => {
-    const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'home';
+    const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'zamer';
     const key = act === 'garage' ? 'garage' : act === 'home' ? 'home' : act === 'zamer' || act === 'run' ? 'zamer' : act === 'lap' ? 'lap' : ''; // v154: Профиль — из аватара в шапке
     void key; window.__pf6?.n6Sync?.(); // v206: единая синхронизация 5 вкладок
   };
@@ -14377,7 +14377,7 @@ let _garageSeen = false;
 function onViewEnter(id) {
   setTimeout(() => {
     try {
-      if (id === 'home') renderHome();
+      if (id === 'home' && document.getElementById('view-home')) renderHome();
       else if (id === 'duels') void renderDuelsView();
       else if (id === 'tops') void renderTopsBoard();
       else if (id === 'garage') {
@@ -14828,7 +14828,7 @@ function homeTrackRacePathD(trackId, vbW = 640, vbH = 360) {
  * the demo lap runs only after an explicit «Демо» tap. */
 const sochiChase = {
   view: 'chase', // lap-card mode: 'chase' | 'top'
-  curView: 'home',
+  curView: 'zamer',
   running: false,
   raf: 0,
   t0: 0,
@@ -16239,7 +16239,7 @@ function tgsBgOrigin() { const vh = document.getElementById('viewHost'); if (vh)
 function openTgSheet(kind) {
   if (kind === 'duels') return; // v206: дуэли убраны
   if (kind === 'pulse') { openChatPage(); return; } // v206: старый оверлей Paddock → полноэкранный Чат
-  if (DUELS_OFF && kind === 'duels') { goToView('home'); return; } // v197
+  if (DUELS_OFF && kind === 'duels') { goToView('zamer'); return; } // v197
   if (kind === 'pulse') { closeTgSheet({ instant: true }); openChatPage(); return; } // v205
   const sh = document.getElementById('tgSheet'); const panel = document.getElementById('tgSheetPanel'); if (!sh || !panel) return;
   if (TGS.open === kind) { closeTgSheet(); return; } // повторное нажатие на активный пункт — закрыть
@@ -17726,7 +17726,7 @@ document.querySelector('[data-n3="zamer"]')?.addEventListener('click', () => { t
    Назад — Telegram BackButton (через общий список SHEETS) или ‹ в шапке. */
 const CP_TABS = { gen: 'Общий', runs: 'Замеры', tracks: 'Треки', q: 'Вопросы' };
 const CP_TO = { gen: 'в Общий', runs: 'в Замеры', tracks: 'в Треки', q: 'в Вопросы' };
-const CP_PH = { gen: 'Написать в чат…', runs: 'Поделиться замером…', tracks: 'Трасса, настройки, впечатления…', q: 'Задать вопрос…' };
+const CP_PH = { gen: 'Написать в Общий…', runs: 'Поделиться замером…', tracks: 'Трасса, настройки, впечатления…', q: 'Задать вопрос…' };
 function cpEmptyText() {
   if (CP.ch === 'runs') return 'Замеров пока нет — поделись своим 0–100 или ¼ мили.';
   if (CP.ch === 'tracks') return CP.trk ? 'По трассе «' + trackShortName(CP.trk) + '» пока пусто — напиши первым.' : 'Про трассы пока тихо — выбери трассу и напиши.';

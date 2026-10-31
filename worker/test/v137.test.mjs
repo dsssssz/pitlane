@@ -128,7 +128,7 @@ const html = R('index.html'); const app = R('app.js'); const ui = R('shop-ui.js'
 ok(/data-plm="shop"[\s\S]{0,400}Магазин/.test(html), 'пункт «Магазин» в меню ☰');
 ok(/id="railShop"[^>]*class|class="nav-btn nav-shop" id="railShop"/.test(html) && !/railShop"[^>]*sheet-tab/.test(html), 'кнопка в боковой рейке (только широкие экраны — не sheet-tab)');
 ok(/id="shopSheet"/.test(html) && /id="shopBody"/.test(html), 'шторка магазина');
-ok(/import\('\.\/shop-ui\.js'\)/.test(app) && /k === 'shop'/.test(app) && /shop: 'home'/.test(app), 'модуль грузится лениво; меню и ?screen=shop');
+ok(/import\('\.\/shop-ui\.js'\)/.test(app) && /k === 'shop'/.test(app) && /shop: 'zamer'/.test(app), 'модуль грузится лениво; меню и ?screen=shop');
 ok(!/innerHTML/.test(ui), 'shop-ui.js без innerHTML (только textContent)');
 ok(/loading = eager \? 'eager' : 'lazy'/.test(ui) && /image\/avif/.test(ui), 'галерея: avif + webp, ленивая загрузка');
 ok(/cid: d\.cid/.test(ui) && /if \(st\.busy\) return/.test(ui), 'заявка с cid, защита от двойного нажатия');

@@ -36,8 +36,8 @@
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-T2ATWIPA.js" />
-    <link rel="stylesheet" href="./styles-B1993D85.css" />
+    <link rel="modulepreload" href="./b/app-2XAKWVAS.js" />
+    <link rel="stylesheet" href="./styles-1DC9A0CF.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -51,12 +51,6 @@
         <div class="mark">PIT<span>LANE</span></div>
         <nav class="tabbar" id="tabbar">
           <div class="tab-pill" id="tabPill" aria-hidden="true"></div>
-          <button class="nav-btn active" data-view="home" title="Главная">
-            <span class="nav-ico" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="ico ico-home"><rect class="ico-t1" x="4" y="4" width="7" height="7" rx="2"/><rect class="ico-t2" x="13" y="4" width="7" height="7" rx="2"/><rect class="ico-t3" x="4" y="13" width="7" height="7" rx="2"/><rect class="ico-t4" x="13" y="13" width="7" height="7" rx="2"/></svg>
-            </span>
-            <i data-i18n="nav.home">Главная</i>
-          </button>
           <button class="nav-btn nav-off" data-view="garage" title="Гараж" hidden aria-hidden="true" tabindex="-1">
             <span class="nav-ico" aria-hidden="true">
               <svg viewBox="0 0 24 24" class="ico ico-box"><path class="ico-body" d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8.5z"/><path class="ico-door" d="M10 20v-6h4v6"/></svg>
@@ -151,172 +145,7 @@
 
         <div class="view-host" id="viewHost">
         <!-- v84: Главная — карусель разделов, моя машина, топ постов за сутки -->
-        <section id="view-home" class="view">
-          <!-- v187: только вне Telegram — что это + кнопка в бота -->
-          <div class="web-hero" id="webHero" hidden>
-            <p class="web-hero-t">Замеры 0–100 и круги по GPS. Работает в Telegram.</p>
-            <a class="web-hero-btn" href="https://t.me/pitlane_official_bot" target="_blank" rel="noopener">Открыть в Telegram</a>
-          </div>
-          <!-- v152: карусель баннеров (scroll-snap, точки, авто 6 с, пауза на касании). v163: светлые фото, скрим только под текстом, CTA; каждый ведёт в свой раздел -->
-          <section class="bn52" id="bn52" aria-roledescription="карусель" aria-label="Pitlane">
-            <div class="bn52-track" id="bn52Track">
-              <button type="button" class="bn52-s b-video" data-bn52="video" role="group" aria-roledescription="баннер" aria-label="С телеметрией">
-                <img src="./img/banners/bn-video-800.webp" srcset="./img/banners/bn-video-800.webp 800w, ./img/banners/bn-video-1560.webp 1560w" sizes="100vw" alt="" loading="lazy" decoding="async" />
-                <span class="bn52-k">Видео</span><b class="bn52-t">С телеметрией</b><span class="bn52-d">Скорость и время прямо на видео</span><span class="bn52-cta" aria-hidden="true">Снять</span>
-              </button>
-            </div>
-            <div class="bn52-dots" hidden id="bn52Dots" role="tablist" aria-label="Баннеры"><button type="button" class="bn52-dot on" data-i="0" role="tab" aria-label="Баннер 1"></button></div>
-          </section>
-          <!-- v120: баннеры скрыты (код остаётся); первым — главная кнопка замера -->
-          <section class="home-go hg-a" id="homeGo">
-            <button type="button" class="hg-btn" id="homeGoBtn" data-hq="run" aria-label="Замер: 0–100, ¼ мили, круг">
-              <span class="hg-dial" aria-hidden="true">
-                <svg class="hg-svg" viewBox="0 0 120 120" focusable="false">
-                  <defs><linearGradient id="hgArcGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#C9C6BF" stop-opacity=".15"/><stop offset=".7" stop-color="#C9C6BF" stop-opacity=".9"/><stop offset="1" stop-color="#D8E6DD"/></linearGradient></defs>
-                  <circle class="hg-track" cx="60" cy="60" r="50" pathLength="360" transform="rotate(135 60 60)"/>
-                  <circle class="hg-arc" cx="60" cy="60" r="50" pathLength="360" transform="rotate(135 60 60)"/>
-                  <g class="hg-ticks" id="homeGoTicks"></g>
-                  <text class="hg-num" x="30" y="99">0</text><text class="hg-num" x="90" y="99">100</text>
-                  <g class="hg-needle"><line x1="60" y1="60" x2="60" y2="22"/></g>
-                  <circle class="hg-hub" cx="60" cy="60" r="3.2"/>
-                </svg>
-                <span class="hg-core"><i class="hg-pwr"></i><em>Start</em></span>
-              </span>
-              <span class="hg-text"><b class="hg-title">Замер</b><span class="hg-sub" id="homeGoSub">0–100 · ¼ мили · круг</span></span>
-              <span class="hg-scale" aria-hidden="true"><span>0</span><span>100</span></span>
-              <i class="hg-chev" aria-hidden="true"></i>
-            </button>
-            <div class="hg-meta">
-              <span class="hg-gps" id="homeGoGps" data-q="idle"><i></i><span id="homeGoGpsV">GPS</span></span>
-              <span class="hg-best" id="homeGoBest" hidden></span>
-            </div>
-          </section>
-          <!-- v123: Главная из окошек-виджетов (графитовое стекло); тап — раздел. Только реальные данные -->
-          <div class="hw-grid" id="homeWidgets">
-            <button type="button" class="hw hw-car hw-wide" id="hwCar" data-hw="garage" aria-label="Моя машина — открыть Бокс">
-              <span class="hw-car-art">
-                <picture>
-                  <source id="hwCarAvif" type="image/avif" sizes="(max-width: 540px) calc(100vw - 32px), 508px">
-                  <img id="hwCarImg" class="hw-car-img" alt="" width="1560" height="975" decoding="async" fetchpriority="high" sizes="(max-width: 540px) calc(100vw - 32px), 508px">
-                </picture>
-              </span>
-              <span class="hw-k hw-car-k">Моя машина</span>
-              <span class="hw-car-txt"><span class="cb-row hw-car-row" id="hwCarRow"><b id="hwCarName" class="cb-name">—</b></span><span id="hwCarSub"></span></span>
-              <span class="hw-car-chip" id="hwCarBest" hidden></span>
-              <span class="h63-stats" id="hwCarStats" aria-label="Лучшие времена"></span>
-            </button>
-            <button type="button" class="hw hw-wide z202-addcar" id="hwAddCar" hidden><span class="z202-add-ico" aria-hidden="true">+</span><span><b>Добавь свою машину</b><small>Рекорды и место в топе — под твоей машиной</small></span></button>
-            <!-- v158: статистика — место в топе, замеры за неделю, последняя сессия (только реальные данные; пусто — скрыто). v163: три равные плитки сетки -->
-            <div class="hw-stats" id="hwStats" data-hw="stats" role="group" aria-label="Моя статистика" hidden><button type="button" class="hw hw58-c" id="hw58Place" data-hw="tops" aria-label="Место в топе города — открыть топы" hidden><span class="hw58-k">Топ города</span><b class="hw58-v" id="hw58PlaceV">—</b><span class="hw58-s" id="hw58PlaceS"></span></button><button type="button" class="hw hw58-c" id="hw58Week" data-hw="stats" aria-label="Заезды за 7 дней — открыть Журнал" hidden><span class="hw58-k">За 7 дней</span><b class="hw58-v" id="hw58WeekV">—</b><span class="hw58-s" id="hw58WeekS"></span></button><button type="button" class="hw hw58-c" id="hw58Last" data-hw="stats" aria-label="Последний заезд — открыть Журнал" hidden><span class="hw58-k">Последняя</span><b class="hw58-v" id="hw58LastV">—</b><span class="hw58-s" id="hw58LastS"></span></button></div>
-            <button type="button" class="hw" id="hwRec" data-hw="records"><span class="hw-k">Мои рекорды</span><span class="hw-body" id="hwRecBody"></span></button>
-          </div>
-          <div class="home-carousel v120-off" id="homeCarousel" hidden role="region" aria-roledescription="карусель" aria-label="Разделы Pitlane">
-            <div class="hc-track" id="homeCarouselTrack">
-              <button type="button" class="hc-slide hc-tops" data-go="tops" aria-label="Топы автодромов — лидерборд">
-                <span class="hc-art" aria-hidden="true"><img class="hc-bg" src="./img/banners/tracks-800.webp" srcset="./img/banners/tracks-800.webp 800w, ./img/banners/tracks-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 640px" width="1280" height="720" alt="" loading="lazy" decoding="async"></span>
-                <span class="hc-txt">
-                  <span class="hc-tag">Лидерборд</span>
-                  <b class="hc-title hc-title-long">Топы автодромов</b>
-                  <span class="hc-sub" id="hcTopsSub">16 трасс · 10 дисциплин</span>
-                  <span class="hc-cta">Открыть<i aria-hidden="true"></i></span>
-                </span>
-                <span class="hc-mark" aria-hidden="true">PITLANE</span>
-              </button>
-              <button type="button" class="hc-slide hc-pad" data-go="pulse" aria-label="Чат — сообщество пилотов">
-                <span class="hc-art" aria-hidden="true"><img class="hc-bg" src="./img/banners/paddock-800.webp" srcset="./img/banners/paddock-800.webp 800w, ./img/banners/paddock-1280.webp 1280w" sizes="(max-width: 900px) 100vw, 640px" width="1280" height="720" alt="" loading="lazy" decoding="async"></span>
-                <span class="hc-txt">
-                  <span class="hc-tag">Посты · заезды</span>
-                  <b class="hc-title">Чат</b>
-                  <span class="hc-sub">Сообщество пилотов</span>
-                  <span class="hc-cta">Открыть<i aria-hidden="true"></i></span>
-                </span>
-                <span class="hc-mark" aria-hidden="true">PITLANE</span>
-              </button>
-            </div>
-            <div class="hc-dots" id="homeCarouselDots" role="tablist" aria-label="Слайды"></div>
-          </div>
-
-          <!-- v86: hero «Моя машина» — премиальная карточка -->
-          <article class="home-hero h-rv v123-off" id="homeHero" hidden>
-            <button type="button" class="hh-stage" id="homeHeroStage" aria-label="Открыть машину в гараже">
-              <img id="homeHeroImg" class="hh-img" alt="" decoding="async" loading="lazy">
-              <span class="hh-kicker"><i class="h-dot" aria-hidden="true"></i>Моя машина</span>
-              <span class="hh-open" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 16L16 8M9 8h7v7"/></svg></span>
-            </button>
-            <div class="hh-body">
-              <p id="homeHeroSub" class="hh-sub"></p>
-              <h2 id="homeHeroName" class="hh-name">—</h2>
-              <div id="homeHeroStats" class="hh-stats"></div>
-              <div class="hh-actions">
-                <button type="button" class="hh-btn" id="homeHeroGarage"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 20v-5h6v5"/></svg>Бокс · 3D</button>
-                <button type="button" class="hh-btn hh-btn-go" id="homeHeroRun"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7"/><path d="M12 13.5V10M10 3h4"/></svg>Замер</button>
-              </div>
-            </div>
-          </article>
-
-          <!-- v86: быстрые действия — иконки-плитки -->
-          <div class="home-quick h-rv v123-off" id="homeQuick" hidden>
-            
-            <button type="button" class="hq-btn" data-hq="lap"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3"/><path d="M19.8 3.8v3.6h-3.6"/><circle cx="12" cy="12" r="1.6"/></svg></span><b>Круг</b></button>
-            <button type="button" class="hq-btn" data-hq="garage"><span class="hq-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 10.5L12 5l8 5.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z"/><path d="M9 20v-5h6v5"/></svg></span><b>Бокс</b></button>
-          </div>
-
-          
-          <!-- v86: трасса дня -->
-          <section class="home-sec h-rv v123-off" id="homeTrackSec" hidden>
-            <div class="home-sec-head">
-              <h3>Трасса дня</h3>
-              <span class="hsh-lead" aria-hidden="true"></span>
-              <button type="button" class="home-link hsec-all" id="homeTrackOpen" aria-label="Топ трассы дня">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
-            </div>
-            <article class="home-track" id="homeTrack">
-              <div class="ht-head">
-                <div class="ht-info">
-                  <b id="homeTrackName">—</b>
-                  <div id="homeTrackMeta" class="ht-meta"></div>
-                </div>
-                <div class="ht-art" id="homeTrackArt" aria-hidden="true"></div>
-              </div>
-              <ol id="homeTrackTop" class="ht-top"></ol>
-            </article>
-          </section>
-
-          <!-- v86: лидеры 0–100 -->
-          <section class="home-sec h-rv v123-off" id="homeLeadersSec" hidden>
-            <div class="home-sec-head">
-              <h3>Лидеры 0–100</h3>
-              <span class="hsh-lead" aria-hidden="true"></span>
-              <button type="button" class="home-link hsec-all" id="homeLeadersOpen" aria-label="Все топы 0–100">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
-            </div>
-            <div id="homeLeaders" class="home-podium"></div>
-          </section>
-
-          <!-- v86: мой прогресс -->
-          <section class="home-sec h-rv v123-off" id="homeStatsSec" hidden>
-            <div class="home-sec-head"><h3>Мой прогресс</h3></div>
-            <div id="homeStats" class="home-stats"></div>
-          </section>
-
-          <!-- v86: машины на подиуме -->
-          <section class="home-sec h-rv v120-off" id="homeCarsSec" hidden>
-            <div class="home-sec-head">
-              <h3>Машины на подиуме</h3>
-              <span class="hsh-lead" aria-hidden="true"></span>
-              <button type="button" class="home-link hsec-all" data-view="garage" aria-label="Все машины в гараже">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
-            </div>
-            <div id="homeCars" class="home-rail home-cars"></div>
-          </section>
-
-          <section class="home-sec h-rv v120-off" id="homePostsSec" hidden>
-            <div class="home-sec-head">
-              <h3>Топ постов за сутки</h3>
-              <span class="hsh-lead" aria-hidden="true"></span>
-              <button type="button" class="home-link hsec-all" data-view="pulse" aria-label="Все посты в чате">Все<svg class="hsa-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
-            </div>
-            <div id="homeTopPosts" class="home-posts"></div>
-          </section>
-        </section>
-
+        <!-- v263: Главной нет — приложение открывается на «Замере» -->
         <section id="view-zamer" class="view active">
           <!-- v152: вкладка «Замер» — одна кнопка «Старт», под ней машина и GPS -->
           <section class="h48" id="h48" aria-label="Замер">
@@ -1635,6 +1464,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-T2ATWIPA.js"></script>
+    <script type="module" src="./b/app-2XAKWVAS.js"></script>
   </body>
 </html>

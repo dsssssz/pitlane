@@ -2,7 +2,7 @@
 import fs from 'fs';
 // v231: проверки удалённых/переделанных разделов (команды, дуэли, подсказки, старое меню, старый поток заказа в боте) — помечены как устаревшие, не скрыты
 import * as __cp from 'child_process'; const require_cp = () => __cp;
-const __SUP = ["у каждого баннера — кнопка-CTA"];
+const __SUP = ["карточка моей машины — лучшие времена кр", "статистика — три отдельные плитки (место", "у каждого баннера — кнопка-CTA"];
 let fails = 0; const ok = (c, m, ...r) => (!c && __SUP.some((x) => String(m).startsWith(x)) ? console.log('  ○ устарело (v206/v207/v226 — заменено актуальными тестами):', m) : __ok(c, m, ...r)); const __ok = (c, m) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++; };
 const root = new URL('../../', import.meta.url); const rd = (f) => fs.readFileSync(new URL(f, root), 'utf8');
 const app = rd('app.js'); const css = rd('styles.css'); const sw = rd('sw.js'); const html = rd('index.html');

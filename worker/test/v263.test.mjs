@@ -1,0 +1,13 @@
+import fs from 'node:fs'; import assert from 'node:assert';
+const r=(f)=>fs.readFileSync(new URL('../../'+f,import.meta.url),'utf8');
+const css=r('styles.css'), app=r('app.js'), html=r('index.html'), tma=r('tma.js');
+assert.ok(/contentSafeAreaChanged/.test(tma) && /safeAreaChanged/.test(tma) && /--tma-top/.test(tma),'tma insets');
+assert.ok(/:root \{ --tg-top: env\(safe-area-inset-top, 0px\); \}/.test(css),'web fallback');
+assert.ok(/html\.tma \{ --tg-top: max\(env\(safe-area-inset-top, 0px\), var\(--tma-top, 0px\)\); \}/.test(css),'tg var');
+for (const c of ['race-sheet','share-card','ghost-result','ds-sheet','aw-det','cdb-sheet','pin209']) assert.ok(css.includes('.'+c+',')||css.includes('.'+c+')'),'sheet '+c);
+for (const c of ['aw-scr','vt-sheet','tv2-top','pad-photo-x','plm-panel']) assert.ok(new RegExp('html\\.tma:not\\(#_\\):not\\(#_\\):not\\(#_\\) \\.'+c+' \\{[^}]*--tg-top').test(css),'full '+c);
+assert.ok(!html.includes('id="view-home"') && !html.includes('data-view="home"'),'no home');
+assert.ok(/VIEW_ALIAS61 = \{ home: 'zamer'/.test(app),'home→zamer');
+assert.ok(!html.includes('data-bn52="video"'),'no video banner');
+assert.ok(/#chatFoot #cpTo \{ display: none/.test(css) && app.includes("gen: 'Написать в Общий…'"),'thin composer');
+console.log('v263 ok');

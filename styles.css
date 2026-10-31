@@ -7745,3 +7745,28 @@ html:not(#_):not(#_) .chat-page .cp-bar { padding-left: 4px; }
 @media (prefers-reduced-motion: reduce) { html:not(#_):not(#_) .chat-page.on { animation: none; } }
 html.chat-open:not(#_) .view.active:not(#view-pulse) { visibility: hidden; }
 html.chat-open:not(#_) .brand-bar { visibility: visible; }
+
+/* v263: Telegram fullscreen — нативные кнопки (Закрыть, ⌄, ⋯) сверху. --tg-top = safeAreaInset.top + contentSafeAreaInset.top (tma.js), вне Telegram = env(safe-area-inset-top) → ничего не меняется */
+:root { --tg-top: env(safe-area-inset-top, 0px); }
+html.tma { --tg-top: max(env(safe-area-inset-top, 0px), var(--tma-top, 0px)); }
+/* нижние шторки и модалки: панель не заходит под кнопки Telegram */
+html.tma:not(#_):not(#_):not(#_) :is(.race-sheet, .share-card, .ghost-result, .ds-sheet, .aw-det, .cdb-sheet, .pin209) { padding-top: calc(var(--tg-top) + 8px) !important; box-sizing: border-box; }
+html.tma:not(#_):not(#_):not(#_) :is(.race-sheet-inner, .share-card-inner, .ghost-result-inner, .ds-sheet-panel, .aw-det > *, .pin209 > *) { max-height: calc(var(--tma-vh, 100dvh) - var(--tg-top) - 8px) !important; }
+html.tma:not(#_):not(#_):not(#_) .cdb-inner { height: calc(100% - 8px) !important; }
+/* полноэкранные экраны: шапка/✕ ниже кнопок Telegram */
+html.tma:not(#_):not(#_):not(#_) .aw-scr { padding-top: calc(var(--tg-top) + 12px) !important; }
+html.tma:not(#_):not(#_):not(#_) .vt-sheet { padding-top: calc(var(--tg-top) + 16px) !important; }
+html.tma:not(#_):not(#_):not(#_) .tv2-top { padding-top: var(--tg-top) !important; height: calc(52px + var(--tg-top)) !important; }
+html.tma:not(#_):not(#_):not(#_) .pad-photo-x { top: calc(var(--tg-top) + 12px) !important; }
+html.tma:not(#_):not(#_):not(#_) .plm-panel { padding-top: calc(var(--tg-top) + 14px) !important; }
+/* v263: композер чата — одна тонкая строка как в Telegram (~46px), режим — в плейсхолдере */
+html:not(#_):not(#_):not(#_) #chatFoot #cpTo { display: none !important; }
+html:not(#_):not(#_):not(#_) #chatFoot { padding: 4px 6px !important; border-top: 1px solid rgba(255,255,255,.06); }
+html:not(#_):not(#_):not(#_) #chatFoot .pulse-compose { display: flex !important; flex-direction: row !important; align-items: flex-end; gap: 6px; padding: 0 !important; margin: 0 !important; min-height: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; }
+html:not(#_):not(#_):not(#_) #chatFoot .pulse-compose::before, html:not(#_):not(#_):not(#_) #chatFoot .pulse-compose::after { display: none !important; }
+html:not(#_):not(#_):not(#_) #chatFoot #pulseText { flex: 1; min-height: 36px !important; height: 36px; max-height: 120px; padding: 8px 12px !important; margin: 0 !important; font-size: 15px !important; line-height: 20px !important; border-radius: 18px !important; resize: none; order: 1; }
+html:not(#_):not(#_):not(#_) #chatFoot .pulse-compose-bar { display: contents !important; }
+html:not(#_):not(#_):not(#_) #chatFoot .file-btn { order: 0; width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; padding: 0 !important; margin: 0 !important; border-radius: 50% !important; flex: none; }
+html:not(#_):not(#_):not(#_) #chatFoot #pulseSend { order: 2; width: 36px !important; height: 36px !important; min-width: 36px !important; min-height: 36px !important; padding: 0 !important; margin: 0 !important; border-radius: 50% !important; flex: none; }
+html:not(#_):not(#_):not(#_) #chatFoot #pulseCount, html:not(#_):not(#_):not(#_) #chatFoot #pulseMsg:empty { display: none !important; }
+html:not(#_):not(#_):not(#_) #chatFoot #pulseMsg { order: 3; flex-basis: 100%; margin: 2px 0 0 !important; }

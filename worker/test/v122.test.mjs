@@ -1,5 +1,6 @@
 // v122: премиальный CTA «Замер» на Главной — node test/v122.test.mjs
 import fs from 'fs';
+if (!fs.readFileSync(new URL('../../index.html', import.meta.url), 'utf8').includes('id="view-home"')) { console.log('  ○ устарело (v263: Главной нет)'); process.exit(0); }
 let fails = 0; const ok = (c, m) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m); } };
 const root = new URL('../../', import.meta.url).pathname;
 const html = fs.readFileSync(root + 'index.html', 'utf8'); const css = fs.readFileSync(root + 'styles.css', 'utf8');

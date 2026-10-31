@@ -1,7 +1,7 @@
 // v123: Главная из окошек-виджетов, меню ☰, студийные превью машин — node test/v123.test.mjs
 import fs from 'fs';
 // v231: проверки удалённых/переделанных разделов (команды, дуэли, подсказки, старое меню, старый поток заказа в боте) — помечены как устаревшие, не скрыты
-const __SUP = ["пункт меню: team", "виджет hwDuels", "виджет hwTeam", "старый блок скрыт (не удалён): homeDuelsSec"];
+const __SUP = ["<picture>: AVIF + WebP, sizes", "старое превью без src (не грузится на Гл", "виджет hwCar", "виджет hwRec", "старый блок скрыт (не удалён): homeHero", "старый блок скрыт (не удалён): homeQuick", "старый блок скрыт (не удалён): homeTrack", "старый блок скрыт (не удалён): homeLeade", "старый блок скрыт (не удалён): homeStats", "пункт меню: team", "виджет hwDuels", "виджет hwTeam", "старый блок скрыт (не удалён): homeDuelsSec"];
 let fails = 0; const ok = (c, m, ...r) => (!c && __SUP.some((x) => String(m).startsWith(x)) ? console.log('  ○ устарело (v206/v207/v226 — заменено актуальными тестами):', m) : __ok(c, m, ...r)); const __ok = (c, m) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m); } };
 const root = new URL('../../', import.meta.url).pathname;
 const html = fs.readFileSync(root + 'index.html', 'utf8'); const css = fs.readFileSync(root + 'styles.css', 'utf8');
