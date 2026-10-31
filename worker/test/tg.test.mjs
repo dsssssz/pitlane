@@ -67,7 +67,7 @@ ok(!/startapp|script/.test(JSON.stringify(s.body)), 'invalid payload ignored, no
 await hook('/start@pitlane_official_bot crew_x1');
 s = sent.pop();
 ok(/startapp=crew_x1/.test(s.body.reply_markup.inline_keyboard[0][0].web_app.url), '/start@bot suffix handled');
-const expect = { '/login': /view=account/, '/garage': /view=garage/, '/tops': /view=tops/, '/duel': /\/pitlane\/$/, '/feedback': /screen=feedback/ };
+const expect = { '/login': /view=account/, '/garage': /view=garage/, '/tops': /view=tops/, '/duel': /pitlanegps\.ru\/$/, '/feedback': /screen=feedback/ };
 for (const [cmd, re] of Object.entries(expect)) {
   r = await hook(cmd, 777);
   s = sent.pop();
