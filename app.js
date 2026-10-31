@@ -7614,12 +7614,7 @@ document.getElementById('deleteConfirmBtn')?.addEventListener('click', async () 
 /* —— one-time safety notice before the first measurement —— */
 // v106: пред-стартовый гейт с галочками; согласие запоминается (ключ v2 — старое «Понятно» без галочек не считается)
 const SAFETY_KEY = 'pitlane-safety-ok-v2';
-function syncSafetyChecks() {
-  const all = [...document.querySelectorAll('[data-safety-check]')];
-  const ok = document.getElementById('safetyOk');
-  if (ok) ok.disabled = !(all.length && all.every((c) => c.checked));
-}
-document.querySelectorAll('[data-safety-check]').forEach((c) => c.addEventListener('change', syncSafetyChecks));
+// v242: галочки убраны — пункты показаны текстом, одна кнопка «Принять»
 let _safetyPending = null;
 function withSafety(fn) {
   return () => {
@@ -7629,8 +7624,6 @@ function withSafety(fn) {
     const sheet = document.getElementById('safetySheet');
     if (!sheet) return fn();
     _safetyPending = fn;
-    document.querySelectorAll('[data-safety-check]').forEach((c) => { c.checked = false; });
-    syncSafetyChecks();
     sheet.classList.remove('hidden');
     sheet.setAttribute('aria-hidden', 'false');
   };
@@ -7643,8 +7636,7 @@ function closeSafety() {
   }
 }
 document.getElementById('safetyOk')?.addEventListener('click', () => {
-  const all = [...document.querySelectorAll('[data-safety-check]')];
-  if (!all.every((c) => c.checked)) { syncSafetyChecks(); return; }
+  const all = document.querySelectorAll('[data-safety-item]');
   try { localStorage.setItem(SAFETY_KEY, JSON.stringify({ at: Date.now(), items: all.length })); } catch (_) {}
   closeSafety();
   const fn = _safetyPending;
@@ -13210,7 +13202,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v241';
+const APP_VERSION = 'v242';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

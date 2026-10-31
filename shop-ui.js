@@ -170,6 +170,7 @@ function viewProduct(v) {
   const dl = el('dl', 'shop-specs'); for (const [k, val] of (p.specs || [])) { dl.appendChild(el('dt', '', k)); dl.appendChild(el('dd', '', val)); } sp.appendChild(dl); f.appendChild(sp);
   if (p.inBox?.length) { const s = el('section', 'shop-sec'); s.appendChild(el('h3', 'shop-h3', 'В комплекте')); const ul = el('ul', 'shop-list'); p.inBox.forEach((x) => ul.appendChild(el('li', '', x))); s.appendChild(ul); f.appendChild(s); }
   if (p.notes?.length) { const s = el('section', 'shop-sec'); s.appendChild(el('h3', 'shop-h3', 'Важно')); const ul = el('ul', 'shop-list shop-notes'); p.notes.forEach((x) => ul.appendChild(el('li', '', x))); s.appendChild(ul); f.appendChild(s); }
+  if (p.footnote) f.appendChild(el('p', 'shop-muted shop-pd', p.footnote));
   return f;
 }
 
