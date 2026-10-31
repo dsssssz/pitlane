@@ -19,7 +19,7 @@ const ROOT = new URL('../../', import.meta.url).pathname;
 for (const f of ['privacy.html', 'terms.html', 'offer.html', 'delete-account.html']) {
   const s = fs.readFileSync(ROOT + f, 'utf8');
   ok(!/mark class="ph"|\[(ФИО|ИНН|email|дата|цена)[^\]]*\]/.test(s), f + ': no bracket placeholders');
-  ok(s.includes('<span data-legal-rev>' + LEGAL_REVISION + '</span>') && s.includes('legal.js'), f + ': revision date + legal.js');
+  ok(/<span data-legal-rev>\d\d\.\d\d\.\d{4}<\/span>/.test(s) && s.includes('legal.js'), f + ': revision date + legal.js'); // v255: у каждой страницы своя редакция (delete-account не менялась с 11.10.2026)
 }
 const priv = fs.readFileSync(ROOT + 'privacy.html', 'utf8');
 ok(/GPS-данные замера/.test(priv) && /не записываются/.test(priv) && /180 дней/.test(priv) && /Удаление аккаунта стирает/.test(priv) && /Кто видит/.test(priv), 'privacy: what GPS data is stored, how long, who sees, what deletion erases');
