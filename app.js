@@ -13249,7 +13249,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v253';
+const APP_VERSION = 'v254';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13647,8 +13647,10 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     const car = document.getElementById('h48Car');
     let saved = null; try { saved = JSON.parse(localStorage.getItem('pitlane-v1') || '{}').carId || null; } catch (_) {}
     const mine = myCarLocal();
-    const hasCar = !!(mine || saved || (state.garage && state.garage.length));
-    if (car) { const t = mine ? String(mine.model) : hasCar && nm && nm !== '—' ? nm : 'Машина не выбрана'; if (car.textContent !== t) car.textContent = t; const e = hasCar ? '0' : '1'; if (car.dataset.empty !== e) car.dataset.empty = e; }
+    // v254: машина «в боксе» гаража (подиум) — источник правды, если «моя машина» не задана
+    let box = null; try { const bid = podiumModelId || defaultPodiumId(); box = bid ? (CARS.find((c) => c.id === bid) || null) : null; } catch (_) {}
+    const hasCar = !!(mine || saved || box || (state.garage && state.garage.length));
+    if (car) { const t = mine ? String(mine.model) : box?.name ? String(box.name) : hasCar && nm && nm !== '—' ? nm : 'Машина не выбрана'; if (car.textContent !== t) car.textContent = t; const e = hasCar ? '0' : '1'; if (car.dataset.empty !== e) car.dataset.empty = e; }
     const s = homeGoGpsStatus(); const g = document.getElementById('h48Gps'); const v = document.getElementById('h48GpsV');
     if (v && v.textContent !== s.text) v.textContent = s.text; if (g && g.dataset.q !== s.q) g.dataset.q = s.q;
   };
