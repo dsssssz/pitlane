@@ -1013,6 +1013,8 @@ function publicPulse(p, viewer = '') {
     ch: PULSE_CH.includes(p.ch) ? p.ch : 'gen',
     ...(p.run ? (() => { const r = publicRunAtt(p.run); return r ? { run: r } : {}; })() : {}),
     ...(p.auto ? { auto: 1 } : {}),
+    ...(p.lc && typeof p.lc === 'object' && p.lc.text ? { lc: { who: safeName(p.lc.who, 'Пилот'), text: String(p.lc.text).slice(0, 140), at: Number(p.lc.at) || null } } : {}),
+    ...(typeof p.best === 'string' && /^[a-z0-9]{4,40}$/.test(p.best) ? { best: p.best } : {}),
     ...(p.ch === 'tracks' && typeof p.trk === 'string' && slugOk(p.trk) ? { trk: p.trk } : {}),
     ...(p.pp && typeof p.pp === 'object' ? { pp: p.pp } : {}),
     ...(typeof p._ava === 'string' ? { ava: p._ava } : {}),
@@ -1025,6 +1027,7 @@ function publicPulseList(rows, viewer = '') {
 }
 
 /* ———————————————————— Paddock comments (v83) ———————————————————— */
+function pcomLast(list) { const c = (list || []).filter(Boolean).slice(-1)[0]; return c ? { who: c.who, text: String(c.text || '').slice(0, 140), at: c.at } : null; }
 const COMMENT_MAX = 500;
 const COMMENTS_PER_POST = 300;
 const POST_ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
@@ -3759,9 +3762,33 @@ export default {
           };
           list.push(c);
           await env.PITLANE.put(ckey, JSON.stringify(list));
-          await pulseOp(env, { t: 'cc', map: { [postId]: list.length } });
+          await pulseOp(env, { t: 'cc', map: { [postId]: list.length }, last: { [postId]: pcomLast(list) } });
           return json({ ok: true, postId, count: list.length, comment: publicComment(c, viewer) }, 200, headers);
         }
+      }
+      // v260: лучший ответ на вопрос — только автор вопроса
+      m = path.match(/^\/pulse\/([^/]+)\/best$/);
+      if (req.method === 'POST' && m) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const postId = safeDecode(m[1]);
+        if (!POST_ID_RE.test(postId)) return json({ error: 'not found' }, 404, headers);
+        const lim = await limitOr429(env, headers, [['rl:best:p:' + pilot.id, 30, 3600]]);
+        if (lim) return lim;
+        const body = await readJson(req, 1024);
+        const cid = body?.cid == null ? '' : String(body.cid);
+        const rows = await readList(env.PITLANE, 'pulse');
+        const post = rows.find((x) => x && x.id === postId);
+        if (!post) return json({ error: 'not found' }, 404, headers);
+        if (post.pilotId !== pilot.id) return json({ error: 'forbidden' }, 403, headers);
+        if (post.ch !== 'q') return json({ error: 'not a question' }, 400, headers);
+        if (cid) {
+          if (!COMMENT_ID_RE.test(cid)) return json({ error: 'not found' }, 404, headers);
+          const list = (await kvJson(env.PITLANE, 'pcom:' + postId)) || [];
+          if (!Array.isArray(list) || !list.some((c) => c && c.id === cid)) return json({ error: 'not found' }, 404, headers);
+        }
+        const { res } = await pulseOp(env, { t: 'best', id: postId, pid: pilot.id, cid: cid || null });
+        return json({ ok: !!res?.ok, postId, best: res?.best || null }, res?.ok ? 200 : 403, headers);
       }
       m = path.match(/^\/pulse\/([^/]+)\/comments\/([^/]+)$/);
       if (req.method === 'DELETE' && m) {
@@ -3784,7 +3811,7 @@ export default {
         else await env.PITLANE.delete(ckey);
         const rows = await readList(env.PITLANE, 'pulse');
         const post = rows.find((x) => x && x.id === postId);
-        if (post) await pulseOp(env, { t: 'cc', map: { [postId]: list.length } });
+        if (post) await pulseOp(env, { t: 'cc', map: { [postId]: list.length }, last: { [postId]: pcomLast(list) }, unbest: { [postId]: cid } });
         return json({ ok: true, postId, count: list.length }, 200, headers);
       }
 

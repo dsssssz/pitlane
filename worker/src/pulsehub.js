@@ -68,8 +68,22 @@ export function applyPulseOp(rows, op) {
       const map = op.map || {};
       for (const [id, n] of Object.entries(map)) {
         const p = find(id);
-        if (p) { p.cc = Math.max(0, Number(n) || 0); changed.add(id); }
+        if (p) {
+          p.cc = Math.max(0, Number(n) || 0);
+          if (op.last && Object.prototype.hasOwnProperty.call(op.last, id)) { if (op.last[id]) p.lc = op.last[id]; else delete p.lc; } // v259: превью последнего ответа
+          if (op.unbest && op.unbest[id] && p.best === op.unbest[id]) delete p.best;
+          changed.add(id);
+        }
       }
+      break;
+    }
+    case 'best': { // v260: автор вопроса отмечает лучший ответ
+      const p = find(op.id);
+      if (p && p.pilotId && p.pilotId === op.pid) {
+        if (op.cid) p.best = op.cid; else delete p.best;
+        changed.add(p.id);
+        res = { ok: true, id: p.id, best: p.best || null };
+      } else res = { ok: false };
       break;
     }
     case 'del': {

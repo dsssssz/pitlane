@@ -10113,9 +10113,22 @@ function buildPostCard(p, { compact = false } = {}) {
     head.appendChild(del);
   }
   card.appendChild(head);
+  if (p.ch === 'q') card.classList.add('is-q');
+  if (p.ch === 'q') { const qb = padEl('span', 'pad-qbadge', 'Вопрос'); card.insertBefore(qb, head.nextSibling); }
   if (!compact && p.ch === 'tracks' && p.trk) { const tg = padEl('button', 'pad-trk', trackShortName(p.trk)); tg.type = 'button'; tg.dataset.trk = p.trk; card.appendChild(tg); }
-  if (p.run) card.appendChild(padRunCard(p.run, p.car));
-  if (p.text) card.appendChild(padEl('p', 'pad-text', p.text));
+  const ctx = p.run && p.text && p.ch !== 'runs';
+  if (p.run && !ctx) card.appendChild(padRunCard(p.run, p.car));
+  if (p.text) {
+    const tx = padEl('p', 'pad-text');
+    if (ctx) { // v259: «BMW G87 · 0–100 3.9 · текст»
+      const c = padEl('span', 'pad-ctx');
+      try { c.appendChild(brandLogoEl(p.run.car || p.car)); } catch (_) {}
+      c.appendChild(padEl('b', '', [p.run.car || p.car, padDiscLabel(p.run.d) + ' ' + Number(p.run.t).toFixed(2).replace(/0$/, '')].filter(Boolean).join(' · ')));
+      tx.appendChild(c); tx.appendChild(document.createTextNode(' · '));
+    }
+    tx.appendChild(document.createTextNode(p.text));
+    card.appendChild(tx);
+  }
   if (p.img && PAD_IMG_RE.test(String(p.img))) {
     const img = document.createElement('img');
     img.className = 'pad-img';
@@ -10131,6 +10144,14 @@ function buildPostCard(p, { compact = false } = {}) {
   com.dataset.comments = p.id;
   bar.append(like, com);
   card.appendChild(bar);
+  if (!compact && Number(p.commentCount) > 0 && p.lc) { // v259: ветка видна прямо под сообщением
+    const th = padEl('button', 'pad-thread'); th.type = 'button'; th.dataset.comments = p.id;
+    const last = padEl('span', 'pad-thread-last');
+    last.appendChild(padEl('b', '', p.lc.who + ': ')); last.appendChild(document.createTextNode(p.lc.text));
+    th.appendChild(last);
+    th.appendChild(padEl('span', 'pad-thread-n', Number(p.commentCount) > 1 ? 'Все ' + p.commentCount + ' ' + padComLabel(p.commentCount) + ' →' : 'Открыть ветку →'));
+    card.appendChild(th);
+  }
   setTimeout(() => padSyncActions(p.id), 0);
   return card;
 }
@@ -10188,6 +10209,28 @@ function padPaintTopsFeed(feed, n) {
     feed.appendChild(sec);
   }).catch(() => {});
 }
+/** v259: машина из гаража + последний замер как контекст сообщения. */
+function padLastRun() {
+  const c = currentCar(); if (!c) return null;
+  const rec = (state.meas && state.meas[state.carId]) || {};
+  const t = Number(rec.v0100);
+  if (!(t > 0)) return null;
+  const ps = rec.pass0100 || {};
+  return { d: '0-100', t: Math.round(t * 100) / 100, src: ps.src === 'ext' || ps.src === 'chip' ? 'chip' : 'phone', car: String(c.name || '').slice(0, 60) };
+}
+function padPaintAttach() {
+  const b = document.getElementById('cpAttach'); if (!b) return;
+  { const cmp = b.closest('.pulse-compose'); if (cmp && cmp.parentNode && b.parentNode === cmp) cmp.parentNode.insertBefore(b, cmp); } // над полем ввода, отдельной строкой
+  const c = currentCar(); const r = padLastRun();
+  if (!c || !r) { b.hidden = true; CP.att = false; return; }
+  b.hidden = false;
+  b.setAttribute('aria-pressed', CP.att ? 'true' : 'false');
+  b.replaceChildren();
+  try { b.appendChild(brandLogoEl(c.name)); } catch (_) {}
+  b.appendChild(padEl('span', '', (CP.att ? '' : '+ ') + c.name + ' · ' + padDiscLabel(r.d) + ' ' + r.t.toFixed(2)));
+  if (CP.att) b.appendChild(padEl('i', 'cp-att-x', '×'));
+}
+document.addEventListener('click', (e) => { if (e.target.closest?.('#cpAttach')) { CP.att = !CP.att; hap(6); padPaintAttach(); } });
 /** v258: «Отправить в чат» с карточки своего заезда. */
 function padRunFromShare(pl) {
   if (!pl || pl.ghost || pl.kind === 'lap') return null;
@@ -10319,7 +10362,7 @@ function renderComments(list) {
   if (!list.length) {
     const empty = padEl('div', 'pad-empty pad-empty-sm');
     empty.appendChild(padIcon('bubble', 'pad-empty-ico'));
-    empty.appendChild(padEl('p', '', 'Комментариев пока нет. Будь первым.'));
+    empty.appendChild(padEl('p', '', 'Ответов пока нет. Ответь первым.'));
     box.appendChild(empty);
     return;
   }
@@ -10351,7 +10394,15 @@ async function openComments(postId) {
   if (msg) msg.textContent = '';
   padComposerState();
   const box = document.getElementById('padComList');
-  if (box) { box.replaceChildren(skel171(3, 'Загружаем комментарии')); }
+  if (box) { box.replaceChildren(skel171(3, 'Загружаем ответы')); }
+  { // v259: вид ветки — исходное сообщение сверху, ответы под ним
+    const sh = document.getElementById('padCommentsSheet');
+    let hd = document.getElementById('padComHead');
+    if (sh && box && !hd) { hd = padEl('div', 'pad-com-head'); hd.id = 'padComHead'; box.parentNode.insertBefore(hd, box); }
+    const p0 = _padPosts.get(postId);
+    if (hd) { hd.replaceChildren(); if (p0) hd.appendChild(buildPostCard(p0, { compact: true })); }
+    const tt = sh?.querySelector('.race-sheet-title'); if (tt) tt.textContent = 'Ветка';
+  }
   padShow('padCommentsSheet', true);
   { const b = document.getElementById('padComSend'); const t = document.getElementById('padComText'); if (b) b.disabled = !(t?.value || '').trim(); }
   const res = await api.listComments(postId);
@@ -10393,7 +10444,7 @@ async function sendComment() {
   if (cnt) cnt.textContent = '0/500';
   if (msg) msg.textContent = '';
   const p = _padPosts.get(postId);
-  if (p) { p.commentCount = Number(res.count) || (p.commentCount || 0) + 1; padSyncActions(postId); }
+  if (p) { p.commentCount = Number(res.count) || (p.commentCount || 0) + 1; if (res.comment) p.lc = { who: res.comment.who, text: String(res.comment.text || '').slice(0, 140), at: res.comment.at }; padSyncActions(postId); }
   await openComments(postId);
   const box = document.getElementById('padComList');
   if (box) box.scrollTop = box.scrollHeight;
@@ -11044,7 +11095,8 @@ async function padSendFromComposer() {
   if (inp) inp.value = '';
   if (msg) msg.textContent = '';
   padSyncSendBtn();
-  const it = { cid: padNewCid(), text: text.slice(0, 280), img: null, at: Date.now(), car: currentCar()?.name || '', status: 'sending', ch: CP.ch, ...(CP.ch === 'tracks' && CP.trk ? { trk: CP.trk } : {}) };
+  const att = CP.att ? padLastRun() : null;
+  const it = { cid: padNewCid(), text: text.slice(0, 280), img: null, at: Date.now(), car: currentCar()?.name || '', status: 'sending', ch: CP.ch, ...(CP.ch === 'tracks' && CP.trk ? { trk: CP.trk } : {}), ...(att ? { run: att } : {}) };
   _padOut.push(it); padOutSave(); padPaintOut();
   document.getElementById('tgSheetBody')?.scrollTo?.({ top: 0, behavior: 'smooth' });
   document.getElementById('chatBody')?.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -13344,7 +13396,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v258';
+const APP_VERSION = 'v259';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -17678,6 +17730,7 @@ function cpSetTab(ch, { trk } = {}) {
   if (to) { to.textContent = ch === 'tracks' && CP.trk ? 'в Треки · ' + trackShortName(CP.trk) : CP_TO[ch]; }
   const pin = document.getElementById('cpPin'); if (pin) pin.dataset.key = '';
   renderPulseRows(CP.all);
+  try { padPaintAttach(); } catch (_) {}
   document.getElementById('chatBody')?.scrollTo?.({ top: 0 });
 }
 function openChatPage() {

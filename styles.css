@@ -7674,3 +7674,22 @@ html.v159:not(#_):not(#_) .z61-rows .ds-row[hidden] { display: none !important; 
 .pad-run-t small { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.5); }
 .pad-tops-h { margin: 14px 2px 8px; font: 650 11px/1.2 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.45); }
 .pad-top-card .pad-run { margin-bottom: 0; }
+/* v259: ветки, вопрос, контекст сообщения */
+.pad-qbadge { align-self: flex-start; display: inline-flex; margin: 2px 0 6px; padding: 3px 9px; border-radius: 999px; border: 1px solid rgba(255,255,255,.18); font: 650 11px/1.2 var(--font-ui); letter-spacing: .02em; color: rgba(255,255,255,.85); }
+.pad-qbadge::before { content: '?'; margin-right: 5px; font-weight: 800; color: rgb(var(--acc-rgb)); }
+.pad-ctx { display: inline-flex; align-items: center; gap: 6px; vertical-align: middle; }
+.pad-ctx .cdb-logo { width: 18px; height: 18px; }
+.pad-ctx b { font-weight: 650; color: rgba(255,255,255,.95); }
+.pad-thread { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; margin: 8px 0 0; padding: 8px 0 2px 12px; min-height: 0; border: 0; border-left: 2px solid rgba(255,255,255,.14); border-radius: 0; background: none; text-align: left; color: inherit; }
+.pad-thread-last { font: 400 13px/1.35 var(--font-ui); color: rgba(255,255,255,.72); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pad-thread-last b { font-weight: 650; color: rgba(255,255,255,.9); }
+.pad-thread-n { font: 650 12px/1.2 var(--font-ui); color: rgb(var(--acc-rgb)); }
+.pad-com-head { margin: 0 0 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.pad-com-head .pad-actions { display: none; }
+.pad-com-list .pad-com { margin-left: 14px; padding-left: 12px; border-left: 2px solid rgba(255,255,255,.1); }
+.cp-attach { display: inline-flex; align-items: center; gap: 8px; align-self: flex-start; margin: 0 0 8px; padding: 6px 12px; min-height: 0; border-radius: 999px; border: 1px dashed rgba(255,255,255,.2); background: none; color: rgba(255,255,255,.7); font: 600 12px/1.2 var(--font-ui); }
+.cp-attach[hidden] { display: none; }
+.cp-attach .cdb-logo { width: 18px; height: 18px; }
+.cp-attach[aria-pressed="true"] { border-style: solid; border-color: rgba(var(--acc-rgb), .5); color: #fff; background: rgba(var(--acc-rgb), .08); }
+.cp-att-x { font-style: normal; opacity: .6; }
+html.chat-open .crew-sheet.pad-sheet { z-index: 12060; } /* v259: ветка поверх страницы чата */
