@@ -6971,6 +6971,7 @@ function isPro(u) {
 
 function refreshAccount() {
   const u = currentUser();
+  document.getElementById('btnLogout')?.classList.toggle('hidden', !u); // v251: гостю «Выйти» не показываем
   document.getElementById('authForm')?.classList.toggle('hidden', !!u);
   const phones = document.querySelectorAll('#accPhone, #accPhoneStatus');
   const demoBan = document.getElementById('accDemoBanner');
@@ -13248,7 +13249,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v250';
+const APP_VERSION = 'v251';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -13527,7 +13528,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
       const mb = document.getElementById('g53Mine'); mb.textContent = isMine ? 'Моя машина' : 'Это моя машина'; mb.classList.toggle('on', isMine);
       // v163: лента — все машины (текущая отмечена), студийные рендеры вместо снимков старого подиума
       document.getElementById('g53List').innerHTML = list.map((x) => `<button type="button" class="g53-car${x.id === m.id ? ' on' : ''}" role="listitem" data-g53="${esc(x.id)}"${x.id === m.id ? ' aria-current="true"' : ''}><span class="g53-th"><img src="${STUDIO_IDS.has(x.id) ? `./img/cars/studio/${x.id}-780.webp` : carThumbUrl(x.id)}" alt="" width="780" height="488" loading="lazy" decoding="async" /></span><span class="g53-cn">${esc(x.name)}</span></button>`).join('');
-      try { document.querySelector('#g53List .g53-car.on')?.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (_) {}
+      try { const c = document.querySelector('#g53List .g53-car.on'); const l = c?.parentElement; if (c && l) { const cr = c.getBoundingClientRect(), lr = l.getBoundingClientRect(); l.scrollLeft += cr.left - lr.left - (lr.width - cr.width) / 2; } } catch (_) {} // v251: только по горизонтали — scrollIntoView прокручивал страницу и прятал 3D
     };
     /* v163: имя крупно + тонкая строка характеристик (мощность, 0–100 завода, мой лучший) и точки-индикатор */
     function g63Paint(list, m, meta) {
@@ -17650,7 +17651,7 @@ function pf6NameRow(name, pp, cls = 'pf6-nm', own = true) {
   return row;
 }
 function pf6AvaEl(size, pp) {
-  let a = padAvatar(pf6Nick() || 'Пилот', pf6Ava(), size);
+  let a = padAvatar(pf6Nick() || (currentUser() ? 'Пилот' : 'Г'), pf6Ava(), size); // v251: гость — «Г», а не «ПИ»
   if (pp && pp.frame) { try { a = framedAvatar(a, pp.frame, size); } catch (_) {} }
   return a;
 }

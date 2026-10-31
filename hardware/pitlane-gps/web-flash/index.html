@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="../../../favicon.svg" type="image/svg+xml" />
   <title>PITLANE GPS — прошивка через браузер</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
   <!-- v184: esp-web-tools 10.4.0 лежит у нас (раньше — плавающий unpkg @10 без SRI на том же origin, что и Mini App с токеном) -->
@@ -34,7 +35,7 @@
     <span slot="not-allowed">Нужна страница по HTTPS.</span>
   </esp-web-install-button>
   <p><b>Прошивка 2.1.3 (Wi-Fi):</b> при первой прошивке отметьте «стереть устройство» — изменилась таблица разделов.
-  После перезапуска чип сам включит сеть <code>PITLANE-GPS-XXXX</code> (пароль у каждого чипа свой — он появится в логе ниже: «пароль XXXXXXXXXX») для настройки
+  После перезапуска чип сам включит сеть <code>PITLANE-GPS-XXXX</code> (пароль <code>pitlanegps</code>; в новых прошивках, начиная с v249, — свой у каждого чипа, его видно в логе: «пароль XXXXXXXXXX») для настройки
   хотспота и привязки к аккаунту — с iPhone тоже. Пошагово — в README чипа, раздел «Wi-Fi и iPhone».</p>
   <h2 style="font-size:17px">⚠ Диагностика связи (только для отладки)</h2>
   <esp-web-install-button manifest="manifest-debug.json">
