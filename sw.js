@@ -1,8 +1,8 @@
-const CACHE = 'pitlane-v276';
+const CACHE = 'pitlane-v277';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
-const BUILD = /*BUILD*/["./b/app-XT2A7KJT.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-A5047DB9.css"]/*END*/;
+const BUILD = /*BUILD*/["./b/app-QQDZVVWM.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-2F53F559.css"]/*END*/;
 const CORE = [
   ...BUILD,
   './',
@@ -19,6 +19,7 @@ const CORE = [
   './delete-account.html',
   './tools/tma-check.html',
   './legal.css', './fonts/pl-sans.woff2', './fonts/pl-num.woff2',
+  './img/forged.webp',
   './img/shop/gps-hero-720.webp',
   './img/banners/bn-gps-800.webp',
   './img/banners/bn-tops-800.webp',
