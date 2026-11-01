@@ -8060,3 +8060,31 @@ html:not(#_):not(#_) #h48Start.r275:active .r275-bz, html:not(#_):not(#_) #h48St
 html:not(#_):not(#_) #h48Start.r275 .r275-arc circle { stroke-dasharray: 757.1; stroke-dashoffset: 757.1; }
 html:not(#_):not(#_) #h48Start.r275[data-st="ready"] .r275-arc circle, html:not(#_):not(#_) #h48Start.r275[data-st="still"] .r275-arc circle { stroke-dashoffset: 0; }
 html:not(#_):not(#_) #h48Start.r275[data-st="wait"] .r275-arc circle { stroke-dashoffset: 287.7; }
+
+/* ——— v278: Старт — чистый тёмный круг 300px (268 на низких экранах) с тонким красным кольцом; переключатель — стеклянный «пузырь» iOS; экран замера — стекло iOS ——— */
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275{width:300px!important;height:300px!important;font-size:30px!important;box-shadow:none!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-arc{width:100%!important;height:100%!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz{inset:0!important;background:linear-gradient(160deg,#3a3b3f,#121214 30%,#050506 70%,#1d1e21)!important;box-shadow:0 18px 40px rgba(0,0,0,.75),inset 0 0 0 .5px rgba(255,255,255,.18)!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz::after{display:none!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-dk{inset:5px!important;background:radial-gradient(circle at 50% 30%,#1c1c1f,#0b0b0c 60%,#050506)!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt{inset:5px!important;background:radial-gradient(ellipse 60% 26% at 50% 10%,rgba(255,255,255,.09),transparent 70%)!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt::after{box-shadow:inset 0 1px 0 rgba(255,255,255,.12)!important}
+@media (max-height:700px){html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275{width:268px!important;height:268px!important;margin-top:-6px!important;margin-bottom:-8px!important} html:not(#_):not(#_):not(#_):not(#_):not(#_) #r275Ticks{margin-top:18px!important;margin-bottom:-26px!important}}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h56Mode{position:relative!important;display:flex!important;gap:0!important;padding:4px!important;border-radius:999px!important;border:0!important;background:linear-gradient(180deg,#1e1f22,#0a0a0b)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.12),inset 0 0 0 .5px rgba(255,255,255,.08),0 8px 20px rgba(0,0,0,.6)!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h56Mode button{flex:1!important;border:0!important;border-radius:999px!important;background:transparent!important;color:#7a7b80!important;padding:10px 20px!important;font-weight:500!important;letter-spacing:.02em!important;box-shadow:none!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #h56Mode button[aria-checked="true"]{color:#fff!important;background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,.08) 50%,rgba(255,255,255,.12))!important;backdrop-filter:blur(14px) saturate(160%)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(255,255,255,.12),inset 0 0 0 .5px rgba(255,255,255,.3),0 4px 12px rgba(0,0,0,.5)!important}
+
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .run-drive-top{background:radial-gradient(ellipse 80% 40% at 50% 22%,rgba(120,130,150,.18),transparent 70%)!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive #runDriveSpeed{color:#fff!important;-webkit-text-fill-color:#fff!important;background:none!important;font-weight:300!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .hgz-fill{stroke:#fff!important} html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .hgz-needle{stroke:#fff!important;stroke-width:3!important} html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .hgz-tick{stroke:#444!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows{margin:0 -6px!important;padding:2px 16px!important;border-radius:22px!important;background:linear-gradient(180deg,rgba(255,255,255,.09),rgba(255,255,255,.03))!important;backdrop-filter:blur(20px)!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.18),inset 0 0 0 .5px rgba(255,255,255,.12)!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row{border-color:rgba(255,255,255,.08)!important} html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row:last-child{border:0!important} html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row span{color:rgba(255,255,255,.6)!important} html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row b{font-size:28px!important;font-weight:400!important;color:#fff!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-more{color:rgba(255,255,255,.7)!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive #runDriveStop#runDriveStop.go-btn{font:600 18px/1 -apple-system,var(--font-ui)!important;height:58px!important;border-radius:29px!important;background:radial-gradient(ellipse 70% 60% at 50% 0%,rgba(255,255,255,.28),transparent 70%),rgba(120,120,128,.26)!important;backdrop-filter:blur(20px)!important;border:0!important;color:#fff!important;box-shadow:inset 0 0 0 .5px rgba(255,255,255,.35),0 8px 22px rgba(0,0,0,.5)!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive #runDriveStop#runDriveStop.go-btn::before{content:""!important;display:inline-block!important;width:8px!important;height:8px!important;border-radius:2px!important;background:#ff453a!important;margin-right:10px!important;vertical-align:1px!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive #runDriveSpeed{font-variant-numeric:tabular-nums!important;transition:opacity .15s!important}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive #runDriveStop#runDriveStop.go-btn{min-height:56px!important}
+
+@keyframes r277In{0%{opacity:0;transform:translateY(8px);filter:blur(6px)}100%{opacity:1;transform:none;filter:none}}
+#rd50Rows .rd50-row b.r277-in{display:inline-block;animation:r277In .55s cubic-bezier(.2,.8,.2,1) both;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){#rd50Rows .rd50-row b.r277-in{animation:none}}

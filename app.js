@@ -3465,13 +3465,24 @@ function rd50Set(k, val) {
   const row = rd50Row(k); if (!row) return;
   const b = row.querySelector('b'); if (!b) return;
   b.textContent = String(val) + (k === 'trap' ? ' км/ч' : ' с');
+  /* v277b: значение отрезка проявляется (blur/slide) и коротко досчитывается до итога; без анимации при prefers-reduced-motion */
+  try {
+    const fin = Number(val), suf = k === 'trap' ? ' км/ч' : ' с', dec = (String(val).split('.')[1] || '').length;
+    if (fin > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      b.classList.remove('r277-in'); void b.offsetWidth; b.classList.add('r277-in');
+      const t0 = performance.now(), dur = 520, tok = (b._r277 = (b._r277 || 0) + 1);
+      const step = (t) => { if (b._r277 !== tok) return; const q = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - q, 3);
+        b.textContent = (q < 1 ? (fin * e).toFixed(dec) : String(val)) + suf; if (q < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    }
+  } catch (_) {}
   const em = row.querySelector('.r275-dl'); const dl = k === 'trap' ? null : r275Dl(k, Number(val));
   if (em) { em.textContent = dl ? dl.text : ''; em.className = 'r275-dl' + (dl ? ' ' + dl.cls : ''); }
   row.classList.remove('on'); void row.offsetWidth; row.classList.add('on');
   _hapKey = true; try { hap(12); } finally { _hapKey = false; } // v153: лёгкий «щелчок» при фиксации отметки
 }
 function rd50Reset() {
-  document.querySelectorAll('#rd50Rows .rd50-row').forEach((r) => { r.classList.remove('on'); const b = r.querySelector('b'); if (b) b.textContent = '—'; const em = r.querySelector('.r275-dl'); if (em) { em.textContent = ''; em.className = 'r275-dl'; } });
+  document.querySelectorAll('#rd50Rows .rd50-row').forEach((r) => { r.classList.remove('on'); const b = r.querySelector('b'); if (b) { b._r277 = (b._r277 || 0) + 1; b.classList.remove('r277-in'); b.textContent = '—'; } const em = r.querySelector('.r275-dl'); if (em) { em.textContent = ''; em.className = 'r275-dl'; } });
   rd50Sheet(false);
 }
 function rd50Sheet(open) {
@@ -13518,7 +13529,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v277';
+const APP_VERSION = 'v278';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
