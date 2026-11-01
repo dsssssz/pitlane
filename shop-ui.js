@@ -22,7 +22,6 @@ function payBadges() { const w = el('div', 'shop-badges'); PAY_BADGES.forEach((t
 const isChip = (p) => p && p.id === FOUNDERS.productId;
 const founderLive = (p) => isChip(p) && SHOP_CONFIG.foundersOpen && st.founders && st.founders.left > 0;
 async function loadFounders() {
-  if (!SHOP_CONFIG.foundersOpen) return;
   const r = await D.api.shopFounders?.().catch(() => null);
   if (r && r.ok && Number.isFinite(r.left)) { st.founders = r; render(); }
 }
@@ -37,6 +36,8 @@ function priceBlock(p, big) {
     w.appendChild(el('span', 'shop-pb-offer', '−' + fmtRub(p.price - FOUNDERS.price) + ' первым ' + FOUNDERS.limit));
     w.appendChild(el('span', 'shop-pb-left', 'осталось ' + st.founders.left + ' из ' + FOUNDERS.limit));
   } else if (gated(p)) w.appendChild(el('span', 'shop-pb-soon', 'Скоро · после проверки точности'));
+  if (isChip(p) && !founderLive(p)) w.appendChild(el('span', 'shop-pb-offer', fmtRub(FOUNDERS.price) + ' основателям, далее ' + fmtRub(p.price)));
+  if (isChip(p) && !founderLive(p) && st.founders && Number.isFinite(st.founders.left) && st.founders.left > 0) w.appendChild(el('span', 'shop-pb-left', 'осталось ' + st.founders.left + ' из ' + FOUNDERS.limit));
   if (isChip(p)) w.appendChild(el('span', 'shop-pb-note', 'вдвое дешевле Dragy'));
   return w;
 }

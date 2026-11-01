@@ -188,7 +188,7 @@ export function renderShowcase(root, { car, carName, nick, res, pass, spec }) {
     cell(f2(sp.v0100), 'S', 'Factory 0–100');
     cell(sp.best > 0 ? Number(sp.best).toFixed(2) : null, 'S', 'My best', 'best');
     hero.appendChild(row);
-  } else { hero.classList.add('empty'); hero.appendChild(h('p', 'tiny muted sc-nocar', 'Выбери машину в «Боксе» — она встанет на витрину')); }
+  } else { hero.classList.add('empty'); hero.appendChild(h('p', 'tiny muted sc-nocar', 'Выбери машину — она встанет на витрину')); }
   root.appendChild(hero);
   const tot = Object.values(res.earned).reduce((a, b) => a + b, 0);
   // v209: компактное превью + полноэкранная витрина по тапу
@@ -337,7 +337,7 @@ export function spin3d(src, px, cols, n, period, cls, drag) {
 }
 
 /** v200: шторка Paddock Pass — герой, что входит (только то, что уже работает), цена, одна кнопка */
-export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustomize }) {
+export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustomize, guest, onLogin }) {
   root.replaceChildren();
   const hero = h('div', 'ps-hero');
   hero.appendChild(spin3d('./img/pass/pass-emblem-sprite.webp', 264, 12, 120, 6000, 'ps-ic'));
@@ -377,7 +377,7 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
     const sync = () => {
       for (const c of plans.children) { const on = c.dataset.plan === sel; c.classList.toggle('on', on); c.setAttribute('aria-checked', on ? 'true' : 'false'); }
       const P = PASS_PLANS.find((x) => x.id === sel);
-      b.textContent = available ? `Купить ${P.id === 'year' ? 'год' : 'сезон'} за ${P.stars} ★` : 'Скоро';
+      b.textContent = guest ? 'Войти, чтобы купить' : available ? `Купить ${P.id === 'year' ? 'год' : 'сезон'} за ${P.stars} ★` : 'Скоро';
     };
     for (const P of PASS_PLANS) {
       const c = h('button', 'ps-plan'); c.type = 'button'; c.dataset.plan = P.id; c.setAttribute('role', 'radio');
@@ -388,10 +388,10 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
       plans.appendChild(c);
     }
     root.appendChild(plans);
-    b.disabled = !available;
-    b.addEventListener('click', async () => { b.disabled = true; msg.textContent = await onBuy(sel); b.disabled = false; });
+    b.disabled = !available && !guest;
+    b.addEventListener('click', async () => { if (guest) { if (typeof onLogin === 'function') onLogin(); return; } b.disabled = true; msg.textContent = await onBuy(sel); b.disabled = false; });
     root.appendChild(b); sync();
-    msg.textContent = available ? 'Telegram Stars · разовая оплата, без автопродления.' : 'Продажи откроются после обновления сервера.';
+    msg.textContent = guest ? 'Покупка — после входа через Telegram.' : available ? 'Telegram Stars · разовая оплата, без автопродления.' : 'Продажи откроются после обновления сервера.';
   }
   root.appendChild(msg);
 }

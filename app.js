@@ -3738,6 +3738,7 @@ function packTrace(pts) {
 
 /** v104: коды отказа сервера → понятный русский текст (пороги не раскрываем). */
 const REJECT_TEXT = {
+  no_car: 'Выбери машину — тогда в топ. Замер сохранён у тебя.',
   no_account: 'В топ — только с аккаунтом. Войдите через Telegram; замер сохранён на устройстве.',
   gps_c: 'GPS слабый (класс C) — замер сохранён у вас, в топ не идёт.',
   manual_finish: 'Ручной финиш — круг только в личной истории. В топ идёт авто-пересечение линии С/Ф.',
@@ -4643,9 +4644,10 @@ async function publishGps(v0100, v100200, v200300) {
     {
       // v104: решает сервер по сырому треку; клиентские gpsQ / valid не отправляются
       const pts = rawSince(run.rawSeq0 || 0);
-      const pSub = api.addStraight(currentCar().id, {
+      const pc = pickedCar();
+      const pSub = !pc?.id ? Promise.resolve({ ok: false, code: 'no_car' }) : api.addStraight(pc.id, {
         name: String(who).slice(0, 24),
-        car: currentCar().name,
+        car: pc.name,
         weather: lapDrive.weather || undefined,
         trace: packTrace(pts),
       });
@@ -6035,13 +6037,6 @@ document.getElementById('runDriveShare')?.addEventListener('click', () => {
   openShareCard(buildSharePayload({ type: '0-100', time: Number(rec.v0100).toFixed(2) + ' с', valid: !!ps.top, src: ps.src || 'phone', n: ps.n, gpsQ: ps.gpsQ, avgAcc: ps.avgAcc, hz: ps.hz, paint: getStoredPaintHex() || undefined }));
 });
 // v108: пока в legal-config нет реквизитов — покупки Pro нет вовсе (кнопка «пока бесплатно» без действия-покупки)
-document.querySelectorAll('.btn-pro-soon, #btnProSoon').forEach((btn) => {
-  if (!legalReady()) { btn.title = 'Pro не продаётся: реквизиты продавца ещё не опубликованы. Всё доступно бесплатно.'; }
-  btn.addEventListener('click', (e) => {
-    e.preventDefault();
-    toastSoon();
-  });
-});
 /* v217: IMU телефона для замера (как Harry's LapTimer): толчок трогания + ускорение у каждого фикса 1 Гц.
  * Модуль линейного ускорения (без g), ФНЧ ~5 Гц. Толчок = >1.2 м/с² держится 120 мс; момент — последняя «тишина» (<0.4) перед ним. */
 const imuRun = { lp: null, quietT: 0, hiT: 0, kickT: null, accSum: 0, accN: 0 };
@@ -6305,11 +6300,12 @@ function sharePbDelta(p) {
 function myCarLocal() {
   try { const c = JSON.parse(localStorage.getItem('pitlane-mycar-v1') || 'null'); return c && c.model ? c : null; } catch (_) { return null; }
 }
+/** v279: машина, выбранная пилотом («Машина для зачёта»). Нет — null: никаких машин по умолчанию в чате/топах. */
+function pickedCar() { const m = myCarLocal(); return m ? { id: m.carId || null, name: String(m.model).slice(0, 80) } : null; }
 function lapCarTag() {
   const m = myCarLocal();
   if (m) return { car: String(m.model).slice(0, 80), carId: m.carId || null };
-  const c = currentCar();
-  return c?.name ? { car: c.name, carId: c.id || null } : {};
+  return {};
 }
 /** «G87» for catalog cars (chassis code from name/trim), else the short model name. */
 function stockLabel(carId, model) {
@@ -6411,7 +6407,7 @@ function shareStockEligible(p) {
 function requestShareStock(p) {
   if (!shareStockEligible(p) || Number.isFinite(p.stD) || p.stNone) return;
   const isLap = p.type === 'lap' || p.type === 'круг';
-  const tag = isLap ? lapCarTag() : { carId: currentCar()?.id || null, car: currentCar()?.name || '' };
+  const tag = isLap ? lapCarTag() : { carId: pickedCar()?.id || null, car: pickedCar()?.name || '' };
   const kind = isLap ? 'lap' : 'drag';
   const ref = isLap ? p.trackId : p.type;
   const apply = (best) => {
@@ -7086,7 +7082,7 @@ async function requestSmsCode(phone) {
   if (!res.ok) throw new Error('Вход по SMS пока недоступен — войдите через Telegram');
   authDb.otps[p] = { exp: Date.now() + 10 * 60 * 1000, tries: 0, remote: true };
   saveAuth();
-  return { phone: p, demoCode: null, demo: false };
+  return { phone: p };
 }
 
 async function verifySmsCode(phone, code, nick) {
@@ -7234,15 +7230,7 @@ document.getElementById('btnSendSms')?.addEventListener('click', async () => {
     const r = await requestSmsCode(phone);
     document.getElementById('authPhoneShow').textContent = '+' + r.phone;
     showAuthStep('code');
-    if (r.demoCode) {
-      msg.textContent = '';
-      const m2 = document.getElementById('authMsg2');
-      if (m2) m2.textContent = 'SMS-шлюз ещё не подключён — демо-код: ' + r.demoCode;
-    } else {
-      if (msg) msg.textContent = '';
-      const m2 = document.getElementById('authMsg2');
-      if (m2) m2.textContent = 'Код отправлен SMS';
-    }
+    { if (msg) msg.textContent = ''; const m2 = document.getElementById('authMsg2'); if (m2) m2.textContent = 'Код отправлен SMS'; }
   } catch (err) {
     if (msg) msg.textContent = err.message;
   }
@@ -10310,7 +10298,7 @@ function padRunFromShare(pl) {
 }
 function padSendRun(run) {
   if (!currentUser()) { needLogin('Сообщение в чат — после входа'); return false; }
-  const it = { cid: padNewCid(), text: '', img: null, at: Date.now(), car: run.car || currentCar()?.name || '', status: 'sending', ch: 'runs', run };
+  const it = { cid: padNewCid(), text: '', img: null, at: Date.now(), car: run.car || pickedCar()?.name || '', status: 'sending', ch: 'runs', run };
   _padOut.push(it); padOutSave();
   void padDeliver(it);
   return true;
@@ -11123,7 +11111,7 @@ function buildOutCard(it) {
   const card = padEl('article', 'pulse-card pad-out is-' + it.status);
   card.dataset.cid = it.cid;
   const head = padEl('header', 'pad-head');
-  head.appendChild(padAuthor({ name: pulseWho(), pilotId: accountPilotId(), avatar: padAvaUrl(accountPilotId(), ''), meta: [currentCar()?.name || '', 'сейчас'].filter(Boolean).join(' · ') }));
+  head.appendChild(padAuthor({ name: pulseWho(), pilotId: accountPilotId(), avatar: padAvaUrl(accountPilotId(), ''), meta: [pickedCar()?.name || '', 'сейчас'].filter(Boolean).join(' · ') }));
   card.appendChild(head);
   card.appendChild(padEl('p', 'pad-text', it.text));
   if (it.img && PAD_IMG_RE.test(String(it.img))) { const im = document.createElement('img'); im.className = 'pad-img'; im.alt = ''; im.src = it.img; card.appendChild(im); }
@@ -11202,7 +11190,7 @@ async function padSendFromComposer() {
   if (msg) msg.textContent = '';
   padSyncSendBtn();
   const att = CP.att || CP.ch === 'runs' ? padLastRun() : null;
-  const it = { cid: padNewCid(), text: text.slice(0, 280), img: null, at: Date.now(), car: currentCar()?.name || '', status: 'sending', ch: CP.ch, ...(CP.ch === 'tracks' && CP.trk ? { trk: CP.trk } : {}), ...(att ? { run: att } : {}) };
+  const it = { cid: padNewCid(), text: text.slice(0, 280), img: null, at: Date.now(), car: pickedCar()?.name || '', status: 'sending', ch: CP.ch, ...(CP.ch === 'tracks' && CP.trk ? { trk: CP.trk } : {}), ...(att ? { run: att } : {}) };
   _padOut.push(it); padOutSave(); padPaintOut();
   document.getElementById('tgSheetBody')?.scrollTo?.({ top: 0, behavior: 'smooth' });
   document.getElementById('chatBody')?.scrollTo?.({ top: 0, behavior: 'smooth' });
@@ -11337,7 +11325,7 @@ function rememberDuelCandidateFromShare(payload) {
     trackId: null,
     trackName: payload.track || '',
     t: isLap ? String(payload.time || '') : Number(String(payload.time || '').replace(',', '.').replace(/[^\d.]/g, '')),
-    car: payload.car || currentCar()?.name || '',
+    car: payload.car || pickedCar()?.name || '',
     gps: true,
     valid: true,
     gpsQ,
@@ -13324,7 +13312,7 @@ function roomWebUrl(param) {
 }
 initCrewRooms({
   tracks: () => TRACKS,
-  currentCar: () => currentCar(),
+  currentCar: () => pickedCar(), // v279: без BMW по умолчанию в «Это моя машина»
   garageCars: () => garageList(),
   stockCars: () => CARS,
   isAuthed: () => { const t = getSessionToken(); return !!t && !t.startsWith('local-'); },
@@ -13529,7 +13517,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v278';
+const APP_VERSION = 'v279';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -13931,7 +13919,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     // v254: машина «в боксе» гаража (подиум) — источник правды, если «моя машина» не задана
     let box = null; try { const bid = podiumModelId || defaultPodiumId(); box = bid ? (CARS.find((c) => c.id === bid) || null) : null; } catch (_) {}
     const hasCar = !!(mine || saved || box || (state.garage && state.garage.length));
-    if (car) { const t = mine ? String(mine.model) : box?.name ? String(box.name) : hasCar && nm && nm !== '—' ? nm : 'Машина не выбрана'; if (car.textContent !== t) car.textContent = t; const e = hasCar ? '0' : '1'; if (car.dataset.empty !== e) car.dataset.empty = e; }
+    if (car) { const t = mine ? String(mine.model) : 'Выбери машину'; /* v279: без машины по умолчанию */ if (car.textContent !== t) car.textContent = t; const e = mine ? '0' : '1'; if (car.dataset.empty !== e) car.dataset.empty = e; }
     const s = homeGoGpsStatus(); const g = document.getElementById('h48Gps'); const v = document.getElementById('h48GpsV');
     if (v && v.textContent !== s.text) v.textContent = s.text; if (g && g.dataset.q !== s.q) g.dataset.q = s.q;
     try { r275Idle(); } catch (_) {}
@@ -14208,7 +14196,7 @@ function publishDragMark(disc, sec) {
     if (cls === 'c' && PHONE_NO_DISCS.includes(disc)) return; // телефон эти отметки не меряет — сервер не примет
     if (disc === '0-100') return; // server copy goes via /tops/straight (mirrored)
     if (!isRemoteApi() || !currentUser()) return;
-    const car = currentCar();
+    const car = pickedCar(); if (!car) return; // v279: без выбранной машины — не в топ
     void Promise.resolve(api.addDrag(disc, {
       carId: car?.id,
       car: car?.name,
@@ -16885,8 +16873,17 @@ function renderTopsChips() {
       b.appendChild(padEl('span', 't72-dc-sub', ' '));
       box.appendChild(b);
     };
-    DRAG_DISC.forEach((d) => mk('drag', d.id, 'Разгон', d.label));
+    // v279: 4 главные дисциплины + «Ещё» (остальные раскрываются)
+    const MAIN = ['0-100', '100-200', '402m'];
+    DRAG_DISC.filter((d) => MAIN.includes(d.id)).forEach((d) => mk('drag', d.id, 'Разгон', d.label));
     mk('lap', '', 'Круг', 'Время круга');
+    DRAG_DISC.filter((d) => !MAIN.includes(d.id)).forEach((d) => { mk('drag', d.id, 'Разгон', d.label); box.lastChild.classList.add('t72-x'); });
+    const more = padEl('button', 't72-dc t72-more'); more.type = 'button';
+    more.appendChild(padEl('span', 't72-dc-cap', 'Все'));
+    more.appendChild(padEl('b', 't72-dc-t', 'Ещё'));
+    more.appendChild(padEl('span', 't72-dc-sub', (DRAG_DISC.length - MAIN.length) + ' дисциплин'));
+    more.addEventListener('click', (e) => { e.stopPropagation(); hap(6); const on = box.dataset.more !== '1'; if (on) box.dataset.more = '1'; else delete box.dataset.more; more.querySelector('.t72-dc-t').textContent = on ? 'Свернуть' : 'Ещё'; t72SyncDots(); });
+    box.appendChild(more);
     box.addEventListener('scroll', () => t72SyncDots(), { passive: true });
   }
   if (trk && !trk.childElementCount) TRACKS.forEach((t) => {
@@ -16924,7 +16921,7 @@ function renderTopsChips() {
 function t72SyncDots() {
   const box = document.getElementById('topsChips'); const d = document.getElementById('t72Dots');
   if (!box || !d) return;
-  const n = box.childElementCount; if (!n) return;
+  const n = [...box.children].filter((c) => c.offsetParent !== null).length; if (!n) return;
   if (d.childElementCount !== n) d.replaceChildren(...Array.from({ length: n }, () => padEl('i')));
   const w = box.scrollWidth - box.clientWidth;
   const k = w > 0 ? Math.round((box.scrollLeft / w) * (n - 1)) : 0;
@@ -17141,7 +17138,7 @@ async function t72RenderSums(cls, cur) {
   const box = document.getElementById('topsChips'); if (!box) return;
   const seq = ++_t72SumSeq; const key = t72SumKey(cls);
   const now = Date.now();
-  const cards = [...box.querySelectorAll('.t72-dc')];
+  const cards = [...box.querySelectorAll('.t72-dc.tchip')];
   const fill = (b, sel, data) => { t72PutSum(b, sel.kind === 'lap' ? (data.rows.length ? (t72Me(data.rows) >= 0 ? 'ты ' + (t72Me(data.rows) + 1) + '-й · ' : 'лидер ' + t72Fmt(sel, data.rows[0]._ms) + ' · ') + trackShortName(sel.id) : trackShortName(sel.id)) : t72SumText(sel, data.rows, data.phoneNo)); };
   const todo = [];
   for (const b of cards) {
@@ -17621,7 +17618,7 @@ function lh58Tick() {
   lh58Set('lh58Track', tr.name || '—');
   const n = lapSession.trackId === tid ? lapSession.laps.length : 0;
   const wx = document.getElementById('lapDriveWeather'); const wxt = wx?.dataset.ready ? wx.textContent.split(' · ')[0] : '';
-  let carN = ''; try { carN = currentCar().name; } catch (_) {}
+  let carN = ''; try { carN = pickedCar()?.name || ''; } catch (_) {}
   lh58Set('lh58Sub', [phase === 'idle' ? 'сессия не идёт' : 'круг ' + (n + 1), clipText(carN, 22), wxt].filter(Boolean).join(' · '));
   const running = phase === 'running' && lapRun.t0;
   const elapsed = running ? Date.now() - lapRun.t0 : 0;
@@ -18079,7 +18076,7 @@ async function renderAwards92() {
     const boards = await aw92Boards();
     renderShowcase(sc, { ...base, res: computeAwards({ boards, laps: state.laps, tracks: TRACKS, pid }) });
     if (pp) renderPassSheet(pp, {
-      pass, available,
+      pass, available, guest: !currentUser(), onLogin: passLogin,
       onBuy: async (plan) => {
         const r = await api.passInvoice(plan);
         if (!r || r.ok === false || !r.link) return 'Оплата недоступна: ' + (r?.error || 'сеть');
@@ -18097,11 +18094,13 @@ async function renderAwards92() {
   } finally { AW92.busy = false; }
 }
 
+/* v279: гость → «Войти, чтобы купить» */
+function passLogin() { closePassSheet(); needLogin('Paddock Pass — после входа через Telegram'); }
 /* v200: Paddock Pass — пилюля в шапке → отдельная шторка */
 function openPassSheet() {
   const sh = document.getElementById('passSheet'); if (!sh) return;
   const body = document.getElementById('passBody');
-  if (body && !body.childElementCount) { try { renderPassSheet(body, { pass: null, available: false, onBuy: async () => '', onSave: async () => '' }); } catch (_) {} }
+  if (body && !body.childElementCount) { try { renderPassSheet(body, { pass: null, available: false, guest: !currentUser(), onLogin: passLogin, onBuy: async () => '', onSave: async () => '' }); } catch (_) {} }
   sh.classList.remove('hidden'); sh.setAttribute('aria-hidden', 'false');
   try { void renderAwards92(); } catch (_) {}
 }
@@ -18299,6 +18298,7 @@ const PF6_IC = {
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>',
   suggest: '<path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/>',
   feedback: '<path d="M5 5h14v10h-8l-4 4v-4H5z"/>',
+  help: '<circle cx="12" cy="12" r="8"/><path d="M9.8 9.6a2.3 2.3 0 1 1 3.3 2.1c-.7.4-1.1.9-1.1 1.7M12 16.4v.2"/>',
   method: '<path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6"/>',
 };
 document.querySelectorAll('#pf6List .pf6-row').forEach((r) => { const k = r.dataset.pf6 || 'method'; const i = r.querySelector('.pf6-ic'); if (i && PF6_IC[k]) i.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true">' + PF6_IC[k] + '</svg>'; });
@@ -18357,11 +18357,12 @@ async function pf6Refresh() { renderPf6(); await pf6LoadPass(); renderPf6(); }
 document.getElementById('pf6EditBtn')?.addEventListener('click', () => { hap(8); openPfEdit(); });
 document.getElementById('pf6Pass')?.addEventListener('click', () => { hap(6); if (pf6Active()) openPfEdit({ focusPass: true }); else openPassSheet(); });
 document.getElementById('pf6Ava')?.addEventListener('click', () => { if (currentUser()) { hap(6); openPfEdit(); } });
+document.getElementById('view-settings')?.addEventListener('click', (e) => { const r = e.target.closest('[data-st-go]'); if (!r) return; hap(6); window.__route48?.(r.dataset.stGo); }); // v279
 document.getElementById('pf6List')?.addEventListener('click', (e) => {
   const r = e.target.closest('[data-pf6]'); if (!r) return;
   const k = r.dataset.pf6; hap(6);
   if (k === 'mycar') { try { openMyCarSheet({}); } catch (_) {} }
-  else if (k === 'garage') { goToView('garage'); window.scrollTo(0, 0); } // v261: единственный вход в Бокс (покраска — «Цвет и детали»)
+  else if (k === 'help') { window.__route48?.('settings'); setTimeout(() => document.getElementById('st66Help')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 260); } // v279
   else if (k === 'pass') openPassSheet();
   else window.__route48?.(k);
 });

@@ -33,13 +33,13 @@
     <meta name="twitter:title" content="PITLANE — Замеряй. Сравнивай. Побеждай." />
     <meta name="twitter:description" content="Разгоны 0–100 и круги по GPS с проверкой на сервере. Честные топы — прямо в Telegram." />
     <meta name="twitter:image" content="https://dsssssz.github.io/pitlane/img/og-1200x630.jpg" />
-    <meta name="pitlane-build" content="v278" />
+    <meta name="pitlane-build" content="v279" />
     <script src="./upd.js"></script>
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-7ZUKK5XU.js" />
-    <link rel="stylesheet" href="./styles-3E22A38B.css" />
+    <link rel="modulepreload" href="./b/app-GD4ACRRO.js" />
+    <link rel="stylesheet" href="./styles-2C74D79C.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -646,26 +646,16 @@
           <section class="card sc92" id="sc92" aria-label="Витрина"></section>
           <!-- v206: всё остальное — сгруппированными строками, как настройки Telegram -->
           <div class="pf6-list" id="pf6List">
-            <div class="pf6-g pf6-chip">
-              <button type="button" class="pf6-row pf6-chip-row" data-pf6="chip" id="pf6Chip"><i class="pf6-ic ic-c"></i><span class="pf6-k">GPS-чип<small class="pf6-chip-s" id="pf6ChipS">точные замеры в зачёт топов</small></span><span class="pf6-v" id="pf6ChipV">не подключён</span><b class="pf6-ch"></b></button>
+            <!-- v279: профиль — 5 пунктов: Машина, Журнал, Pass, Настройки, Помощь -->
+            <div class="pf6-g">
+              <button type="button" class="pf6-row" data-pf6="mycar"><i class="pf6-ic ic-g"></i><span class="pf6-k">Машина</span><span class="pf6-v" data-mycar-line>не выбрана</span><b class="pf6-ch"></b></button>
+              <button type="button" class="pf6-row" data-pf6="history"><i class="pf6-ic ic-b"></i><span class="pf6-k">Журнал</span><b class="pf6-ch"></b></button>
             </div>
             <!-- v266: живая плитка Pass -->
             <button type="button" class="pf6-pt" id="pf6PassTile" data-pf6="pass" aria-label="Paddock Pass"><span class="pt-card"><span class="pt-top"><span class="pt-wm">PITLANE <i>PASS</i></span><span class="pt-season" id="ptSeason"></span></span><span class="pt-chipm" aria-hidden="true"></span><span class="pt-bot"><span class="pt-who"><b id="ptNick"></b><small id="ptCar"></small></span><span class="pt-st"><span id="ptStatus">Не активен</span><span class="pt-cta" id="ptCta">Открыть</span></span></span></span></button>
             <div class="pf6-g">
-              <button type="button" class="pf6-row" data-pf6="garage"><i class="pf6-ic ic-g"></i><span class="pf6-k">Бокс</span><span class="pf6-v" data-mycar-line></span><b class="pf6-ch"></b></button>
-              <button type="button" class="pf6-row" data-pf6="history"><i class="pf6-ic ic-b"></i><span class="pf6-k">Журнал заездов</span><b class="pf6-ch"></b></button>
-            </div>
-            <div class="pf6-g">
-              <button type="button" class="pf6-row" data-pf6="shop"><i class="pf6-ic ic-s"></i><span class="pf6-k">Магазин</span><b class="pf6-ch"></b></button>
-            </div>
-            <div class="pf6-g">
               <button type="button" class="pf6-row" data-pf6="settings"><i class="pf6-ic ic-x"></i><span class="pf6-k">Настройки</span><b class="pf6-ch"></b></button>
-              <button type="button" class="pf6-row" data-pf6="feedback"><i class="pf6-ic ic-f"></i><span class="pf6-k">Обратная связь</span><b class="pf6-ch"></b></button>
-            </div>
-            <p class="pf6-gh">Справка</p>
-            <div class="pf6-g pf6-help">
-              <button type="button" class="pf6-row" data-pf6="suggest"><i class="pf6-ic ic-t"></i><span class="pf6-k">Предложить трассу</span><b class="pf6-ch"></b></button>
-              <a class="pf6-row" href="./method.html"><i class="pf6-ic ic-m"></i><span class="pf6-k">Как считаем время</span><b class="pf6-ch"></b></a>
+              <button type="button" class="pf6-row" data-pf6="help"><i class="pf6-ic ic-f"></i><span class="pf6-k">Помощь</span><b class="pf6-ch"></b></button>
             </div>
           </div>
           <!-- v148: всё остальное — в Профиле. Соревнования первыми -->
@@ -721,7 +711,6 @@
           <p class="tiny" id="accPlan"></p>
           <div class="acc-crew-row" hidden>
             
-            <button type="button" class="btn-secondary" id="btnGarageAcc">Бокс · 3D-подиум</button>
             <button type="button" class="btn-secondary" id="btnPulseAcc">Чат</button>
           </div>
           <!-- v121: уведомления бота — только по событиям, переключатели по типам -->
@@ -774,6 +763,7 @@
           </div></div>
           <div class="st66-g"><p class="st66-h">GPS и датчики</p><div class="st66-list">
             <button type="button" class="st66-row" data-st="gps"><span class="st66-k">Источник GPS</span><span class="st66-v" data-gps61>Телефон</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <button type="button" class="st66-row" data-st-go="shop"><span class="st66-k">GPS-чип PITLANE</span><span class="st66-v">магазин</span><i class="st66-chev" aria-hidden="true"></i></button>
             <article class="card" id="imuCard">
             <h3>Датчики движения</h3>
             <p class="muted tiny">На iPhone датчики включаются по нажатию. GPS + акселерометр — точнее.</p>
@@ -825,9 +815,10 @@
             <button type="button" id="btnOpenZamerPage" class="go-btn">Открыть страницу для иконки</button>
           </article>
           </div></div>
-          <div class="st66-g"><p class="st66-h">Помощь</p><div class="st66-list">
+          <div class="st66-g" id="st66Help"><p class="st66-h">Помощь</p><div class="st66-list">
             <button type="button" id="btnFeedback" class="st66-row" aria-haspopup="dialog" aria-controls="feedbackSheet"><span class="st66-k">Обратная связь</span><i class="st66-chev" aria-hidden="true"></i></button>
-            <a class="st66-row" href="./method.html"><span class="st66-k">Методика измерений и топов</span><i class="st66-chev" aria-hidden="true"></i></a>
+            <a class="st66-row" href="./method.html"><span class="st66-k">Как считаем время</span><i class="st66-chev" aria-hidden="true"></i></a>
+            <button type="button" class="st66-row" data-st-go="suggest"><span class="st66-k">Предложить трассу</span><i class="st66-chev" aria-hidden="true"></i></button>
           <p class="pl-ver" id="plVer" style="margin:14px 0 4px;text-align:center;font-size:11px;opacity:.45;letter-spacing:.04em">PITLANE</p>
           </div></div>
           <div class="st66-g"><p class="st66-h">Документы</p><div class="st66-list">
@@ -835,7 +826,6 @@
           </div></div>
           <div class="st66-g"><p class="st66-h">О приложении</p><div class="st66-list">
             <div class="st66-row st66-static"><span class="st66-k">Версия</span><span class="st66-v" id="st66Ver">—</span></div>
-            <button type="button" id="btnProSoon" class="st66-row"><span class="st66-k">Тариф</span><span class="st66-v">пока бесплатно</span></button>
             <button type="button" id="btnDeleteAccount" class="st66-row st66-danger hidden"><span class="st66-k">Удалить аккаунт</span></button>
           </div></div>
         </section>
@@ -1482,6 +1472,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-7ZUKK5XU.js"></script>
+    <script type="module" src="./b/app-GD4ACRRO.js"></script>
   </body>
 </html>

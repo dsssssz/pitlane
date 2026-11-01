@@ -8088,3 +8088,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive #runDriveStop#runDriveSto
 @keyframes r277In{0%{opacity:0;transform:translateY(8px);filter:blur(6px)}100%{opacity:1;transform:none;filter:none}}
 #rd50Rows .rd50-row b.r277-in{display:inline-block;animation:r277In .55s cubic-bezier(.2,.8,.2,1) both;font-variant-numeric:tabular-nums}
 @media (prefers-reduced-motion:reduce){#rd50Rows .rd50-row b.r277-in{animation:none}}
+/* v279: топы — 4 дисциплины + «Ещё» */
+#topsChips:not([data-more="1"]) .t72-x:not(.on){display:none}
+#topsChips .t72-more .t72-dc-t{color:var(--muted,#9aa0a6)}
+#topsChips[data-more="1"] .t72-more{order:99}
