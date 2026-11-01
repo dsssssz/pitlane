@@ -13500,7 +13500,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v272';
+const APP_VERSION = 'v273';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -17322,6 +17322,7 @@ async function renderTopsBoard() {
   if (seq !== _topsBoardSeq || cls !== _topsCls) return;
   void t72RenderSums(cls, { ...data, sel });
   const rows = data.rows;
+  t73HdrB();
   ol.replaceChildren();
   ol.removeAttribute('aria-busy');
   const lead = document.getElementById('t72Lead'); const line = document.getElementById('t72Line');
@@ -17340,6 +17341,11 @@ async function renderTopsBoard() {
       li.appendChild(padEl('b', '', 'Здесь пока никого'));
       li.appendChild(padEl('span', '', filtered ? 'В этом срезе нет результатов. Расширь фильтры или стань первым.' : (sel.kind === 'lap' ? 'На этой трассе ещё никто не проехал круг.' : 'В этой дисциплине ещё нет заездов.')));
       const acts = padEl('div', 't72-act');
+      if (_topsPeriod !== 'all') {
+        const pa = padEl('button', 't72-btn', 'Всё время'); pa.type = 'button';
+        pa.addEventListener('click', () => document.querySelector('#topsPeriod [data-per="all"]')?.click());
+        acts.appendChild(pa);
+      }
       if (filtered) {
         const w = padEl('button', 't72-btn', topsCityOn() ? 'Вся Россия' : 'Сбросить фильтры'); w.type = 'button';
         w.addEventListener('click', () => { t72ResetQuick(); });
@@ -17396,6 +17402,9 @@ async function renderTopsBoard() {
   }
   ol.appendChild(frag);
 }
+// v273: нижняя граница шапки PITLANE (вкл. Telegram safe-area) — под ней закрепляется переключатель Чип/Телефон
+function t73HdrB() { try { const hd = document.querySelector('.brand-bar'); if (!hd || !hd.offsetParent) return; const cs = getComputedStyle(hd); if (cs.position !== 'fixed' && cs.position !== 'sticky') return; const sy = window.scrollY; const r = hd.getBoundingClientRect(); const hb = cs.position === 'fixed' || sy > 0 ? Math.max(0, Math.round(r.bottom)) : Math.round(r.height + (parseFloat(cs.top) || 0)); document.documentElement.style.setProperty('--hdr-b', hb + 'px'); } catch (_) {} }
+window.addEventListener('resize', t73HdrB); setTimeout(t73HdrB, 600);
 function t72ResetQuick() {
   for (const id of ['topMyCityOnly', 'topMyCarOnly']) { const c = document.getElementById(id); if (c) c.checked = false; }
   _topsPeriod = 'all'; try { localStorage.setItem('pitlane-tops-period', 'all'); } catch (_) {}

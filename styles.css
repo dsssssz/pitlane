@@ -7975,3 +7975,16 @@ html:not(#_):not(#_):not(#_):not(#_) .t72-sheet .tops-check { display: flex; ali
 html:not(#_):not(#_):not(#_):not(#_) .t72-sheet .tops-menu-links { display: flex; gap: 8px; margin: 10px 0 4px; }
 html:not(#_):not(#_):not(#_):not(#_) .t72-show { margin-top: 12px; min-height: 50px; border-radius: 14px; border: 0; background: #ecebe6; color: #0a0a0a; font: 600 15px/1 var(--font-ui); }
 html:not(#_):not(#_):not(#_):not(#_) .t72-sheet .tops-check input { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; }
+
+/* v273: Топы на iPhone Telegram — #view-tops сам скролл-контейнер под шапкой, поэтому sticky top:0 (не --sat); transform у вью ломал position:fixed нижней панели; «Трасса» только для круга; старые блоки убраны */
+html:not(#_):not(#_):not(#_):not(#_) #view-tops.view { overflow: visible !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-pin { top: var(--hdr-b, 0px) !important; margin-top: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops.view.active { transform: none !important; animation: t73-fade var(--ds-t, .2s) var(--ds-ease, ease) both !important; }
+@keyframes t73-fade { from { opacity: 0; } to { opacity: 1; } }
+/* панель фильтров: не шире экрана, «Ещё» не обрезается */
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-bar { box-sizing: border-box; gap: 5px; padding: 8px 10px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-bar .tq-chip { padding: 0 12px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-cap[hidden] { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops :is(.tops-classic, #sessionDayCard) { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-act { flex-wrap: wrap; }
+html:not(#_):not(#_):not(#_):not(#_) #viewHost:has(> #view-tops.active), html:not(#_):not(#_):not(#_):not(#_) main:has(#view-tops.active) { overflow: clip !important; }
