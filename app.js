@@ -6085,7 +6085,13 @@ document.getElementById('topModelFilter')?.addEventListener('change', () => { vo
 
 if ('serviceWorker' in navigator) {
   // Not available in some WebViews (e.g. Telegram on iOS) — the app works without it.
-  try { navigator.serviceWorker.register('./sw.js').catch((err) => console.info('[pitlane] SW not registered:', err?.message || err)); } catch (_) {}
+  // v274: sw.js всегда из сети (updateViaCache none), проверка обновления при каждом возврате; новый SW взял управление → одна перезагрузка
+  try {
+    const hadCtl = !!navigator.serviceWorker.controller; let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadCtl || reloaded) return; reloaded = true; location.reload(); });
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) navigator.serviceWorker.getRegistration().then((r) => r && r.update()).catch(() => {}); });
+  } catch (_) {}
+  try { navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).catch((err) => console.info('[pitlane] SW not registered:', err?.message || err)); } catch (_) {}
 }
 renderSlips();
 
@@ -13500,7 +13506,8 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v273';
+const APP_VERSION = 'v274';
+{ const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;

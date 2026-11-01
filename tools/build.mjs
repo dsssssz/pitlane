@@ -30,6 +30,10 @@ const appRel = path.relative(root, path.join(process.cwd(), appFile)).split(path
 const appPath = appRel.startsWith('b/') ? appRel : 'b/' + path.basename(appFile);
 let html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 html = html.replace(/\.\/(?:b\/)?app(?:-[A-Z0-9]+)?\.js/g, './' + appPath).replace(/\.\/(?:b\/)?styles(?:-[A-Z0-9]+)?\.css/g, './' + cssFile);
+// v274: версия сборки → meta в index.html + version.json (проверка обновления в Telegram WebView)
+const appVer = (fs.readFileSync(path.join(root, 'app.js'), 'utf8').match(/const APP_VERSION = '([^']+)'/) || [])[1] || 'dev';
+html = html.replace(/<meta name="pitlane-build" content="[^"]*" \/>/, `<meta name="pitlane-build" content="${appVer}" />`);
+fs.writeFileSync(path.join(root, 'version.json'), JSON.stringify({ v: appVer, app: './' + appPath, css: './' + cssFile }) + '\n');
 fs.writeFileSync(path.join(root, 'index.html'), html);
 const files = fs.readdirSync(out).map((f) => './b/' + f).concat(['./' + cssFile]);
 fs.writeFileSync(path.join(out, 'manifest.json'), JSON.stringify({ app: './' + appPath, css: './' + cssFile, files }, null, 1));

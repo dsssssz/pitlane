@@ -1,8 +1,8 @@
-const CACHE = 'pitlane-v273';
+const CACHE = 'pitlane-v274';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
-const BUILD = /*BUILD*/["./b/app-RAWMQFCJ.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-165F7E82.css"]/*END*/;
+const BUILD = /*BUILD*/["./b/app-G2S4YJ2U.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-165F7E82.css"]/*END*/;
 const CORE = [
   ...BUILD,
   './',
@@ -159,6 +159,8 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   const url = new URL(e.request.url);
   const p = url.pathname;
+  // v274: version.json — только сеть, мимо кэшей
+  if (url.origin === self.location.origin && p.endsWith('/version.json')) return;
   // v80: never touch authenticated or Worker API traffic (no caching of personal responses, ever)
   if (e.request.headers.has('authorization') || url.hostname.endsWith('.workers.dev')) return;
   // API + live map tiles: never SW-cache (online-first; graceful app fallback offline)
@@ -201,7 +203,10 @@ self.addEventListener('fetch', (e) => {
     (async () => {
       try {
         // v213: свои файлы — всегда ревалидация (ETag), чтобы WKWebView/HTTP-кэш не держал старый JS после деплоя
-        const net = url.origin === self.location.origin && e.request.mode !== 'navigate' ? await fetch(e.request, { cache: 'no-cache' }) : await fetch(e.request);
+        // v274: и навигация (index.html) тоже с ревалидацией — иначе WKWebView отдаёт index.html из HTTP-кэша (max-age=600) со старыми хэшами
+        const net = url.origin === self.location.origin
+          ? (e.request.mode === 'navigate' ? await fetch(e.request.url, { cache: 'no-cache', credentials: 'same-origin', redirect: 'follow' }) : await fetch(e.request, { cache: 'no-cache' }))
+          : await fetch(e.request);
         if (net.ok) {
           const isThree = url.hostname.includes('unpkg.com') && url.pathname.includes('/three');
           const isGlb = url.pathname.endsWith('.glb');
