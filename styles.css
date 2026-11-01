@@ -7988,3 +7988,47 @@ html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-cap[hidden] { display: none
 html:not(#_):not(#_):not(#_):not(#_) #view-tops :is(.tops-classic, #sessionDayCard) { display: none !important; }
 html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-act { flex-wrap: wrap; }
 html:not(#_):not(#_):not(#_):not(#_) #viewHost:has(> #view-tops.active), html:not(#_):not(#_):not(#_):not(#_) main:has(#view-tops.active) { overflow: clip !important; }
+
+/* ——— v275: Замер · кнопка «Старт» R2 (кованый карбон, чёрный анодированный ободок, тонкое красное кольцо) ——— */
+html:not(#_):not(#_):not(#_) #h48Start.r275 { position: relative !important; isolation: isolate; width: 250px !important; height: 250px !important; aspect-ratio: 1 !important; border-radius: 50% !important; border: 0 !important;
+  background: transparent !important; box-shadow: 0 22px 40px rgba(0,0,0,.55), 0 4px 10px rgba(0,0,0,.5) !important; color: #f2f2f2 !important; padding: 0 !important;
+  font: 700 22px/1 var(--font-ui) !important; letter-spacing: .34em !important; text-indent: .34em; text-transform: uppercase !important;
+  display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 10px;
+  transition: transform .14s cubic-bezier(.2,.7,.2,1), color .14s !important; -webkit-tap-highlight-color: transparent; animation: none !important; }
+html:not(#_):not(#_):not(#_) #h48Start.r275 .h56-sub { display: block !important; margin: 0 !important; font: 500 9.5px/1.2 var(--font-ui) !important; letter-spacing: .3em !important; text-indent: .3em; color: #9a9a9a !important; text-transform: lowercase !important; max-width: 150px; opacity: 1 !important; }
+html:not(#_):not(#_):not(#_) #h48Start.r275::before, html:not(#_):not(#_):not(#_) #h48Start.r275::after { content: none !important; display: none !important; }
+.r275-d { position: absolute; inset: 0; z-index: -1; border-radius: 50%; pointer-events: none; }
+.r275-d i { position: absolute; border-radius: 50%; display: block; }
+.r275-bz { inset: 0; background: 
+  conic-gradient(from 210deg, #4a4c50, #141416 18%, #3a3c40 32%, #0c0c0e 50%, #404246 68%, #121214 84%, #4a4c50);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -1px 0 rgba(0,0,0,.8); }
+.r275-rr { inset: 19px; border: 1px solid #c8281c; box-shadow: inset 0 0 0 2px #050505, 0 0 0 2px #050505; transition: border-color .14s, box-shadow .14s; }
+.r275-dk { inset: 23px; background-color: #0c0c0d; background-size: 100% 100%; background-repeat: no-repeat;
+  background-image: radial-gradient(circle at 34% 26%, rgba(255,255,255,.10), transparent 55%), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='204' height='204'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.075' numOctaves='2' seed='7'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncR type='discrete' tableValues='.02 .055 .03 .09 .045 .12 .025'/%3E%3CfeFuncG type='discrete' tableValues='.02 .055 .03 .09 .045 .12 .025'/%3E%3CfeFuncB type='discrete' tableValues='.024 .06 .034 .095 .05 .13 .028'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='204' height='204' filter='url(%23f)'/%3E%3C/svg%3E");
+  box-shadow: inset 0 2px 3px rgba(255,255,255,.08), inset 0 -10px 24px rgba(0,0,0,.7), 0 0 0 1px #000; }
+.r275-lt { inset: 23px; background: linear-gradient(160deg, rgba(255,255,255,.10), transparent 42%, transparent 70%, rgba(0,0,0,.35)); }
+.r275-arc { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); opacity: 0; transition: opacity .2s; }
+.r275-arc circle { fill: none; stroke: #f2f2f2; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 669.2; stroke-dashoffset: 669.2; }
+/* нажатие — заметное: диск уходит вниз, кольцо ярче */
+html:not(#_):not(#_):not(#_) #h48Start.r275:active, html:not(#_):not(#_):not(#_) #h48Start.r275.h53-press { transform: scale(.93) translateY(4px) !important; color: #cfcfcf !important; }
+#h48Start.r275:active .r275-rr, #h48Start.r275.h53-press .r275-rr { border-color: #ff4a3a; box-shadow: inset 0 0 0 2px #050505, 0 0 0 2px #050505, 0 0 10px rgba(255,74,58,.45); }
+/* автостарт: «Готов» — тонкая дуга-трек; «Ждём» — дуга; «Трогайтесь» — дуга замыкается */
+#h48Start.r275[data-st="ready"] .r275-arc, #h48Start.r275[data-st="wait"] .r275-arc, #h48Start.r275[data-st="still"] .r275-arc { opacity: 1; }
+#h48Start.r275[data-st="ready"] .r275-arc circle { stroke: rgba(242,242,242,.22); stroke-dashoffset: 0; }
+#h48Start.r275[data-st="wait"] .r275-arc circle { stroke-dashoffset: 254.3; animation: r275Wait 1.8s ease-in-out infinite alternate; }
+#h48Start.r275[data-st="still"] .r275-arc circle { stroke-dashoffset: 0; transition: stroke-dashoffset .9s ease-out; }
+@keyframes r275Wait { from { opacity: .45; } to { opacity: 1; } }
+html:not(#_):not(#_):not(#_) #h48Start.r275.h56-wait { font-size: 18px !important; letter-spacing: .22em !important; text-indent: .22em; }
+.r275-pb { margin: 0 0 26px; font: 500 12px/1.3 var(--font-ui); letter-spacing: .04em; color: #8e9096; white-space: pre; font-variant-numeric: tabular-nums; }
+.r275-pb[hidden], .r275-ticks span[hidden] { display: none !important; }
+.r275-ticks { margin: 26px 0 0; display: flex; gap: 12px; justify-content: center; font: 500 10.5px/1 var(--font-ui); letter-spacing: .06em; color: #6c6f75; }
+.r275-ticks span:not([hidden]) ~ span::before { content: "·"; margin-right: 12px; color: #3a3c40; }
+html:not(#_):not(#_) .h48-gps { color: #a7aab0; font-weight: 500; }
+html:not(#_):not(#_) .h48-gps[data-q="good"] i { background: #3ecf6e; box-shadow: 0 0 0 3px rgba(62,207,110,.14); }
+/* живые отрезки + дельта к PB */
+.rd50-row .r275-dl { margin-left: auto; margin-right: 14px; font: 500 12px/1 var(--font-ui); font-style: normal; font-variant-numeric: tabular-nums; color: #6c6f75; }
+.r275-dl.up { color: #3ecf6e !important; }
+.r275-dl.dn { color: #b0564f !important; }
+.rd-table tr.r275-pbrow { background: rgba(255,255,255,.04); }
+.r275-pbtag { margin-left: 8px; padding: 2px 5px; border: 1px solid #c8281c; border-radius: 3px; font: 700 9px/1 var(--font-ui); letter-spacing: .1em; color: #f2f2f2; vertical-align: 1px; }
+@media (prefers-reduced-motion: reduce) { #h48Start.r275 .r275-arc circle { animation: none !important; transition: none !important; } }

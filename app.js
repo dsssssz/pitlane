@@ -3455,15 +3455,23 @@ function rdGridSet(k, val, sub, { flash = false, pre = false } = {}) {
 }
 /* v150: три строки разгона в оверлее (0–60 / 0–100 / 0–200): «—», пока нет времени; потом плавно на месте */
 function rd50Row(k) { return document.querySelector(`#rd50Rows .rd50-row[data-k="${k}"]`); }
+/* v275: дельта к личному рекорду — только если рекорд реально есть (снимок на старте) */
+function r275Pb0(k) { const t = Number(run.pb0?.[k]); return t > 0 ? t : null; }
+function r275Dl(k, sec) {
+  const pb = r275Pb0(k); if (!(pb > 0) || !(sec > 0)) return null;
+  const d = sec - pb; return { d, text: (d <= -0.005 ? '−' : '+') + Math.abs(d).toFixed(2), cls: d <= -0.005 ? 'up' : 'dn' };
+}
 function rd50Set(k, val) {
   const row = rd50Row(k); if (!row) return;
   const b = row.querySelector('b'); if (!b) return;
-  b.textContent = String(val) + ' с';
+  b.textContent = String(val) + (k === 'trap' ? ' км/ч' : ' с');
+  const em = row.querySelector('.r275-dl'); const dl = k === 'trap' ? null : r275Dl(k, Number(val));
+  if (em) { em.textContent = dl ? dl.text : ''; em.className = 'r275-dl' + (dl ? ' ' + dl.cls : ''); }
   row.classList.remove('on'); void row.offsetWidth; row.classList.add('on');
   _hapKey = true; try { hap(12); } finally { _hapKey = false; } // v153: лёгкий «щелчок» при фиксации отметки
 }
 function rd50Reset() {
-  document.querySelectorAll('#rd50Rows .rd50-row').forEach((r) => { r.classList.remove('on'); const b = r.querySelector('b'); if (b) b.textContent = '—'; });
+  document.querySelectorAll('#rd50Rows .rd50-row').forEach((r) => { r.classList.remove('on'); const b = r.querySelector('b'); if (b) b.textContent = '—'; const em = r.querySelector('.r275-dl'); if (em) { em.textContent = ''; em.className = 'r275-dl'; } });
   rd50Sheet(false);
 }
 function rd50Sheet(open) {
@@ -3612,6 +3620,7 @@ function onRunMark(k, S) {
       showMarkPop('0-200', sec, 'core');
       break;
     case '402m':
+      if (m.v > 0) rd50Set('trap', Math.round(m.v));
       run.saved14 = true; ghostRunMark('402m', sec * 1000); publishDragMark('402m', sec); break;
     case '200-300':
       setRunText('run200300', fmtRunSec(sec));
@@ -3985,10 +3994,10 @@ function as56Ui() {
   const sb = document.getElementById('h48Start'); if (!sb) return;
   const auto = as56Mode(); const st = !auto ? 'manual' : !AS56.wait ? 'ready' : AS56.stillSince ? 'still' : 'wait';
   if (AS56.st === st) return; AS56.st = st;
-  const L = { manual: ['Старт', ''], ready: ['Готов', 'старт — когда тронетесь'], wait: ['Ждём', 'остановитесь · нажмите — отмена'], still: ['Трогайтесь', 'замер начнётся сам'] }[st];
+  const L = { manual: ['Старт', 'все отрезки'], ready: ['Готов', 'старт — когда тронетесь'], wait: ['Ждём', 'остановитесь · нажмите — отмена'], still: ['Трогайтесь', 'замер начнётся сам'] }[st];
   if (sb.firstChild?.nodeType === 3) sb.firstChild.nodeValue = L[0]; else sb.prepend(L[0]);
   const sub = document.getElementById('h56Sub'); if (sub) sub.textContent = L[1];
-  sb.classList.toggle('h56-wait', st === 'wait' || st === 'still');
+  sb.classList.toggle('h56-wait', st === 'wait' || st === 'still'); sb.dataset.st = st;
   sb.setAttribute('aria-label', st === 'manual' ? 'Старт замера' : st === 'ready' ? 'Готов: замер начнётся сам, когда тронетесь' : 'Автостарт ждёт трогания. Нажмите, чтобы отменить');
   document.querySelectorAll('#h56Mode [data-as56]').forEach((b) => b.setAttribute('aria-checked', String((b.dataset.as56 === '1') === auto)));
 }
@@ -4283,9 +4292,12 @@ function wifiNote() {
   const v = String(verdict);
   return `На экране — справочно. ${v.charAt(0).toUpperCase()}${v.slice(1)} · ${passportLine(tp)}`;
 }
-function rdRow(tb, label, a, b, cls) {
-  const tr = padEl('tr', cls || '');
-  tr.append(padEl('th', '', label), padEl('td', '', a), padEl('td', '', b));
+function rdRow(tb, label, a, b, cls, k, sec) {
+  const dl = k ? r275Dl(k, sec) : null;
+  const tr = padEl('tr', (cls || '') + (dl?.cls === 'up' ? ' r275-pbrow' : ''));
+  const th = padEl('th', '', label); if (dl?.cls === 'up') th.appendChild(padEl('small', 'r275-pbtag', 'PB'));
+  tr.append(th, padEl('td', '', a), padEl('td', dl ? 'r275-dl ' + dl.cls : '', dl ? dl.text : (b || '')));
+  if (dl && b) tr.children[2].title = b;
   tb.appendChild(tr);
 }
 /** Итог заезда (все источники): главный результат, график, дистанция / ¼ мили / уклон, таблица, бейдж, дельты. */
@@ -4326,14 +4338,14 @@ function renderRunSummary() {
     const head = padEl('tr', 'h'); head.append(padEl('th', '', 'отметка'), padEl('td', '', 'время'), padEl('td', '', 'скорость · путь')); tb.appendChild(head);
     // v118: у телефона (зачёт C) 60 ft короче 2–3 точек — показываем справочно, с пометкой «вне зачёта»
     const offC = (k) => tp.gpsQ === 'C' && tp.src !== 'sim' && PHONE_NO_DISCS.includes(k);
-    for (const k of RM_DIST) if (M[k] && !(isPh && offC(k))) rdRow(tb, RM_LABEL[k], isPh ? fmtPhoneSec(M[k].sec, tp0, S) : M[k].sec.toFixed(2) + ' с', `${Math.round(M[k].v)} км/ч`, offC(k) ? 'off' : '');
+    for (const k of RM_DIST) if (M[k] && !(isPh && offC(k))) rdRow(tb, RM_LABEL[k], isPh ? fmtPhoneSec(M[k].sec, tp0, S) : M[k].sec.toFixed(2) + ' с', `${Math.round(M[k].v)} км/ч`, offC(k) ? 'off' : '', isPh ? null : k, M[k].sec);
     const span = (a, b) => (M[a]?.d != null && M[b]?.d != null ? `${Math.round(M[b].d - M[a].d)} м` : '');
     const speedRows = [['0-60', ''], ['0-100', ''], ['100-200', span('0-100', '0-200')], ['0-200', ''], ['200-300', span('0-200', '0-300')], ['0-300', ''], ['80-120', '']];
     for (const [k, path] of speedRows) {
       const sec = M[k]?.sec ?? chip(k);
       if (!(sec > 0)) continue;
       const via = !M[k] ? 'чип' : k.startsWith('0-') && M[k].d != null ? `${Math.round(M[k].d)} м` : path;
-      rdRow(tb, RM_LABEL[k], isPh && M[k] ? fmtPhoneSec(sec, tp0, S) : sec.toFixed(2) + ' с', via, k === heroK ? 'hero' : '');
+      rdRow(tb, RM_LABEL[k], isPh && M[k] ? fmtPhoneSec(sec, tp0, S) : sec.toFixed(2) + ' с', via, k === heroK ? 'hero' : '', isPh ? null : k, sec);
     }
     if (S.vmax > 0) rdRow(tb, 'Vmax', `${Math.round(S.vmax)} км/ч`, '');
     if (tb.children.length === 1) rdRow(tb, 'До 60 км/ч не дошло', '—', '');
@@ -4531,6 +4543,7 @@ function armRun(opts = {}) {
   run.brakeT0 = null;
   run.pops = {}; run.pendingShare = null; run.pendingEnd = null; run.topMsg = ''; run.summary = false; run.auto = !!opts.auto;
   run.rm = createRunMarks(); run.stockAsked = false; run.sumPts = null;
+  try { run.pb0 = r275PbSnap(); } catch (_) { run.pb0 = {}; }
   wifiSummaryReset();
   ['run050', 'run0100', 'run100200', 'run80120', 'run200300', 'run1000'].forEach((id) => setRunText(id, '—'));
   setRunText('runFrom', 'вооружён');
@@ -13506,7 +13519,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v274';
+const APP_VERSION = 'v275';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -13911,6 +13924,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     if (car) { const t = mine ? String(mine.model) : box?.name ? String(box.name) : hasCar && nm && nm !== '—' ? nm : 'Машина не выбрана'; if (car.textContent !== t) car.textContent = t; const e = hasCar ? '0' : '1'; if (car.dataset.empty !== e) car.dataset.empty = e; }
     const s = homeGoGpsStatus(); const g = document.getElementById('h48Gps'); const v = document.getElementById('h48GpsV');
     if (v && v.textContent !== s.text) v.textContent = s.text; if (g && g.dataset.q !== s.q) g.dataset.q = s.q;
+    try { r275Idle(); } catch (_) {}
   };
   setInterval(() => { if (!document.hidden) { try { renderH48(); } catch (_) {} } }, 2000); setTimeout(() => { try { renderH48(); } catch (_) {} }, 600);
   // Профиль: разделы
@@ -14609,6 +14623,25 @@ async function openPostInPaddock(id) {
 /* ——— v85: насыщенная Главная — только реальные данные (локальные замеры, Worker-топы, контент кода) ——— */
 function homeHeroCarId() {
   try { return podiumModelId || defaultPodiumId(); } catch (_) { return 'g87-m2'; }
+}
+/** v275: снимок личных рекордов текущей машины (только реальные, сохранённые локально) */
+function r275PbSnap() {
+  const id = currentCar()?.id; const o = {}; if (!id) return o;
+  for (const st of [state.dragBest, state.dragBestC]) {
+    const c = st?.[id]; if (!c) continue;
+    for (const k of Object.keys(c)) { const t = Number(c[k]?.t); if (t > 0 && !(o[k] <= t)) o[k] = t; }
+  }
+  return o;
+}
+function r275Idle() {
+  const el = document.getElementById('r275Pb'); if (!el) return;
+  const pb = r275PbSnap(); const parts = [];
+  if (pb['0-100'] > 0) parts.push('0–100 · PB ' + pb['0-100'].toFixed(2) + ' с');
+  if (pb['402m'] > 0) parts.push('¼ мили · PB ' + pb['402m'].toFixed(2) + ' с');
+  const t = parts.join('   |   ');
+  if (el.textContent !== t) el.textContent = t; el.hidden = !t;
+  const ph = document.getElementById('z61Gps')?.dataset.src === 'phone';
+  const f = document.querySelector('#r275Ticks [data-k="60ft"]'); if (f) f.hidden = ph; // телефон 60 ft не меряет
 }
 function localDragBest(carId, disc) {
   const r = state.dragBest?.[carId]?.[disc];
