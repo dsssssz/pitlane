@@ -4310,7 +4310,7 @@ function rdTrust(tp) {
   const el = run.trustEl;
   if (el && Number.isFinite(el.slope)) chips.push(`уклон ${el.slope > 0 ? '+' : ''}${el.slope.toFixed(1)}%`);
   for (const c of chips) box.appendChild(padEl('span', 'rd-tr', c));
-  if (/в топе · проверено|в зачёте C · телефон/.test(run.topMsg || '')) box.appendChild(padEl('span', 'rd-tr ok', '✓ проверено'));
+  if (/в топе · проверено|в зачёте C · телефон/.test(run.topMsg || '')) box.appendChild(padEl('span', 'rd-tr ok', 'проверено'));
   box.hidden = !chips.length;
 }
 function wifiNote() {
@@ -13540,7 +13540,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v280';
+const APP_VERSION = 'v281';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -17217,7 +17217,7 @@ function t72Plates(r, host) {
 function pnSwTags(r, host) {
   if (!r || !host) return;
   if (Number.isInteger(r.pn) && r.pn >= 1 && r.pn <= 99) host.appendChild(padEl('b', 'pn-tag', '#' + r.pn));
-  if (r.sw && typeof r.sw.label === 'string') { const t = padEl('i', 'sw-tag', '★'); t.title = 'Чемпион сезона · ' + r.sw.label; host.appendChild(t); }
+  if (r.sw && typeof r.sw.label === 'string') { const t = padEl('i', 'sw-tag', 'чемпион'); t.title = 'Чемпион сезона · ' + r.sw.label; host.appendChild(t); }
 }
 function t72CarImg(r, cls) {
   const src = carCropSrc(r.carId);
