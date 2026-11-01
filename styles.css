@@ -7858,3 +7858,120 @@ html:not(#_):not(#_):not(#_):not(#_) #view-lap .t267-top > *::after, html:not(#_
 #view-tops .tops-tracks[hidden] { display: none !important; }
 #view-tops .tops-cls .seg-btn.on { background: #f2f2f2 !important; color: #0a0a0a !important; }
 .tops-quick .tops-per { margin-left: 0; flex: 1 1 100%; display: grid; grid-template-columns: repeat(3, 1fr); }
+
+/* v272: Топы «Гоночная линия» — минимализм, металл без неона */
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-pin { position: sticky; top: calc(var(--sat, 0px)); z-index: 30; margin: 0 -16px 10px; padding: 0 16px; background: var(--ds-bg, #0a0a0a); }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-cls { display: grid; grid-template-columns: 1fr 1fr; margin: 0 !important; padding: 0 !important; border: 0 !important; border-bottom: 1px solid #222 !important; border-radius: 0 !important; background: transparent !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-cls .seg-btn { min-height: 42px !important; border-radius: 0 !important; background: transparent !important; color: #777 !important; font: 600 14px/1 var(--font-ui) !important; border-bottom: 2px solid transparent !important; margin-bottom: -1px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-cls .seg-btn.on { color: #f2f2f2 !important; border-bottom-color: #e8e8e8 !important; background: transparent !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-cls .seg-btn small { font-size: 10px; letter-spacing: .08em; opacity: .55; margin-left: 4px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-discs { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -16px; padding: 2px 16px 4px; scrollbar-width: none; flex-wrap: nowrap; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-discs::-webkit-scrollbar { display: none; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dc { flex: 0 0 auto; min-width: 128px; max-width: 200px; scroll-snap-align: start; display: flex !important; flex-direction: column; align-items: flex-start !important; gap: 5px; padding: 10px 12px !important; min-height: 0 !important; height: auto !important; border-radius: 12px !important; border: 1px solid #1f1f1f !important; background: #111 !important; color: #8a8a8a !important; text-align: left; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dc.on { background: #1a1a1a !important; border-color: #3a3a3a !important; color: #f2f2f2 !important; min-width: 168px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dc-cap { font: 600 9.5px/1 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: #6b6b6b; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dc-t { font: 300 22px/1.05 var(--font-num); letter-spacing: -.01em; color: inherit; white-space: nowrap; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dc.on .t72-dc-t { font-size: 26px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dc-sub { font: 500 11.5px/1.2 var(--font-ui); color: #8d8d8d; white-space: nowrap; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dots { display: flex; justify-content: center; gap: 4px; margin: 6px 0 12px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dots i { width: 4px; height: 4px; border-radius: 2px; background: #333; transition: width .2s; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dots i.on { width: 14px; background: #bdbdbd; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-cap, html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-sec { display: flex; justify-content: space-between; align-items: center; font: 600 10px/1 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: #6b6b6b; margin: 14px 0 8px; list-style: none; padding: 0; background: none !important; border: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-tracks { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 6px; padding: 0 16px 4px; scrollbar-width: none; flex-wrap: nowrap; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-tracks[hidden] { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-tc { flex: 0 0 auto; display: flex !important; align-items: center; gap: 10px; padding: 8px 12px 8px 8px !important; min-height: 52px !important; border-radius: 12px !important; border: 1px solid #1f1f1f !important; background: #111 !important; color: #8a8a8a !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-tc.on { background: #1a1a1a !important; border-color: #3a3a3a !important; color: #f2f2f2 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-tc svg { width: 34px; height: 34px; opacity: .9; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-tc-tx { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-tc-tx b { font: 600 13px/1.1 var(--font-ui); color: inherit; white-space: nowrap; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-tc-tx small { font: 500 11px/1 var(--font-ui); color: #777; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-board { background: none !important; border: 0 !important; padding: 0 !important; margin: 4px 0 0 !important; box-shadow: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-sr { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-board .tops-board-map { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead[hidden], html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-line[hidden] { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-metal { position: relative; overflow: hidden; display: grid; gap: 6px; padding: 16px 16px 14px; min-height: 176px; border-radius: 18px; border: 1px solid #2c2c2c; cursor: pointer;
+  --sx: 30%; --sy: 20%;
+  background: linear-gradient(155deg, #262626 0%, #161616 46%, #1d1d1d 70%, #121212 100%); box-shadow: inset 0 1px 0 rgba(255,255,255,.07), 0 10px 30px rgba(0,0,0,.45); }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-metal.nolink { cursor: default; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-sheen { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 70% at var(--sx) var(--sy), rgba(255,255,255,.10), rgba(255,255,255,0) 55%), repeating-linear-gradient(90deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px); transition: background-position .2s; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-cap { position: relative; font: 600 9.5px/1 var(--font-ui); letter-spacing: .16em; text-transform: uppercase; color: #8a8a8a; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-t { position: relative; font: 200 58px/1 var(--font-num); letter-spacing: -.02em; color: #f4f4f4; margin-top: 4px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-t small { font: 400 18px/1 var(--font-ui); color: #8a8a8a; margin-left: 4px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-name { position: relative; display: inline-flex; align-items: center; gap: 6px; font: 600 15px/1.2 var(--font-ui); color: #e8e8e8; max-width: 58%; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-you { font: 600 10px/1 var(--font-ui); font-style: normal; padding: 3px 6px; border: 1px solid #555; border-radius: 5px; color: #cfcfcf; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-new { position: relative; font: 600 9.5px/1 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: #cfcfcf; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-new::before { content: ''; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: #e8e8e8; margin-right: 6px; vertical-align: 1px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-foot { position: relative; font: 500 11.5px/1.2 var(--font-ui); color: #8a8a8a; max-width: 55%; margin-top: 4px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-car { position: absolute; right: -8px; bottom: 6px; width: 54%; pointer-events: none; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-car img { width: 100%; height: auto; display: block; filter: grayscale(.35) brightness(1.15) contrast(1.05); }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-car.none, html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-car.none img { display: none; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-line { margin: 16px 0 4px; position: relative; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-line .t72-sec { margin-top: 0; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-track { position: relative; height: 26px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-track::before { content: ''; position: absolute; left: 2%; right: 2%; top: 12px; height: 1px; background: #333; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dot { position: absolute; top: 9px; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: #6a6a6a; border: 0; padding: 0; min-height: 0 !important; cursor: pointer; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dot::after { content: ''; position: absolute; inset: -9px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dot.lead { background: #f2f2f2; width: 9px; height: 9px; top: 8px; margin-left: -4.5px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dot.sel { background: #d0d0d0; outline: 1px solid #555; outline-offset: 2px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-dot.me { width: 13px; height: 13px; top: 6px; margin-left: -6.5px; background: #0a0a0a; border: 2px solid #f2f2f2; z-index: 2; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-tip { position: relative; display: inline-block; transform: translateX(-50%); font: 600 11px/1 var(--font-ui); color: #cfcfcf; white-space: nowrap; margin-bottom: 2px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-axis { position: relative; display: flex; justify-content: space-between; font: 500 11px/1 var(--font-num); color: #777; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-axis-me { position: absolute; transform: translateX(-50%); color: #cfcfcf; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-list { display: block !important; padding: 0 !important; margin: 0 !important; list-style: none; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-list > .t72-row, html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-mehead { display: grid !important; grid-template-columns: 22px 64px minmax(0,1fr) auto !important; align-items: center; gap: 10px !important; padding: 10px 2px !important; min-height: 56px; background: none !important; border: 0 !important; border-bottom: 1px solid #1a1a1a !important; border-radius: 0 !important; box-shadow: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-row .tb-n { font: 400 13px/1 var(--font-num) !important; color: #777 !important; text-align: center; background: none !important; width: auto !important; height: auto !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-car { width: 64px; height: 30px; display: flex; align-items: center; justify-content: center; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-car img { max-width: 100%; max-height: 30px; object-fit: contain; filter: grayscale(.3) brightness(1.1); }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-car.none::before { content: ''; width: 34px; height: 1px; background: #2a2a2a; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-who .tb-nick { display: inline-flex; align-items: center; gap: 5px; font: 600 14px/1.15 var(--font-ui) !important; color: #ececec !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-who .tb-car { font: 500 11.5px/1.2 var(--font-ui) !important; color: #7d7d7d !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-row .tb-t { display: flex !important; flex-direction: column; align-items: flex-end; gap: 3px; min-width: 64px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-row .tb-t > b { font: 300 19px/1 var(--font-num); color: #f2f2f2; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-row .tb-t .lb92-gap { font: 500 11px/1 var(--font-num) !important; color: #888 !important; background: none !important; padding: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-row .tb-t .tb-src { font: 600 9px/1 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; color: #9a9a9a; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-gapbar { display: block; width: 56px; height: 2px; background: #222; position: relative; border-radius: 1px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-gapbar::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--g) * 100%); background: #9a9a9a; border-radius: 1px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-fold { list-style: none; text-align: center; padding: 6px 0 !important; background: none !important; border: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-fold button { background: none; border: 0; color: #777; font: 600 10.5px/1 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; padding: 10px 14px; min-height: 0; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-mecard { list-style: none; margin: 8px -4px; padding: 4px 12px 12px; border-radius: 16px; border: 1px solid #2e2e2e; background: #141414; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-mecard.lead { margin-top: 14px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-mecard .t72-mehead { border-bottom: 0 !important; padding: 8px 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-mebody { display: grid; gap: 10px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-secs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-sc { display: grid; gap: 5px; padding: 8px 10px; border-radius: 10px; background: #1b1b1b; border: 1px solid #242424; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-sc small { font: 600 10.5px/1 var(--font-ui); color: #8a8a8a; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-sc b { font: 400 16px/1 var(--font-num); color: #e6e6e6; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-sc.lose { border-color: #4a4a4a; background: #222; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-sc.lose small { color: #d6d6d6; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-hint { margin: 0; padding: 10px 12px; border-radius: 10px; background: #1b1b1b; font: 500 12.5px/1.45 var(--font-ui); color: #c9c9c9; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-act { display: flex; gap: 8px; margin-top: 2px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-btn { flex: 1 1 0; min-height: 44px; border-radius: 12px; border: 1px solid #3a3a3a; background: transparent; color: #ececec; font: 600 13.5px/1 var(--font-ui); padding: 0 12px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-btn.pri { background: #ecebe6; border-color: #ecebe6; color: #0a0a0a; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-empty { list-style: none; display: grid !important; gap: 8px; text-align: left; padding: 22px 16px !important; margin: 4px 0 12px; border-radius: 16px; border: 1px dashed #2e2e2e !important; background: #101010 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-empty b { font: 600 17px/1.2 var(--font-ui); color: #ececec; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-empty span { font: 500 13px/1.45 var(--font-ui); color: #8d8d8d; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-empty .tb-empty-go { justify-self: stretch; margin: 6px 0 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-bar { position: fixed; z-index: 10950; left: 50%; transform: translateX(-50%); width: min(100%, 520px); bottom: calc(var(--n3-h, 64px) + var(--sab, 0px)); display: flex; gap: 6px; padding: 8px 12px; margin: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; background: rgba(10,10,10,.86); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-top: 1px solid #1d1d1d; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-bar .tq-chip { flex: 0 0 auto; min-height: 34px; padding: 0 14px; border-radius: 17px; border: 1px solid #2c2c2c; background: #141414; color: #bdbdbd; font: 600 12.5px/1 var(--font-ui); white-space: nowrap; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-bar .tq-chip.on { background: #ecebe6; border-color: #ecebe6; color: #0a0a0a; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-bar .t72-more-btn { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .t72-bar .tops-active:not(:empty) { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: #ecebe6; color: #0a0a0a; font: 700 10.5px/1 var(--font-ui); }
+html.v148 main:has(#view-tops.active) { padding-bottom: calc(var(--n3-h, 64px) + var(--sab, 0px) + 84px) !important; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet { position: fixed; inset: 0; z-index: 12000; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet.hidden { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet-bg { position: absolute; inset: 0; background: rgba(0,0,0,.6); }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet-panel { position: absolute; left: 50%; transform: translateX(-50%); bottom: 0; width: min(100%, 520px); max-height: 82vh; overflow-y: auto; padding: 8px 16px calc(16px + var(--sab, 0px)); border-radius: 20px 20px 0 0; background: #111; border-top: 1px solid #262626; display: grid; gap: 4px; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-grip { width: 40px; height: 4px; border-radius: 2px; background: #3a3a3a; justify-self: center; margin: 2px 0 8px; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet-head b { font: 600 18px/1.2 var(--font-ui); color: #f2f2f2; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-reset { background: none; border: 0; color: #a8a8a8; font: 500 14px/1 var(--font-ui); min-height: 0; padding: 6px 0; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-lab { display: block; font: 600 10px/1 var(--font-ui) !important; letter-spacing: .14em; text-transform: uppercase; color: #6b6b6b !important; margin: 14px 0 8px; width: 100%; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-pills { display: flex !important; flex-wrap: wrap; gap: 6px; border: 0 !important; padding: 0 !important; background: none !important; margin: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-pills .seg-btn, html:not(#_):not(#_):not(#_):not(#_) .t72-pills .wx-chip { flex: 0 0 auto !important; min-height: 36px !important; padding: 0 14px !important; border-radius: 18px !important; border: 1px solid #262626 !important; background: #181818 !important; color: #bdbdbd !important; font: 500 13.5px/1 var(--font-ui) !important; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-pills .seg-btn.on, html:not(#_):not(#_):not(#_):not(#_) .t72-pills .wx-chip.on { background: #ecebe6 !important; border-color: #ecebe6 !important; color: #0a0a0a !important; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet .tops-model select { display: block; width: 100%; margin-top: 8px; min-height: 44px; border-radius: 12px; background: #181818; border: 1px solid #262626; color: #ddd; padding: 0 12px; font: 500 14px/1 var(--font-ui); text-transform: none; letter-spacing: 0; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet .tops-check { display: flex; align-items: center; gap: 8px; justify-content: flex-start; margin: 14px 0 4px; color: #bdbdbd; font: 500 13px/1 var(--font-ui); }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet .tops-menu-links { display: flex; gap: 8px; margin: 10px 0 4px; }
+html:not(#_):not(#_):not(#_):not(#_) .t72-show { margin-top: 12px; min-height: 50px; border-radius: 14px; border: 0; background: #ecebe6; color: #0a0a0a; font: 600 15px/1 var(--font-ui); }
+html:not(#_):not(#_):not(#_):not(#_) .t72-sheet .tops-check input { width: 18px; height: 18px; margin: 0; flex: 0 0 auto; }

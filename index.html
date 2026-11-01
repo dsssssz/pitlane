@@ -36,8 +36,8 @@
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-VVFCTKCA.js" />
-    <link rel="stylesheet" href="./styles-EB97BF31.css" />
+    <link rel="modulepreload" href="./b/app-NTDIHFT3.js" />
+    <link rel="stylesheet" href="./styles-A074C141.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -467,67 +467,81 @@
             <h2 data-i18n="top.title">Топы</h2>
             <a class="method-link" href="./method.html" id="topsMethodLink">Методика</a>
           </div>
-          <!-- v271: сверху — что за топ (класс + дисциплина), рядом быстрые срезы, глубже — «Ещё фильтры» -->
-          <div class="seg-control tops-cls" id="topsCls" role="tablist" aria-label="Класс зачёта">
-            <button type="button" class="seg-btn on" data-cls="ab" role="tab" aria-selected="true">Чип<small>A/B</small></button>
-            <button type="button" class="seg-btn" data-cls="c" role="tab" aria-selected="false">Телефон<small>C</small></button>
-          </div>
-          <div class="tops-chips" id="topsChips" role="tablist" aria-label="Дисциплина"></div>
-          <div class="tops-chips tops-tracks" id="topsTracks" role="tablist" aria-label="Трасса" hidden></div>
-          <div class="tops-quick" id="topsQuick">
-            <label class="tq-chip" id="tqCity"><input type="checkbox" id="topMyCityOnly" /><span>Мой город</span></label>
-            <label class="tq-chip" id="tqCar"><input type="checkbox" id="topMyCarOnly" /><span>Моя машина</span></label>
-            <div class="seg-control tops-per" id="topsPeriod" role="tablist" aria-label="Период">
-              <button type="button" class="seg-btn" data-per="today" role="tab">Сегодня</button>
-              <button type="button" class="seg-btn" data-per="week" role="tab">Неделя</button>
-              <button type="button" class="seg-btn on" data-per="all" role="tab">Всё</button>
+          <!-- v272: «Гоночная линия» — закреплённый класс, карточки дисциплин, лидер, линия, подиум, твоя зона, нижняя панель фильтров -->
+          <div class="t72-pin">
+            <div class="seg-control tops-cls t72-cls" id="topsCls" role="tablist" aria-label="Класс зачёта">
+              <button type="button" class="seg-btn on" data-cls="ab" role="tab" aria-selected="true">Чип<small>A/B</small></button>
+              <button type="button" class="seg-btn" data-cls="c" role="tab" aria-selected="false">Телефон<small>C</small></button>
             </div>
           </div>
-          <details class="tops-more" id="topsMore">
-            <summary>Ещё фильтры<span class="tops-active" id="topsActive"></span></summary>
-            <div class="tops-filters" id="topsMenuFilters">
-              <label class="tops-check"><input type="checkbox" id="topValidOnly" checked /> только валидные GPS</label>
-              <label class="tops-model">модель
-                <select id="topModelFilter"><option value="">все модели</option></select>
-              </label>
-              <div class="tops-weather" id="topWeatherChips" role="group" aria-label="Погода кольца">
-                <span class="tops-weather-label">кольцо · погода</span>
-                <button type="button" class="wx-chip" data-wx="all">Все</button>
-                <button type="button" class="wx-chip on" data-wx="dry">Сухо</button>
-                <button type="button" class="wx-chip" data-wx="damp">Сыро</button>
-                <button type="button" class="wx-chip" data-wx="wet">Мокро</button>
-              </div>
-              <p class="tiny muted tops-weather-cap" id="topWeatherCaption">Показаны круги: сухо.</p>
-              <div class="tops-weather" id="topTodChips" role="group" aria-label="Время суток">
-                <span class="tops-weather-label">время суток</span>
-                <button type="button" class="wx-chip on" data-tod="all">Любое</button>
-                <button type="button" class="wx-chip" data-tod="day">День</button>
-                <button type="button" class="wx-chip" data-tod="evening">Вечер</button>
-              </div>
-              <div class="tops-weather" id="topPrepChips" role="group" aria-label="Класс подготовки">
-                <span class="tops-weather-label">подготовка · со слов пилота</span>
-                <button type="button" class="wx-chip on" data-prep="all">Все</button>
-                <button type="button" class="wx-chip" data-prep="stock">Сток</button>
-                <button type="button" class="wx-chip" data-prep="st1">Stage 1</button>
-                <button type="button" class="wx-chip" data-prep="st2">Stage 2+</button>
-                <button type="button" class="wx-chip" data-prep="semi">Полуслик</button>
-                <button type="button" class="wx-chip" data-prep="none">Не указан</button>
-              </div>
-              <p class="tiny muted">Город: <button type="button" class="tops-city" id="topCitySet">указать</button></p>
-            </div>
-            <div class="tops-menu-links race-toolbar">
-              <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen" hidden>Секторы</button>
-              <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
-            </div>
-          </details>
-          <article class="card tops-board-card">
-            <div class="tops-board-head">
+          <div class="tops-chips t72-discs" id="topsChips" role="tablist" aria-label="Дисциплина"></div>
+          <div class="t72-dots" id="t72Dots" aria-hidden="true"></div>
+          <div class="t72-cap" id="topsTracksCap" hidden><span>Трасса</span></div>
+          <div class="tops-chips tops-tracks t72-tracks" id="topsTracks" role="tablist" aria-label="Трасса" hidden></div>
+          <article class="tops-board-card t72-board">
+            <div class="tops-board-head t72-sr">
               <h3 id="topsBoardTitle">0–100 км/ч</h3>
               <span class="tiny muted" id="topsBoardSub">все машины · GPS A/B</span>
             </div>
             <div class="tops-board-map track-map hidden" id="topsBoardMap" aria-hidden="true"></div>
-            <ol id="topsBoard" class="tops-board" aria-live="polite"></ol>
+            <div class="t72-lead" id="t72Lead" hidden></div>
+            <div class="t72-line" id="t72Line" hidden></div>
+            <ol id="topsBoard" class="tops-board t72-list" aria-live="polite"></ol>
           </article>
+          <div class="t72-bar" id="topsQuick">
+            <label class="tq-chip" id="tqCity"><input type="checkbox" id="topMyCityOnly" /><span>Мой город</span></label>
+            <label class="tq-chip" id="tqCar"><input type="checkbox" id="topMyCarOnly" /><span>Моя машина</span></label>
+            <button type="button" class="tq-chip t72-per-btn" id="tqPeriod">Всё время</button>
+            <button type="button" class="tq-chip t72-more-btn" id="btnTopsMore" aria-haspopup="dialog" aria-expanded="false">Ещё<span class="tops-active" id="topsActive"></span></button>
+          </div>
+          <div class="t72-sheet hidden" id="topsMore" role="dialog" aria-modal="true" aria-label="Ещё фильтры" aria-hidden="true">
+            <div class="t72-sheet-bg" data-t72close></div>
+            <div class="t72-sheet-panel">
+              <div class="t72-grip" data-t72close></div>
+              <div class="t72-sheet-head"><b>Ещё фильтры</b><button type="button" class="t72-reset" id="topsReset">Сбросить</button></div>
+              <div class="tops-filters" id="topsMenuFilters">
+                <span class="t72-lab">Период</span>
+                <div class="seg-control tops-per t72-pills" id="topsPeriod" role="tablist" aria-label="Период">
+                  <button type="button" class="seg-btn" data-per="today" role="tab">Сегодня</button>
+                  <button type="button" class="seg-btn" data-per="week" role="tab">Неделя</button>
+                  <button type="button" class="seg-btn on" data-per="all" role="tab">Всё время</button>
+                </div>
+                <div class="tops-weather t72-pills" id="topWeatherChips" role="group" aria-label="Погода кольца">
+                  <span class="tops-weather-label t72-lab">Погода · круги</span>
+                  <button type="button" class="wx-chip" data-wx="all">Любая</button>
+                  <button type="button" class="wx-chip on" data-wx="dry">Сухо</button>
+                  <button type="button" class="wx-chip" data-wx="damp">Сыро</button>
+                  <button type="button" class="wx-chip" data-wx="wet">Мокро</button>
+                </div>
+                <p class="tiny muted tops-weather-cap" id="topWeatherCaption">Показаны круги: сухо.</p>
+                <div class="tops-weather t72-pills" id="topTodChips" role="group" aria-label="Время суток">
+                  <span class="tops-weather-label t72-lab">Время суток</span>
+                  <button type="button" class="wx-chip on" data-tod="all">Любое</button>
+                  <button type="button" class="wx-chip" data-tod="day">День</button>
+                  <button type="button" class="wx-chip" data-tod="evening">Вечер</button>
+                </div>
+                <div class="tops-weather t72-pills" id="topPrepChips" role="group" aria-label="Класс подготовки">
+                  <span class="tops-weather-label t72-lab">Подготовка · со слов пилота</span>
+                  <button type="button" class="wx-chip on" data-prep="all">Любая</button>
+                  <button type="button" class="wx-chip" data-prep="stock">Сток</button>
+                  <button type="button" class="wx-chip" data-prep="st1">Stage 1</button>
+                  <button type="button" class="wx-chip" data-prep="st2">Stage 2+</button>
+                  <button type="button" class="wx-chip" data-prep="semi">Полуслик</button>
+                  <button type="button" class="wx-chip" data-prep="none">Не указан</button>
+                </div>
+                <label class="tops-model t72-lab">Модель
+                  <select id="topModelFilter"><option value="">Все модели</option></select>
+                </label>
+                <label class="tops-check"><input type="checkbox" id="topValidOnly" checked /> только валидные GPS</label>
+                <p class="tiny muted">Город: <button type="button" class="tops-city" id="topCitySet">указать</button></p>
+              </div>
+              <div class="tops-menu-links race-toolbar">
+                <button type="button" class="sector-tops-btn" id="btnSectorTopsOpen" hidden>Секторы</button>
+                <button type="button" class="ad-btn" id="btnAutodromesOpen">Автодромы</button>
+              </div>
+              <button type="button" class="t72-show" id="topsShow" data-t72close>Показать</button>
+            </div>
+          </div>
 
           <article class="card session-day-card" id="sessionDayCard" hidden>
             <div class="session-day-head">
@@ -1463,6 +1477,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-VVFCTKCA.js"></script>
+    <script type="module" src="./b/app-NTDIHFT3.js"></script>
   </body>
 </html>

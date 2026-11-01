@@ -13355,10 +13355,46 @@ function topsActiveLine() {
   const wx = document.querySelector('#topWeatherChips .wx-chip.on'); if (wx && wx.dataset.wx !== 'dry') n++;
   const pr = document.querySelector('#topPrepChips .wx-chip.on'); if (pr && pr.dataset.prep !== 'all') n++;
   if (topsTodFilter !== 'all') n++;
+  try { if (_topsPeriod !== 'all') n++; } catch (_) {}
   const el = document.getElementById('topsActive'); if (el) el.textContent = n ? String(n) : '';
 }
-document.getElementById('topsMore')?.addEventListener('click', (e) => { if (e.target.closest?.('.tops-menu-links button')) { const m = document.getElementById('topsMore'); if (m) m.open = false; } setTimeout(topsActiveLine, 0); });
-document.getElementById('topsMore')?.addEventListener('change', () => setTimeout(topsActiveLine, 0));
+/* v272: «Ещё фильтры» — нижняя шторка; кнопка «Ещё · N» в закреплённой панели */
+function t72Sheet(open) {
+  const sh = document.getElementById('topsMore'); if (!sh) return;
+  if (open && sh.parentElement !== document.body) document.body.appendChild(sh); // v272: fixed-шторка поверх таб-бара (у вью свой stacking-контекст)
+  sh.classList.toggle('hidden', !open); sh.setAttribute('aria-hidden', open ? 'false' : 'true');
+  document.getElementById('btnTopsMore')?.setAttribute('aria-expanded', open ? 'true' : 'false');
+  if (open) t72ShowCount();
+}
+async function t72ShowCount() {
+  const b = document.getElementById('topsShow'); if (!b) return;
+  const n = document.querySelectorAll('#topsBoard .tb-row').length ? (document.querySelector('#t72Line .t72-sec span')?.textContent.match(/\d+/) || [''])[0] : '';
+  b.textContent = n ? 'Показать ' + n + ' ' + (/1$/.test(n) && !/11$/.test(n) ? 'пилота' : 'пилотов') : 'Показать';
+}
+document.getElementById('btnTopsMore')?.addEventListener('click', () => { hap(6); t72Sheet(true); });
+document.getElementById('tqPeriod')?.addEventListener('click', () => {
+  const order = ['all', 'week', 'today'];
+  const nx = order[(order.indexOf(_topsPeriod) + 1) % order.length];
+  document.querySelector(`#topsPeriod [data-per="${nx}"]`)?.click();
+});
+document.getElementById('topsReset')?.addEventListener('click', () => {
+  hap(6);
+  const v = document.getElementById('topValidOnly'); if (v) v.checked = true;
+  const m = document.getElementById('topModelFilter'); if (m) m.value = '';
+  document.querySelector('#topWeatherChips .wx-chip[data-wx="dry"]')?.click();
+  document.querySelector('#topTodChips .wx-chip[data-tod="all"]')?.click();
+  _topsPrep = 'all'; document.querySelectorAll('#topPrepChips .wx-chip').forEach((x) => x.classList.toggle('on', x.dataset.prep === 'all'));
+  _topsPeriod = 'all'; try { localStorage.setItem('pitlane-tops-period', 'all'); } catch (_) {}
+  syncTopsPeriod();
+  setTimeout(() => { topsActiveLine(); void renderTopsBoard().then(t72ShowCount); }, 0);
+});
+document.getElementById('topsMore')?.addEventListener('click', (e) => {
+  if (e.target.closest?.('[data-t72close]') || e.target.closest?.('.tops-menu-links button')) { t72Sheet(false); }
+  else if (e.target.closest?.('button')) setTimeout(() => { void Promise.resolve(renderTopsBoard()).then(t72ShowCount); }, 60);
+  setTimeout(topsActiveLine, 0);
+});
+document.getElementById('topsMore')?.addEventListener('change', () => setTimeout(() => { topsActiveLine(); t72ShowCount(); }, 300));
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.getElementById('topsMore')?.classList.contains('hidden')) t72Sheet(false); });
 setTimeout(topsActiveLine, 0);
 document.getElementById('h48Car')?.addEventListener('click', () => openQuickCarSheet());
 document.getElementById('btnMyCarAcc')?.addEventListener('click', () => openMyCarSheet());
@@ -13464,7 +13500,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v271';
+const APP_VERSION = 'v272';
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -16789,20 +16825,33 @@ function renderTopsChips() {
   const trk = document.getElementById('topsTracks');
   if (!box) return;
   if (_topsSel.kind === 'lap' && _topsSel.id) { _topsLastTrack = _topsSel.id; try { localStorage.setItem('pitlane-tops-track-v1', _topsSel.id); } catch (_) {} }
-  const mk = (host, kind, id, label, icon) => {
-    const b = padEl('button', 'tchip');
-    b.type = 'button'; b.dataset.kind = kind; b.dataset.id = id;
-    if (icon) b.appendChild(icon);
-    b.appendChild(padEl('span', '', label));
-    host.appendChild(b);
-  };
+  // v272: дисциплины — карточки со временем лидера и твоим местом (свайп)
   if (!box.childElementCount) {
-    DRAG_DISC.forEach((d) => mk(box, 'drag', d.id, d.label, null));
-    mk(box, 'lap', '', 'Круг', null);
+    const mk = (kind, id, cap, label) => {
+      const b = padEl('button', 'tchip t72-dc');
+      b.type = 'button'; b.dataset.kind = kind; b.dataset.id = id;
+      b.appendChild(padEl('span', 't72-dc-cap', cap));
+      b.appendChild(padEl('b', 't72-dc-t', label));
+      b.appendChild(padEl('span', 't72-dc-sub', ' '));
+      box.appendChild(b);
+    };
+    DRAG_DISC.forEach((d) => mk('drag', d.id, 'Разгон', d.label));
+    mk('lap', '', 'Круг', 'Время круга');
+    box.addEventListener('scroll', () => t72SyncDots(), { passive: true });
   }
-  if (trk && !trk.childElementCount) TRACKS.forEach((t) => mk(trk, 'lap', t.id, t.name, trackSilhouetteSvg(t.id, 16, 'tchip-trk')));
+  if (trk && !trk.childElementCount) TRACKS.forEach((t) => {
+    const b = padEl('button', 'tchip t72-tc');
+    b.type = 'button'; b.dataset.kind = 'lap'; b.dataset.id = t.id;
+    b.appendChild(trackSilhouetteSvg(t.id, 34, 'tchip-trk'));
+    const tx = padEl('span', 't72-tc-tx');
+    tx.appendChild(padEl('b', '', t.name));
+    tx.appendChild(padEl('small', '', t.km ? t.km + ' км' : 'круг'));
+    b.appendChild(tx);
+    trk.appendChild(b);
+  });
   const isLap = _topsSel.kind === 'lap';
   if (trk) trk.hidden = !isLap;
+  const cap = document.getElementById('topsTracksCap'); if (cap) cap.hidden = !isLap;
   let onEl = null, onTrk = null;
   box.querySelectorAll('.tchip').forEach((b) => {
     const on = b.dataset.kind === 'lap' ? isLap : (!isLap && b.dataset.id === _topsSel.id);
@@ -16819,7 +16868,17 @@ function renderTopsChips() {
     host.dataset.scrolled = el.dataset.id || 'lap';
     try { host.scrollLeft = Math.max(0, host.scrollLeft + el.getBoundingClientRect().left - host.getBoundingClientRect().left - 16); } catch (_) {}
   }
+  t72SyncDots();
   syncTopsQuick();
+}
+function t72SyncDots() {
+  const box = document.getElementById('topsChips'); const d = document.getElementById('t72Dots');
+  if (!box || !d) return;
+  const n = box.childElementCount; if (!n) return;
+  if (d.childElementCount !== n) d.replaceChildren(...Array.from({ length: n }, () => padEl('i')));
+  const w = box.scrollWidth - box.clientWidth;
+  const k = w > 0 ? Math.round((box.scrollLeft / w) * (n - 1)) : 0;
+  [...d.children].forEach((x, i) => x.classList.toggle('on', i === k));
 }
 function syncTopsQuick() {
   for (const [lab, id] of [['tqCity', 'topMyCityOnly'], ['tqCar', 'topMyCarOnly']]) {
@@ -16933,7 +16992,7 @@ document.getElementById('topMyCarOnly')?.addEventListener('change', (e) => { if 
 let _topsBoardSeq = 0;
 /* v192: Неделя / Всё время (только круги) */
 let _topsPeriod = (() => { try { return (v => (v === 'week' || v === 'today') ? v : 'all')(localStorage.getItem('pitlane-tops-period')); } catch (_) { return 'all'; } })();
-function syncTopsPeriod() { document.querySelectorAll('#topsPeriod [data-per]').forEach((b) => { const on = b.dataset.per === _topsPeriod; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); }); }
+function syncTopsPeriod() { document.querySelectorAll('#topsPeriod [data-per]').forEach((b) => { const on = b.dataset.per === _topsPeriod; b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); }); const q = document.getElementById('tqPeriod'); if (q) { q.textContent = { today: 'Сегодня', week: 'Неделя', all: 'Всё время' }[_topsPeriod]; q.classList.toggle('on', _topsPeriod !== 'all'); } try { topsActiveLine(); } catch (_) {} }
 document.getElementById('topsPeriod')?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('[data-per]'); if (!b) return;
   _topsPeriod = ['week', 'today'].includes(b.dataset.per) ? b.dataset.per : 'all';
@@ -16973,6 +17032,273 @@ function topsPeriodFilter(rows) {
   const key = moscowDateKeyClient();
   return rows.filter((r) => r && r.at && moscowDateKeyClient(Number(r.at)) === key);
 }
+/* v272: загрузка доски вынесена — нужна и для карточек дисциплин (лидер + твоё место) */
+async function topsLoadRows(sel, cls) {
+  const wx = getTopsWeatherFilter();
+  const model = document.getElementById('topModelFilter')?.value || '';
+  if (cls === 'c' && sel.kind !== 'lap' && PHONE_NO_DISCS.includes(sel.id)) return { rows: [], lapRaw: [], phoneNo: true };
+  let rows = [];
+  let lapRaw = [];
+  try {
+    if (sel.kind === 'lap') {
+      lapRaw = ((await api.listLapBoard(sel.id, wx, cls)) || []).filter(topsClassPass);
+      const best = new Map();
+      topsPeriodFilter(lapRaw).forEach((r) => {
+        const k = r.pilotId || ('n:' + (r.name || '') + ':' + (r.car || ''));
+        const ms = lapMs(r.t);
+        if (!Number.isFinite(ms)) return;
+        const prev = best.get(k);
+        if (!prev || ms < prev._ms) best.set(k, { ...r, _ms: ms });
+      });
+      rows = [...best.values()];
+    } else {
+      rows = (await api.listDrag(sel.id, { cls, city: topsCityOn() ? myCity() : '' })) || [];
+    }
+  } catch (_) { rows = []; }
+  // v118: доска C — только строки зачёта C; доска A/B — прежний фильтр (A/B, без телепортов)
+  if (cls === 'c') rows = rows.filter((r) => r && r.gps && r.valid !== false && r.gpsQ === 'C' && r.cls === 'c');
+  else try { rows = filterTopRows(rows, { model }); } catch (_) {}
+  if (cls === 'c' && model) rows = rows.filter((r) => String(r.car || '') === model);
+  try { rows = rows.filter(topsClassPass); } catch (_) {}
+  if (sel.kind !== 'lap') rows = topsPeriodFilter(rows); // v271: период и для разгонов
+  rows = filterRowsByTod(rows); // v128
+  rows.forEach((r) => { if (r._ms == null) r._ms = sel.kind === 'lap' ? lapMs(r.t) : Number(r.t) * 1000; });
+  rows.sort((a, b) => a._ms - b._ms);
+  return { rows, lapRaw, phoneNo: false };
+}
+function t72Fmt(sel, ms) { return sel.kind === 'lap' ? fmtLapTime(ms) : (ms / 1000).toFixed(2); }
+function t72Gap(ms) { const s = Math.abs(ms) / 1000; return (s >= 60 ? Math.floor(s / 60) + ':' + (s % 60).toFixed(1).padStart(4, '0') : s.toFixed(2)); }
+function t72Ago(at) {
+  const d = Date.now() - Number(at); if (!(d >= 0)) return '';
+  const h = Math.floor(d / 36e5); if (h < 1) return 'только что'; if (h < 24) return h + ' ч';
+  const dd = Math.floor(h / 24); return dd + ' дн';
+}
+function t72Me(rows) { return rows.findIndex((r) => r && r.pilotId && isMyPilotId(r.pilotId)); }
+/* v272: карточки дисциплин — лидер и твоё место (те же фильтры, что и у доски; кэш 60 с) */
+const _t72Sum = new Map();
+let _t72SumSeq = 0;
+function t72SumKey(cls) {
+  return [cls, _topsPeriod, _topsPrep, topsTodFilter, getTopsWeatherFilter(), document.getElementById('topModelFilter')?.value || '', document.getElementById('topMyCarOnly')?.checked ? 1 : 0, topsCityOn() ? topsCityKey(myCity()) : ''].join('|');
+}
+function t72PutSum(b, txt) { const s = b.querySelector('.t72-dc-sub'); if (s) s.textContent = txt; }
+function t72SumText(sel, rows, phoneNo) {
+  if (phoneNo) return 'не для телефона';
+  if (!rows.length) return 'пока пусто';
+  const me = t72Me(rows);
+  return 'лидер ' + t72Fmt(sel, rows[0]._ms) + (me >= 0 ? ' · ты ' + (me + 1) + '-й' : '');
+}
+async function t72RenderSums(cls, cur) {
+  const box = document.getElementById('topsChips'); if (!box) return;
+  const seq = ++_t72SumSeq; const key = t72SumKey(cls);
+  const now = Date.now();
+  const cards = [...box.querySelectorAll('.t72-dc')];
+  const fill = (b, sel, data) => { t72PutSum(b, sel.kind === 'lap' ? (data.rows.length ? (t72Me(data.rows) >= 0 ? 'ты ' + (t72Me(data.rows) + 1) + '-й · ' : 'лидер ' + t72Fmt(sel, data.rows[0]._ms) + ' · ') + trackShortName(sel.id) : trackShortName(sel.id)) : t72SumText(sel, data.rows, data.phoneNo)); };
+  const todo = [];
+  for (const b of cards) {
+    const sel = b.dataset.kind === 'lap' ? { kind: 'lap', id: _topsSel.kind === 'lap' ? _topsSel.id : (TRACKS.some((t) => t.id === _topsLastTrack) ? _topsLastTrack : TRACKS[0]?.id) } : { kind: 'drag', id: b.dataset.id };
+    const k = key + '|' + sel.kind + ':' + sel.id;
+    if (cur && cur.sel.kind === sel.kind && cur.sel.id === sel.id) { _t72Sum.set(k, { at: now, data: cur }); fill(b, sel, cur); continue; }
+    const c = _t72Sum.get(k);
+    if (c && now - c.at < 60000) { fill(b, sel, c.data); continue; }
+    todo.push([b, sel, k]);
+  }
+  for (let i = 0; i < todo.length; i += 3) {
+    const part = todo.slice(i, i + 3);
+    const res = await Promise.all(part.map(([, sel]) => topsLoadRows(sel, cls).catch(() => ({ rows: [], phoneNo: false }))));
+    if (seq !== _t72SumSeq) return;
+    part.forEach(([b, sel, k], j) => { _t72Sum.set(k, { at: Date.now(), data: res[j] }); fill(b, sel, res[j]); });
+  }
+}
+/* v272: металлическая карточка лидера — блик по наклону телефона (DeviceOrientation), без датчика — по пальцу/статично */
+let _t72TiltOn = false;
+function t72Tilt() {
+  if (_t72TiltOn) return; _t72TiltOn = true;
+  const reduce = (() => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { return false; } })();
+  if (reduce) return;
+  const set = (x, y) => {
+    const el = document.querySelector('#t72Lead .t72-metal'); if (!el) return;
+    el.style.setProperty('--sx', (50 + Math.max(-1, Math.min(1, x)) * 40).toFixed(1) + '%');
+    el.style.setProperty('--sy', (50 + Math.max(-1, Math.min(1, y)) * 30).toFixed(1) + '%');
+  };
+  let raf = 0, nx = 0, ny = 0;
+  const q = (x, y) => { nx = x; ny = y; if (!raf) raf = requestAnimationFrame(() => { raf = 0; set(nx, ny); }); };
+  try {
+    window.addEventListener('deviceorientation', (e) => {
+      if (!document.getElementById('view-tops')?.classList.contains('active')) return;
+      if (e.gamma == null) return;
+      q((e.gamma || 0) / 30, ((e.beta || 45) - 45) / 30);
+    }, { passive: true });
+  } catch (_) {}
+  document.getElementById('t72Lead')?.addEventListener('pointermove', (e) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    q(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
+  }, { passive: true });
+}
+function t72Plates(r, host) {
+  // косметика — только реальные данные Pass (значок у ника); номеров пока нет — ничего не выдумываем
+  const pin = r.pp && ['helmet', 'wheel', 'carbon'].includes(r.pp.pin) ? r.pp.pin : '';
+  if (pin) { const b = document.createElement('img'); b.className = 'lb92-b'; b.alt = ''; b.src = awardImg(pin, true); b.title = AW_LIST[pin]?.n || pin; host.appendChild(b); }
+}
+function t72CarImg(r, cls) {
+  const src = carCropSrc(r.carId);
+  if (!src) return padEl('span', cls + ' none');
+  const w = padEl('span', cls); const im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.src = src;
+  im.addEventListener('error', () => w.classList.add('none')); w.appendChild(im); return w;
+}
+function t72RenderLead(sel, rows) {
+  const box = document.getElementById('t72Lead'); if (!box) return;
+  const r = rows[0]; box.hidden = !r; box.replaceChildren(); if (!r) return;
+  const m = padEl('div', 't72-metal' + (r.pilotId && isPublicPilot(r.pilotId) ? '' : ' nolink'));
+  if (r.pilotId && isPublicPilot(r.pilotId)) { m.dataset.pilot = r.pilotId; m.setAttribute('role', 'button'); m.tabIndex = 0; }
+  m.appendChild(padEl('i', 't72-sheen'));
+  const top = [ '№ 1', topsCityOn() ? myCity() : '', r.at ? 'рекорд ' + t72Ago(r.at) : '' ].filter(Boolean).join(' · ');
+  m.appendChild(padEl('span', 't72-lead-cap', top));
+  const t = padEl('b', 't72-lead-t', t72Fmt(sel, r._ms)); if (sel.kind !== 'lap') t.appendChild(padEl('small', '', 'с'));
+  m.appendChild(t);
+  const nm = padEl('span', 't72-lead-name', clipText(r.name || 'пилот', 16)); t72Plates(r, nm);
+  if (isMyPilotId(r.pilotId)) nm.appendChild(padEl('em', 't72-you', 'ты'));
+  m.appendChild(nm);
+  if (r.at && Date.now() - Number(r.at) < 864e5) m.appendChild(padEl('span', 't72-new', 'новый рекорд · ' + t72Ago(r.at)));
+  const PREP = { stock: 'Сток', st1: 'Stage 1', st2: 'Stage 2+' };
+  const WX = { dry: 'сухо', damp: 'сыро', wet: 'мокро' };
+  const foot = [shortCarName(r.car, r.carId) || '', PREP[r.prep] || '', r.tyreT === 'semi' ? 'полуслик' : '', sel.kind === 'lap' ? (WX[r.weather] || '') : '', r.chip === 1 ? 'чип' : ''].filter(Boolean).join(' · ');
+  if (foot) m.appendChild(padEl('span', 't72-lead-foot', foot));
+  m.appendChild(t72CarImg(r, 't72-lead-car'));
+  box.appendChild(m);
+  t72Tilt();
+}
+function t72RenderLine(sel, rows, me) {
+  const box = document.getElementById('t72Line'); if (!box) return;
+  box.replaceChildren(); box.hidden = rows.length < 2; if (rows.length < 2) return;
+  const head = padEl('div', 't72-sec');
+  head.appendChild(padEl('span', '', 'Гоночная линия · ' + rows.length + ' ' + (rows.length % 10 === 1 && rows.length % 100 !== 11 ? 'пилот' : (rows.length % 10 >= 2 && rows.length % 10 <= 4 && (rows.length % 100 < 10 || rows.length % 100 >= 20) ? 'пилота' : 'пилотов'))));
+  head.appendChild(padEl('span', '', 'тап по точке'));
+  box.appendChild(head);
+  const shown = rows.slice(0, 80);
+  const lo = shown[0]._ms; const hi = Math.max(shown[shown.length - 1]._ms, me >= 0 ? rows[me]._ms : 0);
+  const span = Math.max(1, hi - lo);
+  const tip = padEl('div', 't72-tip'); tip.hidden = true;
+  const track = padEl('div', 't72-track');
+  const pos = (ms) => (4 + ((ms - lo) / span) * 92).toFixed(2) + '%';
+  const show = (i) => {
+    const r = rows[i]; if (!r) return;
+    tip.hidden = false; tip.textContent = (i + 1) + '. ' + (isMyPilotId(r.pilotId) ? 'ты' : clipText(r.name || 'пилот', 14)) + ' · ' + t72Fmt(sel, r._ms);
+    tip.style.left = pos(r._ms);
+    track.querySelectorAll('.t72-dot.sel').forEach((x) => x.classList.remove('sel'));
+    track.querySelector(`.t72-dot[data-i="${i}"]`)?.classList.add('sel');
+  };
+  const idx = shown.map((_, i) => i); if (me >= shown.length) idx.push(me);
+  idx.forEach((i) => {
+    const r = rows[i];
+    const d = padEl('button', 't72-dot' + (i === 0 ? ' lead' : '') + (i === me ? ' me' : ''));
+    d.type = 'button'; d.dataset.i = String(i); d.style.left = pos(r._ms);
+    d.setAttribute('aria-label', (i + 1) + ' место, ' + t72Fmt(sel, r._ms));
+    d.addEventListener('click', (e) => { e.stopPropagation(); hap(4); show(i); });
+    track.appendChild(d);
+  });
+  box.appendChild(tip); box.appendChild(track);
+  const ax = padEl('div', 't72-axis');
+  ax.appendChild(padEl('span', '', t72Fmt(sel, lo)));
+  if (me > 0) { const y = padEl('span', 't72-axis-me', 'ты ' + t72Fmt(sel, rows[me]._ms)); y.style.left = pos(rows[me]._ms); ax.appendChild(y); }
+  ax.appendChild(padEl('span', '', t72Fmt(sel, hi)));
+  box.appendChild(ax);
+  show(me > 0 ? me - 1 : 1);
+}
+function t72Row(sel, rows, i, maxGap) {
+  const r = rows[i];
+  const li = padEl('li', 'tb-row t72-row' + (i < 3 ? ' podium p' + (i + 1) : ''));
+  const pid = r.pilotId && isPublicPilot(r.pilotId) ? r.pilotId : '';
+  if (pid) { li.dataset.pilot = pid; if (r.at) li.dataset.at = String(r.at); li.tabIndex = 0; li.setAttribute('role', 'button'); }
+  li.appendChild(padEl('span', 'tb-n', String(i + 1)));
+  li.appendChild(t72CarImg(r, 't72-car'));
+  const who = padEl('span', 't72-who');
+  const nick = padEl('span', 'tb-nick', isMyPilotId(r.pilotId) ? 'Ты' : clipText(r.name || 'пилот', 14));
+  if ((r.name || '').length > 14) nick.title = r.name;
+  t72Plates(r, nick);
+  who.appendChild(nick);
+  const PREP_SHORT = { stock: 'Сток', st1: 'St 1', st2: 'St 2+' };
+  who.appendChild(padEl('span', 'tb-car', [shortCarName(r.car, r.carId) || '', PREP_SHORT[r.prep] || ''].filter(Boolean).join(' · ')));
+  li.appendChild(who);
+  const tm = padEl('span', 'tb-t');
+  tm.appendChild(padEl('b', '', t72Fmt(sel, r._ms)));
+  if (r.chip === 1) { const v = padEl('small', 'tb-src chip', 'чип'); v.title = 'подтверждено чипом PITLANE GPS'; tm.appendChild(v); }
+  if (r.gpsQ) tm.dataset.q = r.gpsQ;
+  if (i > 0) tm.appendChild(padEl('small', 'lb92-gap', '+' + t72Gap(r._ms - rows[0]._ms)));
+  if (maxGap > 0 && i > 0) { const bar = padEl('i', 't72-gapbar'); bar.style.setProperty('--g', Math.max(.06, Math.min(1, (r._ms - rows[0]._ms) / maxGap)).toFixed(3)); tm.appendChild(bar); }
+  li.appendChild(tm);
+  if (isMyPilotId(r.pilotId)) li.classList.add('me');
+  return li;
+}
+function t72Splits(r) {
+  const c = r && Array.isArray(r.sectors) ? r.sectors.map(Number) : null;
+  if (!c || c.length < 2 || !(c[0] > 0) || !(c[1] > c[0]) || !(r._ms > c[1])) return null;
+  return [c[0], c[1] - c[0], r._ms - c[1]];
+}
+function t72Ghost(sel) {
+  // «Атаковать призрак» — существующий призрак лидера (api.ghostTop): круги и 0–100 / ¼ мили
+  if (!isRemoteApi()) return null;
+  if (sel.kind === 'lap') return { scope: 'lap', ref: sel.id };
+  if (GHOST_DISCS.some(([id]) => id === sel.id)) return { scope: 'run', ref: sel.id };
+  return null;
+}
+function t72AttackGhost(g) {
+  hap(8);
+  if (g.scope === 'lap') {
+    const s = document.getElementById('trackSelect');
+    if (s && s.value !== g.ref) { s.value = g.ref; s.dispatchEvent(new Event('change')); }
+    ghostRace.lap.choice = 'leader';
+    goToView('lap', { sfx: false });
+    lapRun.trackId = g.ref;
+    try { openLapDrivePreview(); } catch (_) {}
+    void ghostLoad('lap');
+  } else {
+    ghostRace.run.disc = g.ref === '402m' ? '402m' : '0-100';
+    ghostRace.run.choice = 'leader';
+    goToView('run', { sfx: false });
+    void ghostLoad('run');
+    try { window.__ghost74?.open(); } catch (_) {}
+  }
+}
+function t72MeCard(sel, rows, me, cls) {
+  const r = rows[me];
+  const wrap = padEl('li', 't72-mecard');
+  const head = t72Row(sel, rows, me, 0); head.classList.add('t72-mehead');
+  wrap.appendChild(head);
+  const body = padEl('div', 't72-mebody');
+  const ahead = me > 0 ? rows[me - 1] : null;
+  const top10 = me > 10 ? rows[9] : null;
+  if (sel.kind === 'lap') {
+    const mine = t72Splits(r); const ref = ahead ? t72Splits(ahead) : null;
+    if (mine && ref) {
+      const d = mine.map((v, k) => v - ref[k]);
+      const worst = d.indexOf(Math.max(...d));
+      const g = padEl('div', 't72-secs');
+      d.forEach((v, k) => { const c = padEl('span', 't72-sc' + (k === worst && v > 0 ? ' lose' : '')); c.appendChild(padEl('small', '', 'S' + (k + 1) + (k === worst && v > 0 ? ' · теряешь' : ''))); c.appendChild(padEl('b', '', (v > 0 ? '+' : v < 0 ? '−' : '') + t72Gap(v))); g.appendChild(c); });
+      body.appendChild(g);
+      if (d[worst] > 0) r._secHint = 'Больше всего теряешь в S' + (worst + 1) + ' — ' + t72Gap(d[worst]) + ' с к ' + clipText(ahead.name || 'пилоту', 14) + '.';
+    }
+  }
+  const hint = padEl('p', 't72-hint');
+  const parts = [];
+  if (me === 0) parts.push('Ты лидер этого топа.' + (rows[1] ? ' Отрыв ' + t72Gap(rows[1]._ms - r._ms) + ' с.' : ''));
+  else {
+    if (top10) parts.push('−' + t72Gap(r._ms - top10._ms) + ' с до топ-10.');
+    parts.push('−' + t72Gap(r._ms - ahead._ms) + ' с до ' + me + '-го места.');
+  }
+  if (r._secHint) parts.push(r._secHint);
+  hint.textContent = parts.join(' ');
+  body.appendChild(hint);
+  const act = padEl('div', 't72-act');
+  const g = me > 0 ? t72Ghost(sel) : null;
+  if (g) { const b = padEl('button', 't72-btn pri', 'Призрак лидера'); b.type = 'button'; b.addEventListener('click', (e) => { e.stopPropagation(); t72AttackGhost(g); }); act.appendChild(b); }
+  const z = padEl('button', 't72-btn' + (g ? '' : ' pri'), sel.kind === 'lap' ? 'На трек' : 'Замер'); z.type = 'button';
+  z.addEventListener('click', (e) => { e.stopPropagation(); hap(6); goToView(sel.kind === 'lap' ? 'lap' : 'run'); });
+  act.appendChild(z);
+  body.appendChild(act);
+  wrap.appendChild(body);
+  return wrap;
+}
+let _t72Fold = false, _t72All = false;
 async function renderTopsBoard() {
   const ol = document.getElementById('topsBoard');
   if (!ol) return;
@@ -16991,85 +17317,102 @@ async function renderTopsBoard() {
     const tr = sel.kind === 'lap' ? TRACKS.find((t) => t.id === sel.id) : null;
     sub.textContent = [cls === 'c' ? 'телефон · C' : 'чип · A/B', sel.kind === 'lap' ? (tr?.km ? tr.km + ' км' : 'круг') : '', sel.kind === 'lap' ? wxLab : '', document.getElementById('topMyCarOnly')?.checked ? 'моя машина' : (model ? shortCarName(model) : 'все машины'), topsCityOn() ? myCity() : ''].filter(Boolean).join(' · ');
   }
-  const bm = document.getElementById('topsBoardMap');
-  if (bm) {
-    if (sel.kind === 'lap') {
-      bm.classList.remove('hidden');
-      bm.setAttribute('aria-hidden', 'false');
-      if (bm.dataset.track !== sel.id) {
-        try { drawTrack(sel.id, 'topsBoardMap', { compact: true }); } catch (_) {}
-        bm.dataset.track = sel.id;
-      }
-    } else {
-      bm.classList.add('hidden');
-      bm.setAttribute('aria-hidden', 'true');
-      bm.replaceChildren();
-      delete bm.dataset.track;
-    }
-  }
   ol.setAttribute('aria-busy', 'true');
-  let rows = [];
-  let lapRaw = [];
-    if (cls === 'c' && sel.kind !== 'lap' && PHONE_NO_DISCS.includes(sel.id)) {
-    ol.replaceChildren();
-    ol.removeAttribute('aria-busy');
-    const li = padEl('li', 'tb-empty');
-    li.appendChild(padEl('b', '', 'телефон эту отметку не меряет'));
-    li.appendChild(padEl('span', '', 'GPS телефона ~1 раз в секунду — для 60 ft и 0–50 это 2–3 точки. Зачёт C: 0–100, 100–200, ⅛ и ¼ мили и круги.'));
-    ol.appendChild(li);
-    return;
-  }
-  try {
-    if (sel.kind === 'lap') {
-      lapRaw = ((await api.listLapBoard(sel.id, wx, cls)) || []).filter(topsClassPass);
-      const raw = topsPeriodFilter(lapRaw);
-      const best = new Map();
-      raw.forEach((r) => {
-        const k = r.pilotId || ('n:' + (r.name || '') + ':' + (r.car || ''));
-        const ms = lapMs(r.t);
-        if (!Number.isFinite(ms)) return;
-        const prev = best.get(k);
-        if (!prev || ms < prev._ms) best.set(k, { ...r, _ms: ms });
-      });
-      rows = [...best.values()];
-    } else {
-      rows = (await api.listDrag(sel.id, { cls, city: topsCityOn() ? myCity() : '' })) || [];
-    }
-  } catch (_) { rows = []; }
+  const data = await topsLoadRows(sel, cls);
   if (seq !== _topsBoardSeq || cls !== _topsCls) return;
-  // v118: доска C — только строки зачёта C; доска A/B — прежний фильтр (A/B, без телепортов)
-  if (cls === 'c') rows = rows.filter((r) => r && r.gps && r.valid !== false && r.gpsQ === 'C' && r.cls === 'c');
-  else try { rows = filterTopRows(rows, { model }); } catch (_) {}
-  if (cls === 'c' && model) rows = rows.filter((r) => String(r.car || '') === model);
-  try { rows = rows.filter(topsClassPass); } catch (_) {}
-  if (sel.kind !== 'lap') rows = topsPeriodFilter(rows); // v271: период и для разгонов
-  rows = filterRowsByTod(rows); // v128
-  rows.sort((a, b) => (sel.kind === 'lap' ? (a._ms ?? lapMs(a.t)) - (b._ms ?? lapMs(b.t)) : Number(a.t) - Number(b.t)));
+  void t72RenderSums(cls, { ...data, sel });
+  const rows = data.rows;
   ol.replaceChildren();
   ol.removeAttribute('aria-busy');
-  if (!rows.length) {
-    const li = padEl('li', 'tb-empty');
-    const filtered = _topsPrep !== 'all' || _topsPeriod !== 'all' || document.getElementById('topMyCarOnly')?.checked || topsCityOn();
-    li.appendChild(padEl('b', '', filtered ? 'В этом срезе пока пусто' : (sel.kind === 'lap' ? 'Кругов пока нет' : 'Заездов пока нет')));
-    const go = padEl('button', 'tb-empty-go', sel.kind === 'lap' ? 'Проехать круг' : 'Сделать замер');
-    go.type = 'button';
-    go.addEventListener('click', () => goToView(sel.kind === 'lap' ? 'lap' : 'run'));
-    li.appendChild(go);
+  const lead = document.getElementById('t72Lead'); const line = document.getElementById('t72Line');
+  if (data.phoneNo || !rows.length) {
+    if (lead) { lead.hidden = true; lead.replaceChildren(); }
+    if (line) { line.hidden = true; line.replaceChildren(); }
+    const li = padEl('li', 'tb-empty t72-empty');
+    if (data.phoneNo) {
+      li.appendChild(padEl('b', '', 'Телефон эту отметку не меряет'));
+      li.appendChild(padEl('span', '', 'GPS телефона ~1 раз в секунду — для 60 ft и 0–50 это 2–3 точки. Зачёт C: 0–100, 100–200, ⅛ и ¼ мили и круги.'));
+      const sw = padEl('button', 'tb-empty-go', 'Смотреть «Чип A/B»'); sw.type = 'button';
+      sw.addEventListener('click', () => document.querySelector('#topsCls [data-cls="ab"]')?.click());
+      li.appendChild(sw);
+    } else {
+      const filtered = _topsPrep !== 'all' || _topsPeriod !== 'all' || document.getElementById('topMyCarOnly')?.checked || topsCityOn();
+      li.appendChild(padEl('b', '', 'Здесь пока никого'));
+      li.appendChild(padEl('span', '', filtered ? 'В этом срезе нет результатов. Расширь фильтры или стань первым.' : (sel.kind === 'lap' ? 'На этой трассе ещё никто не проехал круг.' : 'В этой дисциплине ещё нет заездов.')));
+      const acts = padEl('div', 't72-act');
+      if (filtered) {
+        const w = padEl('button', 't72-btn', topsCityOn() ? 'Вся Россия' : 'Сбросить фильтры'); w.type = 'button';
+        w.addEventListener('click', () => { t72ResetQuick(); });
+        acts.appendChild(w);
+      }
+      const go = padEl('button', 'tb-empty-go t72-btn pri', 'Стать первым'); go.type = 'button';
+      go.addEventListener('click', () => goToView(sel.kind === 'lap' ? 'lap' : 'run'));
+      acts.appendChild(go);
+      li.appendChild(acts);
+    }
     ol.appendChild(li);
     return;
   }
+  const me = t72Me(rows);
+  t72RenderLead(sel, rows);
+  t72RenderLine(sel, rows, me);
   const frag = document.createDocumentFragment();
-  const lctx = sel.kind === 'lap' ? { raw: lapRaw, leadMs: rows[0] ? (rows[0]._ms ?? lapMs(rows[0].t)) : 0 } : null;
-  rows.slice(0, 100).forEach((r, i) => frag.appendChild(buildTopsRow(r, i, sel, lctx)));
+  const sec = (a, b) => { const h = padEl('li', 't72-sec'); h.appendChild(padEl('span', '', a)); if (b) h.appendChild(padEl('span', '', b)); return h; };
+  const show = new Set();
+  const maxGap = rows[Math.min(rows.length, 3) - 1]._ms - rows[0]._ms;
+  if (rows.length > 1) frag.appendChild(sec('Подиум', 'отставание'));
+  const add = (i) => { if (i >= rows.length || show.has(i)) return; show.add(i); frag.appendChild(i === me ? t72MeCard(sel, rows, me, cls) : t72Row(sel, rows, i, i < 3 ? maxGap : 0)); };
+  add(1); add(2);
+  const foldEnd = Math.min(rows.length, 9);
+  if (foldEnd > 3) {
+    const open = _t72Fold || _t72All || (me >= 3 && me < 9);
+    if (open) for (let i = 3; i < foldEnd; i++) add(i);
+    else {
+      const b = padEl('li', 't72-fold'); const bt = padEl('button', '', '4–' + foldEnd + ' · показать'); bt.type = 'button';
+      bt.addEventListener('click', (e) => { e.stopPropagation(); _t72Fold = true; hap(4); void renderTopsBoard(); });
+      b.appendChild(bt); frag.appendChild(b);
+    }
+  }
+  if (me === 0 || (me > 0 && me < 3)) { /* ты на подиуме — карточка уже выше */ }
+  if (_t72All) for (let i = 9; i < Math.min(rows.length, 100); i++) add(i);
+  else if (me >= 9) {
+    frag.appendChild(sec('Твоя зона', [topsCityOn() ? myCity() : '', { today: 'сегодня', week: 'неделя', all: 'всё время' }[_topsPeriod]].filter(Boolean).join(' · ')));
+    for (let i = Math.max(9, me - 2); i <= Math.min(rows.length - 1, me + 1); i++) add(i);
+  }
+  if (me === 0) { const card = t72MeCard(sel, rows, 0, cls); card.classList.add('lead'); frag.insertBefore(card, frag.firstChild); }
+  if (me < 0) {
+    const li = padEl('li', 'tb-empty t72-empty t72-notyet');
+    li.appendChild(padEl('b', '', 'Ты ещё не в топе'));
+    li.appendChild(padEl('span', '', 'Сделай засчитанный ' + (sel.kind === 'lap' ? 'круг' : 'замер') + ' — и увидишь своё место и сколько до соседа.' + (rows.length ? ' Последнее место сейчас: ' + t72Fmt(sel, rows[rows.length - 1]._ms) + '.' : '')));
+    const go = padEl('button', 'tb-empty-go t72-btn pri', sel.kind === 'lap' ? 'На трек' : 'Замер'); go.type = 'button';
+    go.addEventListener('click', () => goToView(sel.kind === 'lap' ? 'lap' : 'run'));
+    li.appendChild(go);
+    frag.appendChild(li);
+  }
+  if (!_t72All && rows.length > Math.max(9, me + 2)) {
+    const b = padEl('li', 't72-fold'); const bt = padEl('button', '', 'Весь топ · ' + Math.min(rows.length, 100)); bt.type = 'button';
+    bt.addEventListener('click', (e) => { e.stopPropagation(); _t72All = true; hap(4); void renderTopsBoard(); });
+    b.appendChild(bt); frag.appendChild(b);
+  }
   ol.appendChild(frag);
-  try { topsRise(ol, `${sel.kind}:${cls}:${sel.id}:${model || ''}:${_topsPrep}${topsCityOn() ? ':' + topsCityKey(myCity()) : ''}`); } catch (_) {} // v153: подъём в топе
 }
+function t72ResetQuick() {
+  for (const id of ['topMyCityOnly', 'topMyCarOnly']) { const c = document.getElementById(id); if (c) c.checked = false; }
+  _topsPeriod = 'all'; try { localStorage.setItem('pitlane-tops-period', 'all'); } catch (_) {}
+  _topsPrep = 'all'; document.querySelectorAll('#topPrepChips .wx-chip').forEach((x) => x.classList.toggle('on', x.dataset.prep === 'all'));
+  syncTopsPeriod(); syncTopsQuick(); topsActiveLine(); void renderTopsBoard();
+}
+document.getElementById('t72Lead')?.addEventListener('click', (e) => {
+  const m = e.target?.closest?.('.t72-metal[data-pilot]'); if (!m) return;
+  _disputeCtx = { kind: 'top', board: (_topsSel.kind === 'lap' ? 'lap' : 'drag') + (_topsCls === 'c' ? 'c:' : ':') + _topsSel.id, target: m.dataset.pilot };
+  void openPilotProfile(m.dataset.pilot);
+});
 ['topsChips', 'topsTracks'].forEach((hid) => document.getElementById(hid)?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('.tchip');
   if (!b) return;
   _topsSel = { kind: b.dataset.kind, id: b.dataset.id || (TRACKS.some((t) => t.id === _topsLastTrack) ? _topsLastTrack : TRACKS[0]?.id) };
   try { localStorage.setItem(TOPS_SEL_KEY, JSON.stringify(_topsSel)); } catch (_) {}
-  hap(6);
+  hap(6); _t72Fold = false; _t72All = false;
   try { b.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' }); } catch (_) {}
   void renderTopsBoard();
 }));
