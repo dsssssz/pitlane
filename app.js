@@ -4295,7 +4295,23 @@ function rdBadge(tp) {
 function wifiSummaryVerdict() {
   if (!run.summary) return;
   setRunText('rdNote', wifiNote());
-  try { rdBadge(tracePassport(run.sumPts || rawSince(run.rawSeq0 || 0))); } catch (_) {}
+  try { const tp = tracePassport(run.sumPts || rawSince(run.rawSeq0 || 0)); rdBadge(tp); rdTrust(tp); } catch (_) {}
+}
+/** v280: значок доверия — источник, Гц, точность, уклон, «проверено сервером». Только то, что реально посчитал движок. */
+function rdTrust(tp) {
+  const box = document.getElementById('rdTrust');
+  if (!box) return;
+  box.replaceChildren();
+  if (!tp || tp.src === 'sim') { box.hidden = true; return; }
+  const chips = [];
+  chips.push(tp.src === 'ext' ? 'чип PITLANE GPS' : 'телефон');
+  if (Number.isFinite(tp.hz) && tp.hz > 0) chips.push(`${Number(tp.hz).toFixed(tp.hz >= 10 ? 0 : 1)} Гц`);
+  if (Number.isFinite(tp.avgAcc) && tp.avgAcc > 0) chips.push(`±${Number(tp.avgAcc).toFixed(1)} м`);
+  const el = run.trustEl;
+  if (el && Number.isFinite(el.slope)) chips.push(`уклон ${el.slope > 0 ? '+' : ''}${el.slope.toFixed(1)}%`);
+  for (const c of chips) box.appendChild(padEl('span', 'rd-tr', c));
+  if (/в топе · проверено|в зачёте C · телефон/.test(run.topMsg || '')) box.appendChild(padEl('span', 'rd-tr ok', '✓ проверено'));
+  box.hidden = !chips.length;
 }
 function wifiNote() {
   const tp = tracePassport(run.sumPts || rawSince(run.rawSeq0 || 0));
@@ -4363,6 +4379,7 @@ function renderRunSummary() {
   }
   document.getElementById('rdChartBox')?.classList.toggle('empty', !(S.t0 != null && pts.length >= 2));
   rdBadge(tp);
+  run.trustEl = el; rdTrust(tp); // v280
   { // v215: честная пометка точности от движка замера
     const why = (S.reasons || []).filter((r) => REASON_RU[r]).map((r) => REASON_RU[r]);
     const note = wifiNote();
@@ -4393,6 +4410,7 @@ function renderChipOnlySummary(ev) {
   }
   document.getElementById('rdChartBox')?.classList.add('empty');
   const b = document.getElementById('rdBadge'); if (b) { b.textContent = 'только чип · не в топ'; b.dataset.q = 'off'; }
+  { const tr = document.getElementById('rdTrust'); if (tr) { tr.replaceChildren(); tr.hidden = true; } }
   setRunText('rdNote', 'Только отметки чипа: точки не дошли до приложения. В топ не ушло.');
   rdFinalButtons();
   rdDeltas();
@@ -4646,6 +4664,7 @@ async function publishGps(v0100, v100200, v200300) {
       const pts = rawSince(run.rawSeq0 || 0);
       const pc = pickedCar();
       const pSub = !pc?.id ? Promise.resolve({ ok: false, code: 'no_car' }) : api.addStraight(pc.id, {
+        ...chalField('0-100'), // v280
         name: String(who).slice(0, 24),
         car: pc.name,
         weather: lapDrive.weather || undefined,
@@ -4654,6 +4673,7 @@ async function publishGps(v0100, v100200, v200300) {
       _topSubmitP = pSub.catch(() => null);
       const res = await pSub;
       valid = Array.isArray(res) || !!(res && res.ok);
+      if (valid) { chalAfterRun('0-100'); funnelEv('run', 'once'); } // v280
       { const w = wxFromRes(res); if (w) { rec.wx = w; showRunWx(w); } else showRunWx(null); } // v128
       const msg = topVerdict(res);
       run.topMsg = msg;
@@ -6443,7 +6463,7 @@ function openShareCard(payload) {
   if (!card) return;
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
   set('shareCar', payload.car || '—');
-  set('shareNick', payload.nick || '—');
+  { let pn = Number.isInteger(payload.pn) ? payload.pn : null; if (pn == null && _shareOwn) { const v = Number(localStorage.getItem('pitlane-pnum')); if (Number.isInteger(v) && v >= 1 && v <= 99) pn = v; } set('shareNick', (payload.nick || '—') + (pn ? ' #' + pn : '')); } // v280
   set('shareTime', payload.time || '—');
   set('shareDate', payload.date || '');
 
@@ -6580,6 +6600,8 @@ function openShareCard(payload) {
     }
   }
 
+  { const me = document.getElementById('shareMeasured'); if (me) me.hidden = payload.src !== 'ext'; } // v280: «Измерено PITLANE GPS»
+  { const ch = document.getElementById('shareCardChal'); if (ch) { ch.hidden = !(_shareOwn && payload.src !== 'sim' && CHAL_DISCS_UI.includes(payload.type) && payload.valid !== false); ch.disabled = false; ch.textContent = 'Вызов'; } }
   card.classList.remove('hidden');
   card.setAttribute('aria-hidden', 'false');
   renderShareRun(payload);
@@ -6711,6 +6733,7 @@ function drawStoryCard(p) {
   const tags = [];
   const g = gpsGradeLabel(p.gpsQ); if (g && g !== 'GPS') tags.push('GPS ' + g);
   if (p.chip === 1) tags.push('подтверждено чипом');
+  if (p.src === 'ext') { x.fillStyle = '#e8e6e1'; x.font = F(600, 40); x.fillText('Измерено PITLANE GPS', 90, 1470); x.fillStyle = '#9a9a9a'; } // v280
   else if (p.src === 'phone') tags.push('телефон');
   if (Number.isFinite(p.pbD)) tags.push(fmtPbDelta(p.pbD) + ' к лучшему');
   x.font = F(500, 40); x.fillText(tags.join(' · ').slice(0, 48), 90, 1400);
@@ -6785,7 +6808,7 @@ document.getElementById('shareCardClose')?.addEventListener('click', closeShareC
 document.getElementById('shareCard')?.addEventListener('click', (e) => {
   if (e.target?.id === 'shareCard') closeShareCard();
 });
-document.getElementById('shareCardBtn')?.addEventListener('click', () => { void shareResult(_sharePayload); });
+document.getElementById('shareCardBtn')?.addEventListener('click', () => { funnelEv('share'); void shareResult(_sharePayload); });
 // v257: после заезда — «Сохранить как призрак» и «Журнал заездов» (с экрана до старта убраны)
 document.getElementById('shareCardGhost')?.addEventListener('click', (e) => {
   try { ghostRace.run.choice = 'best'; ghostSaveChoice(); ghostApplyChoice('run'); } catch (_) {}
@@ -13517,7 +13540,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v279';
+const APP_VERSION = 'v280';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -14198,12 +14221,14 @@ function publishDragMark(disc, sec) {
     if (!isRemoteApi() || !currentUser()) return;
     const car = pickedCar(); if (!car) return; // v279: без выбранной машины — не в топ
     void Promise.resolve(api.addDrag(disc, {
+      ...chalField(disc), // v280
       carId: car?.id,
       car: car?.name,
       name: String(pulseWho() || 'пилот').slice(0, 24),
       weather: lapDrive.weather || undefined,
       trace: packTrace(pts),
     })).then((res) => {
+      if (res && res.ok) { chalAfterRun(disc); funnelEv('run', 'once'); } // v280
       if (res && !res.ok && res.code && res.code !== 'phone_source' && res.code !== 'phone_disc') setRunText('runStatus', disc + ': ' + rejectText(res));
       else { const w = wxFromRes(res); if (w && !document.getElementById('rdWx')?.textContent.trim()) showRunWx(w); } // v128
     }).catch(() => {});
@@ -16964,6 +16989,7 @@ function buildTopsRow(r, i, sel, ctx) {
     const pin = r.pp && ['helmet', 'wheel', 'carbon'].includes(r.pp.pin) ? r.pp.pin : '';
     for (const k of [bk, pin].filter(Boolean)) { const b = document.createElement('img'); b.className = 'lb92-b'; b.alt = ''; b.src = awardImg(k, true); b.title = AW_LIST[k]?.n || k; nick.appendChild(b); }
   }
+  pnSwTags(r, nick); // v280
   li.appendChild(nick);
   const carEl = padEl('span', 'tb-car', shortCarName(r.car, r.carId) || '');
   // v113: бейдж класса (со слов пилота); старые заезды — «класс не указан»
@@ -17185,6 +17211,13 @@ function t72Plates(r, host) {
   // косметика — только реальные данные Pass (значок у ника); номеров пока нет — ничего не выдумываем
   const pin = r.pp && ['helmet', 'wheel', 'carbon'].includes(r.pp.pin) ? r.pp.pin : '';
   if (pin) { const b = document.createElement('img'); b.className = 'lb92-b'; b.alt = ''; b.src = awardImg(pin, true); b.title = AW_LIST[pin]?.n || pin; host.appendChild(b); }
+  pnSwTags(r, host); // v280
+}
+/** v280: номер пилота (#NN, Stars) и титул сезона города — только реальные данные сервера. */
+function pnSwTags(r, host) {
+  if (!r || !host) return;
+  if (Number.isInteger(r.pn) && r.pn >= 1 && r.pn <= 99) host.appendChild(padEl('b', 'pn-tag', '#' + r.pn));
+  if (r.sw && typeof r.sw.label === 'string') { const t = padEl('i', 'sw-tag', '★'); t.title = 'Чемпион сезона · ' + r.sw.label; host.appendChild(t); }
 }
 function t72CarImg(r, cls) {
   const src = carCropSrc(r.carId);
@@ -17354,6 +17387,7 @@ async function renderTopsBoard() {
   const cls = _topsCls;
   const sel = { ..._topsSel };
   const seq = ++_topsBoardSeq;
+  void t72Season(sel, cls); // v280: сезон города
   const title = document.getElementById('topsBoardTitle');
   const sub = document.getElementById('topsBoardSub');
   const wx = getTopsWeatherFilter();
@@ -18566,3 +18600,148 @@ function pf6PaintPassTile(u) {
   window.addEventListener('deviceorientation', (e) => { if (e.gamma == null || !t.offsetParent) return; tilt(e.gamma / 6, -((e.beta || 45) - 45) / 8); }, { passive: true });
   try { pf6PaintPassTile(currentUser()); } catch (_) {}
 })();
+
+
+/* ——— v280: «Вызов» · сезон города · номер пилота · воронка ——— */
+const CHAL_DISCS_UI = ['0-100', '402m'];
+const CHAL_KEY = 'pitlane-chal-v1';
+function chalActive() { try { const c = JSON.parse(sessionStorage.getItem(CHAL_KEY) || 'null'); return c && /^c[a-z0-9]{8,24}$/.test(c.id) ? c : null; } catch (_) { return null; } }
+function chalField(disc) { const c = chalActive(); return c && c.disc === disc ? { chal: c.id } : {}; }
+function chalAfterRun(disc) { const c = chalActive(); if (!c || c.disc !== disc) return; setTimeout(() => { void openChalSheet(c.id, { after: true }); }, 1800); }
+const chalSec = (t) => Number(t).toFixed(2).replace('.', ',') + ' с';
+const chalDiscRu = (d) => ({ '0-100': '0–100 км/ч', '402m': '¼ мили', '100-200': '100–200 км/ч', '201m': '⅛ мили' }[d] || d);
+function chalSheetEl() {
+  let el = document.getElementById('chalSheet');
+  if (el) return el;
+  el = document.createElement('div');
+  el.id = 'chalSheet'; el.className = 'chal-sheet hidden'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true');
+  el.addEventListener('click', (e) => { if (e.target === el || e.target.closest('[data-chal-x]')) chalClose(); });
+  document.body.appendChild(el);
+  return el;
+}
+function chalClose() { const el = document.getElementById('chalSheet'); if (el) el.classList.add('hidden'); }
+async function openChalSheet(id, { after = false } = {}) {
+  const el = chalSheetEl();
+  const box = padEl('div', 'chal-in');
+  const x = padEl('button', 'chal-x pl-x', '×'); x.type = 'button'; x.dataset.chalX = '1'; x.setAttribute('aria-label', 'Закрыть');
+  box.append(x, padEl('p', 'chal-k', 'ВЫЗОВ'), padEl('p', 'chal-msg', 'Загружаем…'));
+  el.replaceChildren(box); el.classList.remove('hidden');
+  const r = await api.chalGet(id).catch(() => null);
+  const c = r && r.chal;
+  box.replaceChildren(x, padEl('p', 'chal-k', 'ВЫЗОВ' + (c ? ' · ' + chalDiscRu(c.disc) : '')));
+  if (!c) { box.appendChild(padEl('p', 'chal-msg', 'Вызов не найден или истёк.')); return; }
+  const mine = isMyPilotId?.(c.from.pilotId);
+  const line = (run, cls) => {
+    const d = padEl('div', 'chal-row' + (cls ? ' ' + cls : ''));
+    const n = padEl('span', 'chal-nick', run.nick || 'Пилот'); if (Number.isInteger(run.pn)) n.appendChild(padEl('b', 'pn-tag', '#' + run.pn));
+    d.append(n, padEl('span', 'chal-car', [run.car, run.src === 'chip' ? 'чип' : 'телефон'].filter(Boolean).join(' · ')), padEl('strong', 'chal-t', chalSec(run.t)));
+    return d;
+  };
+  box.appendChild(line(c.from, 'from'));
+  if (c.runs.length) for (const rr of c.runs) box.appendChild(line(rr, rr.t < c.from.t ? 'win' : ''));
+  else box.appendChild(padEl('p', 'chal-msg', mine ? 'Пока никто не ответил. Отправь ссылку друзьям.' : 'Ответов пока нет — будь первым.'));
+  const left = Math.max(0, Math.ceil((c.until - Date.now()) / 86400000));
+  box.appendChild(padEl('p', 'chal-note', `В зачёт — только проверенный сервером заезд · ещё ${left} дн.`));
+  if (after) box.appendChild(padEl('p', 'chal-note', 'Твой заезд отправлен в вызов. Автор получит сообщение от бота.'));
+  if (!mine) {
+    const go = padEl('button', 'go-btn chal-go', 'Принять — к замеру'); go.type = 'button';
+    go.addEventListener('click', () => { try { sessionStorage.setItem(CHAL_KEY, JSON.stringify({ id: c.id, disc: c.disc })); } catch (_) {} hap(10); chalClose(); goToView('run'); setRunText('runStatus', 'Вызов ' + chalDiscRu(c.disc) + ': цель ' + chalSec(c.from.t)); });
+    box.appendChild(go);
+  }
+}
+async function chalCreateAndShare(btn) {
+  const p = _sharePayload; if (!p || !CHAL_DISCS_UI.includes(p.type)) return;
+  if (!currentUser()) { btn.textContent = 'Вызов — после входа'; return; }
+  btn.disabled = true; btn.textContent = 'Создаём…';
+  const r = await api.chalCreate(p.type).catch(() => null);
+  if (!r || r.ok === false || !r.chal) { btn.disabled = false; btn.textContent = r?.code === 'no_run' ? 'Вызов — после замера в топ' : 'Не получилось — сеть'; return; }
+  const c = r.chal;
+  const web = location.origin + location.pathname + '?ch=' + encodeURIComponent(c.id);
+  const text = `Вызов PITLANE · ${chalDiscRu(c.disc)}: ${chalSec(c.from.t)}. Побьёшь?`;
+  funnelEv('share');
+  btn.disabled = false; btn.textContent = 'Вызов';
+  if (isTMA) { await shareViaTelegram('ch_' + c.id, web, text); return; }
+  try { if (navigator.share) { await navigator.share({ title: 'PITLANE', text, url: web }); return; } } catch (_) { return; }
+  try { await navigator.clipboard.writeText(text + ' ' + web); btn.textContent = 'Ссылка скопирована'; } catch (_) {}
+}
+document.getElementById('shareCardChal')?.addEventListener('click', (e) => { hap(8); void chalCreateAndShare(e.currentTarget); });
+try { const chq = new URLSearchParams(location.search).get('ch'); if (chq && /^c[a-z0-9]{8,24}$/.test(chq)) setTimeout(() => { void openChalSheet(chq); }, 1200); } catch (_) {}
+
+/* Сезон города «<Город> · <Месяц>»: лучший пилота за месяц среди пилотов города. Новый месяц — с нуля. */
+const SEASON_DISCS_UI = ['0-100', '100-200', '402m'];
+let _citySzSeq = 0;
+async function t72Season(sel, cls) {
+  const box = document.getElementById('t72Season'); if (!box) return;
+  const seq = ++_citySzSeq;
+  const city = myCity();
+  if (!sel || sel.kind === 'lap' || !SEASON_DISCS_UI.includes(sel.id) || !city || !isRemoteApi()) { box.hidden = true; box.replaceChildren(); return; }
+  const r = await api.citySeason({ city, disc: sel.id, cls }).catch(() => null);
+  if (seq !== _citySzSeq) return;
+  if (!r || r.ok === false) { box.hidden = true; return; }
+  box.replaceChildren();
+  const head = padEl('div', 't72-sz-h');
+  head.append(padEl('span', 't72-sz-k', 'СЕЗОН'), padEl('strong', 't72-sz-t', r.label));
+  if (r.ends) head.appendChild(padEl('span', 't72-sz-e', 'до сброса ' + Math.max(1, Math.ceil((r.ends - Date.now()) / 86400000)) + ' дн.'));
+  box.appendChild(head);
+  if (!r.rows.length) box.appendChild(padEl('p', 't72-sz-n', 'В этом месяце в городе ещё нет зачтённых замеров. Победитель месяца получит знак чемпиона.'));
+  r.rows.slice(0, 3).forEach((x, i) => {
+    const row = padEl('div', 't72-sz-r');
+    const n = padEl('span', 't72-sz-nm', (i + 1) + '. ' + (x.nick || 'Пилот')); pnSwTags(x, n);
+    row.append(n, padEl('span', 't72-sz-v', chalSec(x.t)));
+    box.appendChild(row);
+  });
+  box.hidden = false;
+}
+
+/* Номер пилота за Telegram Stars (навсегда). */
+async function openPnumSheet() {
+  const el = chalSheetEl();
+  const box = padEl('div', 'chal-in');
+  const x = padEl('button', 'chal-x pl-x', '×'); x.type = 'button'; x.dataset.chalX = '1'; x.setAttribute('aria-label', 'Закрыть');
+  box.append(x, padEl('p', 'chal-k', 'НОМЕР ПИЛОТА'));
+  el.replaceChildren(box); el.classList.remove('hidden');
+  if (!currentUser()) { box.appendChild(padEl('p', 'chal-msg', 'Войди через Telegram, чтобы выбрать номер.')); return; }
+  const me = await api.pnumMe().catch(() => null);
+  if (!me || me.ok === false) { box.appendChild(padEl('p', 'chal-msg', 'Нет связи — попробуй позже.')); return; }
+  if (me.number) box.appendChild(padEl('p', 'chal-big', '#' + me.number));
+  box.appendChild(padEl('p', 'chal-msg', 'Номер 1–99 у ника в топах, вызовах и на карточке. Один номер — один пилот, навсегда.'));
+  if (!me.sales) { box.appendChild(padEl('p', 'chal-note', 'Покупка скоро откроется.')); return; }
+  const row = padEl('div', 'pn-buy');
+  const inp = document.createElement('input'); inp.type = 'number'; inp.min = '1'; inp.max = '99'; inp.inputMode = 'numeric'; inp.placeholder = '7'; inp.className = 'pn-inp';
+  const btn = padEl('button', 'go-btn', `Купить · ${me.stars} Stars`); btn.type = 'button';
+  const msg = padEl('p', 'chal-note', '');
+  row.append(inp, btn); box.append(row, msg);
+  btn.addEventListener('click', async () => {
+    const n = Number(inp.value);
+    if (!(Number.isInteger(n) && n >= 1 && n <= 99)) { msg.textContent = 'Номер от 1 до 99'; return; }
+    btn.disabled = true; msg.textContent = 'Проверяем…';
+    const r = await api.pnumInvoice(n).catch(() => null);
+    btn.disabled = false;
+    if (!r || r.ok === false || !r.link) { msg.textContent = r?.code === 'taken' ? 'Номер #' + n + ' занят — выбери другой' : 'Оплата недоступна: ' + (r?.error || 'сеть'); return; }
+    const TG = window.Telegram?.WebApp;
+    if (TG && typeof TG.openInvoice === 'function') TG.openInvoice(r.link, (st) => { if (st === 'paid') { msg.textContent = 'Оплачено — номер #' + n + ' твой'; setTimeout(() => { void syncPnumRow(); }, 1500); } });
+    else { window.open(r.link, '_blank', 'noopener'); msg.textContent = 'Счёт в Telegram — оплати и вернись.'; }
+  });
+}
+async function syncPnumRow() {
+  const v = document.getElementById('stPnumV'); if (!v || !currentUser() || !isRemoteApi()) return;
+  const me = await api.pnumMe().catch(() => null);
+  if (me && me.number) { v.textContent = '#' + me.number; try { localStorage.setItem('pitlane-pnum', String(me.number)); } catch (_) {} }
+}
+document.getElementById('stPnum')?.addEventListener('click', () => { hap(6); void openPnumSheet(); });
+setTimeout(() => { void syncPnumRow(); }, 2500);
+
+/* Воронка: только дневные счётчики (open раз в день, car и run — раз на устройство), без id. */
+function funnelEv(e, mode) {
+  try {
+    const k = 'pitlane-ev-' + e;
+    const today = new Date().toISOString().slice(0, 10);
+    if (mode === 'day' && localStorage.getItem(k) === today) return;
+    if (mode === 'once' && localStorage.getItem(k)) return;
+    if (mode) localStorage.setItem(k, mode === 'day' ? today : '1');
+    if (isRemoteApi()) api.ev(e);
+  } catch (_) {}
+}
+funnelEv('open', 'day');
+if (pickedCar()) funnelEv('car', 'once');
+window.addEventListener('pl-car', () => { if (pickedCar()) funnelEv('car', 'once'); });

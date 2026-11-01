@@ -1,10 +1,13 @@
 import { PulseHub, pulseOp, PULSE_CID_RE } from './pulsehub.js';
-import { passRoute, passPreCheckout, passSuccessfulPayment, isPassPayload, attachPass } from './paddock.js'; // v192 Paddock Pass
+import { passRoute, passPreCheckout, passSuccessfulPayment, isPassPayload, attachPass, passSalesOn } from './paddock.js'; // v192 Paddock Pass
 import { runWeather, publicWx } from './wx.js';
 import { sanitizeCarPhoto, publicCarPhoto, carPhotoKey, PCAR_BODY, PCAR_MAX } from './carphoto.js';
 import { listFollows, setFollow, followImproveNotify, deleteFollowKeys, FOLLOW_MAX } from './follow.js';
 import { TG_BANNER_URL, START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner, trackTitle } from './botcopy.js';
-import { seasonRoute, seasonRecord0100 } from './season.js';
+import { seasonRoute, seasonRecord0100, citySeasonRoute, citySeasonRecord } from './season.js';
+import { chalRoute, chalOnDrag } from './chal.js'; // v280
+import { pnumRoute, pnumPreCheckout, pnumSuccessfulPayment, isPnumPayload, pnumOf } from './pnum.js'; // v280
+import { funnelRoute } from './funnel.js'; // v280
 import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, loadPrefs, savePrefs, markStarted, setChatStop, chatState, deleteNotifyKeys, NOTIFY_TYPES, NOTIFY_LABELS, NOTIFY_DAILY_MAX, NOTIFY_BOT_TEXT } from './notify.js';
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
 import { gpsRoute, deleteAccountGps, GpsLive, chipAttest } from './gpslive.js';
@@ -527,7 +530,7 @@ function sanitizeWeather(v) {
   return null;
 }
 
-const PUBLIC_ROW_FIELDS = [
+const PUBLIC_ROW_FIELDS = ['pn', 'sw', 
   'car', 't', 'gps', 'valid', 'gpsQ', 'src', 'n', 'avgAcc', 'hz', 'weather', 'wx', 'track',
   'dist', 'slipAvg', 'sectors', 'ms', 'at', 'avatar', 'sector', 'carId', 'disc', 'ghost', 'tyre',
   'prep', 'tyreT', 'cls', 'asC', 'pp', 'chip', 'city',
@@ -1820,7 +1823,7 @@ async function loginTelegramUser(env, v, provider) {
   return { ok: true, ...sess, pilotId: rec.id, nick: rec.nick, provider, created, user: ownerUser(rec) };
 }
 
-const TMA_PARAM_RE = /^(duel|crew|room|team|lap|run|s|track|tops)_[A-Za-z0-9_-]{1,56}$/;
+const TMA_PARAM_RE = /^(ch|duel|crew|room|team|lap|run|s|track|tops)_[A-Za-z0-9_-]{1,56}$/;
 
 /** Bot API savePreparedInlineMessage → id for WebApp.shareMessage(). */
 async function prepareTmaShare(env, v, body) {
@@ -2825,6 +2828,13 @@ async function tgNotify(env, pid, m, type = 'duel', key = '') {
   const r = await notifyEvent(env, pid, { type, key, msg: m }, NOTIFY_H);
   return r === 'sent' || r === 'queued';
 }
+/** v280: сообщение создателю вызова. */
+function chalMsg(x) {
+  const d = DISC_TITLE[x.disc] || x.disc;
+  const t = (v) => Number(v).toFixed(2).replace('.', ',') + ' с';
+  const head = x.win ? '<b>Твой вызов побит</b>' : '<b>Твой вызов принят</b>';
+  return { text: head + '\n' + tgEsc(x.nick) + ' · ' + d + ': <b>' + t(x.t) + '</b> (у тебя ' + t(x.mine) + ')', keyboard: [[webAppBtn('Открыть вызов', { startapp: 'ch_' + x.id })]], line: tgEsc(x.nick) + ' · вызов ' + d + ': ' + t(x.t) };
+}
 const DISC_TITLE = { '0-100': '0–100', '100-200': '100–200', '200-300': '200–300', '0-200': '0–200', '80-120': '80–120', '0-60': '0–60', '0-50': '0–50', '60ft': '60 ft', '201m': '⅛ мили', '402m': '¼ мили' };
 function clsTitle(c) { return c === 'c' ? 'телефон (C)' : 'внешний GPS (A/B)'; }
 /** v121: «тебя обогнали» — сравниваем места до/после зачёта (только честные строки доски). */
@@ -2919,6 +2929,7 @@ const ROOM_H = {
   moscowDateKey, requireAuth, sanitizeLap, sanitizeRoomLap, rejectRun, guardRun, parseLapMs, safeDecode, telegramConfig, tgCall, tgWebhookPath,
   providerKey, loadPilot, tgEsc, sanitizeBannerImage,
   readListRaw: readList, kvListAll, burstLimited,
+  boardKey, attachPass, pnumOf: (kv, pid) => pnumOf(kv, pid), // v280
   // v98: teams
   onRoomChanged: (kv, room) => syncTeamIndex(kv, room, ROOM_H),
   onRoomDeleted: (kv, room) => teamsOnRoomDeleted(kv, room, ROOM_H),
@@ -2956,6 +2967,10 @@ export default {
       try {
         const upd = await readJson(req, 64 * 1024);
         // v97: Telegram Stars — season per crew room
+        if (upd && upd.pre_checkout_query && isPnumPayload(upd.pre_checkout_query.invoice_payload)) { // v280
+          const r = await pnumPreCheckout(env, upd.pre_checkout_query, ROOM_H, passSalesOn);
+          return json({ ok: true, precheckout: !!r?.ok }, 200, headers);
+        }
         if (upd && upd.pre_checkout_query && isPassPayload(upd.pre_checkout_query.invoice_payload)) { // v192
           const r = await passPreCheckout(env, upd.pre_checkout_query, ROOM_H);
           return json({ ok: true, precheckout: !!r?.ok }, 200, headers);
@@ -2974,6 +2989,10 @@ export default {
         if (msg && msg.refunded_payment) { // v184: возврат Stars → откатить продление сезона (раньше не обрабатывался)
           const r = await roomsRefundedPayment(env, msg, ROOM_H);
           return json({ ok: true, refunded: !!r?.ok, duplicate: !!r?.duplicate }, 200, headers);
+        }
+        if (msg && msg.successful_payment && isPnumPayload(msg.successful_payment.invoice_payload)) { // v280
+          const r = await pnumSuccessfulPayment(env, msg, ROOM_H);
+          return json({ ok: true, paid: !!r?.ok, duplicate: !!r?.duplicate, refunded: !!r?.refunded }, 200, headers);
         }
         if (msg && msg.successful_payment && isPassPayload(msg.successful_payment.invoice_payload)) { // v192
           const r = await passSuccessfulPayment(env, msg);
@@ -3465,11 +3484,19 @@ export default {
         row.carId = row.carId || carId;
         Object.assign(row, carClassStamp(await loadMyCar(env.PITLANE, pilot.id, ROOM_H), row)); // v113
         await applyWeather(env, row, res.geo); // v128
+        const after280 = async () => { // v280: сезон города + «Вызов» (0–100 идёт этим путём)
+          const prec = await loadPilot(env.PITLANE, pilot.id); const nick = safeName(prec?.nick, '') || pilot.name;
+          const r2 = { ...row, ...(prec?.city ? { city: prec.city } : {}) };
+          try { await citySeasonRecord(env.PITLANE, r2, '0-100', nick, ROOM_H); } catch (_) {}
+          if (body?.chal) { try { return await chalOnDrag(env, ROOM_H, String(body.chal), '0-100', r2, nick, (to, x) => tgNotify(env, to, chalMsg(x), 'challenge', 'chal:' + x.id + ':' + pilot.id)); } catch (_) {} }
+          return null;
+        };
         if (row.cls === 'c') {
           // v118: зачёт C — только своя доска dragc:0-100 (не в A/B-список машины, не в сезон и не в сток)
           const stored = await upsertDrag(env.PITLANE, '0-100', { ...row, disc: '0-100' }, (b, a, k) => defer(dragOvertake(env, '0-100', k, b, a, pilot.id)));
+          const chal = await after280();
           const crow = (await readList(env.PITLANE, boardKey('drag', '0-100', 'c'))).filter(isClassCRow).sort((a, b) => a.t - b.t);
-          return json({ ok: true, cls: 'c', stored, wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(crow.slice(0, 50)) }, 200, headers);
+          return json({ ok: true, cls: 'c', stored, ...(chal ? { chal } : {}), wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(crow.slice(0, 50)) }, 200, headers);
         }
         const key = `straight:${carId}`;
         const rows = await readList(env.PITLANE, key);
@@ -3480,6 +3507,7 @@ export default {
         // v84: 0–100 also feeds the global per-discipline board (all cars)
         await upsertDrag(env.PITLANE, '0-100', { ...row, carId, disc: '0-100' }, (b, a, k) => defer(dragOvertake(env, '0-100', k, b, a, pilot.id)));
         await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114
+        await after280();
         return json(publicRows(rows.filter(isValidGpsRow)), 200, headers);
       }
 
@@ -3615,8 +3643,11 @@ export default {
             run: { d: disc, t: Math.round(Number(row.t) * 100) / 100, src: row.src === 'ext' ? 'chip' : 'phone', car: typeof row.car === 'string' && !containsPhone(row.car) ? cleanLabel(row.car, 60) : '', ok: 1 },
           } }));
           if (disc === '0-100' && !c) await seasonRecord0100(env.PITLANE, row, ROOM_H); // v114 (сезон — только A/B)
+          try { await citySeasonRecord(env.PITLANE, row, disc, safeName(rec?.nick, '') || pilot.name, ROOM_H); } catch (_) {} // v280
+          let chal = null;
+          if (body?.chal) { try { chal = await chalOnDrag(env, ROOM_H, String(body.chal), disc, row, safeName(rec?.nick, '') || pilot.name, (to, x) => tgNotify(env, to, chalMsg(x), 'challenge', 'chal:' + x.id + ':' + pilot.id)); } catch (_) {} } // v280
           const rows = (await readList(env.PITLANE, boardKey('drag', disc, c ? 'c' : 'ab'))).filter(c ? isClassCRow : isValidGpsRow).sort((a, b) => a.t - b.t);
-          return json({ ok: true, cls: c ? 'c' : 'ab', stored, chip: row.chip ?? null, valid: row.valid, wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(rows.slice(0, 50)) }, 200, headers);
+          return json({ ok: true, cls: c ? 'c' : 'ab', stored, chip: row.chip ?? null, valid: row.valid, wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(rows.slice(0, 50)), ...(chal ? { chal } : {}) }, 200, headers);
         }
       }
 
@@ -4314,6 +4345,10 @@ export default {
       }
 
       // —— v114: сезонный зачёт экипажей (публичный, read-only) ——
+      { const cr = await citySeasonRoute({ req, env, path, url, headers, ip, h: ROOM_H }); if (cr) return cr; } // v280
+      { const chr = await chalRoute({ req, env, path, pilot, headers, ip, h: ROOM_H }); if (chr) return chr; } // v280
+      { const pnr = await pnumRoute({ req, env, path, pilot, headers, ip, h: ROOM_H, salesOn: passSalesOn }); if (pnr) return pnr; } // v280
+      { const fr = await funnelRoute({ req, env, path, headers, ip, h: ROOM_H }); if (fr) return fr; } // v280
       { const sr = await seasonRoute({ req, env, path, url, headers, ip, h: ROOM_H }); if (sr) return sr; }
       // —— v115: музыка в профиле (список + стрим-прокси файлов бота) ——
       { const mr = await musicRoute({ req, env, path, url, headers, ip, pilot, h: MUSIC_H }); if (mr) return mr; }

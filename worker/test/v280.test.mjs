@@ -1,0 +1,55 @@
+// v280: вызов, сезон города, номер пилота, воронка — node test/v234.test.mjs
+import rawWorker from '../src/index.js';
+import { withAutoRefresh } from './autorefresh.mjs';
+import { MemKV } from './kvmock.mjs';
+import { dragBody } from './traces.mjs';
+const worker = withAutoRefresh(rawWorker);
+let fails = 0;
+const ok = (c, m, x) => { if (c) console.log('  ✓', m); else { fails++; console.log('  ✗', m, x !== undefined ? JSON.stringify(x).slice(0, 300) : ''); } };
+const env = { PITLANE: new MemKV(), SMS_DEMO: '1' };
+let ipn = 1;
+async function call(method, path, { body, token } = {}) {
+  const h = { Origin: 'https://dsssssz.github.io', 'Content-Type': 'application/json', 'CF-Connecting-IP': '10.234.0.' + (ipn++ % 250) };
+  if (token) h.Authorization = 'Bearer ' + token;
+  const r = await worker.fetch(new Request('https://api.test' + path, { method, headers: h, body: body ? JSON.stringify(body) : undefined }), env);
+  const t = await r.text(); let d; try { d = JSON.parse(t); } catch { d = t; } return { status: r.status, data: d };
+}
+async function login(phone, nick) { const o = await call('POST', '/auth/otp', { body: { phone } }); const v = await call('POST', '/auth/verify', { body: { phone, code: o.data.demoCode, nick } }); return { token: v.data.token, id: v.data.pilotId }; }
+import { pnumSuccessfulPayment, pnumOf } from '../src/pnum.js';
+const A = await login('79002800001', 'Мага'), B = await login('79002800002', 'Артём');
+await call('PUT', '/me', { token: A.token, body: { city: 'Махачкала' } });
+await call('PUT', '/me', { token: B.token, body: { city: 'Махачкала' } });
+let r = await call('POST', '/chal', { token: A.token, body: { disc: '0-100' } });
+ok(r.status === 409 && r.data.code === 'no_run', 'вызов без замера — no_run', r.data);
+await call('POST', '/tops/drag/0-100', { token: A.token, body: dragBody('0-100', 4.6) });
+r = await call('POST', '/chal', { token: A.token, body: { disc: '0-100' } });
+ok(r.status === 200 && Math.abs(r.data.chal.from.t - 4.6) < 0.1, 'вызов создан из зачтённой строки', r.data);
+const id = r.data.chal.id;
+r = await call('POST', '/tops/drag/0-100', { token: B.token, body: { ...dragBody('0-100', 4.4), chal: id } });
+ok(r.data.chal && r.data.chal.runs.length === 1 && Math.abs(r.data.chal.runs[0].t - 4.4) < 0.1, 'результат друга записан в вызов', r.data.chal);
+r = await call('GET', '/chal/' + id);
+ok(r.status === 200 && r.data.chal.runs[0].nick === 'Артём' && !JSON.stringify(r.data).includes('7900'), 'GET вызова публичный, без телефонов', r.data);
+r = await call('GET', '/season/city?city=' + encodeURIComponent('Махачкала') + '&disc=0-100');
+ok(r.data.ok && r.data.rows.length === 2 && r.data.rows[0].nick === 'Артём' && /^Махачкала · /.test(r.data.label), 'сезон города', r.data);
+r = await call('GET', '/season/city?city=' + encodeURIComponent('Москва'));
+ok(r.data.rows.length === 0, 'другой город пуст');
+r = await call('POST', '/ev', { body: { e: 'open' } }); await call('POST', '/ev', { body: { e: 'run' } });
+ok(r.data.ok, 'событие воронки');
+r = await call('POST', '/ev', { body: { e: 'hack' } });
+ok(r.status === 400, 'чужое событие отклонено');
+const evk = [...(env.PITLANE.map || env.PITLANE.store || new Map()).keys?.() || []].find((k) => String(k).startsWith('ev:'));
+r = await call('GET', '/pnum/7', { token: A.token });
+ok(r.data.free === true, 'номер свободен');
+const tg = { tgCall: async () => ({ ok: true }) };
+let p = await pnumSuccessfulPayment(env, { from: { id: 1 }, successful_payment: { telegram_payment_charge_id: 'x1', currency: 'XTR', total_amount: 299, invoice_payload: 'pn1:7:' + A.id } }, tg);
+ok(p.ok && (await pnumOf(env.PITLANE, A.id)) === 7, 'номер куплен');
+p = await pnumSuccessfulPayment(env, { from: { id: 2 }, successful_payment: { telegram_payment_charge_id: 'x2', currency: 'XTR', total_amount: 299, invoice_payload: 'pn1:7:' + B.id } }, tg);
+ok(!p.ok && p.refunded, 'занятый номер → возврат');
+r = await call('GET', '/tops/drag/0-100');
+ok(r.data.find((x) => x.name === 'Мага')?.pn === 7, 'номер в топе', r.data);
+const Cc = await login('79002800003', 'Рустам');
+await call('PUT', '/me', { token: Cc.token, body: { city: 'Махачкала' } });
+r = await call('POST', '/tops/straight/bmw-m3', { token: Cc.token, body: { ...dragBody('0-100', 4.9), chal: id } });
+r = await call('GET', '/chal/' + id);
+ok(r.data.chal.runs.length === 2, '0–100 через /tops/straight тоже пишет в вызов', r.data.chal.runs);
+console.log(fails ? `FAIL ${fails}` : 'OK'); process.exit(fails ? 1 : 0);

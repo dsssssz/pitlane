@@ -21,7 +21,7 @@ export const SHOP_CONFIG = {
 };
 
 /** v222: первые FOUNDERS.limit заявок на чип (не отменённых, считает сервер по KV) — цена FOUNDERS.price за 1 шт. */
-export const FOUNDERS = { productId: 'pitlane-gps', limit: 50, price: 6800 };
+export const FOUNDERS = { productId: 'pitlane-gps', limit: 50, price: 8499 } /* v280: цена основателям убрана — единая 8 499 ₽ */;
 /** Заявки в этих статусах = заказ подтверждён → значок «Основатель». */
 export const FOUNDER_CONFIRMED = ['paid', 'accepted', 'assembling', 'shipped', 'delivered', 'confirmed', 'done'];
 /** Цена за 1-ю шт. для основателя, остальные — по обычной цене. */

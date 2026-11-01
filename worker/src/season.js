@@ -122,3 +122,76 @@ export async function seasonRoute(ctx) {
   if (cache) { try { await cache.put(ckey, new Response(JSON.stringify(out), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=120' } })); } catch (_) {} }
   return h.json(out, 200, headers);
 }
+
+/* ——— v280: сезоны городов «<Город> · <Месяц>» ———
+ * Агрегат месяца по дисциплине и классу: cseason:<YYYY-MM>:<disc>:<ab|c> = { pid: {t, at, city, nick, car, src, chip} }.
+ * Пишется при каждом зачтённом сервером замере разгона пилота с городом в профиле. Новый месяц — новая таблица (сброс).
+ * Победители прошлого месяца (лучший в каждом городе, дисциплине, классе) считаются лениво один раз → cschamp:<pid>.
+ */
+export const CITY_SEASON_DISCS = ['0-100', '100-200', '402m'];
+const cKey = (c) => String(c || '').toLowerCase().replace(/ё/g, 'е').replace(/[^\p{L}]+/gu, '');
+const monthName = (m) => { const b = seasonBounds(m); return b ? b.label.split(' ')[0] : ''; };
+const cap = (s) => s ? s[0].toUpperCase() + s.slice(1) : s;
+function prevMonth(m) { const [y, mo] = m.split('-').map(Number); return mo === 1 ? (y - 1) + '-12' : y + '-' + String(mo - 1).padStart(2, '0'); }
+
+export async function citySeasonRecord(kv, row, disc, nick, h) {
+  if (!CITY_SEASON_DISCS.includes(disc) || !row?.pilotId || !row.city || row.valid === false || !(Number(row.t) > 0)) return false;
+  const cls = row.cls === 'c' ? 'c' : 'ab';
+  const key = 'cseason:' + seasonKey(row.at || Date.now()) + ':' + disc + ':' + cls;
+  const agg = (await h.kvJson(kv, key)) || {};
+  const prev = agg[row.pilotId];
+  if (prev && Number(prev.t) <= Number(row.t) && prev.city === row.city) return false;
+  agg[row.pilotId] = { t: Math.round(Number(row.t) * 100) / 100, at: row.at || Date.now(), city: String(row.city).slice(0, 40), nick: String(nick || 'Пилот').slice(0, 32), car: String(row.car || '').slice(0, 60), src: row.src === 'ext' ? 'chip' : 'phone', chip: row.chip === 1 ? 1 : 0 };
+  await kv.put(key, JSON.stringify(agg), { expirationTtl: 400 * 86400 });
+  return true;
+}
+
+async function ensureChamps(kv, month, h) {
+  const flag = 'cschampdone:' + month;
+  if (await kv.get(flag)) return;
+  const won = new Map();
+  for (const disc of CITY_SEASON_DISCS) for (const cls of ['ab', 'c']) {
+    const agg = (await h.kvJson(kv, 'cseason:' + month + ':' + disc + ':' + cls)) || {};
+    const best = new Map();
+    for (const [pid, r] of Object.entries(agg)) { const k = cKey(r.city); if (!k) continue; const b = best.get(k); if (!b || r.t < b.r.t) best.set(k, { pid, r }); }
+    for (const { pid, r } of best.values()) { if (!won.has(pid)) won.set(pid, []); won.get(pid).push({ m: month, city: r.city, disc, cls }); }
+  }
+  for (const [pid, list] of won) {
+    const cur = (await h.kvJson(kv, 'cschamp:' + pid)) || [];
+    const merged = cur.filter((x) => x.m !== month).concat(list).slice(-24);
+    await kv.put('cschamp:' + pid, JSON.stringify(merged));
+  }
+  await kv.put(flag, '1', { expirationTtl: 400 * 86400 });
+}
+/** Последний титул пилота → «Казань · октябрь» | null */
+export async function champBadge(kv, pid) {
+  try {
+    const list = JSON.parse((await kv.get('cschamp:' + pid)) || '[]');
+    if (!Array.isArray(list) || !list.length) return null;
+    const x = list[list.length - 1];
+    return { label: x.city + ' · ' + monthName(x.m), m: x.m, disc: x.disc, n: list.length };
+  } catch (_) { return null; }
+}
+
+/** GET /season/city?city=&disc=&cls=&month= */
+export async function citySeasonRoute({ req, env, path, url, headers, ip, h }) {
+  if (path !== '/season/city') return null;
+  if (req.method !== 'GET') return h.json({ error: 'method' }, 405, headers);
+  const lim = await h.limitOr429(env, headers, [['rl:cseason:ip:' + ip, 240, 3600]]);
+  if (lim) return lim;
+  const now = seasonKey();
+  const month = url.searchParams.get('month') || now;
+  const b = seasonBounds(month);
+  if (!b || b.from > Date.now() || Date.now() - b.from > 400 * 86400000) return h.json({ error: 'bad month' }, 400, headers);
+  const disc = CITY_SEASON_DISCS.includes(url.searchParams.get('disc')) ? url.searchParams.get('disc') : '0-100';
+  const cls = url.searchParams.get('cls') === 'c' ? 'c' : 'ab';
+  const city = String(url.searchParams.get('city') || '').trim().slice(0, 40);
+  const k = cKey(city);
+  try { await ensureChamps(env.PITLANE, prevMonth(now), h); } catch (_) {}
+  const agg = (await h.kvJson(env.PITLANE, 'cseason:' + month + ':' + disc + ':' + cls)) || {};
+  const rows = Object.entries(agg).filter(([, r]) => !k || cKey(r.city) === k)
+    .map(([pilotId, r]) => ({ pilotId, ...r })).sort((a, b2) => a.t - b2.t).slice(0, 50);
+  if (h.attachPass) await h.attachPass(env.PITLANE, rows, 50);
+  const ends = month === now ? b.to : null;
+  return h.json({ ok: true, month, label: (city ? cap(city) + ' · ' : '') + cap(monthName(month)), disc, cls, ends, rows }, 200, headers);
+}

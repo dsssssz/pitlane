@@ -765,6 +765,21 @@ export const api = {
     return await remoteKeep('/auth/tma', { method: 'POST', body: JSON.stringify({ initData: String(initData || '') }) });
   },
 
+  /* —— v280: вызов, сезон города, номер пилота, воронка —— */
+  async chalCreate(disc) { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/chal', { method: 'POST', body: JSON.stringify({ disc }) }); },
+  async chalGet(id) { if (!apiBase()) return null; return await remoteKeep('/chal/' + encodeURIComponent(id)); },
+  async citySeason({ city, disc, cls } = {}) {
+    if (!apiBase()) return null;
+    const q = ['disc=' + encodeURIComponent(disc || '0-100')];
+    if (city) q.push('city=' + encodeURIComponent(city));
+    if (cls === 'c') q.push('cls=c');
+    return await remote('/season/city?' + q.join('&'));
+  },
+  async pnumMe() { return apiBase() ? await remoteKeep('/me/pnum') : null; },
+  async pnumCheck(n) { return apiBase() ? await remoteKeep('/pnum/' + Number(n)) : null; },
+  async pnumInvoice(n) { return apiBase() ? await remoteKeep('/me/pnum/invoice', { method: 'POST', body: JSON.stringify({ n: Number(n) }) }) : { ok: false, error: 'offline' }; },
+  ev(e) { try { const b = apiBase(); if (!b) return; fetch(b + '/ev', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ e }), keepalive: true, credentials: 'omit' }).catch(() => {}); } catch (_) {} },
+
   /** POST /tma/share-prepare → { id } for WebApp.shareMessage (Bot API savePreparedInlineMessage). */
   async tmaSharePrepare(initData, param, text) {
     return await remoteKeep('/tma/share-prepare', { method: 'POST', body: JSON.stringify({ initData: String(initData || ''), param, text }) });

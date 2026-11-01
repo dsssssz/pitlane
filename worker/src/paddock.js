@@ -1,3 +1,5 @@
+import { pnumOf } from './pnum.js';
+import { champBadge } from './season.js';
 /**
  * v192: Paddock Pass — подписка 149 ★/мес (Telegram Stars, XTR), ТОЛЬКО внешний вид:
  * Race Number у ника, Carbon, рамки (forged/titanium/ceramic/gold18/chrome; carbon/chequer мигрируют), пины (helmet/wheel/carbon).
@@ -105,8 +107,13 @@ export async function attachPass(kv, rows, max = 40) {
   const ids = [];
   for (const r of rows || []) { if (r?.pilotId && !ids.includes(r.pilotId)) ids.push(r.pilotId); if (ids.length >= max) break; }
   const m = new Map();
-  await Promise.all(ids.map(async (id) => { const p = publicPass(await loadPass(kv, id)); if (p) m.set(id, p); }));
-  for (const r of rows || []) { const p = r && m.get(r.pilotId); if (p) r.pp = p; }
+  const pn = new Map(); const sw = new Map();
+  await Promise.all(ids.map(async (id) => {
+    const p = publicPass(await loadPass(kv, id)); if (p) m.set(id, p);
+    const n = await pnumOf(kv, id); if (n) pn.set(id, n); // v280: номер пилота (Stars, навсегда)
+    const c = await champBadge(kv, id); if (c) sw.set(id, c); // v280: титул сезона города
+  }));
+  for (const r of rows || []) { if (!r) continue; const p = m.get(r.pilotId); if (p) r.pp = p; if (pn.has(r.pilotId)) r.pn = pn.get(r.pilotId); if (sw.has(r.pilotId)) r.sw = sw.get(r.pilotId); }
   return rows;
 }
 
