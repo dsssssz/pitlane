@@ -8032,3 +8032,12 @@ html:not(#_):not(#_) .h48-gps[data-q="good"] i { background: #3ecf6e; box-shadow
 .rd-table tr.r275-pbrow { background: rgba(255,255,255,.04); }
 .r275-pbtag { margin-left: 8px; padding: 2px 5px; border: 1px solid #c8281c; border-radius: 3px; font: 700 9px/1 var(--font-ui); letter-spacing: .1em; color: #f2f2f2; vertical-align: 1px; }
 @media (prefers-reduced-motion: reduce) { #h48Start.r275 .r275-arc circle { animation: none !important; transition: none !important; } }
+
+/* v276: «Стоп» всегда на экране — на невысоких экранах/в Telegram сжимаем цифру и строки, кнопку прижимаем к низу */
+html:not(#_):not(#_):not(#_) #runDrive:not(.hidden) .run-drive-actions { position: sticky; bottom: 0; z-index: 5; background: #000; padding-bottom: calc(var(--sab, 0px) + 8px); }
+@media (max-height: 800px) {
+  html:not(#_):not(#_):not(#_) #runDrive .run-drive-speed strong { font-size: clamp(84px, 13vh, 130px) !important; }
+  html:not(#_):not(#_):not(#_) #runDrive .run-drive-speed { margin-top: 8px !important; }
+  html:not(#_):not(#_):not(#_) #runDrive .rd50-rows { margin-top: 14px !important; }
+  html:not(#_):not(#_):not(#_) #runDrive .rd50-row { padding: 11px 2px !important; }
+}

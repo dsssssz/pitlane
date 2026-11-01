@@ -3620,7 +3620,6 @@ function onRunMark(k, S) {
       showMarkPop('0-200', sec, 'core');
       break;
     case '402m':
-      if (m.v > 0) rd50Set('trap', Math.round(m.v));
       run.saved14 = true; ghostRunMark('402m', sec * 1000); publishDragMark('402m', sec); break;
     case '200-300':
       setRunText('run200300', fmtRunSec(sec));
@@ -13519,7 +13518,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v275';
+const APP_VERSION = 'v276';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
