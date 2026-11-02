@@ -2226,7 +2226,7 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   width: min(480px, 100%);
   max-height: min(88vh, 720px);
   overflow: auto;
-  background: #0b0f0c;
+  background: var(--ds-bg, #000);
   border: 1px solid rgba(var(--acc-rgb), 0.35);
   border-radius: 8px;
   padding: 18px 16px 22px;
@@ -2258,7 +2258,7 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   appearance: none;
   width: 100%;
   box-sizing: border-box;
-  background: #111814;
+  background: var(--ds-bg-2, #141414);
   border: 1px solid var(--ds-line-2);
   color: var(--ds-text);
   border-radius: 8px;
@@ -2272,7 +2272,7 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   margin-top: 12px;
 }
 .crew-join-row input {
-  background: #111814;
+  background: var(--ds-bg-2, #141414);
   border: 1px solid var(--ds-line-2);
   color: var(--ds-text);
   border-radius: 8px;
@@ -3260,7 +3260,7 @@ html.tma body { overscroll-behavior: none; }
   box-sizing: border-box;
   min-height: 112px;
   resize: vertical;
-  background: #111814;
+  background: var(--ds-bg-2, #141414);
   border: 1px solid var(--ds-line-2);
   color: var(--ds-text);
   border-radius: 8px;
@@ -8220,3 +8220,14 @@ html:not(#_):not(#_):not(#_) #myCarSheet .mc3-ic.mc3-ic-logo { width: 60px; back
 html:not(#_):not(#_):not(#_) #myCarSheet .mc3-ic.mc3-ic-logo .mc3-logo { width: 60px; }
 /* v285: эмблема марки в плитке */
 html:not(#_):not(#_):not(#_) .mc3-carlogo .cdb-logo { width: 24px; height: 24px; color: #e4e4e8; }
+/* v286: без плитки под логотипами; фон листа «Моя машина» и подлистов = фон меню (--ds-bg) */
+html:not(#_):not(#_):not(#_) .mc3-logo { background: none; border: 0; border-radius: 0; width: 52px; }
+html:not(#_):not(#_):not(#_) .mc3-logo img { max-width: 52px; max-height: 22px; }
+html:not(#_):not(#_):not(#_) .mc3-carlogo .cdb-logo { width: 30px; height: 30px; }
+html:not(#_):not(#_):not(#_) #myCarSheet .mc3-ic.mc3-ic-logo, html:not(#_):not(#_):not(#_) #myCarSheet .mc3-ic.mc3-ic-logo .mc3-logo { width: 52px; background: none; border: 0; box-shadow: none; }
+.mc3-logo-ini { font-size: 18px; }
+html:not(#_):not(#_):not(#_) #myCarSheet .crew-sheet-inner { background: var(--ds-bg, #000) !important; }
+html:not(#_):not(#_):not(#_) .mc3-sub-in { background: var(--ds-bg, #000); }
+html:not(#_):not(#_):not(#_) .mc3-sub-hd { background: var(--ds-bg, #000); }
+html:not(#_):not(#_):not(#_) #myCarSheet .mc3-foot { background: linear-gradient(180deg, rgba(0,0,0,0), var(--ds-bg, #000) 26%); }
+html:not(#_):not(#_):not(#_) #myCarSheet .race-sheet-head { background: var(--ds-bg, #000) !important; }
