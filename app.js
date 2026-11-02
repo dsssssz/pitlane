@@ -7479,7 +7479,7 @@ function mountPodium(where) {
   if (PH_ALT[m.id]) { // v293: выбор своего фото (у M3 — фиолетовая по умолчанию / бордовая)
     const row = document.createElement('div'); row.className = 'ph293'; const cur = carPhotoPick(m.id);
     for (const [v, label] of PH_ALT[m.id]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'ph293-b' + (v === cur ? ' on' : ''); b.textContent = label; b.dataset.ph = v;
-      b.addEventListener('click', () => { setCarPhotoPick(m.id, v); host.dataset.car = ''; mountPodium('garage'); const src = userCarPhoto(m.id); document.querySelectorAll('[data-g53="' + m.id + '"] img.cw-ph').forEach((i) => { i.src = src; }); try { void renderAwards92(); } catch (_) {} });
+      b.addEventListener('click', () => { setCarPhotoPick(m.id, v); host.dataset.car = ''; mountPodium('garage'); const src = userCarPhoto(m.id); document.querySelectorAll('[data-g53="' + m.id + '"] img.cw-ph').forEach((i) => { i.src = src; }); try { void renderAwards92(); } catch (_) {} try { void renderHomeHero(); } catch (_) {} try { renderCarPicker(); } catch (_) {} });
       row.appendChild(b); }
     host.appendChild(row);
   }
@@ -7523,7 +7523,14 @@ document.getElementById('btnCarNext')?.addEventListener('click', () => cyclePodi
 
 /* ---- Car picker bottom sheet (tap car name / grid icon) — DEPLOY.md §22 ----
  * Static thumbnails img/cars/<id>.webp (rendered offline from the GLBs, see tools/car-thumbs.mjs) — no WebGL per card. */
-function carThumbUrl(id) { return userCarPhoto(id) || './img/cars/' + id + '.webp'; } // v293: свои фото
+function carThumbUrl(id) { return userCarPhoto(id); } // v293: только свои фото Маги, рендеров img/cars нет
+/** v293: фото машины в <img>, без фото — эмблема марки + имя (рендеры не используются) */
+function fillCarImg293(img, id, name) {
+  if (!img) return; const host = img.parentElement; host?.querySelectorAll(':scope > .cph289').forEach((x) => x.remove());
+  const ph = carThumbUrl(id); img.removeAttribute('srcset');
+  if (ph) { img.hidden = false; img.src = ph; } else { img.hidden = true; img.removeAttribute('src'); host?.appendChild(carPh289(name || (MODEL_CATALOG.find((x) => x.id === id)?.name) || '')); }
+}
+function carLogoHtml293(name) { const lk = brandLogoKey(name); return `<span class="cw-nph cp293">${lk ? `<i class="cw-lg big" style="--logo:url('./img/brands/${lk}.svg')"></i>` : ''}</span>`; }
 function renderCarPicker() {
   const grid = document.getElementById('carPickerGrid');
   if (!grid) return;
@@ -7531,7 +7538,7 @@ function renderCarPicker() {
   grid.innerHTML = MODEL_CATALOG.map((m) => {
     const on = m.id === cur;
     return `<button type="button" class="cp-card${on ? ' on' : ''}" role="option" aria-selected="${on}" data-car-id="${esc(m.id)}">`
-      + `<img src="${carThumbUrl(m.id)}" alt="" width="128" height="128" loading="lazy" decoding="async" />`
+      + (carThumbUrl(m.id) ? `<img src="${carThumbUrl(m.id)}" alt="" width="128" height="128" loading="lazy" decoding="async" />` : carLogoHtml293(m.name))
       + `<span class="cp-name cb-row"><span class="cb-name">${esc(m.name)}</span>${(() => { const b = brandOf(m.name); return b ? `<span class="cb-flag" role="img" title="${esc(COUNTRIES[b.cc] || '')}" aria-label="${esc(COUNTRIES[b.cc] || '')}"><img src="${flagUrl(b)}" alt="" decoding="async" /></span>` : ''; })()}</span>${m.year ? `<span class="cp-year">${esc(m.year)}</span>` : ''}</button>`;
   }).join('');
 }
@@ -9610,7 +9617,7 @@ async function renderCarPhotoCard() {
   const ph = myCarPhotoUrl();
   const id = homeHeroCarId();
   if (ph) { img.removeAttribute('srcset'); img.src = ph; tag.textContent = 'твоё фото'; }
-  else { img.src = carThumbUrl(id); tag.textContent = 'превью модели'; }
+  else { fillCarImg293(img, id); tag.textContent = 'превью модели'; }
   document.getElementById('cphDelete').hidden = !ph;
   document.getElementById('cphPickTxt').textContent = ph ? 'Заменить фото' : 'Загрузить фото';
   document.getElementById('cphShareRow').hidden = !ph;
@@ -13494,10 +13501,9 @@ async function renderHomeHero() {
   if (!m) return;
   const img = document.getElementById('homeHeroImg');
   const heroSrc = carThumbUrl(m.id); // v154: без статичных hero-рендеров
-  if (img && img.dataset.car !== m.id) {
-    img.dataset.car = m.id;
-    img.onerror = () => { img.onerror = null; img.src = carThumbUrl(m.id); };
-    img.src = heroSrc;
+  if (img && img.dataset.car !== m.id + '|' + heroSrc) {
+    img.dataset.car = m.id + '|' + heroSrc; img.onerror = null;
+    fillCarImg293(img, m.id, m.name);
   }
   const hero = document.getElementById('homeHero');
   if (hero) hero.dataset.car = m.id;
@@ -13587,8 +13593,8 @@ async function renderHomeDuels() {
     art.setAttribute('aria-hidden', 'true');
     ['g87-m2', 'gt3rs'].forEach((cid, i) => {
       const im = document.createElement('img');
-      im.src = carThumbUrl(cid); im.alt = ''; im.loading = 'lazy'; im.className = 'hde-car hde-car-' + (i ? 'r' : 'l');
-      art.appendChild(im);
+      im.alt = ''; im.loading = 'lazy'; im.className = 'hde-car hde-car-' + (i ? 'r' : 'l');
+      art.appendChild(im); if (carThumbUrl(cid)) im.src = carThumbUrl(cid); else { im.hidden = true; art.appendChild(carPh289(CARS.find((c) => c.id === cid)?.name || '')); }
     });
     art.appendChild(padEl('span', 'hde-vs', 'VS'));
     e.appendChild(art);
@@ -14613,8 +14619,8 @@ function renderHomeCars() {
     b.type = 'button';
     b.dataset.car = m.id;
     const im = document.createElement('img');
-    im.src = carThumbUrl(m.id); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
-    b.appendChild(im);
+    im.alt = ''; im.loading = 'lazy'; im.decoding = 'async';
+    b.appendChild(im); fillCarImg293(im, m.id, m.name);
     b.appendChild(padEl('b', '', shortCarName(m.name, m.id)));
     b.appendChild(padEl('span', '', m.id === cur ? 'на подиуме' : String(m.year || '')));
     box.appendChild(b);
@@ -15756,6 +15762,7 @@ function buildTopsRow(r, i, sel, ctx) {
   const ic = padEl('span', 'tb-ic');
   const crop = lb ? carCropSrc(r.carId) : '';
   if (crop) { ic.classList.add('lb92-car'); const ci = document.createElement('img'); ci.alt = ''; ci.loading = 'lazy'; ci.decoding = 'async'; ci.src = crop; ic.appendChild(ci); }
+  else if (lb && r.car && brandLogoKey(r.car)) { ic.classList.add('lb92-car'); ic.appendChild(brandLogoEl(r.car)); } // v293: без фото — эмблема
   else if (sel.kind === 'lap') ic.appendChild(trackSilhouetteSvg(sel.id, 26));
   else ic.appendChild(discTag(sel.id));
   li.appendChild(ic);
@@ -15976,7 +15983,7 @@ function pnSwTags(r, host) {
 }
 function t72CarImg(r, cls) {
   const src = carCropSrc(r.carId);
-  if (!src) return padEl('span', cls + ' none');
+  if (!src) { const w = padEl('span', cls + ' logo293'); if (r.car && brandLogoKey(r.car)) w.appendChild(brandLogoEl(r.car)); else w.classList.add('none'); return w; }
   const w = padEl('span', cls); const im = document.createElement('img'); im.alt = ''; im.loading = 'lazy'; im.decoding = 'async'; im.src = src;
   im.addEventListener('error', () => w.classList.add('none')); w.appendChild(im); return w;
 }

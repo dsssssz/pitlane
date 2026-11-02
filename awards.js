@@ -36,7 +36,7 @@ const PHK = 'pitlane-car-photo-v293';
 export function carPhotoPick(id) { try { const v = JSON.parse(localStorage.getItem(PHK) || '{}')[id] || ''; return PH_ALT[id]?.some((a) => a[0] === v) ? v : ''; } catch (_) { return ''; } }
 export function setCarPhotoPick(id, v) { try { const o = JSON.parse(localStorage.getItem(PHK) || '{}'); if (v) o[id] = v; else delete o[id]; localStorage.setItem(PHK, JSON.stringify(o)); } catch (_) {} }
 export function userCarPhoto(id) { if (!id || !USER_PH[id]) return ''; return './img/cars/user/' + (carPhotoPick(id) || id) + '.webp'; }
-export function carCropSrc(carId) { return userCarPhoto(carId) || (carId && CROP_CARS.has(carId) ? './img/cars/crop/' + carId + '.webp' : ''); }
+export function carCropSrc(carId) { return userCarPhoto(carId); } // v293: без рендеров
 
 /** Начало недели (понедельник 00:00 МСК), мс UTC. */
 export function weekStart(ms = Date.now()) {
@@ -179,7 +179,7 @@ export function renderShowcase(root, { car, carName, nick, res, pass, spec, card
     const big = String(sp.big || carName || '').replace(/^(BMW|Audi)\s+/i, '');
     const bg = h('div', 'ce-big', big); if (Array.from(big).length > 4) bg.classList.add('l'); if (Array.from(big).length > 7) bg.classList.add('xl');
     hero.appendChild(bg);
-    const src = userCarPhoto(car) || (car && CROP_CARS.has(car) ? './img/cars/studio/' + car + '-1170.webp' : '');
+    const src = userCarPhoto(car);
     if (src) { hero.appendChild(im(src, 'ce-car ce-refl', '')); hero.appendChild(im(src, 'ce-car', carName || '')); }
     else if (sp.side) hero.appendChild(im(sp.side, 'ce-sil', ''));
     hero.appendChild(h('div', 'ce-ln'));
