@@ -67,7 +67,7 @@ import { GRID as RM_GRID, LABEL as RM_LABEL, DIST_KEYS as RM_DIST, createRunMark
 import { encodeTrace, dragTime as coreDragTime, traceStats, gradeTrace, DRAG_TOP_MIN_HZ, withSpeed as coreWithSpeed, launchTime as coreLaunchTime, speedCross as coreSpeedCross, distCross as coreDistCross } from './gps-core.js';
 import { isCalibrated, trackCal } from './track-cal.js';
 import { legalReady } from './legal-config.js';
-import { computeAwards, rowBadge, framedAvatar, passFrame, passFrameSrc, PASS_FRAMES, carCropSrc, fmtGap, awardImg, renderShowcase, helmet3d, renderPassCard, renderPassSheet, weekStart as awWeekStart, AWARDS as AW_LIST } from './awards.js'; // v192
+import { computeAwards, rowBadge, framedAvatar, passFrame, passFrameSrc, PASS_FRAMES, carCropSrc, fmtGap, awardImg, renderShowcase, userCarPhoto, PH_ALT, carPhotoPick, setCarPhotoPick, helmet3d, renderPassCard, renderPassSheet, weekStart as awWeekStart, AWARDS as AW_LIST } from './awards.js'; // v192
 // Telegram login redirect result must be read before any deep-link URL cleanup runs.
 const TG_RETURN = captureTelegramReturn();
 let _authCfg; // /auth/config cache (undefined = not loaded yet)
@@ -7476,6 +7476,13 @@ function mountPodium(where) {
   host.dataset.car = m.id; host.replaceChildren();
   const meta = CARS.find((c) => c.id === m.id) || {};
   const card = document.createElement('div'); card.className = 'cw291 big'; card.innerHTML = carCard291(m, meta, { edit: true }); host.appendChild(card);
+  if (PH_ALT[m.id]) { // v293: выбор своего фото (у M3 — фиолетовая по умолчанию / бордовая)
+    const row = document.createElement('div'); row.className = 'ph293'; const cur = carPhotoPick(m.id);
+    for (const [v, label] of PH_ALT[m.id]) { const b = document.createElement('button'); b.type = 'button'; b.className = 'ph293-b' + (v === cur ? ' on' : ''); b.textContent = label; b.dataset.ph = v;
+      b.addEventListener('click', () => { setCarPhotoPick(m.id, v); host.dataset.car = ''; mountPodium('garage'); const src = userCarPhoto(m.id); document.querySelectorAll('[data-g53="' + m.id + '"] img.cw-ph').forEach((i) => { i.src = src; }); try { void renderAwards92(); } catch (_) {} });
+      row.appendChild(b); }
+    host.appendChild(row);
+  }
 }
 /* v289: вместо 3D/рендеров — чистая заглушка: эмблема марки + имя (свои фото Мага добавит позже) */
 /* v291: карточка-«пасс» машины (концепт C): слева логотип, код кузова, имя, мощность · 0–100, год пилота отдельной строкой; справа фото уходит за край */
@@ -7488,13 +7495,22 @@ function carCard291(x, meta, opts = {}) {
   const code = (String(meta.trim || '').match(/^([A-Z]{1,2}\d{2,3})\b/) || [])[1] || '';
   let name = String(x.name || '').replace(/^BMW\s+/i, '').replace(/^G87\s+/, '');
   if (/Competition/.test(meta.trim || '') && !/Competition/.test(name)) name += ' Competition';
-  const lk = brandLogoKey(x.name); const ph = CAR_PHOTO291[x.id] || '';
+  const lk = brandLogoKey(x.name); const ph = userCarPhoto(x.id);
   const sp = [meta.hp ? meta.hp + ' HP' : '', meta.v0100 ? Number(meta.v0100).toFixed(1) + ' s' : ''].filter(Boolean).join(' · ');
-  const y = carYear291(x.id);
-  const yr = opts.edit ? `<input class="cw-y${y ? ' f' : ''}" data-cy="${esc(x.id)}" inputmode="numeric" maxlength="4" placeholder="Год ＋" value="${y}" aria-label="Год выпуска">` : `<span class="cw-y${y ? ' f' : ''}">${y || 'Год ＋'}</span>`;
+  const y = x.id ? carYear291(x.id) : '';
+  const yr = opts.noYear ? '' : opts.edit ? `<input class="cw-y${y ? ' f' : ''}" data-cy="${esc(x.id)}" inputmode="numeric" maxlength="4" placeholder="Год ＋" value="${y}" aria-label="Год выпуска">` : `<span class="cw-y${y ? ' f' : ''}">${y || 'Год ＋'}</span>`;
   return `<div class="cw-t"><div class="cw-h">${lk ? `<i class="cw-lg" style="--logo:url('./img/brands/${lk}.svg')"></i>` : ''}${code ? `<span class="cw-c">${esc(code)}</span>` : ''}</div><b class="cw-n">${esc(name)}</b>${sp ? `<span class="cw-s">${esc(sp)}</span>` : ''}${yr}</div>` +
     (ph ? `<img class="cw-ph" src="${ph}" alt="" decoding="async" draggable="false">` : `<span class="cw-nph">${lk ? `<i class="cw-lg big" style="--logo:url('./img/brands/${lk}.svg')"></i>` : ''}</span>`);
 }
+/* v293: машина пилота → запись БД (по id, иначе по имени без «(G80)») и HTML карточки C */
+function resolveCar293(id, name) {
+  const nz = (v) => String(v || '').toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/[^a-z0-9а-я]+/g, ' ').trim();
+  let c = id ? CARS.find((x) => x.id === id) : null;
+  if (!c && name) { const n = nz(name); c = CARS.find((x) => nz(x.name) === n) || CARS.find((x) => n.startsWith(nz(x.name)) || nz(x.name).startsWith(n)) || null;
+    if (!c) { const code = (String(name).match(/\b([A-Z]{1,2}\d{2,3})\b/) || [])[1]; if (code) c = CARS.find((x) => String(x.trim || '').startsWith(code) && n.includes(nz(x.name).split(' ').pop())) || null; } }
+  return c ? { x: { id: c.id, name: c.name }, meta: c } : { x: { id: '', name: String(name || '') }, meta: {} };
+}
+function carCard293Html(id, name, opts = {}) { const r = resolveCar293(id, name); return carCard291(r.x, r.meta, opts); }
 function carPh289(name) { const w = document.createElement('div'); w.className = 'cph289'; try { if (brandLogoKey(name)) { const l = brandLogoEl(name); l.classList.add('big'); w.appendChild(l); } } catch (_) {} const n = document.createElement('span'); n.className = 'cph289-n'; n.textContent = name || ''; w.appendChild(n); return w; }
 function bootPodium() {}
 // Podium boots only after intro finish (or immediate finish when skipped).
@@ -7507,7 +7523,7 @@ document.getElementById('btnCarNext')?.addEventListener('click', () => cyclePodi
 
 /* ---- Car picker bottom sheet (tap car name / grid icon) — DEPLOY.md §22 ----
  * Static thumbnails img/cars/<id>.webp (rendered offline from the GLBs, see tools/car-thumbs.mjs) — no WebGL per card. */
-function carThumbUrl(id) { return './img/cars/' + id + '.webp'; }
+function carThumbUrl(id) { return userCarPhoto(id) || './img/cars/' + id + '.webp'; } // v293: свои фото
 function renderCarPicker() {
   const grid = document.getElementById('carPickerGrid');
   if (!grid) return;
@@ -9367,6 +9383,7 @@ function renderPilotProfile(pr) {
     if (pr.car) fig.appendChild(padEl('figcaption', '', pr.car));
     body.appendChild(fig);
   }
+  if (pr.car) { const cw = padEl('div', 'cw291 big pc293'); cw.innerHTML = carCard293Html(pr.carId || '', pr.car, { noYear: true }); body.appendChild(cw); } // v293: карточка C
 
   const stats = padEl('div', 'pilot-stats');
   const zh = (pr.best && pr.best.zeroHundred) || [];
@@ -12267,7 +12284,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v292';
+const APP_VERSION = 'v293';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -16845,7 +16862,7 @@ async function renderAwards92() {
     const pr = isRemoteApi() && getSessionToken() ? await api.mePass().catch(() => null) : null;
     const available = !!(pr && pr.ok !== false && pr.sales === true);
     if (pr && pr.ok !== false) pass = pr.pass || null;
-    const base = { car: mc?.carId || '', carName: mc ? shortCarName(mc.model, mc.carId) : '', nick, pass, spec: mc ? carCardSpec(mc) : null };
+    const base = { car: mc?.carId || '', carName: mc ? shortCarName(mc.model, mc.carId) : '', nick, pass, spec: mc ? carCardSpec(mc) : null, cardHtml: mc ? carCard293Html(mc.carId || '', mc.model) : '' };
     renderShowcase(sc, { ...base, res: computeAwards({ boards: {}, laps: state.laps, tracks: TRACKS, pid }) });
     const boards = await aw92Boards();
     renderShowcase(sc, { ...base, res: computeAwards({ boards, laps: state.laps, tracks: TRACKS, pid }) });

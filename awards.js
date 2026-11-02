@@ -29,7 +29,14 @@ export const PASS_ITEMS = [
 ];
 export const CROP_CARS = new Set(['g87-m2', 'gt3rs', 'mclaren-765lt', 'g63', 'm4', 'm3', 'x6', 'isf', 'c63-ed507', 'spark']);
 export function awardImg(k, small) { return A + k + (small ? '_s' : '') + '.webp'; }
-export function carCropSrc(carId) { return carId && CROP_CARS.has(carId) ? './img/cars/crop/' + carId + '.webp' : ''; }
+/* v293: свои фото Маги (вырезка) — везде, где показывается машина; у M3 выбор фото (фиолетовая по умолчанию / бордовая) */
+export const USER_PH = { m8: 1, m4: 1, m3: 1, 'bmw-g70': 1, 'gls63-x166': 1, 'e63-w213': 1, lc200: 1, 'camry-xv80': 1, 'li-l9': 1, 'camry-xv70': 1, 'x7-g07': 1 };
+export const PH_ALT = { m3: [['', 'Фиолетовая'], ['m3-burgundy', 'Бордовая']] };
+const PHK = 'pitlane-car-photo-v293';
+export function carPhotoPick(id) { try { const v = JSON.parse(localStorage.getItem(PHK) || '{}')[id] || ''; return PH_ALT[id]?.some((a) => a[0] === v) ? v : ''; } catch (_) { return ''; } }
+export function setCarPhotoPick(id, v) { try { const o = JSON.parse(localStorage.getItem(PHK) || '{}'); if (v) o[id] = v; else delete o[id]; localStorage.setItem(PHK, JSON.stringify(o)); } catch (_) {} }
+export function userCarPhoto(id) { if (!id || !USER_PH[id]) return ''; return './img/cars/user/' + (carPhotoPick(id) || id) + '.webp'; }
+export function carCropSrc(carId) { return userCarPhoto(carId) || (carId && CROP_CARS.has(carId) ? './img/cars/crop/' + carId + '.webp' : ''); }
 
 /** Начало недели (понедельник 00:00 МСК), мс UTC. */
 export function weekStart(ms = Date.now()) {
@@ -162,8 +169,9 @@ export function framedAvatar(avaEl, kind, size) {
 }
 
 /** Витрина профиля (машина сверху, без пилота) */
-export function renderShowcase(root, { car, carName, nick, res, pass, spec }) {
+export function renderShowcase(root, { car, carName, nick, res, pass, spec, cardHtml }) {
   root.replaceChildren();
+  if (cardHtml) { const cw = h('div', 'cw291 big sc293'); cw.innerHTML = cardHtml; root.appendChild(cw); } else {
   // v212: «Моя машина» — editorial-карточка: машина растворяется в фоне, крупная контурная модель, характеристики, мой лучший 0–100
   const hero = h('div', 'sc-hero ce');
   const sp = spec || {};
@@ -171,7 +179,7 @@ export function renderShowcase(root, { car, carName, nick, res, pass, spec }) {
     const big = String(sp.big || carName || '').replace(/^(BMW|Audi)\s+/i, '');
     const bg = h('div', 'ce-big', big); if (Array.from(big).length > 4) bg.classList.add('l'); if (Array.from(big).length > 7) bg.classList.add('xl');
     hero.appendChild(bg);
-    const src = car && CROP_CARS.has(car) ? './img/cars/studio/' + car + '-1170.webp' : '';
+    const src = userCarPhoto(car) || (car && CROP_CARS.has(car) ? './img/cars/studio/' + car + '-1170.webp' : '');
     if (src) { hero.appendChild(im(src, 'ce-car ce-refl', '')); hero.appendChild(im(src, 'ce-car', carName || '')); }
     else if (sp.side) hero.appendChild(im(sp.side, 'ce-sil', ''));
     hero.appendChild(h('div', 'ce-ln'));
@@ -190,6 +198,7 @@ export function renderShowcase(root, { car, carName, nick, res, pass, spec }) {
     hero.appendChild(row);
   } else { hero.classList.add('empty'); hero.appendChild(h('p', 'tiny muted sc-nocar', 'Выбери машину — она встанет на витрину')); }
   root.appendChild(hero);
+  }
   const tot = Object.values(res.earned).reduce((a, b) => a + b, 0);
   // v209: компактное превью + полноэкранная витрина по тапу
   const head = h('button', 'sc-head sc-head-btn'); head.type = 'button';

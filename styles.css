@@ -8321,3 +8321,10 @@ html:not(#_):not(#_):not(#_) #view-garage input.cw-y { width: 74px !important; h
 html:not(#_):not(#_):not(#_) #view-garage input.cw-y.f { border: 1px solid transparent !important; background: #1b1c1f !important; }
 html:not(#_):not(#_):not(#_) #view-garage .cw291 img.cw-ph { position: absolute !important; display: block !important; right: -30px !important; left: auto !important; top: 50% !important; transform: translateY(-50%) !important; width: 52% !important; height: auto !important; object-fit: contain !important; }
 html:not(#_):not(#_):not(#_) #view-garage .cw291.big img.cw-ph { width: 60% !important; right: -36px !important; }
+/* v293: карточка C в Профиле (своём и чужом) */
+html:not(#_):not(#_):not(#_) .cw291.sc293, html:not(#_):not(#_):not(#_) .cw291.pc293 { margin: 0 0 14px !important; cursor: default; }
+html:not(#_):not(#_):not(#_) .cw291 img.cw-ph { position: absolute !important; display: block !important; right: -30px !important; left: auto !important; top: 50% !important; transform: translateY(-50%) !important; width: 52% !important; height: auto !important; max-width: none !important; object-fit: contain !important; margin: 0 !important; border-radius: 0 !important; }
+html:not(#_):not(#_):not(#_) .cw291.big img.cw-ph { width: 60% !important; right: -36px !important; }
+.ph293 { display: flex; gap: 8px; margin: 10px 0 0; }
+html:not(#_):not(#_) .ph293-b { flex: 0 0 auto; padding: 6px 12px !important; border-radius: 999px !important; border: 1px solid #2a2b2f !important; background: none !important; color: #a9a8a4 !important; font: 500 12px/1.2 var(--font-ui) !important; min-height: 0 !important; width: auto !important; }
+html:not(#_):not(#_) .ph293-b.on { background: #1b1c1f !important; color: #f2f2f2 !important; border-color: #3a3b3f !important; }
