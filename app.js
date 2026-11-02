@@ -65,7 +65,7 @@ import * as LB from './lap-battle.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { flushRunQueue, runQueueSize } from './api.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
-import { brandLogoEl } from './car-db.js';
+import { brandLogoEl, brandLogoKey } from './car-db.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 // v207: подсказки удалены полностью
@@ -13544,7 +13544,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v287';
+const APP_VERSION = 'v288';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -18906,7 +18906,7 @@ function rcRender() {
   const rows = rc.splits.map((s) => `<div class="rc-row"><span class="rc-l">${stampEsc(RM_LABEL[s.k] || s.k)}</span><span class="rc-t">${rcNum(s.sec)}</span><span class="rc-v">${s.v || ''}</span><span class="rc-m">${s.d != null ? s.d : ''}</span></div>`).join('');
   const sub = [rc.tyre, rc.cls].filter(Boolean).join(' · ');
   card.innerHTML = (rc.demo ? '<span class="rc-demo">ПРИМЕР</span>' : '') + `<div class="rc-head"><b>PITLANE</b><span>${stampEsc(rcDate(rc.at))}</span></div>
-<div class="rc-car">${stampEsc(rc.car || 'Машина не выбрана')}</div>${sub ? `<div class="rc-sub">${stampEsc(sub)}</div>` : ''}
+<div class="rc-car">${brandLogoKey(rc.car) ? `<i class="rc-logo" style="--logo:url('./img/brands/${brandLogoKey(rc.car)}.svg')" aria-hidden="true"></i>` : ''}<span>${stampEsc(rc.car || 'Машина не выбрана')}</span></div>${sub ? `<div class="rc-sub">${stampEsc(sub)}</div>` : ''}
 ${rows ? `<div class="rc-row rc-cap"><span>Отрезок</span><span>Время, с</span><span>км/ч</span><span>м</span></div>${rows}` : '<p class="rc-empty">До 60 км/ч не дошло — отрезков нет</p>'}
 <div class="rc-tot">${rc.vmax ? `<span>VMAX <b>${rc.vmax}</b> км/ч</span>` : '<span></span>'}${rc.dist ? `<span>ДИСТАНЦИЯ <b>${rc.dist}</b> м</span>` : ''}</div>
 ${rcChartSvg(rc, 326, 74)}
@@ -18981,7 +18981,13 @@ async function rcCanvas(rc) {
   let y = 36; x.textBaseline = 'alphabetic';
   x.fillStyle = '#fff'; x.font = UI(800, 15); x.letterSpacing = '5px'; x.fillText('PITLANE', P + 6, y); x.letterSpacing = '0px';
   x.fillStyle = '#8e8e93'; x.font = NU(400, 11); x.textAlign = 'right'; x.fillText(rcDate(rc.at), W - P - 6, y); x.textAlign = 'left';
-  y += 30; x.fillStyle = '#fff'; x.font = UI(600, 19); x.fillText(String(rc.car || 'Машина не выбрана').slice(0, 34), P + 6, y);
+  y += 30; let carX = P + 6;
+  const lk = brandLogoKey(rc.car);
+  if (lk) { try { const li = await new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = './img/brands/' + lk + '.svg'; });
+    if (li && li.naturalWidth) { const LH = 22; const LW = Math.min(44, LH * li.naturalWidth / li.naturalHeight); const oc = document.createElement('canvas'); oc.width = LW * k; oc.height = LH * k; const o = oc.getContext('2d');
+      o.drawImage(li, 0, 0, oc.width, oc.height); o.globalCompositeOperation = 'source-in'; o.fillStyle = '#f2efe9'; o.fillRect(0, 0, oc.width, oc.height);
+      x.drawImage(oc, carX, y - 18, LW, LH); carX += LW + 9; } } catch (_) {} }
+  x.fillStyle = '#fff'; x.font = UI(600, 19); x.fillText(String(rc.car || 'Машина не выбрана').slice(0, 30), carX, y);
   const sub = [rc.tyre, rc.cls].filter(Boolean).join(' · ');
   if (sub) { y += 18; x.fillStyle = '#8e8e93'; x.font = UI(400, 12); x.fillText(sub.slice(0, 56), P + 6, y); }
   const cx = [P + 6, W - P - 112, W - P - 54, W - P - 6];
@@ -19020,13 +19026,4 @@ async function rcShare() {
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   } catch (err) { if (err?.name !== 'AbortError') console.warn('rc share', err); }
 }
-function rcDemo(opts = {}) { // QA: синтетический трек через тот же движок; на карточке — метка «ПРИМЕР»
-  const hz = opts.hz || 25; const ext = opts.src !== 'phone'; const pts = []; const t0 = Date.now() - 20000; let d = 0; let v = 0;
-  for (let i = 0; i < hz * 16; i++) { const t = i / hz; const a = t < 1 ? 0 : 1; v = a ? Math.min(212, 262 * (1 - Math.exp(-(t - 1) / 7.2))) : 0; d += v / 3.6 / hz;
-    pts.push({ seq: i, t: t0 + t * 1000, lat: 45.0412 + d / 111000, lon: 38.9761, v, acc: ext ? 0.9 : 3.5, src: ext ? 'ext' : 'phone', alt: ext ? null : 30 - d * 0.004, sAcc: 0.2, sv: ext ? 14 : undefined }); }
-  const S = coreDragSplits(pts, undefined, {}); const tp = tracePassport(pts); let el = null; try { el = rmElevation(pts, S.t0, S.marks['402m']?.t ?? S.tEnd, 402.336); } catch (_) {}
-  const rc = rcFromRun(S, tp, el, pts); rc.demo = true; rc.car = opts.car || 'BMW M2 (G87)'; rc.tyre = 'Michelin Pilot Sport 4S'; rc.cls = 'Stage 1 · уличные'; rc.wx = { t: 12, ws: 3, hw: 2 };
-  if (opts.ver) { rc.ver = true; rc.stamp = { code: '7K3Q9WMD', disc: '0-100', t: rc.splits.find((z) => z.k === '0-100')?.sec, car: rc.car, src: ext ? 'chip' : 'phone', cls: ext ? 'A' : 'C', at: Date.now() }; }
-  rcOpen(rc); return rc;
-}
-window.__rc287 = { demo: rcDemo, open: rcOpen, close: rcClose, canvas: rcCanvas, cur: () => _rc, fromRun: rcFromRun }; // QA/скриншоты
+window.__rc287 = { open: rcOpen, close: rcClose, canvas: rcCanvas, cur: () => _rc }; // QA/скриншоты

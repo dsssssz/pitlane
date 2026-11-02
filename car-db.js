@@ -51,6 +51,11 @@ export function searchCarDb(q, lim = 60) {
 export function carDbById(id) { const f = flat(); return f ? f.find((r) => r.id === id) || null : null; }
 
 /** v226: эмблема по имени машины («BMW M3 …» → bmw) — для карточек своих машин, без загрузки базы. */
+export function brandLogoKey(name) {
+  const n = String(name || '').toLowerCase().replace(/[^a-z]/g, '');
+  let k = null; for (const x of LOGOS) if (n.startsWith(x) && (!k || x.length > k.length)) k = x;
+  return k;
+}
 export function brandLogoEl(name) {
   const n = String(name || '').toLowerCase().replace(/[^a-z]/g, '');
   let k = null; for (const x of LOGOS) if (n.startsWith(x) && (!k || x.length > k.length)) k = x;

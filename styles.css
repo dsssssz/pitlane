@@ -8269,3 +8269,5 @@ html:not(#_):not(#_):not(#_) #myCarSheet .race-sheet-head { background: var(--ds
 .rc-bar [hidden] { display: none; }
 .rc-card { position: relative; } .rc-demo { position: absolute; top: -2px; left: 50%; transform: translate(-50%,-50%); font: 600 8.5px/1 var(--font-ui); letter-spacing: 1.5px; border: 1px solid #444; color: #aaa; padding: 2px 6px; border-radius: 4px; background: #000; }
 .rc-cap > span:first-child { text-align: left !important; } body.rc-on .tabbar, body.rc-on nav { visibility: hidden; }
+.rc-car { display: flex; align-items: center; gap: 9px; }
+.rc-logo { flex: none; width: 30px; height: 22px; background: #f2efe9; -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }

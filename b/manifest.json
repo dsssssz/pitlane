@@ -1,8 +1,8 @@
 {
- "app": "./b/app-PGU32CTZ.js",
- "css": "./styles-2C05F8D1.css",
+ "app": "./b/app-BA5L4DZJ.js",
+ "css": "./styles-213FF110.css",
  "files": [
-  "./b/app-PGU32CTZ.js",
+  "./b/app-BA5L4DZJ.js",
   "./b/chunk-WOT6VMZA.js",
   "./b/chunk-XFCFYOWB.js",
   "./b/journal-VZ6OMCZ7.js",
@@ -11,6 +11,6 @@
   "./b/shop-ui-NAO643S3.js",
   "./b/tv2-HR4VHUKJ.js",
   "./b/video-tele-H4JCFGJJ.js",
-  "./styles-2C05F8D1.css"
+  "./styles-213FF110.css"
  ]
 }
