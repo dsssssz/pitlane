@@ -4296,6 +4296,7 @@ function wifiSummaryVerdict() {
   if (!run.summary) return;
   setRunText('rdNote', wifiNote());
   try { const tp = tracePassport(run.sumPts || rawSince(run.rawSeq0 || 0)); rdBadge(tp); rdTrust(tp); } catch (_) {}
+  try { void rcVerdict(); } catch (_) {} // v287
 }
 /** v280: значок доверия — источник, Гц, точность, уклон, «проверено сервером». Только то, что реально посчитал движок. */
 function rdTrust(tp) {
@@ -4389,6 +4390,7 @@ function renderRunSummary() {
   rdFinalButtons();
   rdDeltas();
   setRunText('runDriveMsg', '');
+  try { run.rc = rcFromRun(S, tp, el, pts); run.rc.pending = !!run.saved0100 && !run.topMsg; if (run.topMsg) void rcVerdict(); rcOpen(run.rc); } catch (e) { console.warn('rc', e); } // v287
 }
 const renderWifiSummary = renderRunSummary;
 function renderChipOnlySummary(ev) {
@@ -6017,7 +6019,7 @@ document.getElementById('runDriveAgain')?.addEventListener('click', () => { with
 function pushSlip() {
   const rec = state.meas[state.carId] || {};
   state.slips = state.slips || [];
-  state.slips.unshift({ car: currentCar().name, v0100: rec.v0100, v100200: rec.v100200, at: Date.now() });
+  state.slips.unshift({ car: currentCar().name, v0100: rec.v0100, v100200: rec.v100200, at: Date.now(), ...(run?.rc && Date.now() - run.rc.at < 600000 ? { rc: run.rc } : {}) }); // v287: чек заезда
   state.slips = state.slips.slice(0, 20);
   save();
   renderSlips();
@@ -6039,6 +6041,7 @@ function renderSlips() {
     b.appendChild(padEl('small', '', '100–200'));
     v.appendChild(a); v.appendChild(b);
     li.appendChild(v);
+    li.tabIndex = 0; li.setAttribute('role', 'button'); li.addEventListener('click', () => { hap(6); rcOpen(rcFromSlip(s)); }); // v287
     el.appendChild(li);
   });
 }
@@ -13541,7 +13544,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v286';
+const APP_VERSION = 'v287';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -18803,7 +18806,7 @@ function stampSvg(s, uid = 'a') {
 <text y="-30" fill="#fff" stroke="none" font-size="30" font-weight="800">${stampEsc(chalDiscRu(s.disc) + ' · ' + chalSec(s.t))}</text>
 ${car ? `<text y="10" fill="#d0d0d0" stroke="none" font-size="22">${stampEsc(car)}</text>` : ''}
 <text y="${car ? 45 : 20}" fill="#d0d0d0" stroke="none" font-size="22">${stampEsc(stampDate(s.at))}</text>
-<text y="85" fill="#9be3b0" stroke="none" font-size="20" font-weight="700" letter-spacing="2">${stampEsc(stampCode(s.code))}</text></g></svg>`;
+<text y="85" fill="#fff" stroke="none" font-size="20" font-weight="700" letter-spacing="2">${stampEsc(stampCode(s.code))}</text></g></svg>`;
 }
 async function shareStampSync(payload) {
   const el = document.getElementById('shareStamp'); if (!el) return;
@@ -18841,3 +18844,189 @@ async function openStampSheet(code) {
   box.appendChild(cp);
 }
 try { const stq = new URLSearchParams(location.search).get('st'); if (stq && /^[2-9A-HJ-NP-Za-hj-np-z]{8}$/.test(stq)) setTimeout(() => { void openStampSheet(stq.toUpperCase()); }, 1200); } catch (_) {}
+
+/* ——— v287: страница результата «чек» — одна карточка на экран; скриншот = полный чек. Только данные движка/сервера. ——— */
+const RC_ORDER = ['0-50', '0-60', '0-100', '80-120', '0-200', '100-200', '0-300', '200-300', '60ft', '201m', '402m'];
+const RC_MARKS = [['0-100', '100'], ['201m', '⅛'], ['0-200', '200'], ['402m', '¼']];
+let _rc = null;
+function rcFromRun(S, tp, el, pts) {
+  const M = S?.marks || {}; const isPh = tp.src === 'phone';
+  const splits = [];
+  for (const k of RC_ORDER) {
+    const m = M[k]; if (!m || !(m.sec > 0)) continue;
+    if (isPh && PHONE_NO_DISCS.includes(k)) continue;
+    const d = (k.startsWith('0-') || RM_DIST.includes(k)) && Number.isFinite(m.d) ? Math.round(m.d) : null;
+    splits.push({ k, sec: Number(m.sec.toFixed(2)), v: Math.round(m.v || 0), d });
+  }
+  let sv = null;
+  if (tp.src === 'ext') { const a = (pts || []).map((p) => p.sv).filter((x) => Number.isFinite(x) && x > 0).sort((x, y) => x - y); if (a.length) sv = a[a.length >> 1]; }
+  const mc = myCarLocal(); const cc = currentCar();
+  let curve = null; try { curve = shareCurve(pts, S); } catch (_) {}
+  return {
+    at: Date.now(), car: pickedCar()?.name || cc?.name || '', tyre: mc?.tyre || '', cls: mc && PREP_LABEL[mc.prep] ? classLine(mc) : '',
+    splits, vmax: S?.vmax > 0 ? Math.round(S.vmax) : null, dist: S?.t0 != null && S.dist > 0 ? Math.round(S.dist) : null, curve,
+    gps: { src: tp.src, hz: Number.isFinite(tp.hz) ? tp.hz : null, acc: Number.isFinite(tp.avgAcc) ? tp.avgAcc : null, sv, slope: el && Number.isFinite(el.slope) ? Number(el.slope.toFixed(1)) : null, q: tp.gpsQ },
+    wx: null, ver: false, stamp: null,
+  };
+}
+function rcGpsBits(rc) {
+  const g = rc.gps || {}; const b = [];
+  b.push(g.src === 'ext' ? 'PITLANE GPS' : g.src === 'sim' ? 'симулятор' : g.src === 'phone' ? 'GPS телефона' : 'GPS');
+  if (g.hz > 0) b.push(`${Number(g.hz).toFixed(g.hz >= 10 ? 0 : 1)} Гц`);
+  if (g.acc > 0) b.push(`±${Number(g.acc).toFixed(1)} м`);
+  if (g.src === 'ext' && g.sv > 0) b.push(`${g.sv} спутн.`);
+  if (g.slope != null) b.push(`уклон ${g.slope > 0 ? '+' : g.slope < 0 ? '−' : ''}${Math.abs(g.slope).toFixed(1)}%`);
+  const w = cleanWx(rc.wx);
+  if (w?.t != null) b.push(wxTemp(w.t));
+  if (w) { const wd = wxWind(w); if (wd) b.push(wd); }
+  return b;
+}
+const rcDate = (at) => { try { return new Date(at).toLocaleString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' ·') + ' МСК'; } catch (_) { return ''; } };
+function rcChartSvg(rc, w, h) {
+  const c = rc.curve; if (!c || !Array.isArray(c.v) || c.v.length < 2 || !(c.s > 0)) return '';
+  const vm = Math.max(60, ...c.v) * 1.08; const T = c.s;
+  const y = (v) => (h - 3 - (h - 8) * v / vm).toFixed(1); const x = (t) => (w * t / T).toFixed(1);
+  let g = '';
+  for (const lv of [100, 200, 300]) if (lv < vm) g += `<line x1="0" x2="${w}" y1="${y(lv)}" y2="${y(lv)}" stroke="#1c1c1e"/><text x="2" y="${y(lv) - 3}" fill="#555" font-size="8">${lv}</text>`;
+  for (const [k, l] of RC_MARKS) { const s = rc.splits.find((z) => z.k === k); if (s && s.sec <= T) g += `<line x1="${x(s.sec)}" x2="${x(s.sec)}" y1="0" y2="${h}" stroke="#333" stroke-dasharray="2 3"/><text x="${Number(x(s.sec)) + 3}" y="9" fill="#666" font-size="8">${l}</text>`; }
+  const pts = c.v.map((v, i) => `${x(T * i / (c.v.length - 1))},${y(v)}`).join(' ');
+  return `<svg class="rc-chart" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" font-family="var(--font-num)">${g}<polyline fill="none" stroke="#fff" stroke-width="1.6" points="${pts}"/></svg>`;
+}
+const rcNum = (sec) => { const [a, b] = Number(sec).toFixed(2).split('.'); return `${a}<span class="rc-dd">.${b}</span>`; };
+function rcTrustText(rc) {
+  if (rc.stamp) return '✓ проверено сервером по сырому треку';
+  if (rc.ver) return '✓ в топе · проверено сервером';
+  if (rc.gps?.src === 'sim') return 'симулятор · не в топ';
+  if (rc.gps?.src === 'phone') return 'телефон · справочно ≈';
+  return rc.pending ? 'проверяем на сервере…' : 'справочно · не проверено сервером';
+}
+function rcRender() {
+  const rc = _rc; const host = document.getElementById('rcView'); if (!rc || !host) return;
+  const card = host.querySelector('.rc-card');
+  const rows = rc.splits.map((s) => `<div class="rc-row"><span class="rc-l">${stampEsc(RM_LABEL[s.k] || s.k)}</span><span class="rc-t">${rcNum(s.sec)}</span><span class="rc-v">${s.v || ''}</span><span class="rc-m">${s.d != null ? s.d : ''}</span></div>`).join('');
+  const sub = [rc.tyre, rc.cls].filter(Boolean).join(' · ');
+  card.innerHTML = (rc.demo ? '<span class="rc-demo">ПРИМЕР</span>' : '') + `<div class="rc-head"><b>PITLANE</b><span>${stampEsc(rcDate(rc.at))}</span></div>
+<div class="rc-car">${stampEsc(rc.car || 'Машина не выбрана')}</div>${sub ? `<div class="rc-sub">${stampEsc(sub)}</div>` : ''}
+${rows ? `<div class="rc-row rc-cap"><span>Отрезок</span><span>Время, с</span><span>км/ч</span><span>м</span></div>${rows}` : '<p class="rc-empty">До 60 км/ч не дошло — отрезков нет</p>'}
+<div class="rc-tot">${rc.vmax ? `<span>VMAX <b>${rc.vmax}</b> км/ч</span>` : '<span></span>'}${rc.dist ? `<span>ДИСТАНЦИЯ <b>${rc.dist}</b> м</span>` : ''}</div>
+${rcChartSvg(rc, 326, 74)}
+<div class="rc-gps">${rcGpsBits(rc).map((b) => `<span>${stampEsc(b)}</span>`).join('')}</div>
+<div class="rc-foot">${rc.stamp ? `<div class="rc-stamp">${stampSvg(rc.stamp, 'rc')}</div><div><div class="rc-code">${stampEsc(stampCode(rc.stamp.code))}</div><div class="rc-tr ok">${rcTrustText(rc)}</div></div>` : `<div class="rc-tr${rc.ver ? ' ok' : ''}">${stampEsc(rcTrustText(rc))}</div>`}</div>`;
+  host.querySelector('[data-rc="duel"]').hidden = !(rc === run.rc && run.pendingShare);
+  rcFit();
+}
+function rcFit() {
+  const host = document.getElementById('rcView'); const card = host?.querySelector('.rc-card'); if (!card || host.classList.contains('hidden')) return;
+  card.style.transform = 'none';
+  const bar = host.querySelector('.rc-bar').offsetHeight || 74;
+  const top = Math.max(8, Number(getComputedStyle(document.documentElement).getPropertyValue('--tg-safe-top').replace('px', '')) || 0);
+  const avW = host.clientWidth - 16; const avH = host.clientHeight - bar - top - 12;
+  const k = Math.min(1, avW / card.offsetWidth, avH / card.offsetHeight);
+  card.style.transform = `scale(${k.toFixed(3)})`; card.style.marginTop = top + 'px';
+  host.querySelector('.rc-wrap').style.height = Math.ceil(card.offsetHeight * k + top) + 'px';
+}
+function rcEnsure() {
+  let host = document.getElementById('rcView'); if (host) return host;
+  host = document.createElement('div'); host.id = 'rcView'; host.className = 'rc-view hidden';
+  host.innerHTML = `<div class="rc-wrap"><div class="rc-card"></div></div><div class="rc-bar"><button type="button" class="rc-x" data-rc="x" aria-label="Закрыть">×</button><button type="button" class="rc-b pri" data-rc="share">Поделиться</button><button type="button" class="rc-b" data-rc="duel">Вызов</button><button type="button" class="rc-b" data-rc="tops">В топ</button></div>`;
+  document.body.appendChild(host);
+  host.addEventListener('click', (e) => {
+    const a = e.target?.closest?.('[data-rc]')?.dataset.rc; if (!a) { if (e.target?.closest?.('.rc-stamp') && _rc?.stamp) void openStampSheet(_rc.stamp.code); return; }
+    hap(6);
+    if (a === 'x') rcClose();
+    else if (a === 'share') void rcShare();
+    else if (a === 'duel' && run.pendingShare) { rcClose(); openShareCard(run.pendingShare); setTimeout(() => { try { document.getElementById('shareCardDuel')?.click(); } catch (_) {} }, 60); }
+    else if (a === 'tops') { rcClose(); try { if (run.summary) { stopRun(); closeRunDrive(); wifiSummaryReset(); } } catch (_) {} goToView('tops'); }
+  });
+  addEventListener('resize', rcFit);
+  return host;
+}
+function rcOpen(rc) {
+  if (!rc) return;
+  _rc = rc; const host = rcEnsure();
+  host.classList.remove('hidden'); document.body.classList.add('rc-on');
+  rcRender();
+}
+function rcClose() { document.getElementById('rcView')?.classList.add('hidden'); document.body.classList.remove('rc-on'); }
+/** После вердикта сервера: зачёт и печать (печать есть, только если сервер её выдал — иначе 409/null и печати нет). */
+async function rcVerdict() {
+  const rc = run.rc; if (!rc) return;
+  rc.pending = false;
+  rc.ver = /в топе · проверено|в зачёте C · телефон/.test(run.topMsg || '');
+  try { const w = cleanWx((state.meas[state.carId] || {}).wx); if (w && rc.splits.length) rc.wx = w; } catch (_) {}
+  if (_rc === rc) rcRender();
+  const s0100 = rc.splits.find((s) => s.k === '0-100');
+  if (rc.ver && s0100 && rc.gps.src !== 'sim' && currentUser() && isRemoteApi() && !rc.stamp) {
+    const r = await api.stampMake('0-100', s0100.sec).catch(() => null);
+    if (r && r.stamp) { rc.stamp = r.stamp; save(); if (_rc === rc) rcRender(); }
+  }
+}
+function rcFromSlip(sl) {
+  if (sl.rc) return sl.rc;
+  const splits = [];
+  if (Number(sl.v0100) > 0) splits.push({ k: '0-100', sec: Number(sl.v0100), v: null, d: null });
+  if (Number(sl.v100200) > 0) splits.push({ k: '100-200', sec: Number(sl.v100200), v: null, d: null });
+  return { at: sl.at, car: sl.car, tyre: '', cls: '', splits, vmax: null, dist: null, curve: null, gps: {}, wx: null, ver: false, stamp: null, old: true };
+}
+/** Картинка для «Поделиться» — та же раскладка, что на экране (координат нет). */
+async function rcCanvas(rc) {
+  const W = 390; const P = 18; const RH = 30;
+  const H = 96 + (rc.tyre || rc.cls ? 16 : 0) + 24 + rc.splits.length * RH + 34 + (rc.curve ? 84 : 0) + 40 + (rc.stamp ? 100 : 30) + 20;
+  const k = 3; const c = document.createElement('canvas'); c.width = W * k; c.height = H * k;
+  const x = c.getContext('2d'); x.scale(k, k);
+  try { await document.fonts?.ready; } catch (_) {}
+  const UI = (w, s) => `${w} ${s}px "PL Sans", -apple-system, Arial, sans-serif`; const NU = (w, s) => `${w} ${s}px "PL Num", "PL Sans", -apple-system, Arial, sans-serif`;
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
+  x.fillStyle = 'rgba(255,255,255,.045)'; x.strokeStyle = 'rgba(255,255,255,.09)'; x.beginPath(); x.roundRect?.(6, 6, W - 12, H - 12, 22); x.fill(); x.stroke();
+  let y = 36; x.textBaseline = 'alphabetic';
+  x.fillStyle = '#fff'; x.font = UI(800, 15); x.letterSpacing = '5px'; x.fillText('PITLANE', P + 6, y); x.letterSpacing = '0px';
+  x.fillStyle = '#8e8e93'; x.font = NU(400, 11); x.textAlign = 'right'; x.fillText(rcDate(rc.at), W - P - 6, y); x.textAlign = 'left';
+  y += 30; x.fillStyle = '#fff'; x.font = UI(600, 19); x.fillText(String(rc.car || 'Машина не выбрана').slice(0, 34), P + 6, y);
+  const sub = [rc.tyre, rc.cls].filter(Boolean).join(' · ');
+  if (sub) { y += 18; x.fillStyle = '#8e8e93'; x.font = UI(400, 12); x.fillText(sub.slice(0, 56), P + 6, y); }
+  const cx = [P + 6, W - P - 112, W - P - 54, W - P - 6];
+  y += 28; x.font = UI(500, 9.5); x.fillStyle = '#8e8e93'; x.fillText('ОТРЕЗОК', cx[0], y); x.textAlign = 'right'; x.fillText('ВРЕМЯ, С', cx[1], y); x.fillText('КМ/Ч', cx[2], y); x.fillText('М', cx[3], y); x.textAlign = 'left';
+  for (const s of rc.splits) {
+    x.fillStyle = '#1c1c1e'; x.fillRect(P + 6, y + 8, W - 2 * P - 12, 1); y += RH;
+    x.fillStyle = '#d1d1d6'; x.font = UI(400, 13.5); x.fillText(RM_LABEL[s.k] || s.k, cx[0], y);
+    const [a, b] = s.sec.toFixed(2).split('.'); x.font = NU(600, 22); x.textAlign = 'right'; x.fillStyle = '#8e8e93'; x.fillText('.' + b, cx[1], y); const wb = x.measureText('.' + b).width; x.fillStyle = '#fff'; x.fillText(a, cx[1] - wb - 1, y);
+    x.font = NU(400, 12); x.fillStyle = '#c7c7cc'; if (s.v) x.fillText(String(s.v), cx[2], y); x.fillStyle = '#8e8e93'; x.font = NU(400, 11); if (s.d != null) x.fillText(String(s.d), cx[3], y); x.textAlign = 'left';
+  }
+  x.fillStyle = '#1c1c1e'; x.fillRect(P + 6, y + 10, W - 2 * P - 12, 1); y += 30;
+  x.font = NU(400, 11); x.fillStyle = '#8e8e93';
+  if (rc.vmax) { x.fillText('VMAX ', cx[0], y); const w0 = x.measureText('VMAX ').width; x.fillStyle = '#fff'; x.font = NU(600, 14); x.fillText(String(rc.vmax), cx[0] + w0, y); const w1 = x.measureText(String(rc.vmax)).width; x.fillStyle = '#8e8e93'; x.font = NU(400, 11); x.fillText(' км/ч', cx[0] + w0 + w1, y); }
+  if (rc.dist) { x.textAlign = 'right'; x.fillText(' м', cx[3], y); const w2 = x.measureText(' м').width; x.fillStyle = '#fff'; x.font = NU(600, 14); x.fillText(String(rc.dist), cx[3] - w2, y); const w3 = x.measureText(String(rc.dist)).width; x.fillStyle = '#8e8e93'; x.font = NU(400, 11); x.fillText('ДИСТАНЦИЯ ', cx[3] - w2 - w3, y); x.textAlign = 'left'; }
+  const img = (svg) => new Promise((res) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg); });
+  if (rc.curve) { const svg = rcChartSvg(rc, 326, 74).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ').replace('var(--font-num)', 'Arial'); const im = await img(svg); if (im) x.drawImage(im, P + 6, y + 10, 342, 74); y += 84; }
+  y += 22; x.font = NU(400, 10); x.fillStyle = '#c7c7cc';
+  let lx = cx[0];
+  for (const b of rcGpsBits(rc)) { const w = x.measureText(b).width; if (lx + w > W - P - 6) { lx = cx[0]; y += 14; } x.fillText(b, lx, y); lx += w + 10; }
+  y += 14;
+  if (rc.stamp) {
+    const im = await img(stampSvg(rc.stamp, 'rx')); if (im) x.drawImage(im, P + 2, y, 90, 90);
+    x.fillStyle = '#fff'; x.font = NU(600, 15); x.letterSpacing = '1.5px'; x.fillText(stampCode(rc.stamp.code), P + 106, y + 44); x.letterSpacing = '0px';
+    x.fillStyle = '#8e8e93'; x.font = UI(400, 10); x.fillText(rcTrustText(rc), P + 106, y + 60);
+  } else { y += 10; x.fillStyle = '#8e8e93'; x.font = UI(400, 10.5); x.fillText(rcTrustText(rc), cx[0], y); }
+  return c;
+}
+async function rcShare() {
+  if (!_rc) return;
+  try {
+    const cv = await rcCanvas(_rc);
+    const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
+    const file = new File([blob], 'pitlane-result.png', { type: 'image/png' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'PITLANE' }); return; }
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pitlane-result.png';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch (err) { if (err?.name !== 'AbortError') console.warn('rc share', err); }
+}
+function rcDemo(opts = {}) { // QA: синтетический трек через тот же движок; на карточке — метка «ПРИМЕР»
+  const hz = opts.hz || 25; const ext = opts.src !== 'phone'; const pts = []; const t0 = Date.now() - 20000; let d = 0; let v = 0;
+  for (let i = 0; i < hz * 16; i++) { const t = i / hz; const a = t < 1 ? 0 : 1; v = a ? Math.min(212, 262 * (1 - Math.exp(-(t - 1) / 7.2))) : 0; d += v / 3.6 / hz;
+    pts.push({ seq: i, t: t0 + t * 1000, lat: 45.0412 + d / 111000, lon: 38.9761, v, acc: ext ? 0.9 : 3.5, src: ext ? 'ext' : 'phone', alt: ext ? null : 30 - d * 0.004, sAcc: 0.2, sv: ext ? 14 : undefined }); }
+  const S = coreDragSplits(pts, undefined, {}); const tp = tracePassport(pts); let el = null; try { el = rmElevation(pts, S.t0, S.marks['402m']?.t ?? S.tEnd, 402.336); } catch (_) {}
+  const rc = rcFromRun(S, tp, el, pts); rc.demo = true; rc.car = opts.car || 'BMW M2 (G87)'; rc.tyre = 'Michelin Pilot Sport 4S'; rc.cls = 'Stage 1 · уличные'; rc.wx = { t: 12, ws: 3, hw: 2 };
+  if (opts.ver) { rc.ver = true; rc.stamp = { code: '7K3Q9WMD', disc: '0-100', t: rc.splits.find((z) => z.k === '0-100')?.sec, car: rc.car, src: ext ? 'chip' : 'phone', cls: ext ? 'A' : 'C', at: Date.now() }; }
+  rcOpen(rc); return rc;
+}
+window.__rc287 = { demo: rcDemo, open: rcOpen, close: rcClose, canvas: rcCanvas, cur: () => _rc, fromRun: rcFromRun }; // QA/скриншоты

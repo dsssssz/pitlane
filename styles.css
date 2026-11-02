@@ -8231,3 +8231,41 @@ html:not(#_):not(#_):not(#_) .mc3-sub-in { background: var(--ds-bg, #000); }
 html:not(#_):not(#_):not(#_) .mc3-sub-hd { background: var(--ds-bg, #000); }
 html:not(#_):not(#_):not(#_) #myCarSheet .mc3-foot { background: linear-gradient(180deg, rgba(0,0,0,0), var(--ds-bg, #000) 26%); }
 html:not(#_):not(#_):not(#_) #myCarSheet .race-sheet-head { background: var(--ds-bg, #000) !important; }
+
+/* v287: чек заезда — одна карточка на экран */
+.rc-view { position: fixed; inset: 0; z-index: 2147483000; background: #000; display: flex; flex-direction: column; overflow: hidden; touch-action: none; }
+.rc-view.hidden { display: none; }
+.rc-wrap { flex: 1 1 auto; display: flex; justify-content: center; align-items: flex-start; min-height: 0; }
+.rc-card { width: 374px; flex: none; transform-origin: top center; padding: 16px 16px 14px; border-radius: 22px; background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.09); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); color: #fff; font-family: var(--font-ui); }
+.rc-head { display: flex; justify-content: space-between; align-items: baseline; }
+.rc-head b { font: 800 15px/1 var(--font-ui); letter-spacing: 5px; }
+.rc-head span, .rc-sub { font: 400 11px/1.2 var(--font-num); color: #8e8e93; font-variant-numeric: tabular-nums; }
+.rc-car { margin-top: 12px; font: 600 19px/1.2 var(--font-ui); }
+.rc-sub { margin-top: 3px; font: 400 12px/1.3 var(--font-ui); }
+.rc-row { display: grid; grid-template-columns: 1fr 96px 52px 40px; align-items: baseline; padding: 5px 0; border-top: 1px solid #1c1c1e; }
+.rc-row > span:not(.rc-l) { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.rc-cap { margin-top: 12px; border-top: 0; font: 500 9.5px/1 var(--font-ui); letter-spacing: 1.6px; color: #8e8e93; text-transform: uppercase; }
+.rc-cap > span { font-family: var(--font-ui) !important; }
+.rc-l { font-size: 13.5px; color: #d1d1d6; }
+.rc-t { font-size: 22px; font-weight: 600; }
+.rc-dd { color: #8e8e93; }
+.rc-v { font-size: 12px; color: #c7c7cc; }
+.rc-m { font-size: 11px; color: #8e8e93; }
+.rc-empty { margin: 16px 0; color: #8e8e93; font-size: 13px; }
+.rc-tot { display: flex; justify-content: space-between; border-top: 1px solid #1c1c1e; padding-top: 9px; font: 400 11px/1 var(--font-num); color: #8e8e93; }
+.rc-tot b { color: #fff; font-size: 14px; font-weight: 600; }
+.rc-chart { display: block; margin-top: 8px; width: 100%; height: auto; }
+.rc-gps { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 9px; padding-top: 8px; border-top: 1px solid #1c1c1e; font: 400 10px/1.3 var(--font-num); color: #c7c7cc; }
+.rc-foot { display: flex; gap: 12px; align-items: center; margin-top: 8px; }
+.rc-stamp { width: 84px; height: 84px; flex: none; cursor: pointer; }
+.rc-stamp svg { width: 100%; height: 100%; display: block; }
+.rc-code { font: 600 15px/1 var(--font-num); letter-spacing: 1.5px; }
+.rc-tr { font-size: 10px; color: #8e8e93; margin-top: 3px; }
+.rc-tr.ok { color: #d1d1d6; }
+.rc-bar { flex: none; display: flex; gap: 8px; padding: 10px 12px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid #161618; background: #000; }
+.rc-bar button { height: 48px; border-radius: 12px; border: 0; background: #1c1c1e; color: #fff; font: 600 14px/1 var(--font-ui); }
+.rc-bar .rc-b { flex: 1; } .rc-bar .rc-b.pri { background: #fff; color: #000; flex: 1.4; }
+.rc-bar .rc-x { width: 48px; flex: none; font-size: 22px; }
+.rc-bar [hidden] { display: none; }
+.rc-card { position: relative; } .rc-demo { position: absolute; top: -2px; left: 50%; transform: translate(-50%,-50%); font: 600 8.5px/1 var(--font-ui); letter-spacing: 1.5px; border: 1px solid #444; color: #aaa; padding: 2px 6px; border-radius: 4px; background: #000; }
+.rc-cap > span:first-child { text-align: left !important; } body.rc-on .tabbar, body.rc-on nav { visibility: hidden; }
