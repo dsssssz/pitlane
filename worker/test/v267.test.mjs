@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const R = (p) => readFileSync(new URL('../../' + p, import.meta.url), 'utf8');
 const html = R('index.html'), tv2 = R('track-v2/tv2.js'), app = R('app.js'), css = R('styles.css');
 const lap = html.slice(html.indexOf('id="view-lap"'), html.indexOf('</section>', html.indexOf('id="view-lap"')));
-const top = lap.indexOf('class="t267-top"');
+const top = lap.indexOf('class="t282-ctl"');
 assert.ok(top > 0 && top < lap.indexOf('id="tv2"'), 'блок машина+GPS над списком');
 const blk = lap.slice(top, lap.indexOf('id="tv2"'));
 assert.ok(blk.includes('id="btnMyCarLap"') && blk.includes('id="t61Gps"'), 'машина и GPS в верхнем блоке');

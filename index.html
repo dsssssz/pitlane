@@ -33,13 +33,13 @@
     <meta name="twitter:title" content="PITLANE — Замеряй. Сравнивай. Побеждай." />
     <meta name="twitter:description" content="Разгоны 0–100 и круги по GPS с проверкой на сервере. Честные топы — прямо в Telegram." />
     <meta name="twitter:image" content="https://dsssssz.github.io/pitlane/img/og-1200x630.jpg" />
-    <meta name="pitlane-build" content="v281" />
+    <meta name="pitlane-build" content="v282" />
     <script src="./upd.js"></script>
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-5XRRWTJO.js" />
-    <link rel="stylesheet" href="./styles-C3A52B71.css" />
+    <link rel="modulepreload" href="./b/app-A5VHKLSQ.js" />
+    <link rel="stylesheet" href="./styles-A714F495.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -158,7 +158,7 @@
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
             <p class="z202-hint" id="z202Hint">Сядь в машину и нажми Старт</p>
             <div class="z61-rows" role="group" aria-label="Параметры замера">
-              <button type="button" class="ds-row z61-src" id="z61Gps" data-src="phone" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="z61-src-v"><b><i class="z61-dot" aria-hidden="true"></i><span id="z61SrcV">Телефон</span></b><small id="z61SrcS">справочно</small></span></button>
+              <button type="button" class="ds-row z61-src" id="z61Gps" data-src="phone" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Чем мерить</span><span class="z61-src-v"><b><i class="z61-dot" aria-hidden="true"></i><span id="z61SrcV">Телефон</span></b><small id="z61SrcS">справочно</small></span></button>
             </div>
           </section>
         </section>
@@ -243,7 +243,7 @@
             <!-- v101: «Это моя машина» прямо в Боксе — на эту машину пишутся круги -->
             <div class="mycar-bar" id="myCarBar">
               <div class="mycar-bar-txt">
-                <span class="mycar-bar-k" id="myCarBarK">Машина для зачёта</span>
+                <span class="mycar-bar-k" id="myCarBarK">Машина в зачёт</span>
                 <b class="mycar-bar-v" data-mycar-line>не выбрана</b>
                 <span class="mycar-bar-cls" data-mycar-class hidden></span>
               </div>
@@ -342,7 +342,7 @@
         <section id="view-run" class="view v61-legacy" hidden aria-hidden="true">
           <h2 data-i18n="run.title">Замер</h2>
           <p class="run-car-name" id="runCarName">BMW G87 M2 Widebody</p>
-          <p class="muted run-hint" data-i18n="run.hint">Старт, остановка, газ. Времена появятся по ходу.</p>
+          <p class="muted run-hint" data-i18n="run.hint">Стой на месте, нажми «Старт», потом газ. Время пишется само.</p>
           <p class="tiny safety-line">Только треки и закрытые площадки. Не отвлекайтесь на телефон за рулём.</p>
           <div class="speedo card" id="runIdleCard">
             <div class="speed-num" id="liveSpeed">0</div>
@@ -371,7 +371,11 @@
         <section id="view-lap" class="view">
           <h2 data-i18n="lap.title">Трек</h2>
           <!-- v267t: сверху — машина и источник GPS, без прокрутки -->
-          <div class="t267-top" role="group" aria-label="Машина и GPS"><button type="button" class="mycar-chip" id="btnMyCarLap"><span>машина для зачёта</span><b data-mycar-line>не выбрана</b><i class="mycar-chip-go" aria-hidden="true">выбрать</i></button><button type="button" class="ds-row" id="t61Gps" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Источник GPS</span><span class="ds-row-v" data-gps61>Телефон</span></button></div>
+          <div class="t282-ctl" role="group" aria-label="Машина и чем мерить">
+            <div class="t282-f"><span class="t282-k">Машина в зачёт</span><button type="button" class="t282-pill" id="btnMyCarLap" aria-haspopup="dialog"><svg class="t282-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 16.5v-3l2-4.5h13l2 4.5v3z"/><circle cx="7.5" cy="16.5" r="1.6"/><circle cx="16.5" cy="16.5" r="1.6"/></svg><b data-mycar-line>не выбрана</b><svg class="t282-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button></div>
+            <div class="t282-f"><span class="t282-k">Чем мерить</span><div class="t282-seg" id="t282Seg" role="radiogroup" aria-label="Чем мерить" data-on="phone"><i class="t282-thumb" aria-hidden="true"></i><button type="button" role="radio" data-seg="phone" aria-checked="true">Телефон</button><button type="button" role="radio" data-seg="chip" aria-checked="false">Чип</button></div></div>
+            <button type="button" id="t61Gps" hidden aria-haspopup="dialog" aria-controls="gps61"></button>
+          </div>
           <!-- v190: список трасс с контурами OSM и карточка трассы (2D-карта) -->
           <div class="tv2" id="tv2"><div class="tv2-sk" aria-hidden="true"><i></i><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b><b></b></div></div>
           <div class="grid-2 lap-grid">
@@ -388,7 +392,7 @@
                 <button type="button" class="v54-video" id="l54Video" aria-label="Старт круга с видео: запись с камеры и телеметрией"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="10" rx="2.5"/><path d="M16 11l5-3v8l-5-3z"/></svg><span>С видео</span></button>
                 <button type="button" id="btnLapStop" class="lap-finish-btn" data-i18n="lap.finish">Финиш круга</button>
               </div>
-              <p class="tiny" id="lapGpsMsg">сессия не идёт</p>
+              <p class="tiny" id="lapGpsMsg">сессия не начата</p>
             </article>
           </div>
           <section class="card ts-card t61-suggest" id="trackSuggestCard">
@@ -417,7 +421,7 @@
           </article>          <article class="card" id="compareCard">
             <h3>Сравнение</h3>
             <div id="compareBody">
-              <p class="muted tiny">Сток против твоего GPS.</p>
+              <p class="muted tiny">Паспортное время против твоего замера.</p>
               <div id="compareStats" class="compare-stats"></div>
             </div>
             <div id="comparePaywall" class="paywall-card hidden">
@@ -425,7 +429,7 @@
               <p class="tiny">Пока бесплатно для всех.</p>
             </div>
           </article>          <article class="card">
-            <h3>Track-day</h3>
+            <h3>Трек-дни</h3>
             <ul id="trackDayList" class="laps"></ul>
             <div id="trackDayPaywall" class="paywall-card hidden">
               <p>История track-day — пока бесплатно</p>
@@ -581,7 +585,7 @@
               </div>
             </div>
             <ol id="topSector" class="laps tops-pilot-list"></ol>
-            <p class="tiny muted" id="sectorTopsHint">пока нет валидных заездов — проедьте круг A/B с секторами</p>
+            <p class="tiny muted" id="sectorTopsHint">пусто — проедь круг с чипом (зачёт A/B), сектора посчитаются сами</p>
           </article>
 
           <details class="tops-classic card">
@@ -598,7 +602,7 @@
               <div class="wheel" id="topTrackWheel"></div>
               <div class="track-map" id="topTrackMap"></div>
               <ol id="topLap" class="laps"></ol>
-              <p class="tiny">Только валидные GPS-круги (С/Ф).</p>
+              <p class="tiny">Только круги с чистым GPS от старта до финиша.</p>
             </article>
           </div>
           </details>
@@ -737,7 +741,7 @@
             <button type="button" id="btnLogout" class="st66-row st66-act"><span class="st66-k">Выйти</span></button>
           </div></div>
           <div class="st66-g"><p class="st66-h">Моя машина</p><div class="st66-list">
-            <button type="button" class="st66-row" id="btnMyCarAcc"><span class="st66-k">Машина для зачёта</span><span class="st66-v" data-mycar-line>не выбрана</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <button type="button" class="st66-row" id="btnMyCarAcc"><span class="st66-k">Машина в зачёт</span><span class="st66-v" data-mycar-line>не выбрана</span><i class="st66-chev" aria-hidden="true"></i></button>
             <button type="button" class="st66-row" data-st="garage"><span class="st66-k">Гараж и покраска</span><i class="st66-chev" aria-hidden="true"></i></button>
             <article class="card carphoto-card" id="accCarPhoto" hidden>
             <h3>Фото машины</h3>
@@ -763,11 +767,11 @@
           </article>
           </div></div>
           <div class="st66-g"><p class="st66-h">GPS и датчики</p><div class="st66-list">
-            <button type="button" class="st66-row" data-st="gps"><span class="st66-k">Источник GPS</span><span class="st66-v" data-gps61>Телефон</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <button type="button" class="st66-row" data-st="gps"><span class="st66-k">Чем мерить</span><span class="st66-v" data-gps61>Телефон</span><i class="st66-chev" aria-hidden="true"></i></button>
             <button type="button" class="st66-row" id="stPnum"><span class="st66-k">Номер пилота</span><span class="st66-v" id="stPnumV">за Stars</span><i class="st66-chev" aria-hidden="true"></i></button>
             <button type="button" class="st66-row" data-st-go="shop"><span class="st66-k">GPS-чип PITLANE</span><span class="st66-v">магазин</span><i class="st66-chev" aria-hidden="true"></i></button>
             <article class="card" id="imuCard">
-            <h3>Датчики движения</h3>
+            <h3>Акселерометр и гироскоп</h3>
             <p class="muted tiny">На iPhone датчики включаются по нажатию. GPS + акселерометр — точнее.</p>
             <button type="button" id="btnEnableImu" class="go-btn">Включить датчики движения</button>
             <p class="tiny" id="imuTip"></p>
@@ -787,7 +791,7 @@
             <p class="tiny" id="accNotifyMsg" role="status"></p>
           </article>
             <article class="card follow-card" id="accFollows" hidden>
-            <h3>Подписки</h3>
+            <h3>Подписки на пилотов</h3>
             <p class="muted tiny">Бот напишет, когда пилот улучшит круг или разгон. До 5 в сутки, сводкой.</p>
             <ul class="follow-list" id="accFollowList"></ul>
             <p class="tiny muted" id="accFollowNote"></p>
@@ -798,7 +802,7 @@
             <input type="checkbox" id="sfxToggle" checked />
             <span class="st66-k">Звук старта двигателя</span><i class="st66-sw" aria-hidden="true"></i>
           </label>
-            <label class="st66-row st66-tg"><input type="checkbox" id="hapToggle" checked /><span class="st66-k">Вибрация (тактильный отклик)</span><i class="st66-sw" aria-hidden="true"></i></label>
+            <label class="st66-row st66-tg"><input type="checkbox" id="hapToggle" checked /><span class="st66-k">Вибрация при нажатии</span><i class="st66-sw" aria-hidden="true"></i></label>
           </div></div>
           <div class="st66-g"><p class="st66-h">Язык</p><div class="st66-list">
             <label class="st66-row st66-sel lang-field"><span class="st66-k">Язык · Language</span>
@@ -818,7 +822,7 @@
           </article>
           </div></div>
           <div class="st66-g" id="st66Help"><p class="st66-h">Помощь</p><div class="st66-list">
-            <button type="button" id="btnFeedback" class="st66-row" aria-haspopup="dialog" aria-controls="feedbackSheet"><span class="st66-k">Обратная связь</span><i class="st66-chev" aria-hidden="true"></i></button>
+            <button type="button" id="btnFeedback" class="st66-row" aria-haspopup="dialog" aria-controls="feedbackSheet"><span class="st66-k">Написать команде</span><i class="st66-chev" aria-hidden="true"></i></button>
             <a class="st66-row" href="./method.html"><span class="st66-k">Как считаем время</span><i class="st66-chev" aria-hidden="true"></i></a>
             <button type="button" class="st66-row" data-st-go="suggest"><span class="st66-k">Предложить трассу</span><i class="st66-chev" aria-hidden="true"></i></button>
           <p class="pl-ver" id="plVer" style="margin:14px 0 4px;text-align:center;font-size:11px;opacity:.45;letter-spacing:.04em">PITLANE</p>
@@ -1085,6 +1089,7 @@
         <p class="share-nick" id="shareNick">—</p>
         <p class="share-measured" id="shareMeasured" hidden>Измерено PITLANE GPS</p>
         <p class="share-date" id="shareDate">—</p>
+        <button type="button" class="share-stamp" id="shareStamp" hidden aria-label="Печать PITLANE — открыть проверку"></button>
         <div id="shareSectorBattle" class="sector-battle-host" hidden></div>
         <p class="share-method-foot"><a href="./method.html">как считаем · методика</a></p>
         <div class="share-card-actions">
@@ -1139,16 +1144,16 @@
       <div class="ds-sheet-scrim" data-close74></div>
       <div class="ds-sheet-panel">
         <header class="ds-sheet-hd"><b>Призрак</b><button type="button" class="ds-sheet-x pl-x pl-inline" id="ghost74Close" data-close74 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
-        <div class="ds-sheet-body"><p class="gh74-hint">Призрак едет рядом, дельта — вживую.</p><div class="ghost-pick gh74" id="runGhostPick" data-scope="run"></div></div>
+        <div class="ds-sheet-body"><p class="gh74-hint">Твой лучший круг едет рядом — отставание видно по ходу.</p><div class="ghost-pick gh74" id="runGhostPick" data-scope="run"></div></div>
       </div>
     </div>
     <div class="ds-sheet hidden" id="gps61" role="dialog" aria-modal="true" aria-label="Источник GPS" aria-hidden="true">
       <div class="ds-sheet-scrim" data-close61></div>
       <div class="ds-sheet-panel">
-        <header class="ds-sheet-hd"><b>Источник GPS</b><button type="button" class="ds-sheet-x pl-x pl-inline" id="gps61Close" data-close61 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+        <header class="ds-sheet-hd"><b>Чем мерить</b><button type="button" class="ds-sheet-x pl-x pl-inline" id="gps61Close" data-close61 aria-label="Закрыть"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
         <div class="ds-sheet-body">
           <article class="card ext-gps-card" id="extGpsCard">
-            <h3>Источник GPS</h3>
+            <h3>Чем мерить</h3>
             <div class="ext-gps-src" role="group" aria-label="Источник GPS">
               <button type="button" data-gps-src="phone" class="on" aria-pressed="true">Телефон</button>
               <button type="button" data-gps-src="ble" aria-pressed="false">Внешний GPS (PITLANE GPS)</button>
@@ -1163,13 +1168,13 @@
             <p class="tiny ext-gps-msg hidden" id="extGpsMsg" role="status"></p>
             <p class="tiny muted" id="extGpsIosNote" hidden></p>
             <div class="ext-gps-wifi hidden" id="extGpsWifi">
-              <p class="tiny wifi-state" id="wifiState" role="status">Wi-Fi: не подключено</p>
+              <p class="tiny wifi-state" id="wifiState" role="status">Чип по Wi-Fi: не подключён</p>
               <ul class="wifi-devs" id="wifiDevs"></ul>
               <div class="form-row">
                 <button type="button" class="share-hud-btn" id="wifiPairBtn">Привязать чип</button>
               </div>
               <div class="wifi-pair hidden" id="wifiPairBox">
-                <p class="tiny">Код привязки (20 минут, один раз):</p>
+                <p class="tiny">Код привязки чипа (действует 20 минут, один раз):</p>
                 <strong class="wifi-code" id="wifiPairCode">——————</strong>
                 <p class="tiny muted" id="wifiPairWait">Введите код на странице настройки чипа — привязка пройдёт, как только чип выйдет в интернет.</p>
               </div>
@@ -1215,7 +1220,7 @@
         <p class="plm-h">Приложение</p>
         <ul class="plm-list">
           <li><button type="button" data-plm="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/></svg><span>Настройки<small>аккаунт, GPS, графика, звук</small></span></button></li>
-          <li><button type="button" data-plm="feedback"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10h-8l-4 4v-4H5z"/></svg><span>Обратная связь<small>идея или ошибка</small></span></button></li>
+          <li><button type="button" data-plm="feedback"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v10h-8l-4 4v-4H5z"/></svg><span>Написать команде<small>идея или ошибка</small></span></button></li>
           <li><a href="./method.html" data-plm="method"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6M9 7h3"/></svg><span>Методика<small>как считаем время и топы</small></span></a></li>
         </ul>
         <nav class="plm-legal" aria-label="Правовая информация">
@@ -1275,8 +1280,8 @@
         <button type="button" class="share-card-close pl-x" id="feedbackClose" aria-label="Закрыть">×</button>
         <header class="race-sheet-head">
           <div class="race-sheet-handle" aria-hidden="true"></div>
-          <h2 class="race-sheet-title crew-title">Обратная связь</h2>
-          <p class="race-sheet-sub crew-lead">Ошибка, идея или жалоба — команде Pitlane</p>
+          <h2 class="race-sheet-title crew-title">Написать команде</h2>
+          <p class="race-sheet-sub crew-lead">Ошибка, идея или жалоба — читаем каждое</p>
         </header>
         <form id="feedbackForm" class="race-sheet-body" novalidate>
           <div class="seg-control fb-types" role="radiogroup" aria-label="Тип обращения">
@@ -1339,7 +1344,7 @@
         <header class="race-sheet-head" id="carPickerHead">
           <div class="race-sheet-handle" aria-hidden="true"></div>
           <h2 class="race-sheet-title">Гараж</h2>
-          <p class="race-sheet-sub">Выбери машину для подиума</p>
+          <p class="race-sheet-sub">Выбери машину — она встанет на подиум</p>
         </header>
         <div class="race-sheet-body">
           <div class="car-picker-grid" id="carPickerGrid" role="listbox" aria-label="Машины"></div>
@@ -1477,6 +1482,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-5XRRWTJO.js"></script>
+    <script type="module" src="./b/app-A5VHKLSQ.js"></script>
   </body>
 </html>

@@ -6,6 +6,7 @@ import { listFollows, setFollow, followImproveNotify, deleteFollowKeys, FOLLOW_M
 import { TG_BANNER_URL, START_CAPTION, RULE as COPY_RULE, startKeyboard, startPayloadLine, simpleRoutes, BOT_TEXT, webAppBtn, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION, msgRoomBest, msgDuelAccepted, msgDuelResult, msgFeedbackOwner, trackTitle } from './botcopy.js';
 import { seasonRoute, seasonRecord0100, citySeasonRoute, citySeasonRecord } from './season.js';
 import { chalRoute, chalOnDrag } from './chal.js'; // v280
+import { stampRoute } from './stamp.js'; // v282
 import { pnumRoute, pnumPreCheckout, pnumSuccessfulPayment, isPnumPayload, pnumOf } from './pnum.js'; // v280
 import { funnelRoute } from './funnel.js'; // v280
 import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, loadPrefs, savePrefs, markStarted, setChatStop, chatState, deleteNotifyKeys, NOTIFY_TYPES, NOTIFY_LABELS, NOTIFY_DAILY_MAX, NOTIFY_BOT_TEXT } from './notify.js';
@@ -1823,7 +1824,7 @@ async function loginTelegramUser(env, v, provider) {
   return { ok: true, ...sess, pilotId: rec.id, nick: rec.nick, provider, created, user: ownerUser(rec) };
 }
 
-const TMA_PARAM_RE = /^(ch|duel|crew|room|team|lap|run|s|track|tops)_[A-Za-z0-9_-]{1,56}$/;
+const TMA_PARAM_RE = /^(st|ch|duel|crew|room|team|lap|run|s|track|tops)_[A-Za-z0-9_-]{1,56}$/;
 
 /** Bot API savePreparedInlineMessage → id for WebApp.shareMessage(). */
 async function prepareTmaShare(env, v, body) {
@@ -4347,6 +4348,7 @@ export default {
       // —— v114: сезонный зачёт экипажей (публичный, read-only) ——
       { const cr = await citySeasonRoute({ req, env, path, url, headers, ip, h: ROOM_H }); if (cr) return cr; } // v280
       { const chr = await chalRoute({ req, env, path, pilot, headers, ip, h: ROOM_H }); if (chr) return chr; } // v280
+      { const sr = await stampRoute({ req, env, path, pilot, headers, ip, h: ROOM_H }); if (sr) return sr; } // v282
       { const pnr = await pnumRoute({ req, env, path, pilot, headers, ip, h: ROOM_H, salesOn: passSalesOn }); if (pnr) return pnr; } // v280
       { const fr = await funnelRoute({ req, env, path, headers, ip, h: ROOM_H }); if (fr) return fr; } // v280
       { const sr = await seasonRoute({ req, env, path, url, headers, ip, h: ROOM_H }); if (sr) return sr; }

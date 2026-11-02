@@ -767,6 +767,8 @@ export const api = {
 
   /* —— v280: вызов, сезон города, номер пилота, воронка —— */
   async chalCreate(disc) { if (!apiBase()) return { ok: false, error: 'offline' }; return await remoteKeep('/chal', { method: 'POST', body: JSON.stringify({ disc }) }); },
+  async stampMake(disc, t) { if (!apiBase()) return null; return await remoteKeep('/stamp', { method: 'POST', body: JSON.stringify({ disc, t }) }); },
+  async stampGet(code) { if (!apiBase()) return null; return await remoteKeep('/stamp/' + encodeURIComponent(code)); },
   async chalGet(id) { if (!apiBase()) return null; return await remoteKeep('/chal/' + encodeURIComponent(id)); },
   async citySeason({ city, disc, cls } = {}) {
     if (!apiBase()) return null;

@@ -6466,6 +6466,7 @@ function openShareCard(payload) {
   { let pn = Number.isInteger(payload.pn) ? payload.pn : null; if (pn == null && _shareOwn) { const v = Number(localStorage.getItem('pitlane-pnum')); if (Number.isInteger(v) && v >= 1 && v <= 99) pn = v; } set('shareNick', (payload.nick || '—') + (pn ? ' #' + pn : '')); } // v280
   set('shareTime', payload.time || '—');
   set('shareDate', payload.date || '');
+  void shareStampSync(payload); // v282: печать PITLANE
 
   const isLap = payload.type === 'lap' || payload.type === 'круг';
   const typeLabel = isLap ? 'круг' : (payload.type === '402m' ? '¼ мили' : '0–100');
@@ -11305,7 +11306,7 @@ document.getElementById('btnEnableImu')?.addEventListener('click', async () => {
     if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
       const r = await DeviceMotionEvent.requestPermission();
       if (tip) tip.textContent = r === 'granted'
-        ? 'Датчики движения разрешены. Можно стартовать замер/круг.'
+        ? 'Акселерометр и гироскоп включены — можно начинать замер или круг.'
         : 'Доступ отклонён. На iOS: Настройки → Safari → Движение и ориентация.';
     } else if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
       const r = await DeviceOrientationEvent.requestPermission();
@@ -13540,7 +13541,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v281';
+const APP_VERSION = 'v282';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -16935,10 +16936,18 @@ function renderTopsChips() {
     b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
     if (on) onTrk = b;
   });
+  // v282: без прыжка влево — подложка плавно едет к выбранной карточке, прокрутка только если та вне экрана (по центру, smooth)
+  t282Ind(box, onEl);
   for (const [host, el] of [[box, onEl], [trk, onTrk]]) {
     if (!host || !el || host.dataset.scrolled === (el.dataset.id || 'lap')) continue;
+    const first = !host.dataset.scrolled;
     host.dataset.scrolled = el.dataset.id || 'lap';
-    try { host.scrollLeft = Math.max(0, host.scrollLeft + el.getBoundingClientRect().left - host.getBoundingClientRect().left - 16); } catch (_) {}
+    try {
+      const hr = host.getBoundingClientRect(), er = el.getBoundingClientRect();
+      if (er.left >= hr.left + 8 && er.right <= hr.right - 8) continue;
+      const to = Math.max(0, host.scrollLeft + (er.left - hr.left) - (hr.width - er.width) / 2);
+      host.scrollTo({ left: to, behavior: first || matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    } catch (_) {}
   }
   t72SyncDots();
   syncTopsQuick();
@@ -16946,7 +16955,7 @@ function renderTopsChips() {
 function t72SyncDots() {
   const box = document.getElementById('topsChips'); const d = document.getElementById('t72Dots');
   if (!box || !d) return;
-  const n = [...box.children].filter((c) => c.offsetParent !== null).length; if (!n) return;
+  const n = [...box.children].filter((c) => c.offsetParent !== null && !c.classList.contains("t72-ind")).length; if (!n) return;
   if (d.childElementCount !== n) d.replaceChildren(...Array.from({ length: n }, () => padEl('i')));
   const w = box.scrollWidth - box.clientWidth;
   const k = w > 0 ? Math.round((box.scrollLeft / w) * (n - 1)) : 0;
@@ -17420,7 +17429,7 @@ async function renderTopsBoard() {
     } else {
       const filtered = _topsPrep !== 'all' || _topsPeriod !== 'all' || document.getElementById('topMyCarOnly')?.checked || topsCityOn();
       li.appendChild(padEl('b', '', 'Здесь пока никого'));
-      li.appendChild(padEl('span', '', filtered ? 'В этом срезе нет результатов. Расширь фильтры или стань первым.' : (sel.kind === 'lap' ? 'На этой трассе ещё никто не проехал круг.' : 'В этой дисциплине ещё нет заездов.')));
+      li.appendChild(padEl('span', '', filtered ? 'В этом срезе нет результатов. Расширь фильтры или стань первым.' : (sel.kind === 'lap' ? 'На этой трассе ещё никто не проехал круг.' : 'В этой дисциплине ещё нет зачтённых заездов.')));
       const acts = padEl('div', 't72-act');
       if (_topsPeriod !== 'all') {
         const pa = padEl('button', 't72-btn', 'Всё время'); pa.type = 'button';
@@ -17653,7 +17662,7 @@ function lh58Tick() {
   const n = lapSession.trackId === tid ? lapSession.laps.length : 0;
   const wx = document.getElementById('lapDriveWeather'); const wxt = wx?.dataset.ready ? wx.textContent.split(' · ')[0] : '';
   let carN = ''; try { carN = pickedCar()?.name || ''; } catch (_) {}
-  lh58Set('lh58Sub', [phase === 'idle' ? 'сессия не идёт' : 'круг ' + (n + 1), clipText(carN, 22), wxt].filter(Boolean).join(' · '));
+  lh58Set('lh58Sub', [phase === 'idle' ? 'сессия не начата' : 'круг ' + (n + 1), clipText(carN, 22), wxt].filter(Boolean).join(' · '));
   const running = phase === 'running' && lapRun.t0;
   const elapsed = running ? Date.now() - lapRun.t0 : 0;
   lh58Set('lh58Cur', fmtLapClock(elapsed));
@@ -18745,3 +18754,90 @@ function funnelEv(e, mode) {
 funnelEv('open', 'day');
 if (pickedCar()) funnelEv('car', 'once');
 window.addEventListener('pl-car', () => { if (pickedCar()) funnelEv('car', 'once'); });
+
+/* v282: Трек — «Чем мерить»: сегмент Телефон/Чип (состояние — из реального источника) */
+(() => {
+  const seg = document.getElementById('t282Seg'); if (!seg) return;
+  const bar = document.getElementById('extGpsBar');
+  const sync = () => {
+    const t = (bar?.textContent || '').toLowerCase();
+    const on = /pitlane|чип|wi-fi|внешн|ble/.test(t) && !/телефон/.test(t) ? 'chip' : 'phone';
+    seg.dataset.on = on;
+    seg.querySelectorAll('[data-seg]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.seg === on)));
+  };
+  sync();
+  if (bar) new MutationObserver(sync).observe(bar, { childList: true, characterData: true, subtree: true });
+  seg.addEventListener('click', (e) => {
+    const b = e.target?.closest?.('[data-seg]'); if (!b) return;
+    hap(6);
+    if (b.dataset.seg === 'phone') { if (seg.dataset.on !== 'phone') document.querySelector('#extGpsCard [data-gps-src="phone"]')?.click(); return; }
+    seg.dataset.on = 'chip'; // пузырь едет сразу; если чип не подключат — sync вернёт на «Телефон»
+    document.getElementById('t61Gps')?.click();
+    setTimeout(sync, 200);
+  });
+  document.getElementById('gps61')?.addEventListener('click', () => setTimeout(sync, 300));
+})();
+
+function t282Ind(box, el) {
+  if (!box) return;
+  let ind = box.querySelector(':scope > .t72-ind');
+  if (!ind) { ind = document.createElement('i'); ind.className = 't72-ind'; ind.setAttribute('aria-hidden', 'true'); box.prepend(ind); }
+  if (!el || el.offsetParent === null) { ind.style.opacity = '0'; return; }
+  const place = () => { ind.style.width = el.offsetWidth + 'px'; ind.style.height = el.offsetHeight + 'px'; ind.style.top = el.offsetTop + 'px'; ind.style.transform = `translateX(${el.offsetLeft}px)`; ind.style.opacity = '1'; };
+  if (!ind.dataset.ready) { ind.style.transition = 'none'; place(); void ind.offsetWidth; ind.style.transition = ''; ind.dataset.ready = '1'; } else place();
+}
+
+/* ——— v282: круглая печать PITLANE (данные — только из записи сервера; код открывает проверку) ——— */
+let _shareStamp = null;
+const stampCode = (c) => 'PL-' + c.slice(0, 4) + '-' + c.slice(4);
+const stampEsc = (v) => String(v ?? '').replace(/[&<>"']/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+const stampDate = (at) => { try { return new Date(at).toLocaleDateString('ru-RU', { timeZone: 'Europe/Moscow', day: '2-digit', month: '2-digit', year: 'numeric' }); } catch (_) { return ''; } };
+const stampSrc = (s) => (s.src === 'chip' ? 'PITLANE GPS' : 'GPS ТЕЛЕФОНА') + ' · ЗАЧЁТ ' + s.cls;
+function stampSvg(s, uid = 'a') {
+  const car = String(s.car || '').slice(0, 22);
+  return `<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Печать PITLANE ${stampEsc(stampCode(s.code))}"><g transform="translate(300 300) rotate(-8)" fill="none" stroke="#e8e8e8" font-family="Inter,Arial,sans-serif" text-anchor="middle">
+<circle r="230" stroke-width="6"/><circle r="205" stroke-width="2"/><circle r="120" stroke-width="2"/>
+<defs><path id="sT${uid}" d="M -170 0 A 170 170 0 0 1 170 0"/><path id="sB${uid}" d="M -185 0 A 185 185 0 0 0 185 0"/></defs>
+<text fill="#e8e8e8" stroke="none" font-size="28" font-weight="800" letter-spacing="5"><textPath href="#sT${uid}" startOffset="50%">PITLANE · ПРОВЕРЕНО</textPath></text>
+<text fill="#bdbdbd" stroke="none" font-size="22" letter-spacing="3"><textPath href="#sB${uid}" startOffset="50%">${stampEsc(stampSrc(s))}</textPath></text>
+<text y="-30" fill="#fff" stroke="none" font-size="30" font-weight="800">${stampEsc(chalDiscRu(s.disc) + ' · ' + chalSec(s.t))}</text>
+${car ? `<text y="10" fill="#d0d0d0" stroke="none" font-size="22">${stampEsc(car)}</text>` : ''}
+<text y="${car ? 45 : 20}" fill="#d0d0d0" stroke="none" font-size="22">${stampEsc(stampDate(s.at))}</text>
+<text y="85" fill="#9be3b0" stroke="none" font-size="20" font-weight="700" letter-spacing="2">${stampEsc(stampCode(s.code))}</text></g></svg>`;
+}
+async function shareStampSync(payload) {
+  const el = document.getElementById('shareStamp'); if (!el) return;
+  el.hidden = true; el.replaceChildren(); _shareStamp = null;
+  const isLap = payload.type === 'lap' || payload.type === 'круг' || payload.kind === 'lap';
+  const t = parseFloat(String(payload.time || '').replace(',', '.'));
+  if (!_shareOwn || isLap || payload.ghost || payload.src === 'sim' || payload.valid === false || !(t > 0) || !currentUser() || !isRemoteApi()) return;
+  const r = await api.stampMake(payload.type, t).catch(() => null);
+  if (_sharePayload !== payload || !r || !r.stamp) return; // нет записи на сервере — печати нет
+  _shareStamp = r.stamp;
+  el.innerHTML = stampSvg(r.stamp, 'c');
+  el.hidden = false;
+}
+document.getElementById('shareStamp')?.addEventListener('click', () => { if (_shareStamp) { hap(6); void openStampSheet(_shareStamp.code); } });
+async function openStampSheet(code) {
+  const el = chalSheetEl();
+  const box = padEl('div', 'chal-in');
+  const x = padEl('button', 'chal-x pl-x', '×'); x.type = 'button'; x.dataset.chalX = '1'; x.setAttribute('aria-label', 'Закрыть');
+  box.append(x, padEl('p', 'chal-k', 'ПРОВЕРКА ПЕЧАТИ'), padEl('p', 'chal-msg', 'Ищем запись…'));
+  el.replaceChildren(box); el.classList.remove('hidden');
+  const r = await api.stampGet(code).catch(() => null);
+  const s = r && r.stamp;
+  box.replaceChildren(x, padEl('p', 'chal-k', 'ПРОВЕРКА ПЕЧАТИ · ' + stampCode(String(code).toUpperCase())));
+  if (!s) { box.appendChild(padEl('p', 'chal-msg', 'Кода нет на сервере PITLANE — печать не подтверждена.')); return; }
+  const fig = padEl('div', 'stamp-fig'); fig.innerHTML = stampSvg(s, 'v'); box.appendChild(fig);
+  box.appendChild(padEl('p', 'chal-msg stamp-ok', 'Запись есть на сервере PITLANE: замер прошёл серверную проверку.'));
+  const dl = padEl('dl', 'stamp-dl');
+  for (const [k, v] of [['Результат', chalDiscRu(s.disc) + ' · ' + chalSec(s.t)], ['Пилот', (s.nick || 'Пилот') + (Number.isInteger(s.pn) ? ' #' + s.pn : '')], ['Машина', s.car], ['Чем мерили', s.src === 'chip' ? 'Чип PITLANE GPS' : 'GPS телефона'], ['Зачёт', s.cls], ['Дата', stampDate(s.at)]]) {
+    if (!v) continue; dl.append(padEl('dt', '', k), padEl('dd', '', v));
+  }
+  box.appendChild(dl);
+  const web = location.origin + location.pathname + '?st=' + s.code;
+  const cp = padEl('button', 'go-btn', 'Ссылка на проверку'); cp.type = 'button';
+  cp.addEventListener('click', async () => { hap(6); if (isTMA) { await shareViaTelegram('st_' + s.code, web, 'Печать PITLANE ' + stampCode(s.code)); return; } try { await navigator.clipboard.writeText(web); cp.textContent = 'Ссылка скопирована'; } catch (_) {} });
+  box.appendChild(cp);
+}
+try { const stq = new URLSearchParams(location.search).get('st'); if (stq && /^[2-9A-HJ-NP-Za-hj-np-z]{8}$/.test(stq)) setTimeout(() => { void openStampSheet(stq.toUpperCase()); }, 1200); } catch (_) {}
