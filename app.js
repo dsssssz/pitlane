@@ -120,6 +120,14 @@ const CARS = [
   { id: 'c63-ed507', name: 'Mercedes-AMG C 63 Edition 507', cls: 'GT · RWD · 6.2 V8', year: 2014, trim: 'W204 Edition 507', side: './img/sil/sedan.svg', color: 0x111111, accent: 0x111, v0100: 4.2, v100200: null, v200300: null, v80120: 2.5, hp: 507, nm: 610, kg: 1730, lap: { track: 'nurb-nord', time: null }, glb: './models/c63-ed507.glb' },
   { id: 'spark', name: 'Chevrolet Spark GT', cls: 'City · FWD · 1.2', year: 2018, trim: 'GT 1.2 LT', side: './img/sil/hatch.svg', color: 0x1f4cff, accent: 0x111, v0100: 12.5, v100200: null, v200300: null, v80120: null, hp: 85, nm: 115, kg: 1085, lap: { track: 'nurb-nord', time: null }, glb: './models/spark.glb' },
   { id: 'm8', name: 'BMW M8 Competition Gran Coupe', cls: 'GT · AWD · 4.4 V8', year: 2022, trim: 'F93 Competition', side: './img/sil/sedan.svg', color: 0x1f2a4a, accent: 0x111, v0100: 3.2, v100200: null, v200300: null, v80120: null, hp: 625, nm: 750, kg: 1885, lap: { track: 'nurb-nord', time: null } },
+  { id: 'bmw-g70', name: 'BMW 740i', cls: 'Lux · RWD · 3.0 turbo', year: 2023, trim: 'G70 740i', side: './img/sil/sedan.svg', color: 0x111111, accent: 0x111, v0100: 5.4, v100200: null, v200300: null, v80120: null, hp: 380, nm: 520, kg: 2105, lap: { track: 'nurb-nord', time: null } },
+  { id: 'gls63-x166', name: 'Mercedes-AMG GLS 63', cls: 'SUV · AWD · 5.5 V8 biturbo', year: 2016, trim: 'X166 AMG 4MATIC', side: './img/sil/suv.svg', color: 0x111111, accent: 0x111, v0100: 4.6, v100200: null, v200300: null, v80120: null, hp: 585, nm: 760, kg: 2580, lap: { track: 'nurb-nord', time: null } },
+  { id: 'e63-w213', name: 'Mercedes-AMG E 63 S', cls: 'GT · AWD · 4.0 V8 biturbo', year: 2021, trim: 'W213 restyling 4MATIC+', side: './img/sil/sedan.svg', color: 0x111111, accent: 0x111, v0100: 3.4, v100200: null, v200300: null, v80120: null, hp: 612, nm: 850, kg: 1955, lap: { track: 'nurb-nord', time: null } },
+  { id: 'lc200', name: 'Toyota Land Cruiser 200', cls: 'SUV · AWD · 4.5 V8 diesel', year: 2012, trim: 'J200 4.5 D-4D', side: './img/sil/suv.svg', color: 0x111111, accent: 0x111, v0100: 8.6, v100200: null, v200300: null, v80120: null, hp: 235, nm: 615, kg: 2640, lap: { track: 'nurb-nord', time: null } },
+  { id: 'camry-xv80', name: 'Toyota Camry Hybrid', cls: 'Sedan · FWD · 2.5 hybrid', year: 2024, trim: 'XV80 2.5 Hybrid', side: './img/sil/sedan.svg', color: 0x111111, accent: 0x111, v0100: null, v100200: null, v200300: null, v80120: null, hp: 225, nm: null, kg: 1650, lap: { track: 'nurb-nord', time: null } },
+  { id: 'li-l9', name: 'LiXiang L9', cls: 'SUV · AWD · EREV', year: 2022, trim: 'L9 Max', side: './img/sil/suv.svg', color: 0x111111, accent: 0x111, v0100: 5.3, v100200: null, v200300: null, v80120: null, hp: 449, nm: 620, kg: 2520, lap: { track: 'nurb-nord', time: null } },
+  { id: 'camry-xv70', name: 'Toyota Camry 2.5', cls: 'Sedan · FWD · 2.5', year: 2020, trim: 'XV70 2.5', side: './img/sil/sedan.svg', color: 0x111111, accent: 0x111, v0100: 9.9, v100200: null, v200300: null, v80120: null, hp: 181, nm: 231, kg: 1555, lap: { track: 'nurb-nord', time: null } },
+  { id: 'x7-g07', name: 'BMW X7 xDrive40i', cls: 'SUV · AWD · 3.0 turbo', year: 2023, trim: 'G07 LCI xDrive40i', side: './img/sil/suv.svg', color: 0x111111, accent: 0x111, v0100: 5.8, v100200: null, v200300: null, v80120: null, hp: 381, nm: 540, kg: 2390, lap: { track: 'nurb-nord', time: null } },
   { id: 'm5', name: 'BMW M5 Competition', cls: 'GT · AWD · 4.4 V8', year: 2022, trim: 'F90 Competition', side: './img/sil/sedan.svg', color: 0xb9bcc0, accent: 0x111, v0100: 3.3, v100200: 8.0, v200300: 21.0, v80120: 2.0, hp: 625, nm: 750, kg: 1890, lap: { track: 'nurb-nord', time: null } },
   { id: 'm4csl', name: 'BMW M4 CSL', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G82 CSL', side: './img/sil/coupe.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.7, v100200: 8.5, v200300: null, v80120: 2.2, hp: 550, nm: 650, kg: 1625, lap: { track: 'nurb-nord', time: null } },
   { id: 'gtr', name: 'Nissan GT-R Nismo', cls: 'GT · AWD · 3.8 twin-turbo', year: 2022, trim: 'R35 Nismo', side: './img/sil/coupe.svg', color: 0xc5ccd3, accent: 0x111, v0100: 2.7, v100200: 7.2, v200300: 16.8, v80120: 1.7, hp: 600, nm: 652, kg: 1720, lap: { track: 'nurb-nord', time: null } },
@@ -7209,6 +7217,14 @@ const MODEL_CATALOG = [
   { id: 'm4', name: 'BMW M4', file: './models/m4.glb', year: '2021' },
   { id: 'm3', name: 'BMW M3 Competition', file: './models/m3.glb', year: '2023' },
   { id: 'm8', name: 'BMW M8 Competition Gran Coupe', year: '2022' },
+  { id: 'bmw-g70', name: 'BMW 740i', year: '2023' },
+  { id: 'gls63-x166', name: 'Mercedes-AMG GLS 63', year: '2016' },
+  { id: 'e63-w213', name: 'Mercedes-AMG E 63 S', year: '2021' },
+  { id: 'lc200', name: 'Toyota Land Cruiser 200', year: '2012' },
+  { id: 'camry-xv80', name: 'Toyota Camry Hybrid', year: '2024' },
+  { id: 'li-l9', name: 'LiXiang L9', year: '2022' },
+  { id: 'camry-xv70', name: 'Toyota Camry 2.5', year: '2020' },
+  { id: 'x7-g07', name: 'BMW X7 xDrive40i', year: '2023' },
   { id: 'x6', name: 'BMW X6 xDrive40i', file: './models/x6.glb', year: '2020' },
   { id: 'isf', name: 'Lexus IS-F', file: './models/isf.glb', year: '2013' },
   { id: 'c63-ed507', name: 'Mercedes-AMG C 63 Edition 507', file: './models/c63-ed507.glb', year: '2014' },
@@ -7463,13 +7479,13 @@ function mountPodium(where) {
 }
 /* v289: вместо 3D/рендеров — чистая заглушка: эмблема марки + имя (свои фото Мага добавит позже) */
 /* v291: карточка-«пасс» машины (концепт C): слева логотип, код кузова, имя, мощность · 0–100, год пилота отдельной строкой; справа фото уходит за край */
-const CAR_PHOTO291 = { m8: './img/cars/user/m8.webp', m4: './img/cars/user/m4.webp', m3: './img/cars/user/m3.webp' };
+const CAR_PHOTO291 = { m8: './img/cars/user/m8.webp', m4: './img/cars/user/m4.webp', m3: './img/cars/user/m3.webp', 'bmw-g70': './img/cars/user/bmw-g70.webp', 'gls63-x166': './img/cars/user/gls63-x166.webp', 'e63-w213': './img/cars/user/e63-w213.webp', 'lc200': './img/cars/user/lc200.webp', 'camry-xv80': './img/cars/user/camry-xv80.webp', 'li-l9': './img/cars/user/li-l9.webp', 'camry-xv70': './img/cars/user/camry-xv70.webp', 'x7-g07': './img/cars/user/x7-g07.webp' };
 const CY291_KEY = 'pitlane-car-year-v291';
 function carYear291(id) { try { const y = JSON.parse(localStorage.getItem(CY291_KEY) || '{}')[id]; return /^(19|20)\d\d$/.test(String(y || '')) ? String(y) : ''; } catch (_) { return ''; } }
 function setCarYear291(id, y) { try { const o = JSON.parse(localStorage.getItem(CY291_KEY) || '{}'); if (y) o[id] = y; else delete o[id]; localStorage.setItem(CY291_KEY, JSON.stringify(o)); } catch (_) {} }
 function carCard291(x, meta, opts = {}) {
   meta = meta || {};
-  const code = (String(meta.trim || '').match(/^([A-Z]\d{2,3})\b/) || [])[1] || '';
+  const code = (String(meta.trim || '').match(/^([A-Z]{1,2}\d{2,3})\b/) || [])[1] || '';
   let name = String(x.name || '').replace(/^BMW\s+/i, '').replace(/^G87\s+/, '');
   if (/Competition/.test(meta.trim || '') && !/Competition/.test(name)) name += ' Competition';
   const lk = brandLogoKey(x.name); const ph = CAR_PHOTO291[x.id] || '';
@@ -12251,7 +12267,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v291';
+const APP_VERSION = 'v292';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
