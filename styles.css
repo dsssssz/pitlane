@@ -8291,3 +8291,33 @@ html:not(#_):not(#_):not(#_) #myCarSheet .race-sheet-head { background: var(--ds
 .cph289-n { font: 600 15px/1.2 var(--font-ui); color: rgba(242,239,233,.7); text-align: center; padding: 0 16px; }
 .cph289-th { display: grid; place-items: center; background: #0b0b0c; }
 .cph289-l { display: block; width: 44%; height: 44%; background: #f2efe9; -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
+
+/* v291: карточка-«пасс» машины (концепт C) — Гараж: главная карточка + список вместо ленты */
+html:not(#_):not(#_) #view-garage .g53-ph.g53-2d { height: auto !important; aspect-ratio: auto !important; margin: 0 !important; background: none !important; border-radius: 0 !important; overflow: visible; }
+html:not(#_):not(#_) #view-garage .g53-name, html:not(#_):not(#_) #view-garage .g53-sub { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); margin: 0 !important; }
+html:not(#_):not(#_) #view-garage .g53-list { display: flex; flex-direction: column; gap: 10px !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
+.cw291 { position: relative; display: flex; align-items: center; width: 100%; min-height: 118px; padding: 14px 0 14px 18px; box-sizing: border-box; border-radius: 20px !important; background: #0d0e10 !important; border: 1px solid #1a1b1e !important; overflow: hidden; text-align: left; color: #f2f2f2; font-family: var(--font-ui); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.cw291.on { border-color: #e8e6e1 !important; }
+.cw291:active { transform: scale(.99); }
+.cw-t { position: relative; z-index: 1; flex: 0 0 52%; max-width: 52%; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; }
+.cw-h { display: flex; gap: 8px; align-items: center; min-height: 18px; }
+.cw-lg { display: inline-block; width: 18px; height: 18px; flex: none; background: #fff; -webkit-mask: var(--logo) center/contain no-repeat; mask: var(--logo) center/contain no-repeat; }
+.cw-lg.big { width: 46px; height: 46px; opacity: .22; }
+.cw-c { font: 500 10px/1 var(--font-ui); letter-spacing: .22em; text-transform: uppercase; color: #6d7077; }
+.cw-n { display: block; margin: 8px 0 5px; font: 600 15px/1.2 var(--font-ui); letter-spacing: -.01em; color: #fff; overflow-wrap: anywhere; }
+.cw-s { font: 400 12px/1.3 var(--font-ui); color: #7d8087; white-space: nowrap; }
+.cw-y { display: inline-block; margin-top: 8px; padding: 3px 8px; border-radius: 7px; font: 500 12px/1.35 var(--font-ui); border: 1px dashed #3a3b3f; color: #6d7077; background: none; width: auto; }
+.cw-y.f { border: 1px solid transparent; background: #1b1c1f; color: #e8e6e1; }
+input.cw-y { width: 74px; box-sizing: border-box; outline: none; -webkit-appearance: none; appearance: none; }
+input.cw-y::placeholder { color: #6d7077; }
+input.cw-y:focus { border-style: solid; border-color: #55585e; }
+.cw-ph { position: absolute; right: -30px; top: 50%; transform: translateY(-50%); width: 52%; max-width: none; height: auto; pointer-events: none; filter: drop-shadow(0 8px 6px #000); }
+.cw-nph { position: absolute; right: 0; top: 0; bottom: 0; width: 44%; display: grid; place-items: center; }
+.cw291.big { min-height: 168px; padding-left: 20px; cursor: default; }
+.cw291.big .cw-n { font-size: 20px; }
+.cw291.big .cw-ph { width: 60%; right: -36px; }
+.cw291.big .cw-t { flex-basis: 48%; max-width: 48%; }
+html:not(#_):not(#_):not(#_) #view-garage input.cw-y { width: 74px !important; height: auto !important; min-height: 0 !important; margin: 8px 0 0 !important; padding: 3px 8px !important; border-radius: 7px !important; font: 500 12px/1.35 var(--font-ui) !important; border: 1px dashed #3a3b3f !important; background: none !important; color: #e8e6e1 !important; box-shadow: none !important; }
+html:not(#_):not(#_):not(#_) #view-garage input.cw-y.f { border: 1px solid transparent !important; background: #1b1c1f !important; }
+html:not(#_):not(#_):not(#_) #view-garage .cw291 img.cw-ph { position: absolute !important; display: block !important; right: -30px !important; left: auto !important; top: 50% !important; transform: translateY(-50%) !important; width: 52% !important; height: auto !important; object-fit: contain !important; }
+html:not(#_):not(#_):not(#_) #view-garage .cw291.big img.cw-ph { width: 60% !important; right: -36px !important; }

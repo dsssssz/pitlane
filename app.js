@@ -119,6 +119,7 @@ const CARS = [
   { id: 'isf', name: 'Lexus IS-F', cls: 'GT · RWD · 5.0 V8', year: 2013, trim: 'USE20 IS-F', side: './img/sil/sedan.svg', color: 0xc5ccd3, accent: 0x111, v0100: 4.6, v100200: null, v200300: null, v80120: 2.9, hp: 423, nm: 505, kg: 1715, lap: { track: 'nurb-nord', time: null }, glb: './models/isf.glb' },
   { id: 'c63-ed507', name: 'Mercedes-AMG C 63 Edition 507', cls: 'GT · RWD · 6.2 V8', year: 2014, trim: 'W204 Edition 507', side: './img/sil/sedan.svg', color: 0x111111, accent: 0x111, v0100: 4.2, v100200: null, v200300: null, v80120: 2.5, hp: 507, nm: 610, kg: 1730, lap: { track: 'nurb-nord', time: null }, glb: './models/c63-ed507.glb' },
   { id: 'spark', name: 'Chevrolet Spark GT', cls: 'City · FWD · 1.2', year: 2018, trim: 'GT 1.2 LT', side: './img/sil/hatch.svg', color: 0x1f4cff, accent: 0x111, v0100: 12.5, v100200: null, v200300: null, v80120: null, hp: 85, nm: 115, kg: 1085, lap: { track: 'nurb-nord', time: null }, glb: './models/spark.glb' },
+  { id: 'm8', name: 'BMW M8 Competition Gran Coupe', cls: 'GT · AWD · 4.4 V8', year: 2022, trim: 'F93 Competition', side: './img/sil/sedan.svg', color: 0x1f2a4a, accent: 0x111, v0100: 3.2, v100200: null, v200300: null, v80120: null, hp: 625, nm: 750, kg: 1885, lap: { track: 'nurb-nord', time: null } },
   { id: 'm5', name: 'BMW M5 Competition', cls: 'GT · AWD · 4.4 V8', year: 2022, trim: 'F90 Competition', side: './img/sil/sedan.svg', color: 0xb9bcc0, accent: 0x111, v0100: 3.3, v100200: 8.0, v200300: 21.0, v80120: 2.0, hp: 625, nm: 750, kg: 1890, lap: { track: 'nurb-nord', time: null } },
   { id: 'm4csl', name: 'BMW M4 CSL', cls: 'GT · RWD · 3.0 twin-turbo', year: 2023, trim: 'G82 CSL', side: './img/sil/coupe.svg', color: 0x8a1f1a, accent: 0x111, v0100: 3.7, v100200: 8.5, v200300: null, v80120: 2.2, hp: 550, nm: 650, kg: 1625, lap: { track: 'nurb-nord', time: null } },
   { id: 'gtr', name: 'Nissan GT-R Nismo', cls: 'GT · AWD · 3.8 twin-turbo', year: 2022, trim: 'R35 Nismo', side: './img/sil/coupe.svg', color: 0xc5ccd3, accent: 0x111, v0100: 2.7, v100200: 7.2, v200300: 16.8, v80120: 1.7, hp: 600, nm: 652, kg: 1720, lap: { track: 'nurb-nord', time: null } },
@@ -7207,6 +7208,7 @@ const MODEL_CATALOG = [
   { id: 'g63', name: 'Mercedes-AMG G 63', file: './models/g63.glb', year: '2020', driveIn: true },
   { id: 'm4', name: 'BMW M4', file: './models/m4.glb', year: '2021' },
   { id: 'm3', name: 'BMW M3 Competition', file: './models/m3.glb', year: '2023' },
+  { id: 'm8', name: 'BMW M8 Competition Gran Coupe', year: '2022' },
   { id: 'x6', name: 'BMW X6 xDrive40i', file: './models/x6.glb', year: '2020' },
   { id: 'isf', name: 'Lexus IS-F', file: './models/isf.glb', year: '2013' },
   { id: 'c63-ed507', name: 'Mercedes-AMG C 63 Edition 507', file: './models/c63-ed507.glb', year: '2014' },
@@ -7456,9 +7458,27 @@ function mountPodium(where) {
   const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0]; if (!m) return;
   if (host.dataset.car === m.id) return;
   host.dataset.car = m.id; host.replaceChildren();
-  host.appendChild(carPh289(m.name));
+  const meta = CARS.find((c) => c.id === m.id) || {};
+  const card = document.createElement('div'); card.className = 'cw291 big'; card.innerHTML = carCard291(m, meta, { edit: true }); host.appendChild(card);
 }
 /* v289: вместо 3D/рендеров — чистая заглушка: эмблема марки + имя (свои фото Мага добавит позже) */
+/* v291: карточка-«пасс» машины (концепт C): слева логотип, код кузова, имя, мощность · 0–100, год пилота отдельной строкой; справа фото уходит за край */
+const CAR_PHOTO291 = { m8: './img/cars/user/m8.webp', m4: './img/cars/user/m4.webp', m3: './img/cars/user/m3.webp' };
+const CY291_KEY = 'pitlane-car-year-v291';
+function carYear291(id) { try { const y = JSON.parse(localStorage.getItem(CY291_KEY) || '{}')[id]; return /^(19|20)\d\d$/.test(String(y || '')) ? String(y) : ''; } catch (_) { return ''; } }
+function setCarYear291(id, y) { try { const o = JSON.parse(localStorage.getItem(CY291_KEY) || '{}'); if (y) o[id] = y; else delete o[id]; localStorage.setItem(CY291_KEY, JSON.stringify(o)); } catch (_) {} }
+function carCard291(x, meta, opts = {}) {
+  meta = meta || {};
+  const code = (String(meta.trim || '').match(/^([A-Z]\d{2,3})\b/) || [])[1] || '';
+  let name = String(x.name || '').replace(/^BMW\s+/i, '').replace(/^G87\s+/, '');
+  if (/Competition/.test(meta.trim || '') && !/Competition/.test(name)) name += ' Competition';
+  const lk = brandLogoKey(x.name); const ph = CAR_PHOTO291[x.id] || '';
+  const sp = [meta.hp ? meta.hp + ' HP' : '', meta.v0100 ? Number(meta.v0100).toFixed(1) + ' s' : ''].filter(Boolean).join(' · ');
+  const y = carYear291(x.id);
+  const yr = opts.edit ? `<input class="cw-y${y ? ' f' : ''}" data-cy="${esc(x.id)}" inputmode="numeric" maxlength="4" placeholder="Год ＋" value="${y}" aria-label="Год выпуска">` : `<span class="cw-y${y ? ' f' : ''}">${y || 'Год ＋'}</span>`;
+  return `<div class="cw-t"><div class="cw-h">${lk ? `<i class="cw-lg" style="--logo:url('./img/brands/${lk}.svg')"></i>` : ''}${code ? `<span class="cw-c">${esc(code)}</span>` : ''}</div><b class="cw-n">${esc(name)}</b>${sp ? `<span class="cw-s">${esc(sp)}</span>` : ''}${yr}</div>` +
+    (ph ? `<img class="cw-ph" src="${ph}" alt="" decoding="async" draggable="false">` : `<span class="cw-nph">${lk ? `<i class="cw-lg big" style="--logo:url('./img/brands/${lk}.svg')"></i>` : ''}</span>`);
+}
 function carPh289(name) { const w = document.createElement('div'); w.className = 'cph289'; try { if (brandLogoKey(name)) { const l = brandLogoEl(name); l.classList.add('big'); w.appendChild(l); } } catch (_) {} const n = document.createElement('span'); n.className = 'cph289-n'; n.textContent = name || ''; w.appendChild(n); return w; }
 function bootPodium() {}
 // Podium boots only after intro finish (or immediate finish when skipped).
@@ -12231,7 +12251,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v290';
+const APP_VERSION = 'v291';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12510,8 +12530,8 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
       const isMine = !!(mine && (mine.carId === m.id || mine.model === m.name));
       const mb = document.getElementById('g53Mine'); mb.textContent = isMine ? 'Моя машина' : 'Это моя машина'; mb.classList.toggle('on', isMine);
       // v163: лента — все машины (текущая отмечена), студийные рендеры вместо снимков старого подиума
-      document.getElementById('g53List').innerHTML = list.map((x) => `<button type="button" class="g53-car${x.id === m.id ? ' on' : ''}" role="listitem" data-g53="${esc(x.id)}"${x.id === m.id ? ' aria-current="true"' : ''}><span class="g53-th cph289-th">${brandLogoKey(x.name) ? `<i class="cph289-l" style="--logo:url('./img/brands/${brandLogoKey(x.name)}.svg')"></i>` : ''}</span><span class="g53-cn">${esc(x.name)}</span></button>`).join('');
-      try { const c = document.querySelector('#g53List .g53-car.on'); const l = c?.parentElement; if (c && l) { const cr = c.getBoundingClientRect(), lr = l.getBoundingClientRect(); l.scrollLeft += cr.left - lr.left - (lr.width - cr.width) / 2; } } catch (_) {} // v251: только по горизонтали — scrollIntoView прокручивал страницу и прятал 3D
+      document.getElementById('g53List').innerHTML = list.map((x) => `<button type="button" class="cw291${x.id === m.id ? ' on' : ''}" role="listitem" data-g53="${esc(x.id)}"${x.id === m.id ? ' aria-current="true"' : ''}>${carCard291(x, CARS.find((c) => c.id === x.id))}</button>`).join('');
+      try { const c = null; const l = c?.parentElement; if (c && l) { const cr = c.getBoundingClientRect(), lr = l.getBoundingClientRect(); l.scrollLeft += cr.left - lr.left - (lr.width - cr.width) / 2; } } catch (_) {} // v251: только по горизонтали — scrollIntoView прокручивал страницу и прятал 3D
     };
     /* v163: имя крупно + тонкая строка характеристик (мощность, 0–100 завода, мой лучший) и точки-индикатор */
     function g63Paint(list, m, meta) {
@@ -12550,6 +12570,8 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
       try { pickPodiumCar(b.dataset.g53); } catch (_) {}
       render(); try { host.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {}
     });
+    document.getElementById('g53Art')?.addEventListener('input', (e) => { const i = e.target.closest('[data-cy]'); if (!i) return; i.value = i.value.replace(/\D/g, '').slice(0, 4); const ok = /^(19|20)\d\d$/.test(i.value) && +i.value <= new Date().getFullYear() + 1; i.classList.toggle('f', ok); if (ok || !i.value) { setCarYear291(i.dataset.cy, ok ? i.value : ''); const b = document.querySelector(`#g53List [data-g53="${i.dataset.cy}"] .cw-y`); if (b) { b.textContent = ok ? i.value : 'Год ＋'; b.classList.toggle('f', ok); } } });
+    document.getElementById('g53Art')?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-cy]')) e.target.blur(); });
     document.getElementById('g53Mine')?.addEventListener('click', () => { document.getElementById('btnMyCarGarage')?.click(); setTimeout(render, 300); });
     document.getElementById('g53Studio')?.addEventListener('click', (e) => {
       const on = document.documentElement.classList.toggle('g53-3d');
