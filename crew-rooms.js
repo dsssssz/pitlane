@@ -184,6 +184,14 @@ export function openMyCarSheet(opts = {}) {
     else { tile.classList.add('mc3-logo-ini'); tile.textContent = w ? w.charAt(0).toUpperCase() : '+'; }
     return tile;
   };
+  // v285: эмблема марки (img/brands, маской в светлый монохром), иначе первая буква
+  const carLogo = (name) => {
+    const n = String(name || '').trim(); const tile = el('span', 'mc3-logo mc3-carlogo');
+    const lg = n ? brandLogoEl(n) : null;
+    if (lg && lg.querySelector('i')) tile.appendChild(lg);
+    else { tile.classList.add('mc3-logo-ini'); tile.textContent = n ? n.charAt(0).toUpperCase() : '+'; }
+    return tile;
+  };
   // машина
   const carRow = rowBtn('myCarModels', CAR_SVG, () => openCarPick());
   const carBox = el('div', 'mc3-glass'); carBox.appendChild(carRow.b);
@@ -323,7 +331,7 @@ export function openMyCarSheet(opts = {}) {
     const g = el('div', 'mc3-glass');
     cars.slice(0, 8).forEach((c, k) => g.appendChild(optRow(c.name, k === 0 && cur && c.name === cur.name ? 'сейчас в Боксе' : (c.year ? String(c.year) : ''), c.name === pick.model, () => {
       pick.model = c.name; pick.carId = c.id || ''; sel.value = ''; custom.classList.add('hidden'); close();
-    })));
+    }, carLogo(c.name))));
     const all = optRow('Все марки и модели', 'каталог с характеристиками', false, () => {
       close();
       openCarDb({
@@ -368,6 +376,8 @@ export function openMyCarSheet(opts = {}) {
     const curN = cur && m === cur.name;
     carRow.s.textContent = m ? [curN ? 'в Боксе' : '', pass.hp ? pass.hp + ' л.с.' : ''].filter(Boolean).join(' · ') || 'сменить' : 'из Бокса или каталога';
     carRow.b.classList.toggle('is-empty', !m);
+    if (m) carRow.ic.replaceChildren(carLogo(m)); else carRow.ic.innerHTML = CAR_SVG;
+    carRow.ic.classList.toggle('mc3-ic-logo', !!m);
     const t = pick.tyre.trim();
     const sp = t.indexOf(' ');
     tyreRow.t.textContent = t ? (TYRES.includes(t) ? t.slice(sp + 1) : t) : 'Выбрать шины';

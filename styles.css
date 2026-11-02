@@ -8218,3 +8218,5 @@ html:not(#_):not(#_):not(#_) #myCarSheet .mc3-num:focus, html:not(#_):not(#_):no
 .mc3-logo-ini { font-size: 15px; font-weight: 600; color: #c9c9ce; }
 html:not(#_):not(#_):not(#_) #myCarSheet .mc3-ic.mc3-ic-logo { width: 60px; background: none; }
 html:not(#_):not(#_):not(#_) #myCarSheet .mc3-ic.mc3-ic-logo .mc3-logo { width: 60px; }
+/* v285: эмблема марки в плитке */
+html:not(#_):not(#_):not(#_) .mc3-carlogo .cdb-logo { width: 24px; height: 24px; color: #e4e4e8; }
