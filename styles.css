@@ -8212,3 +8212,9 @@ html:not(#_):not(#_):not(#_) .mc3-done { height: 34px; padding: 0 14px !importan
 @keyframes mc3f { from { opacity: 0; } } @keyframes mc3u { from { transform: translateY(40px); opacity: .6; } }
 @media (prefers-reduced-motion: reduce) { .mc3-sub, .mc3-sub-in { animation: none; } }
 html:not(#_):not(#_):not(#_) #myCarSheet .mc3-num:focus, html:not(#_):not(#_):not(#_) #myCarSheet .mc3-num:focus-visible { outline: none !important; box-shadow: none !important; color: #fff; }
+/* v284: логотипы шин — плитка 60×36, монохром */
+.mc3-logo { width: 60px; height: 36px; flex: none; border-radius: 10px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.06); display: grid; place-items: center; overflow: hidden; }
+.mc3-logo img { max-width: 46px; max-height: 18px; width: auto; height: auto; filter: brightness(0) invert(.9); opacity: .92; }
+.mc3-logo-ini { font-size: 15px; font-weight: 600; color: #c9c9ce; }
+html:not(#_):not(#_):not(#_) #myCarSheet .mc3-ic.mc3-ic-logo { width: 60px; background: none; }
+html:not(#_):not(#_):not(#_) #myCarSheet .mc3-ic.mc3-ic-logo .mc3-logo { width: 60px; }

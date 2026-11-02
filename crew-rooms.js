@@ -173,7 +173,16 @@ export function openMyCarSheet(opts = {}) {
     const ic = el('span', 'mc3-ic'); ic.innerHTML = svg;
     const tx = el('span', 'mc3-tx'); const t = el('b', ''); const s = el('span', '');
     tx.append(t, s); b.append(ic, tx, el('span', 'mc3-chev', '›'));
-    return { b, t, s };
+    return { b, t, s, ic };
+  };
+  // v284: логотипы брендов шин (официальные SVG из Wikimedia Commons, лежат в img/tyres), монохром
+  const TYRE_BRANDS = ['michelin', 'pirelli', 'yokohama', 'toyo', 'bridgestone', 'nankang', 'continental'];
+  const tyreLogo = (t) => {
+    const w = String(t || '').trim(); const b = w.split(/\s+/)[0].toLowerCase();
+    const tile = el('span', 'mc3-logo');
+    if (TYRE_BRANDS.includes(b)) { const im = el('img'); im.src = 'img/tyres/' + b + '.svg'; im.alt = w.split(/\s+/)[0]; im.decoding = 'async'; tile.appendChild(im); }
+    else { tile.classList.add('mc3-logo-ini'); tile.textContent = w ? w.charAt(0).toUpperCase() : '+'; }
+    return tile;
   };
   // машина
   const carRow = rowBtn('myCarModels', CAR_SVG, () => openCarPick());
@@ -300,11 +309,12 @@ export function openMyCarSheet(opts = {}) {
     document.body.appendChild(wrap);
     return { bd, close };
   }
-  function optRow(label, sub, on, onTap) {
+  function optRow(label, sub, on, onTap, lead) {
     const b = btn('mc3-opt' + (on ? ' on' : ''), null, () => { D.hap?.(6); onTap(); });
     b.setAttribute('role', 'option'); b.setAttribute('aria-selected', on ? 'true' : 'false');
     const tx = el('span', 'mc3-tx'); tx.appendChild(el('b', '', label)); if (sub) tx.appendChild(el('span', '', sub));
     const ck = el('span', 'mc3-ck'); if (on) ck.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    if (lead) b.appendChild(lead);
     b.append(tx, ck);
     return b;
   }
@@ -340,11 +350,11 @@ export function openMyCarSheet(opts = {}) {
     function draw() {
       const s = q.value.trim(); const lo = s.toLowerCase();
       const hits = TYRES.filter((t) => !lo || t.toLowerCase().includes(lo));
-      list.replaceChildren(...hits.map((t) => { const [b, ...m] = t.split(' '); return optRow(m.join(' '), b, pick.tyre === t, () => setT(t)); }));
+      list.replaceChildren(...hits.map((t) => { const [b, ...m] = t.split(' '); return optRow(m.join(' '), b, pick.tyre === t, () => setT(t), tyreLogo(t)); }));
       const own = pick.tyre && !TYRES.includes(pick.tyre) ? pick.tyre : '';
-      if (s && !TYRES.some((t) => t.toLowerCase() === lo)) list.appendChild(optRow('Своя: ' + s, 'нет в списке', own === s, () => setT(s)));
-      else if (own) list.appendChild(optRow(own, 'своя модель', true, () => {}));
-      else if (!s) list.appendChild(optRow('Своя…', 'впиши модель в поиск', false, () => q.focus?.()));
+      if (s && !TYRES.some((t) => t.toLowerCase() === lo)) list.appendChild(optRow('Своя: ' + s, 'нет в списке', own === s, () => setT(s), tyreLogo(s)));
+      else if (own) list.appendChild(optRow(own, 'своя модель', true, () => {}, tyreLogo(own)));
+      else if (!s) list.appendChild(optRow('Своя…', 'впиши модель в поиск', false, () => q.focus?.(), tyreLogo('')));
     }
     q.addEventListener('input', draw);
     q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && q.value.trim()) { e.preventDefault(); setT(q.value.trim()); close(); } });
@@ -363,6 +373,8 @@ export function openMyCarSheet(opts = {}) {
     tyreRow.t.textContent = t ? (TYRES.includes(t) ? t.slice(sp + 1) : t) : 'Выбрать шины';
     tyreRow.s.textContent = [t && TYRES.includes(t) ? t.slice(0, sp) : '', pass.tyreT ? TYRE_T_LABEL[pass.tyreT] : 'тип не указан'].filter(Boolean).join(' · ');
     tyreRow.b.classList.toggle('is-empty', !t);
+    if (t) tyreRow.ic.replaceChildren(tyreLogo(t)); else tyreRow.ic.innerHTML = TYRE_SVG;
+    tyreRow.ic.classList.toggle('mc3-ic-logo', !!t);
     prepRow.bs.forEach((b) => { const on = pass.prep === b.dataset.v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
     const ready = !!(m && t);
     sumV.textContent = ready ? m + ' · ' + t + ' · ' + classLine(pass) : '';
