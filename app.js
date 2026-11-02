@@ -34,19 +34,7 @@ function ensureThree() {
   if (THREE) return Promise.resolve(THREE);
   if (!_threeP) {
     const t0 = performance.now();
-    _threeP = Promise.all([
-      import('three'),
-      import('three/addons/controls/OrbitControls.js'),
-      import('three/addons/loaders/GLTFLoader.js'),
-      import('three/addons/environments/RoomEnvironment.js'),
-      import('three/addons/objects/Reflector.js'),
-      import('three/addons/lights/RectAreaLightUniformsLib.js'),
-      import('three/addons/utils/SkeletonUtils.js'),
-      import('./plates.js'),
-    ]).then(([T, oc, gl, re, rf, ra, su, pl]) => {
-      OrbitControls = oc.OrbitControls; GLTFLoader = gl.GLTFLoader; RoomEnvironment = re.RoomEnvironment; Reflector = rf.Reflector;
-      RectAreaLightUniformsLib = ra.RectAreaLightUniformsLib; cloneSkinned = su.clone;
-      attachPitlanePlates = pl.attachPitlanePlates; isPitlanePlate = pl.isPitlanePlate;
+    _threeP = import('three').then((T) => { // v289: 3D-машины убраны; three нужен только chase-виду трассы
       THREE = T;
       try { (window.__plLazy = window.__plLazy || {}).three = Math.round(performance.now() - t0); } catch (_) {}
       return T;
@@ -1837,164 +1825,10 @@ let renderer = null, scene = null, camera = null, controls = null, key = null, f
 const SHOWROOM_BG = 0x000000;
 let showroomGlow = null, showroomFade = null;
 /** Радиальная альфа-текстура: stops = [[r 0..1, alpha 0..1], …] (белый цвет, альфа — по радиусу). */
-function showroomRadialTex(stops, size = 256) {
-  const c = document.createElement('canvas'); c.width = c.height = size;
-  const g = c.getContext('2d'); const gr = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  for (const [r, a] of stops) gr.addColorStop(r, `rgba(255,255,255,${a})`);
-  g.fillStyle = gr; g.fillRect(0, 0, size, size);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
+function showroomRadialTex(stops, size = 256) {}
 /** Для RingGeometry: UV идут по кругу, поэтому градиент — по радиусу через u/v от центра (как у CircleGeometry). inner = доля внутреннего радиуса. */
-function showroomRingFadeTex(inner, size = 256) {
-  return showroomRadialTex([[0, 0], [inner, 0], [inner + (1 - inner) * 0.45, 0.72], [inner + (1 - inner) * 0.8, 1], [1, 1]], size);
-}
-function build3dScene() {
-  if (renderer || !THREE) return;
-  gltfLoader = new GLTFLoader();
-  diInit();
-  renderer = new THREE.WebGLRenderer({
-    canvas,
-    antialias: qPreset().aa,
-    alpha: false,
-    powerPreference: 'high-performance',
-  });
-  renderer.setClearColor(SHOWROOM_BG, 1); // v163: шоурум — чёрный фон сливается со страницей
-  renderer.setPixelRatio(q3dDpr());
-  if (!Q.gpu) {
-    try {
-      const gl = renderer.getContext();
-      const ext = gl.getExtension('WEBGL_debug_renderer_info');
-      Q.gpu = String(ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '');
-    } catch (_) {}
-  }
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
-  if ('useLegacyLights' in renderer) renderer.useLegacyLights = false;
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(SHOWROOM_BG);
-  camera = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
-  camera.position.set(5.4, 2.2, 5.8);
-  controls = new OrbitControls(camera, canvas);
-  controls.enableDamping = true;
-  controls.enablePan = false;
-  controls.autoRotate = true;
-  controls.autoRotateSpeed = 0.55;
-  controls.maxPolarAngle = Math.PI * 0.495;
-  controls.minPolarAngle = 0.15;
-  controls.minDistance = 2.4;
-  controls.maxDistance = 14;
-  controls.target.set(0, 0.55, 0);
-  controls.addEventListener('start', () => { controls.autoRotate = false; });
-  controls.addEventListener('end', () => {
-    clearTimeout(podiumIdleTimer);
-    podiumIdleTimer = setTimeout(() => { controls.autoRotate = true; }, 2200);
-  });
-  scene.add(new THREE.AmbientLight(0xa8b0c0, 0.26));
-  scene.add(new THREE.HemisphereLight(0x7a8aa4, 0x101012, 0.44));
-  key = new THREE.DirectionalLight(0xeef2fa, 1.18);
-  key.position.set(3.2, 7.4, 5.2);
-  key.castShadow = true;
-  key.shadow.mapSize.set(shadowRes, shadowRes);
-  key.shadow.camera.near = 0.5;
-  key.shadow.camera.far = 28;
-  key.shadow.camera.left = -6;
-  key.shadow.camera.right = 6;
-  key.shadow.camera.top = 6;
-  key.shadow.camera.bottom = -6;
-  key.shadow.bias = -0.00018;
-  key.shadow.normalBias = 0.02;
-  key.shadow.radius = 3.2;
-  scene.add(key);
-  fill = new THREE.DirectionalLight(0xc8d4e8, 0.58);
-  fill.position.set(-5.2, 4.6, 2.2);
-  scene.add(fill);
-  rim = new THREE.DirectionalLight(0xb4ccf0, 2.15);
-  rim.position.set(-1.0, 4.0, -7.0);
-  scene.add(rim);
-  rim2 = new THREE.DirectionalLight(0xd4dcec, 1.0);
-  rim2.position.set(6.0, 2.8, -3.4);
-  scene.add(rim2);
-  bounce = new THREE.DirectionalLight(0x8890a0, 0.28);
-  bounce.position.set(0.2, -0.7, 2.4);
-  scene.add(bounce);
-  try {
-    RectAreaLightUniformsLib.init();
-    const softA = new THREE.RectAreaLight(0xeef2fa, 3.4, 5.8, 1.5);
-    softA.position.set(-0.6, 5.9, 1.0);
-    softA.lookAt(0, 0.55, 0);
-    scene.add(softA);
-    const softB = new THREE.RectAreaLight(0xd8e0f0, 2.1, 3.6, 1.15);
-    softB.position.set(2.6, 5.0, -1.8);
-    softB.lookAt(0, 0.5, 0);
-    scene.add(softB);
-    areaLights.push(softA, softB);
-  } catch (_) { /* RectAreaLight optional on constrained GPUs */ }
-  contactShadow = new THREE.Mesh( // v163: мягкая тень-эллипс без жёсткого края (раньше — чёрный диск-«постамент»)
-    new THREE.CircleGeometry(2.9, 64),
-    new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      map: showroomRadialTex([[0, 1], [0.42, 0.82], [0.75, 0.3], [1, 0]]),
-      transparent: true,
-      opacity: 0.78,
-      depthWrite: false,
-    })
-  );
-  contactShadow.scale.set(1, 0.62, 1);
-  contactShadow.rotation.x = -Math.PI / 2;
-  contactShadow.position.y = 0.006;
-  scene.add(contactShadow);
-  ringGlow = new THREE.Mesh(
-    new THREE.RingGeometry(2.92, 3.48, 96),
-    new THREE.MeshBasicMaterial({
-      color: 0xC9C6BF, // v133
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.04, // v133: без ореола
-      depthWrite: false,
-    })
-  );
-  ringGlow.rotation.x = -Math.PI / 2;
-  ringGlow.position.y = 0.009;
-  scene.add(ringGlow);
-  ring = new THREE.Mesh(
-    new THREE.RingGeometry(3.1, 3.28, 96),
-    new THREE.MeshBasicMaterial({
-      color: 0xC9C6BF, // v133
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.32,
-      depthWrite: false,
-    })
-  );
-  ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.012;
-  scene.add(ring);
-  // v163: шоурум вместо подиума — без колец; мягкое пятно света на полу и растворение края пола в темноте
-  ring.visible = false; ringGlow.visible = false;
-  showroomGlow = new THREE.Mesh(
-    new THREE.CircleGeometry(3.6, 72),
-    new THREE.MeshBasicMaterial({ color: 0xdfe6ee, map: showroomRadialTex([[0, 1], [0.35, 0.6], [0.7, 0.14], [1, 0]]), transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false })
-  );
-  showroomGlow.rotation.x = -Math.PI / 2;
-  showroomGlow.position.y = 0.0015; showroomGlow.renderOrder = 1;
-  scene.add(showroomGlow);
-  showroomFade = new THREE.Mesh(
-    new THREE.RingGeometry(1.7, 7.4, 96, 1),
-    new THREE.MeshBasicMaterial({ color: SHOWROOM_BG, map: showroomRingFadeTex(1.7 / 7.4), transparent: true, depthWrite: false, toneMapped: false })
-  );
-  showroomFade.rotation.x = -Math.PI / 2;
-  showroomFade.position.y = 0.0025; showroomFade.renderOrder = 2; // поверх пятна: дальний пол уходит в чёрное
-  scene.add(showroomFade);
-  applyQualityTier(true);
-  car = new THREE.Group();
-  car.visible = false;
-  scene.add(car);
-  controls.addEventListener('start', () => { userInteracting = true; podiumInvalidate(300); });
-  controls.addEventListener('end', () => { userInteracting = false; interactUntil = performance.now() + 1500; podiumInvalidate(300); });
-}
+function showroomRingFadeTex(inner, size = 256) {}
+function build3dScene() {}
 
 
 let podiumIdleTimer = null;
@@ -2011,106 +1845,19 @@ let podiumEnvReady = false;
 let introBlocking3d = true;
 let podiumBooted = false;
 
-function ensurePodiumEnv() {
-  if (podiumEnvReady) return;
-  podiumEnvReady = true;
-  try {
-    const pmrem = new THREE.PMREMGenerator(renderer);
-    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-    scene.environmentIntensity = 0.88;
-    pmrem.dispose();
-  } catch (_) { /* reflections optional */ }
-  try {
-    if (qPreset().refl !== 'off') createPodiumReflector();
-  } catch (_) { /* reflector optional */ }
-  applyQualityTier(true);
-}
+function ensurePodiumEnv() {}
 
 const REFL_RES_HIGH = Math.min(1024, Math.max(512, Math.floor(512 * Math.min(window.devicePixelRatio || 1, 1.75))));
 let reflFrame = 0;
 let reflForce = true;
-function createPodiumReflector() {
-  if (floor) return floor;
-  const res = qPreset().refl === 'half' ? 512 : REFL_RES_HIGH;
-  floor = new Reflector(new THREE.CircleGeometry(7, 72), {
-    clipBias: 0.003,
-    textureWidth: res,
-    textureHeight: res,
-    color: 0x121215, // v163: тёмный пол — отражение лёгкое, не зеркало
-    multisample: 0,
-  });
-  floor.rotation.x = -Math.PI / 2;
-  floor.position.y = 0;
-  // medium tier: refresh mirror every Nth frame (texture keeps last image in between)
-  const origBefore = floor.onBeforeRender;
-  floor.onBeforeRender = function (r, s, c) {
-    const every = qPreset().reflEvery || 1;
-    if (every > 1 && !reflForce && (reflFrame++ % every) !== 0) return;
-    reflForce = false;
-    return origBefore.call(this, r, s, c);
-  };
-  scene.add(floor);
-  return floor;
-}
+function createPodiumReflector() {}
 
 /* low tier: static matte-black floor instead of realtime mirror (same dark look, zero extra passes) */
 let floorFlat = null;
-function ensureFlatFloor() {
-  if (floorFlat) return floorFlat;
-  floorFlat = new THREE.Mesh(
-    new THREE.CircleGeometry(7, 72),
-    new THREE.MeshBasicMaterial({ color: 0x030304 })
-  );
-  floorFlat.rotation.x = -Math.PI / 2;
-  floorFlat.position.y = 0;
-  scene.add(floorFlat);
-  return floorFlat;
-}
+function ensureFlatFloor() {}
 
 /** Apply current Q.tier to renderer/scene. Safe to call repeatedly. */
-function applyQualityTier(fromEnv = false) {
-  const p = qPreset();
-  try {
-    const dpr = q3dDpr();
-    if (renderer.getPixelRatio() !== dpr) { renderer.setPixelRatio(dpr); onResize(); }
-  } catch (_) {}
-  try {
-    const wantRes = p.shadowRes || shadowRes;
-    if (key.shadow.mapSize.x !== wantRes) {
-      key.shadow.mapSize.set(wantRes, wantRes);
-      if (key.shadow.map) { key.shadow.map.dispose(); key.shadow.map = null; }
-    }
-    key.castShadow = !!p.shadow;
-    renderer.shadowMap.enabled = !!p.shadow;
-    renderer.shadowMap.autoUpdate = !p.shadowStatic;
-    renderer.shadowMap.needsUpdate = true;
-  } catch (_) {}
-  try { areaLights.forEach((l) => { l.visible = !!p.areaLights; }); } catch (_) {}
-  // no mirror on low → render the muted accent ring un-tonemapped so it keeps its tone (v133: no neon)
-  try {
-    const flat = p.refl === 'off';
-    if (ring.material.toneMapped === flat) { ring.material.toneMapped = !flat; ring.material.needsUpdate = true; }
-    ring.material.opacity = flat ? 0.34 : 0.32; // v133: сдержанно, без неона
-  } catch (_) {}
-  if (podiumEnvReady) {
-    try {
-      if (p.refl === 'off') {
-        if (floor) floor.visible = false;
-        ensureFlatFloor().visible = true;
-      } else {
-        if (!floor) createPodiumReflector();
-        if (floor) {
-          floor.visible = true;
-          const want = p.refl === 'half' ? 512 : REFL_RES_HIGH;
-          const rt = floor.getRenderTarget?.();
-          if (rt && rt.width !== want) rt.setSize(want, want);
-        }
-        if (floorFlat) floorFlat.visible = false;
-      }
-    } catch (_) {}
-  }
-  if (!fromEnv) podiumInvalidate(400, true);
-}
+function applyQualityTier(fromEnv = false) {}
 
 
 /* Soft contact-shadow disk under the car (cinema stand) */
@@ -2120,210 +1867,27 @@ function applyQualityTier(fromEnv = false) {
 
 const moving = {};
 
-function canvasTex(draw, size = 512) {
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  draw(c.getContext('2d'), size);
-  const t = new THREE.CanvasTexture(c);
-  t.colorSpace = THREE.SRGBColorSpace;
-  t.anisotropy = 8;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  return t;
-}
+function canvasTex(draw, size = 512) {}
 
-function texLivery(hex) {
-  if (state.customLivery) {
-    const t = new THREE.CanvasTexture(state.customLivery);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 8;
-    return t;
-  }
-  const r = (hex >> 16) & 255, g = (hex >> 8) & 255, b = hex & 255;
-  return canvasTex((ctx, s) => {
-    ctx.fillStyle = `rgb(${r},${g},${b})`;
-    ctx.fillRect(0, 0, s, s);
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.fillRect(s * 0.46, 0, s * 0.08, s);
-    ctx.fillStyle = 'rgba(0,0,0,0.55)';
-    ctx.fillRect(0, 0, s, s * 0.12);
-    ctx.fillRect(0, s * 0.88, s, s * 0.12);
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    for (let i = 0; i < 18; i++) ctx.fillRect(0, (i / 18) * s, s, 2);
-  });
-}
+function texLivery(hex) {}
 
-function texCarbon() {
-  return canvasTex((ctx, s) => {
-    ctx.fillStyle = '#4a4a4a';
-    ctx.fillRect(0, 0, s, s);
-    for (let y = 0; y < s; y += 8) {
-      for (let x = 0; x < s; x += 8) {
-        ctx.fillStyle = ((x + y) / 8) % 2 ? '#2a2a2a' : '#111';
-        ctx.fillRect(x, y, 8, 8);
-      }
-    }
-    ctx.fillStyle = 'rgba(255,255,255,0.06)';
-    ctx.fillRect(0, 0, s, s);
-  }, 256);
-}
+function texCarbon() {}
 
-function texTire() {
-  return canvasTex((ctx, s) => {
-    ctx.fillStyle = '#3a3a3a';
-    ctx.fillRect(0, 0, s, s);
-    ctx.strokeStyle = '#3a3a3a';
-    ctx.lineWidth = 6;
-    for (let i = 0; i < 24; i++) {
-      ctx.beginPath();
-      ctx.moveTo(s / 2, s / 2);
-      const a = (i / 24) * Math.PI * 2;
-      ctx.lineTo(s / 2 + Math.cos(a) * s, s / 2 + Math.sin(a) * s);
-      ctx.stroke();
-    }
-    ctx.strokeStyle = '#888';
-    ctx.lineWidth = 10;
-    ctx.beginPath();
-    ctx.arc(s / 2, s / 2, s * 0.38, 0, Math.PI * 2);
-    ctx.stroke();
-  }, 256);
-}
+function texTire() {}
 
-function texRim() {
-  return canvasTex((ctx, s) => {
-    ctx.fillStyle = '#d8d8d8';
-    ctx.fillRect(0, 0, s, s);
-    ctx.strokeStyle = '#222';
-    ctx.lineWidth = 8;
-    ctx.beginPath();
-    ctx.arc(s / 2, s / 2, s * 0.46, 0, Math.PI * 2);
-    ctx.stroke();
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.moveTo(s / 2, s / 2);
-      ctx.lineTo(s / 2 + Math.cos(a) * s * 0.45, s / 2 + Math.sin(a) * s * 0.45);
-      ctx.stroke();
-    }
-    ctx.fillStyle = '#C9C6BF';
-    ctx.beginPath();
-    ctx.arc(s / 2, s / 2, s * 0.12, 0, Math.PI * 2);
-    ctx.fill();
-  }, 256);
-}
+function texRim() {}
 
-function mat(color, extra = {}) {
-  return new THREE.MeshStandardMaterial({ color, metalness: 0.72, roughness: 0.28, ...extra });
-}
+function mat(color, extra = {}) {}
 
-function wheel(wide = false) {
-  const g = new THREE.Group();
-  const r = wide ? 0.42 : 0.37;
-  const tire = new THREE.Mesh(
-    new THREE.TorusGeometry(r, wide ? 0.15 : 0.12, 16, 32),
-    mat(0xffffff, { map: texTire(), roughness: 0.86, metalness: 0.08 })
-  );
-  tire.rotation.y = Math.PI / 2;
-  const disc = new THREE.Mesh(
-    new THREE.CylinderGeometry(r * 0.52, r * 0.52, 0.11, 28),
-    mat(0x1a1a1a, { map: texRim(), metalness: 0.85, roughness: 0.28 })
-  );
-  disc.rotation.z = Math.PI / 2;
-  const cal = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 0.22), mat(0xc9a227, { metalness: 0.6, roughness: 0.35 }));
-  cal.position.set(0, 0.12, 0);
-  g.add(tire, disc, cal);
-  g.traverse((o) => { if (o.isMesh) o.castShadow = true; });
-  return g;
-}
+function wheel(wide = false) {}
 
-function addMesh(geo, material, x, y, z, parent = car) {
-  const m = new THREE.Mesh(geo, material);
-  m.position.set(x, y, z);
-  m.castShadow = true;
-  m.receiveShadow = true;
-  parent.add(m);
-  return m;
-}
+function addMesh(geo, material, x, y, z, parent = car) {}
 
-function buildCar(cfg) {
-  while (car.children.length) car.remove(car.children[0]);
-  const body = state.customLivery
-    ? mat(0xffffff, { map: texLivery(cfg.color), metalness: 0.62, roughness: 0.2 })
-    : mat(cfg.color, { metalness: 0.88, roughness: 0.16 });
-  const dark = mat(0x141414, { metalness: 0.4, roughness: 0.42 });
-  const glassMat = new THREE.MeshStandardMaterial({ color: 0x0b0d10, transparent: true, opacity: 0.38, metalness: 1, roughness: 0.05 });
-  const leather = mat(0x171717, { roughness: 0.72, metalness: 0.06 });
-  const silver = mat(0xd0d0d0, { metalness: 0.92, roughness: 0.22 });
+function buildCar(cfg) {}
 
-  addMesh(new THREE.BoxGeometry(2.35, 0.36, 1.48), body, 0.08, 0.56, 0);
-  addMesh(new THREE.BoxGeometry(0.62, 0.2, 1.36), body, 1.28, 0.48, 0);
-  addMesh(new THREE.BoxGeometry(0.82, 0.24, 0.18), body, -0.7, 0.5, 0.78);
-  addMesh(new THREE.BoxGeometry(0.82, 0.24, 0.18), body, -0.7, 0.5, -0.78);
-  addMesh(new THREE.BoxGeometry(1.05, 0.38, 1.18), dark, 0.08, 0.9, 0);
-  addMesh(new THREE.BoxGeometry(0.92, 0.26, 1.04), glassMat, 0.12, 1.06, 0);
+function mkStoredDoors(root) {}
 
-  addMesh(new THREE.BoxGeometry(0.36, 0.26, 0.34), leather, 0.02, 0.7, 0.26);
-  addMesh(new THREE.BoxGeometry(0.36, 0.26, 0.34), leather, 0.02, 0.7, -0.26);
-  addMesh(new THREE.BoxGeometry(0.32, 0.07, 0.96), dark, 0.36, 0.76, 0);
-  const helm = addMesh(new THREE.TorusGeometry(0.13, 0.022, 8, 18), mat(0x111, { roughness: 0.55 }), 0.4, 0.84, 0.2);
-  helm.rotation.y = 0.45;
-
-  const hoodPivot = new THREE.Group();
-  hoodPivot.position.set(0.52, 0.74, 0);
-  car.add(hoodPivot);
-  addMesh(new THREE.BoxGeometry(1.02, 0.07, 1.34), body, 0.5, 0.04, 0, hoodPivot);
-  addMesh(new THREE.BoxGeometry(0.28, 0.05, 0.42), dark, 0.72, 0.08, 0.28, hoodPivot);
-  addMesh(new THREE.BoxGeometry(0.28, 0.05, 0.42), dark, 0.72, 0.08, -0.28, hoodPivot);
-
-  const trunkPivot = new THREE.Group();
-  trunkPivot.position.set(-1.02, 0.74, 0);
-  car.add(trunkPivot);
-  addMesh(new THREE.BoxGeometry(0.58, 0.07, 1.32), body, -0.26, 0.03, 0, trunkPivot);
-
-  const mkDoor = (side) => {
-    const pivot = new THREE.Group();
-    pivot.userData.door = true;
-    pivot.position.set(0.16, 0.62, 0.74 * side);
-    car.add(pivot);
-    addMesh(new THREE.BoxGeometry(0.86, 0.34, 0.06), body, 0.1, 0, 0, pivot);
-    addMesh(new THREE.BoxGeometry(0.32, 0.12, 0.03), glassMat, 0.12, 0.12, 0.01 * side, pivot);
-    return pivot;
-  };
-  mkDoor(1);
-  mkDoor(-1);
-
-  addMesh(new THREE.BoxGeometry(0.2, 0.045, 1.48), dark, -1.2, 1.2, 0);
-  addMesh(new THREE.BoxGeometry(0.05, 0.4, 0.05), dark, -1.16, 1.0, 0.5);
-  addMesh(new THREE.BoxGeometry(0.05, 0.4, 0.05), dark, -1.16, 1.0, -0.5);
-  addMesh(new THREE.BoxGeometry(0.24, 0.14, 0.05), dark, -1.2, 1.26, 0.76);
-  addMesh(new THREE.BoxGeometry(0.24, 0.14, 0.05), dark, -1.2, 1.26, -0.76);
-  addMesh(new THREE.BoxGeometry(0.62, 0.06, 0.035), silver, -0.12, 0.6, 0.76);
-
-  const wfl = wheel(false); wfl.position.set(0.86, 0.35, 0.74);
-  const wfr = wheel(false); wfr.position.set(0.86, 0.35, -0.74);
-  const wrl = wheel(true); wrl.position.set(-0.78, 0.37, 0.76);
-  const wrr = wheel(true); wrr.position.set(-0.78, 0.37, -0.76);
-  car.add(wfl, wfr, wrl, wrr);
-
-  moving.hood = hoodPivot;
-  moving.trunk = trunkPivot;
-}
-
-function mkStoredDoors(root) {
-  return root.children.filter((ch) => ch.userData && ch.userData.door);
-}
-
-function paintCar(cfg) {
-  // v187: paint (const ниже по модулю) ещё в TDZ при раннем вызове — откладываем до конца инициализации модуля
-  queueMicrotask(() => { try { applyPaint(); } catch (e) { console.warn('paintCar', e); } });
-  return;
-  /* legacy 3d */
-
-  buildCar(cfg);
-  moving.doorList = mkStoredDoors(car);
-  moving.tHood = 0;
-  moving.tTrunk = 0;
-  moving.tDoors = 0;
-}
+function paintCar(cfg) {}
 
 document.querySelectorAll('.hotspots button').forEach((b) => {
   b.onclick = () => {
@@ -2340,20 +1904,7 @@ function lerpAngle(obj, axis, target, dt) {
   obj.rotation[axis] = cur + (target - cur) * Math.min(1, dt * 6);
 }
 
-function onResize() {
-  if (!canvas || !renderer) return;
-  const wrap = document.getElementById('podiumWrap') || canvas.parentElement;
-  const rect = wrap?.getBoundingClientRect?.() || { width: 0, height: 0 };
-  let w = Math.max(1, Math.floor(rect.width || canvas.clientWidth || 320));
-  let h = Math.max(1, Math.floor(rect.height || canvas.clientHeight || 240));
-  // fallback if layout not ready
-  if (w < 8 || h < 8) { w = 320; h = 240; }
-  { const d = q3dDpr(); if (renderer.getPixelRatio() !== d) renderer.setPixelRatio(d); } // v164: плотность — под реальный размер холста
-  renderer.setSize(w, h, false);
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  try { podiumInvalidate(200, true); } catch (_) {}
-}
+function onResize() {}
 window.addEventListener('resize', onResize);
 if (typeof ResizeObserver !== 'undefined') {
   const wrap = document.getElementById('podiumWrap');
@@ -2377,22 +1928,9 @@ let renderedFrames = 0;
 let driveIn = null; // active drive-in animation state (see startDriveIn, DEPLOY.md §22)
 
 /** Ask the podium to repaint (and keep painting for `ms`). hard = scene changed (refresh mirror/shadow now). */
-function podiumInvalidate(ms = 0, hard = false) {
-  const now = performance.now();
-  if (ms > 0) renderUntil = Math.max(renderUntil, now + ms);
-  needFrame = true;
-  if (hard) { reflForce = true; try { renderer.shadowMap.needsUpdate = true; } catch (_) {} }
-  kickLoop();
-}
-function podiumShouldRun() {
-  // v154: сцена переезжает между Главной и Гаражом — рисуем только в активном экране (IntersectionObserver не видит скрытые вкладки)
-  const av = document.querySelector('.view.active');
-  return !document.hidden && podiumInView && !!(av && canvas && av.contains(canvas));
-}
-function kickLoop() {
-  if (!renderer) return; // v119: подиум ещё не построен (three не загружен)
-  if (!loopRaf && podiumShouldRun()) loopRaf = requestAnimationFrame(tick);
-}
+function podiumInvalidate(ms = 0, hard = false) {}
+function podiumShouldRun() { return false; }
+function kickLoop() {}
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden) { last = performance.now(); podiumInvalidate(300, true); qMeasureReset(); } else { qMeasureReset(); try { finishDriveIn(); } catch (_) {} }
 });
@@ -2416,109 +1954,12 @@ try {
 
 /* Adaptive tier measurement: ~2s of frame times after warm-up; step down only (hysteresis). */
 const qm = { phase: 'idle', t0: 0, frames: 0, deltas: [], lastT: 0, stalls: 0, done: Q.locked || Q.tier === 'low' };
-function qMeasureReset() {
-  if (qm.phase !== 'idle' && qm.phase !== 'done') { qm.phase = 'idle'; }
-}
-function qMeasureStep(now, rendered) {
-  if (qm.done || Q.locked || introBlocking3d || !glbRoot || !podiumEnvReady) return false;
-  // v164: мерить только когда модель реально на экране и не едет (drive-in); иначе пауза цикла (другая вкладка, прокрутка) читалась как «медленный GPU»
-  if (!podiumShouldRun() || driveIn) { if (qm.phase === 'sample' || qm.phase === 'warm') { qm.phase = 'idle'; } return false; }
-  // "after models warm up": wait for catalog prefetch/parse (or 20 s max) so parse jank isn't read as a slow GPU
-  if (!glbPrefetchDone && (!glbPrefetchT0 || now - glbPrefetchT0 < 20000)) return false;
-  if (qm.phase === 'idle') { qm.phase = 'warm'; qm.t0 = now; return true; }
-  if (qm.phase === 'warm') {
-    if (now - qm.t0 >= 1500) { qm.phase = 'sample'; qm.t0 = now; qm.frames = 0; qm.deltas = []; qm.lastT = 0; }
-    return true;
-  }
-  if (qm.phase === 'sample') {
-    if (rendered) {
-      if (qm.lastT) {
-        const d = now - qm.lastT;
-        if (d > 3000 && qm.stalls < 2) { qm.stalls++; qm.phase = 'idle'; return true; } // long stall (GC / decode) — retry, max 2×
-        if (d > 250) { qm.phase = 'idle'; return true; } // v164: разрыв (цикл стоял) — не кадр, начать заново
-        qm.deltas.push(d);
-      }
-      qm.lastT = now;
-      qm.frames++;
-    }
-    const el = now - qm.t0;
-    if (el < 2000) return true;
-    const ds = qm.deltas.slice().sort((a, b) => a - b);
-    const med = ds.length ? ds[ds.length >> 1] : 1000;
-    const fps = qm.frames / (el / 1000); // v164: разрывы > 250 мс сбрасывают выборку выше
-    if (qm.frames < 20) { qm.phase = 'warm'; qm.t0 = now; return true; }
-    const slow = fps < qTargetFps();
-    const from = Q.tier;
-    Q.measured.push({ tier: from, fps: +fps.toFixed(1), medMs: +med.toFixed(1) });
-    if (slow) {
-      const i = Q_TIERS.indexOf(Q.tier);
-      Q.tier = Q_TIERS[Math.min(Q_TIERS.length - 1, i + 1)];
-      Q.source = 'measured';
-      console.info(`[pitlane] 3D quality: ${from} ${fps.toFixed(1)} fps (median ${med.toFixed(1)} ms) → ${Q.tier}`);
-      qPersist();
-      applyQualityTier();
-      if (Q.tier === 'low') { qm.done = true; qm.phase = 'done'; document.documentElement.classList.add('q-low'); } else { qm.phase = 'warm'; qm.t0 = now; }
-    } else {
-      console.info(`[pitlane] 3D quality: ${Q.tier} ok — ${fps.toFixed(1)} fps (median ${med.toFixed(1)} ms)`);
-      if (Q.source !== 'measured') Q.source = Q.source + '+measured';
-      qPersist();
-      qm.done = true; qm.phase = 'done';
-    }
-    return !qm.done;
-  }
-  return false;
-}
+function qMeasureReset() {}
+function qMeasureStep(now, rendered) { return false; }
 
-function podiumRender(now) {
-  const p = qPreset();
-  if (p.shadow && p.shadowStatic && now - lastShadowAt > 1000) { renderer.shadowMap.needsUpdate = true; }
-  if (renderer.shadowMap.needsUpdate) lastShadowAt = now;
-  renderer.render(scene, camera);
-  lastRenderAt = now;
-  renderedFrames++;
-}
+function podiumRender(now) {}
 
-function tick(now) {
-  loopRaf = 0;
-  if (!podiumShouldRun()) return; // paused (tab hidden / podium off-screen); kickLoop() resumes
-  loopRaf = requestAnimationFrame(tick);
-  // Keep CSS intro buttery: no WebGL render / controls while intro owns the screen
-  if (introBlocking3d) return;
-  const p = qPreset();
-  const interactive = userInteracting || now < interactUntil || now < renderUntil;
-  const cap = interactive ? p.maxFps : (p.idleFps || p.maxFps);
-  if (cap && lastProcAt && now - lastProcAt < 1000 / cap - 3) return;
-  const dtRaw = (now - (lastProcAt || now)) / 1000;
-  lastProcAt = now;
-  const dt = Math.min(0.05, (now - last) / 1000);
-  last = now;
-  let animating = false;
-  const lerp = (obj, axis, target) => {
-    if (Math.abs(obj.rotation[axis] - target) > 1e-3) animating = true;
-    lerpAngle(obj, axis, target, dt);
-  };
-  if (moving.hood) lerp(moving.hood, 'z', -moving.tHood * 1.05);
-  if (moving.trunk) lerp(moving.trunk, 'z', moving.tTrunk * 1.05);
-  (moving.doorList || []).forEach((d) => {
-    const dir = Math.sign(d.position.z) || 1;
-    lerp(d, 'y', dir * moving.tDoors * 1.1);
-  });
-  const diLocked = !!driveIn; // camera frozen while the car drives in (no controls.update → no auto-rotate / damping)
-  if (driveIn) { stepDriveIn(now); animating = true; }
-  // high: exact original per-frame update; capped tiers: time-based so rotation speed matches 60 Hz
-  const changed = diLocked ? false : p.maxFps ? controls.update(Math.min(0.1, Math.max(0.001, dtRaw || 1 / 60))) : controls.update();
-  const measuring = qMeasureStep(now, false);
-  const active = changed || animating || needFrame || now < renderUntil || measuring || userInteracting;
-  if (!active) {
-    if (settleNeeded) { reflForce = true; settleNeeded = false; podiumRender(now); }
-    else if (now - lastRenderAt > IDLE_SAFETY_MS) podiumRender(now);
-    return;
-  }
-  needFrame = false;
-  settleNeeded = true;
-  podiumRender(now);
-  if (measuring) qMeasureStep(now, true);
-}
+function tick(now) {}
 
 try {
   window.__pitlane3d = {
@@ -7772,49 +7213,11 @@ const MODEL_CATALOG = [
   { id: 'spark', name: 'Chevrolet Spark GT', file: './models/spark.glb', year: '2018' },
 ];
 
-function disposeGlbTree(root, { sharedFromCache = false } = {}) {
-  if (!root) return;
-  root.traverse((o) => {
-    if (!o.isMesh) return;
-    if (isPitlanePlate(o)) return; // shared plate geo/mat/texture live across switches
-    if (!sharedFromCache) {
-      try { o.geometry?.dispose?.(); } catch (_) {}
-    }
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    mats.forEach((m) => {
-      if (!m) return;
-      // Paint clones are instance-local; shared cache mats/geos must stay alive
-      if (sharedFromCache) {
-        if (m.userData?.__isPaintClone) {
-          try { m.dispose?.(); } catch (_) {}
-        }
-      } else {
-        try { m.dispose?.(); } catch (_) {}
-      }
-    });
-  });
-}
+function disposeGlbTree(root, { sharedFromCache = false } = {}) {}
 
-function scheduleDisposeGlb(root) {
-  if (!root) return;
-  const fromCache = !!root.userData?.__fromParsedCache;
-  requestAnimationFrame(() => {
-    try { disposeGlbTree(root, { sharedFromCache: fromCache }); } catch (_) {}
-  });
-}
+function scheduleDisposeGlb(root) {}
 
-function clearGlb() {
-  if (glbRoot) {
-    const prev = glbRoot;
-    scene.remove(prev);
-    glbRoot = null;
-    scheduleDisposeGlb(prev);
-  }
-  car.visible = false; // podium = GLB only, lowpoly off
-  moving.doorList = [];
-  moving.hood = null;
-  moving.trunk = null;
-}
+function clearGlb() {}
 
 /* v175: perf — салон скрыт, стёкла непрозрачные тонированные. Салон за тёмным стеклом не виден, а это ~20–35% треугольников
    и самые дорогие прозрачные (BLEND/transmission) проходы. Только в рантайме, .glb не трогаем. Выключить: ?lite=0 или localStorage pitlane-lite-off=1. */
@@ -7824,199 +7227,17 @@ const LITE_GLASS_RE = /glass|window|windscreen|windshield|panarama|panorama|glas
 let _liteGlassMat = null;
 /* v177: тонировка читается тёмной — база почти чёрная, отражения только бликами (слабый спекуляр/env, лак тонкий) */
 const GLASS177 = { clearcoat: 0.35, spec: 0.15, env: 0.45 }; // v179: ещё темнее — блики только по краю
-function liteGlassMat() {
-  if (_liteGlassMat) return _liteGlassMat;
-  _liteGlassMat = new THREE.MeshPhysicalMaterial({ name: 'pl75_dark_glass', color: 0x0b0c0e, metalness: 0, roughness: 0.06, clearcoat: GLASS177.clearcoat, clearcoatRoughness: 0.03, specularIntensity: GLASS177.spec, envMapIntensity: GLASS177.env, transparent: false, opacity: 1, transmission: 0, depthWrite: true, side: THREE.DoubleSide });
-  _liteGlassMat.userData.__darkGlass = true;
-  return _liteGlassMat;
-}
-function liteOff175() {
-  try { if (/[?&]lite=0\b/.test(location.search)) return true; return localStorage.getItem('pitlane-lite-off') === '1'; } catch (_) { return false; }
-}
-function liteModel175(root) {
-  const rep = { hid: 0, hidTri: 0, glass: 0, keptLens: 0, off: false };
-  if (!root) return rep;
-  if (liteOff175()) { rep.off = true; root.userData.__lite175 = rep; return rep; }
-  root.updateMatrixWorld(true);
-  const all = new THREE.Box3().setFromObject(root); const H = Math.max(1e-6, all.max.y - all.min.y);
-  const triOf = (g) => (g ? (g.index ? g.index.count : (g.attributes.position?.count || 0)) / 3 : 0);
-  const bb = new THREE.Box3(); const c = new THREE.Vector3();
-  const metas = [];
-  root.traverse((o) => {
-    if (!o.isMesh || !o.geometry) return;
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    const names = (o.name || '') + ' ' + (o.parent?.name || '') + ' ' + mats.map((m) => m?.name || '').join(' ');
-    bb.setFromObject(o); bb.getCenter(c);
-    metas.push({ o, mats, names, cy: (c.y - all.min.y) / H, box: bb.clone() });
-  });
-  // 1) стёкла → тёмное непрозрачное «тонированное» стекло; фары/фонари не трогаем
-  for (const m of metas) {
-    let changed = false;
-    const next = m.mats.map((mat) => {
-      if (!mat || !isGlassMat(mat)) return mat;
-      const nm = (mat.name || '') + ' ' + m.names;
-      const col = mat.color || { r: 0, g: 0, b: 0 };
-      const tinted = col.r > 0.12 && col.r > col.g * 1.8; // красные/оранжевые линзы
-      const isWin = LITE_GLASS_RE.test(nm) && !LITE_LIGHT_RE.test((m.o.name || '') + ' ' + (m.o.parent?.name || '')) && !/red|orange|amber/i.test(mat.name || '') && !tinted;
-      if (!isWin || m.cy < 0.5) { if (LITE_GLASS_RE.test(nm)) rep.keptLens++; return mat; }
-      changed = true; return liteGlassMat();
-    });
-    if (changed) {
-      m.o.material = Array.isArray(m.o.material) ? next : next[0];
-      m.o.castShadow = true; m.o.userData.__lite175 = 'glass'; rep.glass++;
-    }
-  }
-  // 2) салон — по именам материалов/мешей (проверка «внутри объёма стёкол» отброшена: объём стёкол захватывает капот, решётки и диски)
-  for (const m of metas) {
-    if (m.o.userData.__lite175) continue;
-    const mats = Array.isArray(m.o.material) ? m.o.material : [m.o.material];
-    const paintish = mats.some((mat) => /paint|carpaint/i.test(mat?.name || '') || mat?.userData?.__isPaintClone);
-    const matNames = mats.map((mat) => mat?.name || '').join(' '); const meshName = (m.o.name || '') + ' ' + (m.o.parent?.name || '');
-    const byName = LITE_INT_RE.test(matNames) || (LITE_INT_RE.test(meshName) && !/door|body|kit|paint|wheel|rim|tyre|tire/i.test(meshName));
-    if (byName && !paintish) { m.o.visible = false; m.o.userData.__lite175 = 'int'; rep.hid++; rep.hidTri += triOf(m.o.geometry); }
-  }
-  // 3) внутренний слой стекла за тёмным внешним не виден — убрать
-  for (const m of metas) {
-    if (m.o.userData.__lite175 !== 'glass') continue;
-    if (/windowinside|glass_iner|glass_in_|_inner/i.test((m.o.name || '') + ' ' + (m.o.parent?.name || ''))) { m.o.visible = false; m.o.userData.__lite175 = 'glass-in'; rep.hidTri += triOf(m.o.geometry); }
-  }
-  rep.hidTri = Math.round(rep.hidTri);
-  root.userData.__lite175 = rep;
-  return rep;
-}
+function liteGlassMat() {}
+function liteOff175() {}
+function liteModel175(root) {}
 
-function fitGlb(obj, opts = {}) {
-  try { finishDriveIn(); } catch (_) {}
-  const prevRoot = glbRoot;
-  glbRoot = obj;
-  if (glbRoot.userData) glbRoot.userData.__fromParsedCache = !!obj.userData?.__fromParsedCache;
-  glbRoot.updateMatrixWorld(true);
-  const maxAniso = renderer.capabilities?.getMaxAnisotropy?.() || 8;
-  glbRoot.traverse((o) => {
-    if (o.isMesh) {
-      o.castShadow = true;
-      o.receiveShadow = true;
-      if (o.userData) o.userData.door = false;
-      // keep glass / transmission / alpha — never force transparent=false
-      const mats = Array.isArray(o.material) ? o.material : [o.material];
-      let glassish = false;
-      mats.forEach((mat) => {
-        if (!mat) return;
-        mat.side = THREE.DoubleSide;
-        const transmission = Number(mat.transmission || 0);
-        const opacity = mat.opacity == null ? 1 : Number(mat.opacity);
-        const isGlass = !!(mat.transparent || mat.alphaMap || transmission > 0.01 || opacity < 0.999);
-        if (isGlass) {
-          glassish = true;
-          mat.transparent = true;
-          if (transmission > 0.01 || opacity < 0.95) mat.depthWrite = false;
-        }
-        // anisotropy + color space on common maps
-        ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap', 'alphaMap'].forEach((k) => {
-          const tex = mat[k];
-          if (!tex || !tex.isTexture) return;
-          tex.anisotropy = maxAniso;
-          if (k === 'map' || k === 'emissiveMap') tex.colorSpace = THREE.SRGBColorSpace;
-        });
-        const isPbr = !!(mat.isMeshStandardMaterial || mat.isMeshPhysicalMaterial);
-        if (isPbr) {
-          if (isGlass) {
-            // glass keeps transmission; slight env for edge highlights
-            if (mat.envMapIntensity == null || mat.envMapIntensity < 1.0) mat.envMapIntensity = 1.05;
-          } else {
-            // opaque paint / body — richer RoomEnvironment reflections
-            mat.envMapIntensity = Math.min(1.4, Math.max(1.15, Number(mat.envMapIntensity) || 1.2));
-            // near-black panels: lift min roughness so they aren't dead voids
-            if (mat.color && mat.roughness != null) {
-              const lum = 0.2126 * mat.color.r + 0.7152 * mat.color.g + 0.0722 * mat.color.b;
-              if (lum < 0.085) mat.roughness = Math.max(Number(mat.roughness), 0.2);
-            }
-          }
-        }
-        mat.needsUpdate = true;
-      });
-      if (glassish) o.castShadow = false;
-    }
-  });
-  // fit length to ~4.8m on podium
-  let box = new THREE.Box3().setFromObject(glbRoot);
-  const size = new THREE.Vector3();
-  box.getSize(size);
-  const maxDim = Math.max(size.x, size.y, size.z, 0.001);
-  const target = 4.8;
-  glbRoot.scale.setScalar(target / maxDim);
-  glbRoot.updateMatrixWorld(true);
-  box = new THREE.Box3().setFromObject(glbRoot);
-  box.getSize(size);
-  const mid = box.getCenter(new THREE.Vector3());
-  glbRoot.position.x -= mid.x;
-  glbRoot.position.z -= mid.z;
-  glbRoot.position.y -= box.min.y;
-  glbRoot.rotation.y = Math.PI * 0.2;
-  // PITLANE license plates (baked per-model placement, shared texture/material)
-  try {
-    const plateModel = obj.userData?.__plateModel;
-    if (plateModel) attachPitlanePlates(glbRoot, plateModel, renderer);
-  } catch (err) { console.warn('plates', err); }
-  scene.add(glbRoot);
-  if (prevRoot && prevRoot !== glbRoot) {
-    try { scene.remove(prevRoot); } catch (_) {}
-    scheduleDisposeGlb(prevRoot);
-  }
-  car.visible = false;
-  const h = Math.max(0.5, size.y);
-  controls.target.set(0, h * 0.36, 0); // v163: кадр шоурума — машина крупно по центру, пол с пятном света виден под ней
-  camera.position.set(4.6, 1.95, 5.4);
-  controls.minDistance = 2.2;
-  controls.maxDistance = 16;
-  controls.update();
-  onResize();
-  try { liteModel175(glbRoot); } catch (err) { console.warn('lite175', err); } // v175: салон скрыт, стёкла тёмные непрозрачные
-  try { degreenModel(glbRoot); } catch (err) { console.warn('degreen', err); } // v167: зелёная ливрея (GT3 RS) → графит
-  try { applyStoredBodyPaint(); } catch (err) { console.warn('paint after fitGlb', err); }
-  podiumInvalidate(1200, true);
-  if (qm.phase === 'sample' || qm.phase === 'warm') { qm.phase = 'warm'; qm.t0 = performance.now(); } // model swap hitch ≠ slow device
-  if (opts.driveIn) { try { startDriveIn(glbRoot, opts.modelId); } catch (err) { console.warn('drive-in', err); } }
-}
+function fitGlb(obj, opts = {}) {}
 
 /* v167: палитра «чёрный + платина» — зелёные детали заводских текстур (полосы, диски, сиденья GT3 RS) перекрашиваются в графит на лету.
    Сам .glb не трогаем: проверяем каждую карту цвета на 32×32, и только если зелёного заметно (≥ 3 пикселей из 64²) — переписываем пиксели на канвасе. */
-function degreenPixels(d, dark) {
-  for (let i = 0; i < d.length; i += 4) {
-    const r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
-    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), dd = mx - mn; if (dd < 0.04 || mx !== g) continue;
-    const h = ((b - r) / dd + 2) * 60; const sat = dd / mx;
-    const w = Math.min(1, Math.max(0, (sat - 0.12) / 0.18)) * Math.min(1, Math.max(0, (62 - Math.abs(h - 122)) / 14)); if (w <= 0) continue;
-    const L = (0.2126 * r + 0.7152 * g + 0.0722 * b) * dark;
-    d[i] = (r * (1 - w) + Math.min(1, L * 1.02) * w) * 255; d[i + 1] = (g * (1 - w) + Math.min(1, L * 1.005) * w) * 255; d[i + 2] = (b * (1 - w) + Math.min(1, L * 0.975) * w) * 255;
-  }
-}
-function texGreenShare(img) {
-  const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d', { willReadFrequently: true });
-  g.drawImage(img, 0, 0, 64, 64); const d = g.getImageData(0, 0, 64, 64).data; let n = 0;
-  for (let i = 0; i < d.length; i += 4) { const r = d[i], gg = d[i + 1], b = d[i + 2]; if (gg > r * 1.3 && gg > b * 1.12 && gg > 40) n++; }
-  return n / 4096;
-}
-function degreenModel(root) {
-  if (!root) return; const seen = new Set();
-  root.traverse((o) => {
-    if (!o.isMesh) return;
-    (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
-      if (!m) return;
-      if (m.color && !m.map) { const c = m.color; const mx = Math.max(c.r, c.g, c.b); if (mx === c.g && c.g > c.r * 1.3 && c.g > c.b * 1.12 && mx > 0.05) { const L = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b; c.setRGB(L * 0.55, L * 0.55, L * 0.54); } }
-      ['map', 'emissiveMap'].forEach((k) => {
-        const t = m[k]; if (!t?.image || seen.has(t)) return; seen.add(t);
-        try {
-          if (texGreenShare(t.image) < 0.0007) return; // ≥ 3 пикселя из 64² — у дисков зелёный лишь маленький квадрат атласа
-          const w = t.image.width, h = t.image.height; if (!w || !h) return;
-          const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d', { willReadFrequently: true });
-          g.drawImage(t.image, 0, 0); const id = g.getImageData(0, 0, w, h); degreenPixels(id.data, k === 'map' ? 0.55 : 0.4); g.putImageData(id, 0, 0);
-          t.image = c; t.needsUpdate = true;
-        } catch (_) {}
-      });
-    });
-  });
-}
+function degreenPixels(d, dark) {}
+function texGreenShare(img) {}
+function degreenModel(root) {}
 
 /* ---- Drive-in animation (opt-in per model: MODEL_CATALOG[].driveIn) — DEPLOY.md §22 ----
  * The car starts DRIVE_IN.dist m behind its resting spot and rolls onto the podium centre with ease-out,
@@ -8034,207 +7255,22 @@ const DRIVE_IN_RIGS = {
   },
 };
 let _di = null; // v119: матрицы — после загрузки three (build3dScene)
-function diInit() { if (!_di) _di = { m1: new THREE.Matrix4(), m2: new THREE.Matrix4(), m3: new THREE.Matrix4(), q: new THREE.Quaternion(), v: new THREE.Vector3() }; return _di; }
+function diInit() {}
 
-function buildDriveRig(root, modelId) {
-  const cfg = DRIVE_IN_RIGS[modelId] || {};
-  const wheelRe = cfg.wheels || /wheel/i;
-  root.updateMatrixWorld(true);
-  const rootRest = root.matrixWorld.clone();
-  const topMatches = (re) => {
-    const out = [];
-    root.traverse((o) => {
-      if (!re.test(o.name || '') || isPitlanePlate(o)) return;
-      for (let p = o.parent; p && p !== root; p = p.parent) if (re.test(p.name || '')) return;
-      out.push(o);
-    });
-    return out;
-  };
-  const wheels = [];
-  topMatches(wheelRe).forEach((node) => {
-    if (!cfg.wheels && !/front|rear|fl|fr|rl|rr/i.test(node.name)) return;
-    const box = new THREE.Box3().setFromObject(node);
-    if (box.isEmpty()) return;
-    const cw = box.getCenter(new THREE.Vector3());
-    const size = box.getSize(new THREE.Vector3());
-    wheels.push({ node, cw, r: Math.max(0.05, size.y / 2), front: /front/i.test(node.name) });
-  });
-  // forward = rear axle → front axle (world, horizontal); fallback: towards the camera
-  const up = new THREE.Vector3(0, 1, 0);
-  let fwd = new THREE.Vector3();
-  const fr = wheels.filter((w) => w.front), rr = wheels.filter((w) => !w.front);
-  if (fr.length && rr.length) {
-    const a = new THREE.Vector3(); fr.forEach((w) => a.add(w.cw)); a.multiplyScalar(1 / fr.length);
-    const b = new THREE.Vector3(); rr.forEach((w) => b.add(w.cw)); b.multiplyScalar(1 / rr.length);
-    fwd.subVectors(a, b);
-  } else {
-    fwd.set(camera.position.x, 0, camera.position.z);
-  }
-  fwd.y = 0;
-  if (fwd.lengthSq() < 1e-8) fwd.set(0, 0, 1);
-  fwd.normalize();
-  const axle = new THREE.Vector3().crossVectors(up, fwd).normalize(); // rolling forward = +angle about up×fwd
-  const pivot = new THREE.Vector3();
-  if (wheels.length) { wheels.forEach((w) => pivot.add(w.cw)); pivot.multiplyScalar(1 / wheels.length); }
-  else new THREE.Box3().setFromObject(root).getCenter(pivot);
-  const mkNode = (node, spin, cw) => {
-    const parentRest = node.parent.matrixWorld.clone();
-    const e = { node, M0: node.matrix.clone(), K: parentRest, Kinv: parentRest.clone().invert(), spin: false };
-    if (spin) {
-      const inv = node.matrixWorld.clone().invert();
-      e.spin = true;
-      e.c = node.worldToLocal(cw.clone());
-      e.a = axle.clone().transformDirection(inv);
-    }
-    return e;
-  };
-  const unsprung = wheels.map((w) => Object.assign(mkNode(w.node, true, w.cw), { r: w.r }));
-  if (cfg.unsprung) topMatches(cfg.unsprung).forEach((n) => { if (!wheels.some((w) => w.node === n)) unsprung.push(mkNode(n, false)); });
-  // light materials (emissive boost in place; exact values restored at the end)
-  const lights = [];
-  const seen = new Set();
-  root.traverse((o) => {
-    if (!o.isMesh || isPitlanePlate(o)) return;
-    (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => {
-      if (!m || seen.has(m) || !m.emissive) return;
-      const nm = m.name || '';
-      const kind = cfg.headMats && cfg.headMats.test(nm) ? 'head' : cfg.tailMats && cfg.tailMats.test(nm) ? 'tail' : '';
-      if (!kind) return;
-      seen.add(m);
-      lights.push({ m, kind, e0: m.emissive.clone(), i0: m.emissiveIntensity });
-    });
-  });
-  return { root, rootRest, pos0: root.position.clone(), rot0: root.rotation.clone(), scale0: root.scale.clone(), fwd, axle, pivot, unsprung, lights, cs0: contactShadow.position.clone() };
-}
+function buildDriveRig(root, modelId) {}
 
-function driveInApply(rig, offset, pitch, bob, travelled, lightK) {
-  const { root } = rig;
-  // body transform Tp = T(P+bob) · R(axle, pitch) · T(-P) — world space, root has no parent transform
-  const Tp = _di.m1.makeTranslation(-rig.pivot.x, -rig.pivot.y, -rig.pivot.z);
-  _di.m2.makeRotationAxis(rig.axle, pitch);
-  Tp.premultiply(_di.m2);
-  Tp.premultiply(_di.m2.makeTranslation(rig.pivot.x, rig.pivot.y + bob, rig.pivot.z));
-  const body = pitch !== 0 || bob !== 0;
-  _di.m3.copy(Tp).multiply(rig.rootRest);
-  _di.m3.premultiply(_di.m2.makeTranslation(offset.x, 0, offset.z));
-  _di.m3.decompose(root.position, root.quaternion, root.scale);
-  // unsprung parts (wheels, calipers) stay level: local = K⁻¹ · Tp⁻¹ · K · M0 · spin
-  const TpInv = body ? Tp.clone().invert() : null;
-  rig.unsprung.forEach((e) => {
-    const M = e.node.matrix;
-    if (body) M.copy(e.Kinv).multiply(TpInv).multiply(e.K).multiply(e.M0);
-    else M.copy(e.M0);
-    if (e.spin) {
-      const ang = travelled / e.r;
-      M.multiply(_di.m2.makeTranslation(e.c.x, e.c.y, e.c.z));
-      M.multiply(_di.m2.makeRotationAxis(e.a, ang));
-      M.multiply(_di.m2.makeTranslation(-e.c.x, -e.c.y, -e.c.z));
-    }
-    e.node.matrixAutoUpdate = false;
-    e.node.matrixWorldNeedsUpdate = true;
-  });
-  rig.lights.forEach((L) => {
-    if (lightK <= 0) { L.m.emissive.copy(L.e0); L.m.emissiveIntensity = L.i0; return; }
-    if (L.kind === 'head') L.m.emissive.setRGB(0.92, 0.96, 1);
-    else L.m.emissive.setRGB(1, 0.06, 0.04);
-    L.m.emissiveIntensity = (L.kind === 'head' ? 0.42 : 1.6) * lightK;
-  });
-  contactShadow.position.set(rig.cs0.x + offset.x, rig.cs0.y, rig.cs0.z + offset.z);
-}
+function driveInApply(rig, offset, pitch, bob, travelled, lightK) {}
 
 /** Restore the exact fitted pose (idle frame must equal a static load). */
-function finishDriveIn() {
-  const d = driveIn;
-  if (!d) return;
-  driveIn = null;
-  unlockControlsAfterDriveIn(d);
-  const rig = d.rig;
-  rig.root.position.copy(rig.pos0);
-  rig.root.rotation.copy(rig.rot0);
-  rig.root.scale.copy(rig.scale0);
-  rig.unsprung.forEach((e) => { e.node.matrix.copy(e.M0); e.node.matrixAutoUpdate = true; e.node.matrixWorldNeedsUpdate = true; });
-  rig.lights.forEach((L) => { L.m.emissive.copy(L.e0); L.m.emissiveIntensity = L.i0; });
-  contactShadow.position.copy(rig.cs0);
-  rig.root.updateMatrixWorld(true);
-  try { podiumInvalidate(300, true); } catch (_) {}
-}
+function finishDriveIn() {}
 
-function startDriveIn(root, modelId) {
-  finishDriveIn();
-  const m = MODEL_CATALOG.find((x) => x.id === modelId);
-  if (!m || !m.driveIn || !root) return false;
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return false;
-  let rig;
-  try { rig = buildDriveRig(root, modelId); } catch (err) { console.warn('drive-in rig', err); return false; }
-  const lite = Q.tier === 'low';
-  driveIn = { rig, t0: performance.now(), lite, frame: 0 };
-  lockControlsForDriveIn(driveIn);
-  stepDriveIn(driveIn.t0);
-  podiumInvalidate(DRIVE_IN.driveMs + DRIVE_IN.settleMs + 300, true);
-  return true;
-}
+function startDriveIn(root, modelId) {}
 
-function stepDriveIn(now) {
-  const d = driveIn;
-  if (!d) return false;
-  if (d.rig.root !== glbRoot) { finishDriveIn(); return false; }
-  const t = d.seekT != null ? d.seekT : Math.max(0, now - d.t0);
-  d.lastT = t;
-  const D = DRIVE_IN.driveMs, S = DRIVE_IN.settleMs;
-  if (t >= D + S) { finishDriveIn(); return false; }
-  const u = Math.min(1, t / D);
-  const s = 1 - Math.pow(1 - u, 3); // ease-out cubic
-  const rem = DRIVE_IN.dist * (1 - s);
-  const offset = _di.v.copy(d.rig.fwd).multiplyScalar(-rem);
-  let pitch = 0, bob = 0, lightK = 0;
-  if (!d.lite) {
-    // brake dive builds while decelerating, then a damped rebound after the stop
-    let k;
-    if (t < D) { const x = Math.min(1, Math.max(0, (u - 0.3) / 0.65)); k = x * x * (3 - 2 * x); }
-    else { const tau = (t - D) / 1000; k = Math.exp(-DRIVE_IN.damp * tau) * Math.cos(2 * Math.PI * DRIVE_IN.wobbleHz * tau); }
-    pitch = DRIVE_IN.pitch * k;
-    bob = -DRIVE_IN.bob * k;
-    const up = Math.min(1, t / 220), down = Math.min(1, Math.max(0, (D + S - t) / 420));
-    lightK = Math.min(up, down);
-  }
-  driveInApply(d.rig, offset, pitch, bob, DRIVE_IN.dist * s, lightK);
-  // static-shadow tiers (medium) re-render the shadow map every 2nd frame while the car moves
-  const p = qPreset();
-  if (p.shadow && p.shadowStatic && (d.frame++ % 2) === 0) { try { renderer.shadowMap.needsUpdate = true; } catch (_) {} }
-  if (p.reflEvery > 1) reflForce = true;
-  return true;
-}
+function stepDriveIn(now) {}
 /** Drive-in camera lock: no rotate/zoom/pinch/pan, no inertia carry-over; any in-progress gesture is dropped. */
-function cancelOrbitGesture() {
-  const c = controls;
-  try {
-    const ptrs = Array.isArray(c._pointers) ? c._pointers.slice() : [];
-    if (ptrs.length) {
-      ptrs.forEach((id) => { try { c.domElement.releasePointerCapture(id); } catch (_) {} });
-      try { c.domElement.removeEventListener('pointermove', c._onPointerMove); } catch (_) {}
-      try { c.domElement.removeEventListener('pointerup', c._onPointerUp); } catch (_) {}
-      c._pointers.length = 0;
-      if (c._pointerPositions) for (const k of Object.keys(c._pointerPositions)) delete c._pointerPositions[k];
-      c.dispatchEvent({ type: 'end' }); // keep app's userInteracting / auto-rotate timer consistent
-    }
-    c.state = -1; // _STATE.NONE
-    c._sphericalDelta?.set(0, 0, 0);
-    c._panOffset?.set(0, 0, 0);
-    c._scale = 1;
-    c._performCursorZoom = false;
-  } catch (_) {}
-}
-function lockControlsForDriveIn(d) {
-  d.ctlEnabled = controls.enabled;
-  cancelOrbitGesture();
-  controls.enabled = false;
-  userInteracting = false;
-  interactUntil = 0;
-}
-function unlockControlsAfterDriveIn(d) {
-  cancelOrbitGesture(); // nothing queued from the locked period
-  controls.enabled = d.ctlEnabled !== false;
-}
+function cancelOrbitGesture() {}
+function lockControlsForDriveIn(d) {}
+function unlockControlsAfterDriveIn(d) {}
 
 let heroTitleAnimLock = false;
 
@@ -8318,122 +7354,23 @@ function catalogModelUrl(m) {
   return new URL(m.file, base).href;
 }
 
-async function openGlbCache() {
-  try {
-    if (!('caches' in window)) return null;
-    return await caches.open(GLB_CACHE_NAME);
-  } catch (_) {
-    return null;
-  }
-}
+async function openGlbCache() {}
 
 /** Store raw GLB bytes in memory Map + Cache Storage. */
-async function putGlbBuffer(url, buf) {
-  if (!buf) return;
-  try { glbMemCache.set(url, buf); } catch (_) {}
-  const cache = await openGlbCache();
-  if (!cache) return;
-  try {
-    await cache.put(
-      url,
-      new Response(buf.slice ? buf.slice(0) : buf, {
-        headers: {
-          'Content-Type': 'model/gltf-binary',
-          'Cache-Control': 'public, max-age=31536000, immutable',
-        },
-      })
-    );
-  } catch (_) {}
-}
+async function putGlbBuffer(url, buf) {}
 
-async function matchGlbBuffer(url) {
-  try {
-    const mem = glbMemCache.get(url);
-    if (mem) return mem.slice ? mem.slice(0) : mem;
-  } catch (_) {}
-  const cache = await openGlbCache();
-  if (!cache) return null;
-  try {
-    const hit = await cache.match(url);
-    if (!hit) return null;
-    const buf = await hit.arrayBuffer();
-    try { glbMemCache.set(url, buf); } catch (_) {}
-    return buf.slice ? buf.slice(0) : buf;
-  } catch (_) {
-    return null;
-  }
-}
+async function matchGlbBuffer(url) {}
 
-function parseGlbBuffer(buf, url) {
-  const path = url.replace(/[^/]+$/, '');
-  return new Promise((resolve, reject) => {
-    try {
-      gltfLoader.parse(buf, path, resolve, reject);
-    } catch (err) {
-      reject(err);
-    }
-  });
-}
+function parseGlbBuffer(buf, url) {}
 
 /** Parse once, keep template scene in glbParsedCache.
  *  Background prefetch is serialized (concurrency via queue).
  *  Interactive loads (priority) parse immediately so swaps aren't stuck behind idle work. */
-function ensureParsedGlb(url, buf, { priority = false } = {}) {
-  if (glbParsedCache.has(url)) return Promise.resolve(glbParsedCache.get(url));
-  const run = async () => {
-    if (glbParsedCache.has(url)) return glbParsedCache.get(url);
-    const gltf = await parseGlbBuffer(buf, url);
-    try { glbParsedCache.set(url, gltf); } catch (_) {}
-    return gltf;
-  };
-  if (priority) return run();
-  const p = glbParseQueue.then(run, run);
-  glbParseQueue = p.catch(() => {});
-  return p;
-}
+function ensureParsedGlb(url, buf, { priority = false } = {}) {}
 
-function cloneParsedScene(gltf) {
-  const src = gltf?.scene;
-  if (!src) return null;
-  let scene;
-  try {
-    scene = cloneSkinned(src);
-  } catch (_) {
-    scene = src.clone(true);
-  }
-  if (scene.userData) scene.userData.__fromParsedCache = true;
-  else scene.userData = { __fromParsedCache: true };
-  return scene;
-}
+function cloneParsedScene(gltf) {}
 
-async function prefetchGlbUrl(url, { parse = true } = {}) {
-  try {
-    if (parse && glbParsedCache.has(url)) return;
-    let buf = null;
-    try {
-      const mem = glbMemCache.get(url);
-      if (mem) buf = mem;
-    } catch (_) {}
-    if (!buf) {
-      const cache = await openGlbCache();
-      if (cache) {
-        const hit = await cache.match(url);
-        if (hit) buf = await hit.arrayBuffer();
-      }
-    }
-    if (!buf) {
-      const res = await fetch(url, { credentials: 'same-origin', mode: 'cors', cache: 'no-cache' });
-      if (!res.ok) return;
-      buf = await res.arrayBuffer();
-      await putGlbBuffer(url, buf);
-    } else {
-      try { glbMemCache.set(url, buf); } catch (_) {}
-    }
-    if (parse && !glbParsedCache.has(url)) {
-      await ensureParsedGlb(url, buf.slice ? buf.slice(0) : buf);
-    }
-  } catch (_) {}
-}
+async function prefetchGlbUrl(url, { parse = true } = {}) {}
 
 /* v119: фоновой докачки каталога GLB больше нет — модель качается, только когда её открыли (см. loadPodiumModel). */
 
@@ -8504,57 +7441,26 @@ function defaultPodiumId() {
   try { if (state.carId && MODEL_CATALOG.some((m) => m.id === state.carId)) return state.carId; } catch (_) {}
   return 'g87-m2';
 }
-function loadDefaultGlb() {
-  loadPodiumModel(defaultPodiumId());
-}
+function loadDefaultGlb() {}
 
 
 /** v119: три.js → сцена → загрузка выбранной модели. Вызывается при входе в Бокс (и из мест, где подиум нужен). */
 let _podiumP = null;
-function ensurePodium3d() {
-  if (renderer) { try { bootPodium(); } catch (_) {} return Promise.resolve(true); } // bootPodium идемпотентен
-  if (!_podiumP) {
-    _podiumP = ensureThree().then(() => {
-      build3dScene();
-      onResize();
-      bootPodium();
-      podiumInvalidate(600, true);
-      return true;
-    }).catch((err) => { _podiumP = null; console.warn('3d', err); return false; });
-  }
-  return _podiumP;
-}
+function ensurePodium3d() { return Promise.resolve(false); /* v289: 3D убрано */ }
 /** v154: живое 3D везде — переносит #podiumWrap (один WebGL-контекст) в карточку Гаража или в «Моя машину» на Главной. */
 function mountPodium(where) {
-  const wrap = document.getElementById('podiumWrap');
-  const host = document.getElementById(where === 'home' ? 'hwCar3d' : 'g53Art');
-  if (!wrap || !host) return;
-  if (wrap.parentElement !== host) host.appendChild(wrap);
-  document.documentElement.dataset.p3d = where;
-  void ensurePodium3d().then((ok) => {
-    if (!ok) { host.classList.add('p3d-off'); return; }
-    host.classList.add('p3d-on');
-    if (where === 'home') {
-      let id = null; try { id = homeHeroCarId(); } catch (_) {}
-      if (id && id !== podiumModelId && MODEL_CATALOG.some((m) => m.id === id)) { try { loadPodiumModel(id); } catch (_) {} }
-    }
-    try { controls.enabled = where !== 'home'; controls.autoRotate = true; camera.zoom = where === 'home' ? 1.25 : 1.2; camera.updateProjectionMatrix(); } catch (_) {} // карточки ниже старого подиума — машина крупнее
-    onResize(); podiumInvalidate(800, true);
-  });
+  /* v289: 3D-машины убраны — в карточке Гаража реальный рендер машины (img/cars), без рендера — эмблема марки + имя */
+  if (where !== 'garage') return;
+  const host = document.getElementById('g53Art'); if (!host) return;
+  const id = podiumModelId || defaultPodiumId();
+  const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0]; if (!m) return;
+  if (host.dataset.car === m.id) return;
+  host.dataset.car = m.id; host.replaceChildren();
+  const im = document.createElement('img'); im.className = 'g53-img'; im.alt = m.name; im.decoding = 'async'; im.src = carThumbUrl(m.id);
+  im.onerror = () => { host.replaceChildren(); try { const l = brandLogoEl(m.name); l.classList.add('big'); host.appendChild(l); } catch (_) {} };
+  host.appendChild(im);
 }
-function bootPodium() {
-  if (!renderer) return; // v119: сцена ещё не построена
-  if (introBlocking3d) return; // intro still visible — no GLB decode / PMREM yet
-  onResize();
-  try { applyPassportUI(); } catch (_) {}
-  if (podiumBooted) return;
-  podiumBooted = true;
-  ensurePodiumEnv();
-  // v119: без фоновой загрузки каталога — модель качается, когда её открыли (SW кэширует после)
-  loadDefaultGlb();
-  // second resize after fonts/layout
-  requestAnimationFrame(() => { onResize(); requestAnimationFrame(onResize); });
-}
+function bootPodium() {}
 // Podium boots only after intro finish (or immediate finish when skipped).
 
 document.getElementById('btnDynoEdit')?.addEventListener('click', () => setDynoEditMode(true));
@@ -8949,37 +7855,7 @@ function scoreBodyPaintMaterial(matName, meshName, mat, size) {
   return score;
 }
 
-function collectBodyPaintMats() {
-  if (!glbRoot) return [];
-  const byMat = new Map(); // mat -> { score, size }
-  glbRoot.traverse((o) => {
-    if (!o.isMesh) return;
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    const size = meshSizeHint(o);
-    mats.forEach((mat) => {
-      if (!mat || !mat.color || !mat.color.isColor) return;
-      const matName = mat.name || '';
-      const sc = scoreBodyPaintMaterial(matName, o.name || '', mat, size);
-      const prev = byMat.get(mat);
-      if (!prev || sc > prev.score || (sc === prev.score && size > prev.size)) {
-        byMat.set(mat, { score: sc, size });
-      }
-    });
-  });
-  const scored = [...byMat.entries()]
-    .map(([mat, meta]) => ({ mat, score: meta.score, size: meta.size }))
-    .filter((x) => x.score >= 80)
-    .sort((a, b) => b.score - a.score || b.size - a.size);
-
-  if (scored.length) return scored.map((x) => x.mat);
-
-  // Fallback: largest opaque non-skip materials
-  const fallback = [...byMat.entries()]
-    .map(([mat, meta]) => ({ mat, score: meta.score, size: meta.size }))
-    .filter((x) => x.score > -1000)
-    .sort((a, b) => b.size - a.size);
-  return fallback.slice(0, Math.max(1, Math.ceil(fallback.length * 0.35))).map((x) => x.mat);
-}
+function collectBodyPaintMats() { return []; }
 
 function rememberPaintOrig(mat) {
   if (!mat.userData) mat.userData = {};
@@ -9055,25 +7931,10 @@ function currentPaintFinish() {
 
 let flakeTex = null;
 /** Флейк металлика: мелкий шум нормалей 128², тайлится. Даёт «искру» в бликах, лак сверху остаётся гладким. */
-function paintFlakeTex() {
-  if (flakeTex) return flakeTex;
-  const n = 128; const c = document.createElement('canvas'); c.width = c.height = n;
-  const g = c.getContext('2d'); const im = g.createImageData(n, n); let s = 1337;
-  const rnd = () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
-  for (let i = 0; i < n * n; i++) { const x = rnd() * 2 - 1, y = rnd() * 2 - 1; im.data[i * 4] = 128 + x * 127; im.data[i * 4 + 1] = 128 + y * 127; im.data[i * 4 + 2] = 255; im.data[i * 4 + 3] = 255; }
-  g.putImageData(im, 0, 0);
-  flakeTex = new THREE.CanvasTexture(c); flakeTex.wrapS = flakeTex.wrapT = THREE.RepeatWrapping; flakeTex.repeat.set(36, 36); flakeTex.colorSpace = THREE.NoColorSpace;
-  return flakeTex;
-}
+function paintFlakeTex() {}
 
 /** Материал краски должен быть Physical (лак, iridescence, specular). Standard → Physical без потери карт. */
-function toPhysicalPaint(mat) {
-  if (mat.isMeshPhysicalMaterial || !mat.isMeshStandardMaterial) return mat.clone();
-  const p = new THREE.MeshPhysicalMaterial();
-  THREE.MeshStandardMaterial.prototype.copy.call(p, mat);
-  p.defines = { STANDARD: '', PHYSICAL: '' };
-  return p;
-}
+function toPhysicalPaint(mat) {}
 
 /* Плавный переход: каждый материал лерпит цвет и параметры к цели (линейное пространство) */
 const paintTw = new Map(); let paintTwRaf = 0;
@@ -9089,48 +7950,11 @@ function paintSet(m, p) {
   if (m.envMapIntensity != null) m.envMapIntensity = p.env;
   if (m.normalMap === flakeTex && m.normalScale) m.normalScale.set(p.fl, p.fl);
 }
-function paintTwStep(now) {
-  paintTwRaf = 0; let live = false;
-  for (const [m, tw] of paintTw) {
-    const k = Math.min(1, (now - tw.t0) / tw.ms); const e = k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
-    const p = {}; for (const key in tw.to) p[key] = tw.from[key] + (tw.to[key] - tw.from[key]) * e;
-    paintSet(m, p);
-    if (k >= 1) { paintTw.delete(m); if (tw.done) tw.done(m); } else live = true;
-  }
-  try { podiumInvalidate(60); } catch (_) {}
-  if (live) paintTwRaf = requestAnimationFrame(paintTwStep);
-}
-function paintTweenTo(m, to, done) {
-  const ms = (() => { try { return motionReduced() ? 0 : PAINT_TW_MS; } catch (_) { return PAINT_TW_MS; } })();
-  if (!ms) { paintSet(m, to); if (done) done(m); return; }
-  paintTw.set(m, { from: paintParams(m), to, t0: performance.now(), ms, done });
-  if (!paintTwRaf) paintTwRaf = requestAnimationFrame(paintTwStep);
-}
+function paintTwStep(now) {}
+function paintTweenTo(m, to, done) {}
 
 /** Краска кузова: чистая замена цвета (без умножения на заводской атлас) + материал категории. */
-function applySolidBodyColor(mat, color, finish, hex) {
-  rememberPaintOrig(mat);
-  mat.map = null; // MUST strip baseColor/albedo map (factory hue lives there on Forza atlases)
-  if ('vertexColors' in mat) mat.vertexColors = false;
-  const fin = PAINT_FINISH_PRESETS[finish] || PAINT_FINISH_PRESETS.gloss;
-  const o = mat.userData.__paintOrig || {};
-  const flake = fin.flake ? paintFlakeTex() : null;
-  if (flake) { if (mat.normalMap !== flake) { mat.normalMap = flake; mat.normalScale?.set(0, 0); } }
-  else if (mat.normalMap === flakeTex) { mat.normalMap = o.normalMap || null; if (o.normalScale && mat.normalScale) mat.normalScale.copy(o.normalScale); }
-  if (mat.isMeshPhysicalMaterial) {
-    const film = paintLookup(hex, finish)?.film || [220, 620];
-    mat.iridescenceIOR = 1.35; mat.iridescenceThicknessRange = film;
-    // кэнди: блик лака тонирован цветом — «глубина» как у тонированного прозрачного слоя
-    if (mat.specularColor) { if (finish === 'candy') mat.specularColor.copy(color).lerp(new THREE.Color(1, 1, 1), 0.35); else mat.specularColor.setRGB(1, 1, 1); }
-    mat.specularIntensity = fin.spec ?? 1; // мат/сатин — без «пластикового» блика
-  }
-  // v165: сцена шоурума светлая (ACES 1.2 + 5 источников) — без поправки любая краска «выцветает» к пастели. Альбедо × gain (линейно), хром — как есть.
-  const g = finish === 'chrome' ? 1 : (fin.gain ?? PAINT_GAIN.v);
-  const to = { r: color.r * g, g: color.g * g, b: color.b * g, rough: fin.roughness, metal: fin.metalness, cc: fin.clearcoat, ccr: fin.clearcoatRoughness, ir: fin.irid || 0, env: fin.env, fl: fin.flake || 0 };
-  if (!mat.isMeshPhysicalMaterial) { delete to.cc; delete to.ccr; delete to.ir; }
-  mat.needsUpdate = true;
-  paintTweenTo(mat, to);
-}
+function applySolidBodyColor(mat, color, finish, hex) {}
 
 /* ===== Диски и суппорты ===== */
 const PARTS_LS_KEY = 'pitlane-parts-v1';
@@ -9144,17 +7968,7 @@ function setPartColor(part, hex, id) {
   if (hex) v[part] = hex; else delete v[part]; s[k] = v;
   try { localStorage.setItem(PARTS_LS_KEY, JSON.stringify(s)); } catch (_) {}
 }
-function partMeshes(part) {
-  const out = []; if (!glbRoot) return out;
-  glbRoot.traverse((o) => {
-    if (!o.isMesh || isPitlanePlate(o)) return;
-    let n = o.name || ''; let p = o.parent; for (let i = 0; i < 4 && p; i++, p = p.parent) n += ' ' + (p.name || '');
-    const mats = (Array.isArray(o.material) ? o.material : [o.material]).map((m) => m?.name || '').join(' ');
-    const s = n + ' ' + mats;
-    if (PART_RE[part].test(s) && !PART_NOT[part].test(s) && !(Array.isArray(o.material) ? o.material : [o.material]).some((m) => m?.userData?.__isPaintClone || isGlassMat(m))) out.push(o);
-  });
-  return out;
-}
+function partMeshes(part) { return []; }
 /** Тонировка = цвет × родная текстура. Если текстура почти чёрная (чёрные диски), тон не виден — такую деталь не предлагаем (без «мёртвых» кнопок). */
 function texLuma(tex) {
   if (!tex?.image) return 1; if (tex.userData.__luma != null) return tex.userData.__luma;
@@ -9168,118 +7982,13 @@ function partTintable(part) {
   ms.forEach((o) => (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (!m?.color) return; n++; const o0 = m.userData.__partOrig; const base = o0 ? Math.max(o0.r, o0.g, o0.b) : Math.max(m.color.r, m.color.g, m.color.b); if (!m.map || texLuma(m.map) * Math.max(base, 0.5) > 0.16) ok++; }));
   return n > 0 && ok / n >= 0.5;
 }
-function applyPartColor(part, hex) {
-  if (!glbRoot || typeof THREE === 'undefined') return;
-  const want = hex === 'body' ? (paint.body || null) : hex;
-  let col = null; try { if (want) col = new THREE.Color(want); } catch (_) {}
-  partMeshes(part).forEach((o) => {
-    const isArr = Array.isArray(o.material); const mats = isArr ? o.material : [o.material];
-    const next = mats.map((m) => {
-      if (!m || !m.color) return m;
-      let d = m;
-      if (!m.userData.__partClone) { d = m.clone(); d.userData.__partClone = true; d.userData.__partOrig = { r: m.color.r, g: m.color.g, b: m.color.b, rough: m.roughness, metal: m.metalness }; }
-      const o0 = d.userData.__partOrig;
-      // тонируем «серебро» родной текстуры: цвет × карта; без карты — прямой цвет
-      const base = col ? { r: col.r, g: col.g, b: col.b } : { r: o0.r, g: o0.g, b: o0.b };
-      const metalPart = part === 'wheels';
-      const to = { r: base.r, g: base.g, b: base.b, rough: col ? (metalPart ? 0.32 : 0.38) : (o0.rough ?? 0.5), metal: col ? (metalPart ? 0.75 : 0.25) : (o0.metal ?? 0), cc: d.clearcoat || 0, ccr: d.clearcoatRoughness || 0, ir: 0, env: d.envMapIntensity ?? 1, fl: 0 };
-      if (!d.isMeshPhysicalMaterial) { delete to.cc; delete to.ccr; delete to.ir; }
-      paintTweenTo(d, to);
-      return d;
-    });
-    if (next.some((m, i) => m !== mats[i])) { if (o.userData.__partBackup === undefined) o.userData.__partBackup = o.material; o.material = isArr ? next : next[0]; }
-  });
-  try { podiumInvalidate(700, true); } catch (_) {}
-}
-function applyStoredParts() {
-  const p = partsFor();
-  ['wheels', 'calipers'].forEach((k) => { if (p[k] || glbRoot?.userData?.__partsTouched) applyPartColor(k, p[k] || null); });
-  if (glbRoot) glbRoot.userData.__partsTouched = !!(p.wheels || p.calipers);
-}
+function applyPartColor(part, hex) {}
+function applyStoredParts() {}
 
 /** Keep kidney/grille/black trim from taking body paint (M3 chrome mesh, etc.). */
-function forceBlackTrim() {
-  if (!glbRoot) return;
-  const ov = PAINT_MAT_OVERRIDES[podiumModelId || state.carId] || null;
-  if (!ov?.forceBlackMesh?.length && !ov?.forceBlackMat?.length) return;
-  glbRoot.traverse((o) => {
-    if (!o.isMesh || isPitlanePlate(o)) return;
-    const meshName = o.name || '';
-    const forceMesh = !!(ov.forceBlackMesh && ov.forceBlackMesh.some((re) => re.test(meshName)));
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    mats.forEach((mat) => {
-      if (!mat || !mat.color || !mat.color.isColor) return;
-      const forceMat = !!(ov.forceBlackMat && ov.forceBlackMat.some((re) => re.test(mat.name || '')));
-      if (!forceMesh && !forceMat) return;
-      mat.color.setRGB(0.02, 0.02, 0.02);
-      if ('map' in mat) mat.map = null;
-      if (mat.metalness != null) mat.metalness = Math.min(Number(mat.metalness) || 0.2, 0.35);
-      if (mat.roughness != null) mat.roughness = Math.max(Number(mat.roughness) || 0.4, 0.45);
-      if (mat.isMeshPhysicalMaterial) {
-        mat.clearcoat = 0;
-      }
-      mat.needsUpdate = true;
-    });
-  });
-}
+function forceBlackTrim() {}
 
-function applyGlbBodyPaint(hex) {
-  if (!glbRoot || typeof THREE === 'undefined') return;
-  try { podiumInvalidate(600, true); } catch (_) {}
-  const finish = currentPaintFinish();
-  if (!hex) {
-    glbRoot.traverse((o) => {
-      if (!o.isMesh) return;
-      if (o.userData.__paintMatBackup !== undefined) {
-        o.material = o.userData.__paintMatBackup;
-        delete o.userData.__paintMatBackup;
-      }
-      const list = Array.isArray(o.material) ? o.material : [o.material];
-      list.forEach((mat) => restorePaintOrig(mat));
-    });
-    try { forceBlackTrim(); } catch (_) {}
-    return;
-  }
-  let color;
-  try { color = new THREE.Color(hex); } catch (_) { return; }
-  // Mesh walk + clone: shared Coloured on seatbelts must not receive body paint
-  glbRoot.traverse((o) => {
-    if (!o.isMesh) return;
-    if (isPaintMeshExcluded(o.name || '')) return;
-    const size = meshSizeHint(o);
-    const isArr = Array.isArray(o.material);
-    const mats = isArr ? o.material : [o.material];
-    let mutated = false;
-    const next = mats.map((mat) => {
-      if (!mat || !mat.color || !mat.color.isColor) return mat;
-      const sc = scoreBodyPaintMaterial(mat.name || '', o.name || '', mat, size);
-      if (sc < 80) return mat;
-      let dest = mat;
-      if (!mat.userData.__isPaintClone) {
-        dest = toPhysicalPaint(mat); // v165: лак/перламутр/кэнди — нужен Physical
-        dest.name = mat.name || '';
-        dest.userData.__isPaintClone = true;
-        delete dest.userData.__paintOrig;
-        rememberPaintOrig(dest);
-        mutated = true;
-      }
-      applySolidBodyColor(dest, color, finish, hex); // v165: плавный переход — цвет не копируем мгновенно
-      return dest;
-    });
-    if (mutated) {
-      if (o.userData.__paintMatBackup === undefined) o.userData.__paintMatBackup = o.material;
-      o.material = isArr ? next : next[0];
-    } else {
-      // finish change on already-cloned paint mats
-      next.forEach((mat) => {
-        if (mat?.userData?.__isPaintClone) {
-          applySolidBodyColor(mat, color, finish, hex);
-        }
-      });
-    }
-  });
-  try { forceBlackTrim(); } catch (_) {}
-}
+function applyGlbBodyPaint(hex) {}
 
 /* v165: UI покраски — Кузов / Диски / Суппорты, категории как вкладки, квадратные образцы, имя краски под сеткой */
 const pl65 = { target: 'body', cat: null, avail: null, availRoot: null };
@@ -9349,31 +8058,9 @@ function syncPaintSwatches() { try { renderPaintUI(); } catch (_) {} }
 function syncPaintFinishUI() { try { renderPaintUI(); } catch (_) {} }
 
 /** v169: мягкий отсвет пола шоурума берёт оттенок краски кузова (приглушённо, без неона) */
-function showroomTint(hex) {
-  try {
-    if (!showroomGlow || !showroomGlow.material) return;
-    const base = new THREE.Color(0xdfe6ee);
-    if (hex) {
-      const c = new THREE.Color(hex); const hsl = {}; c.getHSL(hsl);
-      c.setHSL(hsl.h, Math.min(hsl.s, 0.45), 0.72);
-      base.lerp(c, 0.38);
-    }
-    showroomGlow.material.color.copy(base);
-    if (typeof podiumInvalidate === 'function') podiumInvalidate();
-  } catch (_) {}
-}
+function showroomTint(hex) {}
 
-function applyStoredBodyPaint() {
-  const entry = getStoredPaintEntry(podiumModelId || state.carId);
-  paint.body = entry.hex;
-  paint.finish = entry.finish || 'gloss';
-  pl65.cat = entry.hex ? paint.finish : (pl65.cat || 'gloss');
-  applyGlbBodyPaint(entry.hex);
-  showroomTint(entry.hex);
-  try { applyStoredParts(); } catch (_) {}
-  syncPaintSwatches();
-  try { applyPaint(); } catch (_) {}
-}
+function applyStoredBodyPaint() {}
 
 function pickBodyPaint(hex, fin) {
   const clean = hex ? (hex.startsWith('#') ? hex : '#' + hex) : null;
@@ -13544,7 +12231,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v288';
+const APP_VERSION = 'v289';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -13833,6 +12520,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
         let best = null; try { best = homeBest0100(m.id, null); } catch (_) {}
         const cell = (k, v, u) => { const c = padEl('span', 'g63-s' + (v ? '' : ' is-empty')); c.setAttribute('role', 'listitem'); const b = padEl('b', 'g63-v', v || '—'); if (v && u) b.appendChild(padEl('small', '', u)); c.append(b, padEl('span', 'g63-k', k)); return c; };
         specs.replaceChildren(cell('Мощность', meta.hp ? String(meta.hp) : '', 'л.с.'), cell('0–100', meta.v0100 ? Number(meta.v0100).toFixed(1) : '', 'с'), cell('Мой лучший', best ? best.t.toFixed(2) : '', 'с'));
+        { let n = document.getElementById('g63SpecsNote'); if (!n) { n = padEl('p', 'g63-note'); n.id = 'g63SpecsNote'; specs.after(n); } n.textContent = (meta.hp || meta.v0100) ? 'Мощность и 0–100 — данные производителя' : ''; n.hidden = !(meta.hp || meta.v0100); }
       }
       const dots = document.getElementById('g63Dots');
       if (dots) {
@@ -14457,7 +13145,7 @@ function onViewEnter(id) {
       else if (id === 'tops') void renderTopsBoard();
       else if (id === 'garage') {
         // v119: three.js и сцена — при первом заходе в Бокс; модель — только выбранная
-        const wasReady = !!(renderer && podiumBooted);
+        mountPodium('garage'); const wasReady = false;
         void ensurePodium3d().then(() => {
           try { onResize(); } catch (_) {}
           try { podiumInvalidate(400, true); } catch (_) {}
@@ -14468,7 +13156,9 @@ function onViewEnter(id) {
             if (wasReady && m?.driveIn && glbRoot) { try { startDriveIn(glbRoot, podiumModelId); } catch (_) {} }
           }
         });
+      } else if (id === 'account') { void pfCta289();
       } else if (id === 'history') {
+        if (!_jnKeep) { try { localStorage.setItem('pitlane-journal-f', 'all'); } catch (_) {} } _jnKeep = false;
         void renderJournal61(); try { void renderTrackHistory(); } catch (_) {} // v161
       } else if (id === 'lap') {
         void renderTrackHistory(); // v129
@@ -17431,7 +16121,7 @@ async function renderTopsBoard() {
       li.appendChild(sw);
     } else {
       const filtered = _topsPrep !== 'all' || _topsPeriod !== 'all' || document.getElementById('topMyCarOnly')?.checked || topsCityOn();
-      li.appendChild(padEl('b', '', 'Здесь пока никого'));
+      li.appendChild(padEl('b', '', !filtered && sel.kind !== 'lap' ? 'Сделай первый замер — попадёшь в топ' : 'Здесь пока никого'));
       li.appendChild(padEl('span', '', filtered ? 'В этом срезе нет результатов. Расширь фильтры или стань первым.' : (sel.kind === 'lap' ? 'На этой трассе ещё никто не проехал круг.' : 'В этой дисциплине ещё нет зачтённых заездов.')));
       const acts = padEl('div', 't72-act');
       if (_topsPeriod !== 'all') {
@@ -17444,7 +16134,7 @@ async function renderTopsBoard() {
         w.addEventListener('click', () => { t72ResetQuick(); });
         acts.appendChild(w);
       }
-      const go = padEl('button', 'tb-empty-go t72-btn pri', 'Стать первым'); go.type = 'button';
+      const go = padEl('button', 'tb-empty-go t72-btn pri', sel.kind === 'lap' ? 'Стать первым' : 'К замеру'); go.type = 'button';
       go.addEventListener('click', () => goToView(sel.kind === 'lap' ? 'lap' : 'run'));
       acts.appendChild(go);
       li.appendChild(acts);
@@ -17844,7 +16534,9 @@ function jnDeps61() {
     openDuel: (id) => openDuelSheet({ duelId: id }),
   };
 }
+let _jnKeep = false; // v289: вкладка Журнал открывается на «Все»; явный переход (journalGo61) фильтр сохраняет
 function journalGo61(filter) {
+  if (filter) _jnKeep = true;
   if (filter && _jnMod) _jnMod.journalFilter(filter);
   else if (filter) { try { localStorage.setItem('pitlane-journal-f', filter); } catch (_) {} }
   goToView('history'); window.scrollTo(0, 0);
@@ -19027,3 +17719,10 @@ async function rcShare() {
   } catch (err) { if (err?.name !== 'AbortError') console.warn('rc share', err); }
 }
 window.__rc287 = { open: rcOpen, close: rcClose, canvas: rcCanvas, cur: () => _rc }; // QA/скриншоты
+
+/* v289: один понятный призыв на пустом профиле — «Сделай первый замер» */
+async function pfCta289() {
+  const box = document.getElementById('pfCta'); if (!box) return;
+  try { _jnMod = _jnMod || await import('./journal.js'); const es = _jnMod.buildEntries(jnDeps61(), []); box.hidden = es.some((e) => e.kind === 'run' || e.kind === 'lap'); } catch (_) { box.hidden = true; }
+}
+document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-cta-go]'); if (b) { try { hap(8); } catch (_) {} goToView(b.dataset.ctaGo); } });

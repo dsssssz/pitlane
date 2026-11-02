@@ -33,13 +33,13 @@
     <meta name="twitter:title" content="PITLANE — Замеряй. Сравнивай. Побеждай." />
     <meta name="twitter:description" content="Разгоны 0–100 и круги по GPS с проверкой на сервере. Честные топы — прямо в Telegram." />
     <meta name="twitter:image" content="https://dsssssz.github.io/pitlane/img/og-1200x630.jpg" />
-    <meta name="pitlane-build" content="v288" />
+    <meta name="pitlane-build" content="v289" />
     <script src="./upd.js"></script>
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-BA5L4DZJ.js" />
-    <link rel="stylesheet" href="./styles-213FF110.css" />
+    <link rel="modulepreload" href="./b/app-5SJFWPH4.js" />
+    <link rel="stylesheet" href="./styles-CF03CA94.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -168,7 +168,7 @@
           <section class="g53" id="g53" aria-label="Гараж">
             <!-- v163: шоурум — тёмный пол с отражением и пятном света, машина крупно; имя, строка характеристик, свайп/точки, одна строка кнопок -->
             <article class="g53-hero" id="g53Hero">
-              <div class="g53-ph" id="g53Art"><span class="p3d-wait" aria-hidden="true">3D загружается</span></div>
+              <div class="g53-ph g53-2d" id="g53Art"></div>
               <div class="g63-dots" id="g63Dots" role="tablist" aria-label="Машины"></div>
               <div class="g63-info" id="g63Info" aria-roledescription="листается свайпом">
                 <h2 class="g53-name" id="g53Name">—</h2>
@@ -177,9 +177,7 @@
               </div>
               <div class="g53-acts">
                 <button type="button" class="g53-mine" id="g53Mine">Это моя машина</button>
-                <button type="button" class="g53-3d" id="g53Studio" aria-expanded="false">Цвет и детали</button>
               </div>
-              <button type="button" class="ds-row g64-gfx" data-gfx-open aria-haspopup="dialog" aria-controls="gfx64"><span class="ds-row-k">Графика</span><span class="ds-row-v" data-gfx-v>Баланс</span></button>
             </article>
             <p class="g53-cap">Все машины</p>
             <div class="g53-list" id="g53List" role="list" aria-label="Другие машины"></div>
@@ -188,9 +186,6 @@
               <button type="button" class="g53-add" id="g53Add">Добавить</button>
             </div>
           </section>
-          <div class="podium-wrap" id="podiumWrap">
-            <canvas id="view3d" aria-label="3D подиум"></canvas>
-          </div>
           <div id="emptyGarage" class="empty-garage hidden" aria-hidden="true">
             <div class="empty-sil-stage" aria-hidden="true">
               <picture><source srcset="./img/sil/empty-car.webp" type="image/webp"><img id="emptySil" class="empty-sil empty-sil-dotted" src="./img/sil/empty-car.webp" alt="" width="932" height="475" decoding="async" /></picture>
@@ -641,6 +636,7 @@
             <p class="pf6-sub" id="pf6Sub"></p>
             <button type="button" class="pf6-pass" id="pf6Pass"></button>
           </div>
+          <div class="cta289" id="pfCta" hidden><b>Сделай первый замер — попадёшь в топ</b><button type="button" class="cta289-go" data-cta-go="run">К замеру</button></div>
           <div class="pf6-legacy" hidden>
             <img id="accAvatar" alt="" />
             <input id="accAvatarIn" type="file" accept="image/*" hidden />
@@ -1482,6 +1478,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-BA5L4DZJ.js"></script>
+    <script type="module" src="./b/app-5SJFWPH4.js"></script>
   </body>
 </html>

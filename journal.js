@@ -98,7 +98,7 @@ export function renderJournal(host, D, entries, filter) {
   if (!list.length) {
     const e = el('div', 'jn-empty');
     const msg = filter === 'lap' ? ['Сессий пока нет', '', 'Выбрать трассу', 'lap']
-        : ['Замеров пока нет', '', 'Сделать замер', 'run'];
+        : ['Сделай первый замер — попадёшь в топ', '', 'К замеру', 'run'];
     e.append(el('b', '', msg[0])); if (msg[1]) e.appendChild(el('span', '', msg[1]));
     const go = el('button', 'jn-go', msg[2]); go.type = 'button'; go.dataset.jgo = msg[3]; e.appendChild(go);
     host.appendChild(e); return;
