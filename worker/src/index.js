@@ -3352,6 +3352,23 @@ export default {
         return json({ ok: true, dry, report }, 200, headers);
       }
 
+      // —— v294 Admin: полная очистка чата (лента + комментарии); 404 без ADMIN_TOKEN ——
+      if (req.method === 'POST' && path === '/admin/pulse-clear') {
+        const adm = String(env.ADMIN_TOKEN || '');
+        const got = String(req.headers.get('X-Admin-Token') || '');
+        if (adm.length < 24) return json({ error: 'not found' }, 404, headers);
+        if (await rateHit(env.PITLANE, 'rl:adm:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
+        if (!timingSafeEqualStr(adm, got)) return json({ error: 'not found' }, 404, headers);
+        const { rows: before } = await pulseOp(env, { t: 'replace', rows: [] });
+        let cdel = 0, cursor;
+        do {
+          const l = await env.PITLANE.list({ prefix: 'pcom:', cursor });
+          for (const k of l.keys) { await env.PITLANE.delete(k.name); cdel++; }
+          cursor = l.list_complete ? null : l.cursor;
+        } while (cursor);
+        return json({ ok: true, left: before.length, commentsDeleted: cdel }, 200, headers);
+      }
+
       // —— Garage sync (auth required) ——
       if (path === '/garage') {
         const denied = requireAuth(pilot, headers);

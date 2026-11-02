@@ -8330,3 +8330,6 @@ html:not(#_):not(#_) .ph293-b { flex: 0 0 auto; padding: 6px 12px !important; bo
 html:not(#_):not(#_) .ph293-b.on { background: #1b1c1f !important; color: #f2f2f2 !important; border-color: #3a3b3f !important; }
 .cp-card .cp293 { position: static; display: flex; align-items: center; justify-content: center; width: 100%; height: 72px; }
 .logo293 { display: inline-flex; align-items: center; justify-content: center; opacity: .8; }
+/* v294: рамка Pass в профиле пилота — сдвиг вверх у обёртки, а не у аватара внутри (рамка не «съезжает» вниз) */
+.pilot-banner + .pilot-head > .aw-fr { margin-top: -54px; flex: 0 0 auto; }
+.pilot-banner + .pilot-head > .aw-fr .pad-ava { margin-top: 0; }
