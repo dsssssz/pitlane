@@ -7456,10 +7456,10 @@ function mountPodium(where) {
   const m = MODEL_CATALOG.find((x) => x.id === id) || MODEL_CATALOG[0]; if (!m) return;
   if (host.dataset.car === m.id) return;
   host.dataset.car = m.id; host.replaceChildren();
-  const im = document.createElement('img'); im.className = 'g53-img'; im.alt = m.name; im.decoding = 'async'; im.src = carThumbUrl(m.id);
-  im.onerror = () => { host.replaceChildren(); try { const l = brandLogoEl(m.name); l.classList.add('big'); host.appendChild(l); } catch (_) {} };
-  host.appendChild(im);
+  host.appendChild(carPh289(m.name));
 }
+/* v289: вместо 3D/рендеров — чистая заглушка: эмблема марки + имя (свои фото Мага добавит позже) */
+function carPh289(name) { const w = document.createElement('div'); w.className = 'cph289'; try { if (brandLogoKey(name)) { const l = brandLogoEl(name); l.classList.add('big'); w.appendChild(l); } } catch (_) {} const n = document.createElement('span'); n.className = 'cph289-n'; n.textContent = name || ''; w.appendChild(n); return w; }
 function bootPodium() {}
 // Podium boots only after intro finish (or immediate finish when skipped).
 
@@ -12231,7 +12231,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v289';
+const APP_VERSION = 'v290';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12510,7 +12510,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
       const isMine = !!(mine && (mine.carId === m.id || mine.model === m.name));
       const mb = document.getElementById('g53Mine'); mb.textContent = isMine ? 'Моя машина' : 'Это моя машина'; mb.classList.toggle('on', isMine);
       // v163: лента — все машины (текущая отмечена), студийные рендеры вместо снимков старого подиума
-      document.getElementById('g53List').innerHTML = list.map((x) => `<button type="button" class="g53-car${x.id === m.id ? ' on' : ''}" role="listitem" data-g53="${esc(x.id)}"${x.id === m.id ? ' aria-current="true"' : ''}><span class="g53-th"><img src="${STUDIO_IDS.has(x.id) ? `./img/cars/studio/${x.id}-780.webp` : carThumbUrl(x.id)}" alt="" width="780" height="488" loading="lazy" decoding="async" /></span><span class="g53-cn">${esc(x.name)}</span></button>`).join('');
+      document.getElementById('g53List').innerHTML = list.map((x) => `<button type="button" class="g53-car${x.id === m.id ? ' on' : ''}" role="listitem" data-g53="${esc(x.id)}"${x.id === m.id ? ' aria-current="true"' : ''}><span class="g53-th cph289-th">${brandLogoKey(x.name) ? `<i class="cph289-l" style="--logo:url('./img/brands/${brandLogoKey(x.name)}.svg')"></i>` : ''}</span><span class="g53-cn">${esc(x.name)}</span></button>`).join('');
       try { const c = document.querySelector('#g53List .g53-car.on'); const l = c?.parentElement; if (c && l) { const cr = c.getBoundingClientRect(), lr = l.getBoundingClientRect(); l.scrollLeft += cr.left - lr.left - (lr.width - cr.width) / 2; } } catch (_) {} // v251: только по горизонтали — scrollIntoView прокручивал страницу и прятал 3D
     };
     /* v163: имя крупно + тонкая строка характеристик (мощность, 0–100 завода, мой лучший) и точки-индикатор */
@@ -14669,17 +14669,15 @@ function renderHwCar(remote) {
   const ph = myCarPhotoUrl(remote); // v132: своё фото вместо рендера (рендер — запасной)
   document.getElementById('hwCar')?.classList.toggle('has-photo', !!ph);
   if (img && ph && img.dataset.car !== 'photo:' + ph) {
-    img.dataset.car = 'photo:' + ph;
+    img.dataset.car = 'photo:' + ph; img.hidden = false; img.parentElement?.closest('*')?.querySelectorAll('.cph289').forEach((x) => x.remove());
     av?.removeAttribute('srcset'); img.removeAttribute('srcset');
     img.onerror = () => { img.onerror = null; img.dataset.car = ''; _myCarPhoto = null; document.getElementById('hwCar')?.classList.remove('has-photo'); renderHwCar(null); };
     img.src = ph;
   } else if (img && !ph && img.dataset.car !== m.id) {
     img.dataset.car = m.id;
-    if (STUDIO_IDS.has(m.id)) { // v155: студийный рендер (живое 3D — только в Гараже)
-      av?.setAttribute('srcset', studioSrcset(m.id, 'avif'));
-      img.setAttribute('srcset', studioSrcset(m.id, 'webp'));
-      img.src = `./img/cars/studio/${m.id}-1170.webp`;
-    } else { av?.removeAttribute('srcset'); img.removeAttribute('srcset'); img.src = carThumbUrl(m.id); }
+    av?.removeAttribute('srcset'); img.removeAttribute('srcset'); img.removeAttribute('src'); // v289: без рендеров — эмблема + имя
+    img.hidden = true; const host = img.closest('picture')?.parentElement || img.parentElement;
+    host?.querySelector(':scope > .cph289')?.remove(); host?.appendChild(carPh289(m.name));
   }
   const row = document.getElementById('hwCarRow'); if (row) fillCarNameRow(row, m.name, { tag: 'b', id: 'hwCarName' }); // v135: + флаг страны марки
   let cls = ''; try { cls = (CARS.find((c) => c.id === m.id)?.cls) || ''; } catch (_) {}
