@@ -140,7 +140,7 @@ function tyreShort(t) {
 export function openMyCarSheet(opts = {}) {
   const body = document.getElementById('myCarBody');
   if (!body) return;
-  { const sh = document.getElementById('myCarSheet'); const h = sh?.querySelector('.race-sheet-title'); const p = sh?.querySelector('.race-sheet-sub'); if (h) h.textContent = 'Это моя машина'; if (p) { p.textContent = 'На эту машину и резину запишется каждый круг'; p.hidden = false; } }
+  { const sh = document.getElementById('myCarSheet'); const h = sh?.querySelector('.race-sheet-title'); const p = sh?.querySelector('.race-sheet-sub'); if (h) h.textContent = 'Это моя машина'; if (p) { p.textContent = 'Каждый круг запишется на эту машину и шины'; p.hidden = false; } }
   body.replaceChildren();
   if (opts.reason) body.appendChild(el('p', 'mycar-warn', opts.reason));
   const cars = [];
@@ -160,123 +160,88 @@ export function openMyCarSheet(opts = {}) {
   if (!pick.model && cars[0]) { pick.model = cars[0].name; pick.carId = cars[0].id || ''; }
   if (st.car && st.car.model === pick.model) pick.tyre = st.car.tyre;
   if (opts.tyre && !pick.tyre) pick.tyre = opts.tyre;
-  const pass = passportOf(st.car && st.car.model === pick.model ? st.car : null);
+  const pass = opts.keepPass ? { ...opts.keepPass } : passportOf(st.car && st.car.model === pick.model ? st.car : null);
   if (dbc && pass.hp == null && opts.dbCar.hp) pass.hp = opts.dbCar.hp;
   const xtra = { ...carX(pick.model) };
 
-  // —— step 1: машина ——
-  const s1 = el('section', 'mycar-step');
-  s1.appendChild(el('span', 'mycar-step-k', '1 · Машина'));
-  const list = el('div', 'mycar-cars'); list.id = 'myCarModels'; list.setAttribute('role', 'radiogroup'); list.setAttribute('aria-label', 'Машина');
+  // —— v283: вариант A — строки «Машина» и «Шины» открывают выбор, класс — сегменты, характеристики — список с единицами ——
+  const CAR_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 15.5v-3.2l2-4.8h13l2 4.8v3.2z"/><circle cx="7.5" cy="16" r="1.8"/><circle cx="16.5" cy="16" r="1.8"/></svg>';
+  const TYRE_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.6"/></svg>';
+  const sec = (k) => el('p', 'mc3-k', k);
+  const rowBtn = (id, svg, onTap) => {
+    const b = btn('mc3-row', null, () => { D.hap?.(6); onTap(); }); b.id = id;
+    const ic = el('span', 'mc3-ic'); ic.innerHTML = svg;
+    const tx = el('span', 'mc3-tx'); const t = el('b', ''); const s = el('span', '');
+    tx.append(t, s); b.append(ic, tx, el('span', 'mc3-chev', '›'));
+    return { b, t, s };
+  };
+  // машина
+  const carRow = rowBtn('myCarModels', CAR_SVG, () => openCarPick());
+  const carBox = el('div', 'mc3-glass'); carBox.appendChild(carRow.b);
+  // каталог «Выбрать из каталога» (как раньше) — для машин не из Бокса и ручного ввода
   const sel = el('select', 'mycar-select hidden'); sel.id = 'myCarModel'; sel.setAttribute('aria-label', 'Другая машина');
   const ph = el('option', '', 'Выбрать из каталога…'); ph.value = ''; sel.appendChild(ph);
   [...cars, ...stock].forEach((c) => { const o = el('option', '', c.name); o.value = c.name; o.dataset.carId = c.id || ''; sel.appendChild(o); });
   const otherO = el('option', '', 'Нет в списке — ввести вручную'); otherO.value = '__other'; sel.appendChild(otherO);
-  const custom = el('input', 'mycar-custom hidden'); custom.maxLength = 80; custom.placeholder = 'например Toyota GR Supra A90'; custom.setAttribute('aria-label', 'Модель вручную');
-  const carBtns = [];
-  const mkCar = (name, sub, onPick) => {
-    const b = btn('mycar-car', null, onPick);
-    b.setAttribute('role', 'radio');
-    b.append(el('b', '', name));
-    if (sub) b.append(el('span', '', sub));
-    carBtns.push(b); list.appendChild(b);
-    return b;
-  };
-  cars.slice(0, 6).forEach((c, k) => {
-    const b = mkCar(c.name, k === 0 && cur && c.name === cur.name ? 'сейчас в Боксе' : (c.year ? String(c.year) : ''), () => {
-      pick.model = c.name; pick.carId = c.id || ''; sel.classList.add('hidden'); custom.classList.add('hidden'); refresh();
-    });
-    b.dataset.model = c.name;
-  });
-  const otherB = mkCar('Другая', 'все марки и модели', () => {
-    openCarDb({
-      onPick: (c) => openMyCarSheet({ ...opts, preselect: undefined, dbCar: c, tyre: pick.tyre || opts.tyre }),
-      onManual: () => { sel.classList.remove('hidden'); sel.focus?.(); pick.model = ''; refresh(); },
-    });
-  });
-  otherB.dataset.model = '__other';
+  const custom = el('input', 'mycar-custom mc3-in hidden'); custom.maxLength = 80; custom.placeholder = 'Модель, например Toyota GR Supra A90'; custom.setAttribute('aria-label', 'Модель вручную');
   sel.addEventListener('change', () => {
-    if (sel.value === '__other') { custom.classList.remove('hidden'); pick.model = custom.value.trim(); pick.carId = ''; }
+    if (sel.value === '__other') { custom.classList.remove('hidden'); pick.model = custom.value.trim(); pick.carId = ''; custom.focus?.(); }
     else { custom.classList.add('hidden'); pick.model = sel.value; pick.carId = sel.selectedOptions[0]?.dataset.carId || ''; }
     refresh();
   });
   custom.addEventListener('input', () => { pick.model = custom.value.trim(); pick.carId = ''; refresh(); });
-  if (pick.model && !cars.slice(0, 6).some((c) => c.name === pick.model)) {
-    sel.classList.remove('hidden');
-    if ([...sel.options].some((o) => o.value === pick.model)) sel.value = pick.model;
-    else { sel.value = '__other'; custom.value = pick.model; custom.classList.remove('hidden'); }
-  }
-  s1.append(list, sel, custom);
+  if (pick.model && !cars.some((c) => c.name === pick.model) && ![...sel.options].some((o) => o.value === pick.model)) { sel.value = '__other'; custom.value = pick.model; custom.classList.remove('hidden'); }
+  const s1 = el('section', 'mycar-step mc3-step'); s1.append(sec('Машина'), carBox, sel, custom);
 
-  // —— step 2: резина ——
-  const s2 = el('section', 'mycar-step');
-  s2.appendChild(el('span', 'mycar-step-k', '2 · Резина'));
-  const chips = el('div', 'mycar-tyres'); chips.id = 'myCarTyres'; chips.setAttribute('role', 'radiogroup'); chips.setAttribute('aria-label', 'Резина');
-  const tyre = el('input', 'mycar-tyre hidden'); tyre.id = 'myCarTyre'; tyre.maxLength = 40; tyre.placeholder = 'например Hankook Ventus RS4'; tyre.setAttribute('aria-label', 'Своя резина');
-  tyre.setAttribute('list', 'myCarTyreList');
-  const dl = el('datalist'); dl.id = 'myCarTyreList';
-  TYRES.forEach((t) => { const o = el('option'); o.value = t; dl.appendChild(o); });
-  const tyreBtns = [];
-  TYRES.forEach((t) => {
-    const b = btn('mycar-tyre-chip', tyreShort(t), () => { pick.tyre = t; tyre.value = t; tyre.classList.add('hidden'); refresh(); });
-    b.dataset.tyre = t; b.title = t; b.setAttribute('role', 'radio');
-    tyreBtns.push(b); chips.appendChild(b);
-  });
-  const ownB = btn('mycar-tyre-chip', 'Своя…', () => { tyre.classList.remove('hidden'); tyre.focus?.(); pick.tyre = tyre.value.trim(); refresh(); });
-  ownB.dataset.tyre = '__own'; tyreBtns.push(ownB); chips.appendChild(ownB);
-  tyre.addEventListener('input', () => { pick.tyre = tyre.value.trim(); refresh(); });
-  if (pick.tyre) { tyre.value = pick.tyre; if (!TYRES.includes(pick.tyre)) tyre.classList.remove('hidden'); }
-  s2.append(chips, tyre, dl);
+  // шины
+  const tyreRow = rowBtn('myCarTyres', TYRE_SVG, () => openTyrePick());
+  const tyreBox = el('div', 'mc3-glass'); tyreBox.appendChild(tyreRow.b);
+  const tyre = el('input', 'hidden'); tyre.id = 'myCarTyre'; tyre.value = pick.tyre || '';
+  const s2 = el('section', 'mycar-step mc3-step'); s2.append(sec('Шины'), tyreBox, tyre);
 
-  // —— v113 step 3: класс подготовки + тип шин + паспорт (опционально, со слов пилота) ——
-  const s3 = el('section', 'mycar-step');
-  s3.appendChild(el('span', 'mycar-step-k', '3 · Класс подготовки'));
-  const segRow = (id, label, map, key) => {
-    const row = el('div', 'mycar-tyres mycar-class'); row.id = id; row.setAttribute('role', 'radiogroup'); row.setAttribute('aria-label', label);
+  // класс подготовки — сегменты со стеклянным бегунком
+  const seg = (id, label, map, key) => {
+    const row = el('div', 'mc3-seg'); row.id = id; row.setAttribute('role', 'radiogroup'); row.setAttribute('aria-label', label);
     const bs = Object.entries(map).map(([v, t]) => {
-      const b = btn('mycar-tyre-chip', t, () => { pass[key] = pass[key] === v ? undefined : v; refresh(); });
+      const b = btn('mc3-sb', t, () => { D.hap?.(6); pass[key] = pass[key] === v ? undefined : v; refresh(); });
       b.dataset.v = v; b.setAttribute('role', 'radio'); row.appendChild(b); return b;
     });
     return { row, bs, key };
   };
-  const prepRow = segRow('myCarPrep', 'Класс подготовки', PREP_LABEL, 'prep');
-  const tyreTRow = segRow('myCarTyreT', 'Тип шин', TYRE_T_LABEL, 'tyreT');
-  const tyreTk = el('span', 'tiny muted mycar-sub', 'Шины');
-  const nums = el('div', 'mycar-nums');
-  const numIn = (key, ph, lab, lo, hi, step) => {
-    const w = el('label', 'mycar-num'); w.appendChild(el('span', 'tiny muted', lab));
-    const i = el('input', 'mycar-custom'); i.type = 'number'; i.inputMode = 'decimal'; i.min = String(lo); i.max = String(hi); i.step = String(step); i.placeholder = ph; i.id = 'myCar_' + key;
-    if (pass[key] != null) i.value = String(pass[key]);
-    i.addEventListener('input', () => { pass[key] = i.value.trim() === '' ? undefined : Number(i.value.replace(',', '.')); });
-    w.appendChild(i); nums.appendChild(w); return i;
-  };
-  numIn('hp', 'л.с.', 'мощность', 30, 2500, 1);
-  numIn('kg', 'кг', 'масса', 400, 4000, 1);
-  numIn('bar', 'бар', 'давление шин', 1, 4, 0.1);
-  { // v220: год выпуска + доработки (как в Dragy) — локально
-    const w = el('label', 'mycar-num'); w.appendChild(el('span', 'tiny muted', 'год'));
-    const i = el('input', 'mycar-custom'); i.type = 'number'; i.inputMode = 'numeric'; i.min = '1960'; i.max = '2027'; i.placeholder = 'год'; i.id = 'myCar_year';
-    if (xtra.year) i.value = String(xtra.year);
-    i.addEventListener('input', () => { xtra.year = i.value.trim() ? Number(i.value) : undefined; });
-    w.appendChild(i); nums.appendChild(w);
-  }
-  const mods = el('input', 'mycar-custom mycar-mods'); mods.maxLength = 120; mods.id = 'myCar_mods'; mods.placeholder = 'Доработки: прошивка, даунпайп, интеркулер…'; mods.setAttribute('aria-label', 'Доработки');
-  if (xtra.mods) mods.value = xtra.mods;
-  mods.addEventListener('input', () => { xtra.mods = mods.value.trim() || undefined; });
-  s3.append(prepRow.row, tyreTk, tyreTRow.row, nums, mods, el('p', 'tiny muted mycar-note', 'Со слов пилота — проверить класс мы не можем, как и превью эмблем. Указывай честно: «Сток» на уличных шинах — это эталон «к стоку» для своей модели. Можно не указывать — тогда «класс не указан».'));
+  const prepRow = seg('myCarPrep', 'Класс подготовки', PREP_LABEL, 'prep');
+  const s3 = el('section', 'mycar-step mc3-step');
+  s3.append(sec('Класс подготовки'), prepRow.row, el('p', 'mc3-hint', 'Со слов пилота, проверить мы не можем. Нажми ещё раз, чтобы снять.'));
 
-  // —— step 4: итог + кнопка ——
-  const sum = el('div', 'mycar-sum');
-  const sumK = el('span', 'mycar-sum-k', 'Круги запишутся на');
-  const sumV = el('b', 'mycar-sum-v', '—');
-  sum.append(sumK, sumV);
-  const note = el('p', 'tiny muted mycar-note', 'К кругу навсегда привязываются машина, резина, трасса, дата, время и сектора. Сменить можно в любой момент — старые круги останутся как были.');
+  // характеристики
+  const specs = el('div', 'mc3-glass mc3-specs');
+  const fld = (lab, id, unit, mode, val, onIn, lo, hi, step) => {
+    const w = el('label', 'mc3-fld'); w.appendChild(el('span', 'mc3-fl', lab));
+    const r = el('span', 'mc3-fr');
+    const i = el('input', 'mc3-num'); i.id = id; i.inputMode = mode; i.autocomplete = 'off';
+    if (mode !== 'text') { i.type = 'number'; i.min = String(lo); i.max = String(hi); i.step = String(step); i.placeholder = '—'; }
+    else { i.type = 'text'; i.maxLength = 120; i.placeholder = 'прошивка, даунпайп…'; i.classList.add('mc3-txt'); }
+    if (val != null && val !== '') i.value = String(val);
+    i.addEventListener('input', () => onIn(i.value.trim()));
+    r.appendChild(i); if (unit) r.appendChild(el('span', 'mc3-u', unit));
+    w.appendChild(r); specs.appendChild(w); return i;
+  };
+  const numSet = (key) => (v) => { pass[key] = v === '' ? undefined : Number(v.replace(',', '.')); };
+  fld('Мощность', 'myCar_hp', 'л.с.', 'numeric', pass.hp, numSet('hp'), 30, 2500, 1);
+  fld('Масса', 'myCar_kg', 'кг', 'numeric', pass.kg, numSet('kg'), 400, 4000, 1);
+  fld('Давление шин', 'myCar_bar', 'бар', 'decimal', pass.bar, numSet('bar'), 1, 4, 0.1);
+  fld('Год', 'myCar_year', '', 'numeric', xtra.year, (v) => { xtra.year = v ? Number(v) : undefined; }, 1960, 2027, 1);
+  fld('Доработки', 'myCar_mods', '', 'text', xtra.mods, (v) => { xtra.mods = v || undefined; });
+  const s4 = el('section', 'mycar-step mc3-step'); s4.append(sec('Характеристики · необязательно'), specs);
+
+  // —— итог + закреплённая кнопка ——
+  const sum = el('div', 'mycar-sum hidden');
+  const sumV = el('b', 'mycar-sum-v', '—'); sum.appendChild(sumV);
   const msg = el('p', 'tiny mycar-msg');
-  const save = btn('go-btn race-cta mycar-save', 'Это моя машина', async () => {
+  const save = btn('go-btn race-cta mycar-save mc3-save', 'Сохранить', async () => {
     const model = pick.model.trim();
     const t = pick.tyre.trim();
     if (!model) { msg.textContent = 'Выбери машину'; msg.classList.add('mycar-msg-err'); return; }
-    if (!t) { msg.textContent = 'Выбери резину — топ сравнивает только равных'; msg.classList.add('mycar-msg-err'); return; }
+    if (!t) { msg.textContent = 'Выбери шины — топ сравнивает только равных'; msg.classList.add('mycar-msg-err'); return; }
     if (pass.prep && !pass.tyreT) { msg.textContent = 'Укажи тип шин: уличные или полуслик'; msg.classList.add('mycar-msg-err'); return; }
     const LIM = { hp: [30, 2500], kg: [400, 4000], bar: [1, 4] };
     for (const [k, [lo, hi]] of Object.entries(LIM)) {
@@ -299,12 +264,11 @@ export function openMyCarSheet(opts = {}) {
       car = r.car || local;
     } else {
       // v103: keep the choice locally so the bar / lap gate work even before Telegram login;
-      // tops & rooms still require an account (server). Sync to server on the next login.
       msg.textContent = 'Сохранено на этом устройстве. Для топа войди через Telegram в Профиле.';
     }
     save.disabled = false;
     cacheCar(car);
-    if (loggedIn()) msg.textContent = 'Готово: ' + car.model + ' · ' + car.tyre;
+    if (loggedIn()) msg.textContent = 'Сохранено: ' + car.model + ' · ' + car.tyre;
     msg.classList.remove('mycar-msg-err');
     D.hap?.(12);
     try { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred('success'); } catch (_) {}
@@ -314,29 +278,97 @@ export function openMyCarSheet(opts = {}) {
     else setTimeout(() => closeSheet('myCarSheet'), 450);
   });
   save.id = 'myCarSave';
-  const tail = [sum, save];
+  const foot = el('div', 'mc3-foot'); foot.append(msg, save);
   if (opts.skip && typeof opts.skip.fn === 'function') {
-    tail.push(btn('mycar-skip', opts.skip.label || 'Без зачёта', () => { st.pending = null; closeSheet('myCarSheet'); opts.skip.fn(); }));
+    foot.appendChild(btn('mycar-skip', opts.skip.label || 'Без зачёта', () => { st.pending = null; closeSheet('myCarSheet'); opts.skip.fn(); }));
   }
+  const note = el('p', 'tiny muted mycar-note', 'К кругу привязываются машина, шины, трасса, дата и сектора. Сменишь — старые круги не изменятся.');
   const how = btn('mycar-how', 'Как это работает?', () => { closeSheet('myCarSheet'); D.howCar?.(); });
-  body.append(s1, s2, s3, ...tail, msg, note, how);
+  body.append(s1, s2, s3, s4, sum, note, how, foot);
+
+  // —— под-шторки выбора ——
+  function subSheet(title) {
+    document.getElementById('mc3Sub')?.remove();
+    const wrap = el('div', 'mc3-sub'); wrap.id = 'mc3Sub'; wrap.setAttribute('role', 'dialog'); wrap.setAttribute('aria-label', title);
+    const inner = el('div', 'mc3-sub-in');
+    const hd = el('div', 'mc3-sub-hd'); hd.appendChild(el('b', '', title));
+    const done = btn('mc3-done', 'Готово', () => close()); hd.appendChild(done);
+    const bd = el('div', 'mc3-sub-bd');
+    inner.append(el('div', 'mc3-grab'), hd, bd); wrap.appendChild(inner);
+    const close = () => { wrap.remove(); refresh(); };
+    wrap.addEventListener('click', (e) => { if (e.target === wrap) close(); });
+    document.body.appendChild(wrap);
+    return { bd, close };
+  }
+  function optRow(label, sub, on, onTap) {
+    const b = btn('mc3-opt' + (on ? ' on' : ''), null, () => { D.hap?.(6); onTap(); });
+    b.setAttribute('role', 'option'); b.setAttribute('aria-selected', on ? 'true' : 'false');
+    const tx = el('span', 'mc3-tx'); tx.appendChild(el('b', '', label)); if (sub) tx.appendChild(el('span', '', sub));
+    const ck = el('span', 'mc3-ck'); if (on) ck.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+    b.append(tx, ck);
+    return b;
+  }
+  function openCarPick() {
+    const { bd, close } = subSheet('Машина');
+    const g = el('div', 'mc3-glass');
+    cars.slice(0, 8).forEach((c, k) => g.appendChild(optRow(c.name, k === 0 && cur && c.name === cur.name ? 'сейчас в Боксе' : (c.year ? String(c.year) : ''), c.name === pick.model, () => {
+      pick.model = c.name; pick.carId = c.id || ''; sel.value = ''; custom.classList.add('hidden'); close();
+    })));
+    const all = optRow('Все марки и модели', 'каталог с характеристиками', false, () => {
+      close();
+      openCarDb({
+        onPick: (c) => openMyCarSheet({ ...opts, preselect: undefined, dbCar: c, tyre: pick.tyre || opts.tyre, keepPass: { ...pass, hp: undefined } }),
+        onManual: () => { sel.classList.remove('hidden'); sel.value = '__other'; custom.classList.remove('hidden'); custom.focus?.(); pick.model = custom.value.trim(); refresh(); },
+      });
+    });
+    const man = optRow('Ввести вручную', 'если модели нет в каталоге', false, () => {
+      close(); sel.value = '__other'; custom.classList.remove('hidden'); custom.focus?.(); pick.model = custom.value.trim(); pick.carId = ''; refresh();
+    });
+    const g2 = el('div', 'mc3-glass'); g2.append(all, man);
+    if (g.childNodes.length) bd.appendChild(g);
+    bd.appendChild(g2);
+  }
+  function openTyrePick() {
+    const { bd, close } = subSheet('Шины');
+    const tseg = seg('myCarTyreT', 'Тип шин', TYRE_T_LABEL, 'tyreT');
+    tseg.bs.forEach((b) => { b.textContent = b.textContent.charAt(0).toUpperCase() + b.textContent.slice(1); });
+    const syncT = () => tseg.bs.forEach((b) => { const on = pass.tyreT === b.dataset.v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    tseg.row.addEventListener('click', () => setTimeout(syncT, 0)); syncT();
+    const q = el('input', 'mc3-in mc3-q'); q.type = 'search'; q.placeholder = 'Найти или ввести свою модель'; q.maxLength = 40; q.setAttribute('aria-label', 'Поиск шин'); q.autocomplete = 'off';
+    const list = el('div', 'mc3-glass'); list.setAttribute('role', 'listbox');
+    const setT = (t) => { pick.tyre = t; tyre.value = t; refresh(); draw(); };
+    function draw() {
+      const s = q.value.trim(); const lo = s.toLowerCase();
+      const hits = TYRES.filter((t) => !lo || t.toLowerCase().includes(lo));
+      list.replaceChildren(...hits.map((t) => { const [b, ...m] = t.split(' '); return optRow(m.join(' '), b, pick.tyre === t, () => setT(t)); }));
+      const own = pick.tyre && !TYRES.includes(pick.tyre) ? pick.tyre : '';
+      if (s && !TYRES.some((t) => t.toLowerCase() === lo)) list.appendChild(optRow('Своя: ' + s, 'нет в списке', own === s, () => setT(s)));
+      else if (own) list.appendChild(optRow(own, 'своя модель', true, () => {}));
+      else if (!s) list.appendChild(optRow('Своя…', 'впиши модель в поиск', false, () => q.focus?.()));
+    }
+    q.addEventListener('input', draw);
+    q.addEventListener('keydown', (e) => { if (e.key === 'Enter' && q.value.trim()) { e.preventDefault(); setT(q.value.trim()); close(); } });
+    draw();
+    bd.append(el('p', 'mc3-k', 'Тип'), tseg.row, el('p', 'mc3-k', 'Модель'), q, list);
+  }
 
   function refresh() {
-    carBtns.forEach((b) => {
-      const on = b.dataset.model === '__other' ? (!sel.classList.contains('hidden')) : b.dataset.model === pick.model && sel.classList.contains('hidden');
-      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
-    });
-    tyreBtns.forEach((b) => {
-      const on = b.dataset.tyre === '__own' ? !tyre.classList.contains('hidden') : b.dataset.tyre === pick.tyre && tyre.classList.contains('hidden');
-      b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false');
-    });
-    for (const g of [prepRow, tyreTRow]) g.bs.forEach((b) => { const on = pass[g.key] === b.dataset.v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
-    const ready = !!(pick.model.trim() && pick.tyre.trim());
-    sumV.textContent = ready ? pick.model.trim() + ' · ' + pick.tyre.trim() + ' · ' + classLine(pass) : (pick.model.trim() ? pick.model.trim() + ' · выбери резину' : 'выбери машину и резину');
-    sum.classList.toggle('ready', ready);
+    const m = pick.model.trim();
+    carRow.t.textContent = m || 'Выбрать машину';
+    const curN = cur && m === cur.name;
+    carRow.s.textContent = m ? [curN ? 'в Боксе' : '', pass.hp ? pass.hp + ' л.с.' : ''].filter(Boolean).join(' · ') || 'сменить' : 'из Бокса или каталога';
+    carRow.b.classList.toggle('is-empty', !m);
+    const t = pick.tyre.trim();
+    const sp = t.indexOf(' ');
+    tyreRow.t.textContent = t ? (TYRES.includes(t) ? t.slice(sp + 1) : t) : 'Выбрать шины';
+    tyreRow.s.textContent = [t && TYRES.includes(t) ? t.slice(0, sp) : '', pass.tyreT ? TYRE_T_LABEL[pass.tyreT] : 'тип не указан'].filter(Boolean).join(' · ');
+    tyreRow.b.classList.toggle('is-empty', !t);
+    prepRow.bs.forEach((b) => { const on = pass.prep === b.dataset.v; b.classList.toggle('on', on); b.setAttribute('aria-checked', on ? 'true' : 'false'); });
+    const ready = !!(m && t);
+    sumV.textContent = ready ? m + ' · ' + t + ' · ' + classLine(pass) : '';
     save.classList.toggle('is-dim', !ready);
     save.setAttribute('aria-disabled', ready ? 'false' : 'true');
-    if (ready) msg.textContent = '';
+    if (ready && !msg.classList.contains('mycar-msg-err')) msg.textContent = msg.textContent.startsWith('Сохран') ? msg.textContent : '';
   }
   refresh();
   openSheet('myCarSheet');
