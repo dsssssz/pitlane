@@ -17,11 +17,11 @@ export const SHOP_CONFIG = {
   contactBot: 'pitlane_official_bot',
   // v222: «Основатели». false → чип не заказать, цена с подписью «Скоро · после проверки точности».
   // Открыть продажи: true → поднять CACHE в sw.js → задеплоить сайт и Worker.
-  foundersOpen: false,
+  foundersOpen: true,  // v296: заявки на чип открыты (без онлайн-оплаты)
 };
 
 /** v222: первые FOUNDERS.limit заявок на чип (не отменённых, считает сервер по KV) — цена FOUNDERS.price за 1 шт. */
-export const FOUNDERS = { productId: 'pitlane-gps', limit: 50, price: 8499 } /* v280: цена основателям убрана — единая 8 499 ₽ */;
+export const FOUNDERS = { productId: 'pitlane-gps', limit: 0, price: 6800 }; /* v296: единая 6 800 ₽, спец основателей выключен */
 /** Заявки в этих статусах = заказ подтверждён → значок «Основатель». */
 export const FOUNDER_CONFIRMED = ['paid', 'accepted', 'assembling', 'shipped', 'delivered', 'confirmed', 'done'];
 /** Цена за 1-ю шт. для основателя, остальные — по обычной цене. */
@@ -62,10 +62,11 @@ export const SHOP_PRODUCTS = [
     cat: 'chips',
     title: 'PITLANE GPS',
     subtitle: 'Внешний GPS 25 Гц для трека',
-    // Себестоимость комплекта на 1 прибор — до 5 450 ₽ (верхняя граница BOM, hardware/pitlane-gps/docs/kit),
-    // наценка 25 %: 5 450 × 1,25 = 6 812,5 → 6 800 ₽.
-    price: 8499,  // v222: обычная цена; основателям — FOUNDERS.price
+    // Себестоимость комплекта на 1 прибор — до 5 450 ₽ (верхняя граница BOM); наценка 25 % → 6 800 ₽. Было 8 499 — compareAt (зачёркнуто).
+    price: 6800,
+    compareAt: 8499,
     status: 'preorder',
+    blurb: 'Внешний GPS для замера разгона и кругов. Подключается к телефону. Оставляете заявку — без оплаты, свяжемся в Telegram.',
     maxQty: 5,
     gallery: [
       { ...IMG('gps-hand'), alt: 'PITLANE GPS в руке, корпус чёрный' },

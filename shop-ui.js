@@ -29,9 +29,13 @@ async function loadFounders() {
 function priceBlock(p, big) {
   const w = el('span', 'shop-pb' + (big ? ' shop-pb-big' : ''));
   const reg = Number.isFinite(p.price) && p.price > 0 ? fmtRub(p.price) : 'Цена по запросу';
+  const old = Number.isFinite(p.compareAt) && p.compareAt > (p.price || 0) ? fmtRub(p.compareAt) : null;
   const row = el('span', 'shop-pb-row');
   if (founderLive(p)) { row.append(el('b', big ? 'shop-buy-price' : 'shop-price', fmtRub(FOUNDERS.price)), el('s', 'shop-pb-old', reg)); }
-  else row.append(el('b', big ? 'shop-buy-price' : 'shop-price', p.status === 'soon' ? (big ? 'Скоро в продаже' : 'Скоро') : reg));
+  else {
+    row.append(el('b', big ? 'shop-buy-price' : 'shop-price', p.status === 'soon' ? (big ? 'Скоро в продаже' : 'Скоро') : reg));
+    if (old && p.status !== 'soon') row.append(el('s', 'shop-pb-old', old));
+  }
   w.appendChild(row);
   if (founderLive(p)) {
     w.appendChild(el('span', 'shop-pb-offer', '−' + fmtRub(p.price - FOUNDERS.price) + ' первым ' + FOUNDERS.limit));
@@ -160,10 +164,18 @@ function viewProduct(v) {
   pl.appendChild(priceBlock(p, true));
   if (!gated(p)) pl.appendChild(el('span', 'shop-badge', statusOf(p).label));
   buy.appendChild(pl);
-  const cta = el('button', 'shop-cta', orderable(p) ? 'В корзину' : statusOf(p).label);
+  const cta = el('button', 'shop-cta', orderable(p) ? (isChip(p) ? 'Оставить заявку' : 'В корзину') : statusOf(p).label);
   cta.type = 'button'; cta.disabled = !orderable(p); cta.id = 'shopOrderBtn';
-  cta.addEventListener('click', () => { D.hap?.(8); cart.add(p.id); push({ k: 'cart' }); });
+  cta.addEventListener('click', async () => {
+    D.hap?.(8); cart.add(p.id);
+    if (isChip(p)) {
+      if (!D.currentUser()) { D.close?.(); D.needLogin('Чтобы оставить заявку, войдите — так мы сможем с вами связаться'); return; }
+      if (st.tg === undefined) { cta.disabled = true; await loadOrders(); cta.disabled = false; }
+      push({ k: 'form' });
+    } else push({ k: 'cart' });
+  });
   if (!gated(p)) buy.appendChild(cta); f.appendChild(buy);
+  if (p.blurb) f.appendChild(el('p', 'shop-blurb', p.blurb));
   { const n = el('div', 'shop-pay-note'); n.append(el('p', 'shop-muted', 'СДЭК 390 ₽ · 2–4 дня  ·  Почта 290 ₽ · 5–9 дней  ·  самовывоз Краснодар 0 ₽'), payBadges()); f.appendChild(n); }
   if (p.inside) f.appendChild(insideBlock(p.inside));
   const sp = el('section', 'shop-sec'); sp.appendChild(el('h3', 'shop-h3', 'Характеристики'));
@@ -243,7 +255,7 @@ function viewForm(v) {
   const ta = el('textarea', 'shop-input shop-ta'); ta.id = 'shopComment'; ta.maxLength = 500; ta.rows = 3; ta.placeholder = 'Машина, трек, когда нужен прибор'; ta.value = d.comment; ta.addEventListener('input', () => { d.comment = ta.value; });
   cm.appendChild(ta); form.appendChild(cm);
   const msg = el('p', 'shop-msg'); msg.id = 'shopMsg'; msg.setAttribute('role', 'status');
-  const sendLabel = st.payOn ? 'Перейти к оплате' : 'Оформить заявку';
+  const sendLabel = st.payOn ? 'Перейти к оплате' : 'Оставить заявку';
   const send = el('button', 'shop-cta', sendLabel); send.type = 'submit'; send.id = 'shopSend';
   form.append(tot, msg, send); syncD();
   form.appendChild(el('p', 'shop-muted shop-pd', 'Храним город, контакт и комментарий — только для заявки. Удаляются с аккаунтом. Подробнее — в политике конфиденциальности.'));
@@ -304,7 +316,7 @@ function viewCart() {
   const s = el('div', 'shop-totals'); const r1 = el('div', 'shop-tot-row shop-tot-sum'); r1.append(el('span', '', 'Товары'), el('b', '', t.subtotal != null ? fmtRub(t.subtotal) : 'по запросу')); s.appendChild(r1);
   s.appendChild(el('p', 'shop-muted', 'Доставка и промокод — на следующем шаге'));
   f.appendChild(s);
-  const go = el('button', 'shop-cta', 'Оформить'); go.type = 'button'; go.id = 'shopCheckout';
+  const go = el('button', 'shop-cta', 'Оставить заявку'); go.type = 'button'; go.id = 'shopCheckout';
   go.addEventListener('click', async () => { D.hap?.(8); if (!D.currentUser()) { D.close?.(); D.needLogin('Чтобы оформить заказ, войдите — так мы сможем с вами связаться'); return; } if (st.tg === undefined) { go.disabled = true; await loadOrders(); go.disabled = false; } push({ k: 'form' }); });
   f.appendChild(go); f.appendChild(payBadges());
   return f;

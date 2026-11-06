@@ -8,7 +8,7 @@
   /* цвет */
   --ds-bg: #000; --ds-bg-1: #0a0a0a; --ds-bg-2: #141414; --ds-bg-3: #1c1c1e; --ds-fill: rgba(255,255,255,.04); --ds-fill-2: rgba(255,255,255,.07);
   --ds-line: rgba(255,255,255,.08); --ds-line-2: rgba(255,255,255,.16); --ds-line-3: rgba(255,255,255,.32);
-  --ds-text: #f2efe9; --ds-sub: #9a9a9a; --ds-mute: #7a7a7a;
+  --ds-text: #f2efe9; --ds-sub: #b3b3b3; --ds-mute: #9a9a9a;
   --acc-rgb: 201, 198, 191; --ds-acc: rgb(var(--acc-rgb));
   --ds-good: #7fae8f; --ds-bad: #d0675c; --accent-signal: #e12323; --carbon: url('img/carbon-twill.svg'); /* v181: карбон 2/2 саржа, 2 КБ SVG-плитка, белым на 2–5 % */ /* v177: сигнальный красный (как дуга логотипа) — только индикаторы, ~5% акцентов; дельты остаются приглушённым #d0675c */ --ds-on-light: #000; --ds-light: #f2f2f2;
   /* сетка 8 px */
@@ -29,7 +29,7 @@
   --r-xs: var(--r1); --r-sm: var(--r1); --r-md: var(--r2); --r-lg: var(--r3); --r-pill: 999px;
   --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px;
   --sh-1: none; --sh-2: none;
-  --bg: var(--ds-bg); --panel: var(--ds-bg-1); --line: var(--ds-line); --gold: var(--ds-acc); --text: var(--ds-text); --muted: var(--ds-sub); --accent: var(--ds-acc);
+  --bg: var(--ds-bg); --panel: var(--ds-bg-1); --line: var(--ds-line); --quiet: var(--ds-acc);--gold: var(--quiet); --text: var(--ds-text); --muted: var(--ds-sub); --accent: var(--ds-acc);
   --h-text: var(--ds-text); --h-sub: var(--ds-sub); --h-mute: var(--ds-mute); --h-acc: var(--ds-acc); --h-line: var(--ds-line); --h-line-2: var(--ds-line-2);
   --h-card: transparent; --h-card-solid: var(--ds-bg); --h-r: var(--r3); --h-r-sm: var(--r2); --h-num: var(--font-num); --h-ease: var(--ds-ease);
 }
@@ -8345,3 +8345,61 @@ h1,h2,.hero-title h1,.home-h1,.sheet-title,.ln61-sub{
 }
 .hero-title h1{ line-height: 1.05; }
 .num, .pl-num, [data-num] { font-family: var(--font-num), monospace; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+
+
+/* ===== v296 design: red CTA, quiet accent, AA mute, blur only on sheets/nav ===== */
+:root{
+  --quiet: rgb(201, 198, 191);
+  --ds-acc: var(--quiet);
+  --gold: var(--quiet); /* compat alias → quiet metal, not CTA */
+  --accent-cta: #E10600;
+  --ds-sub: #b3b3b3;   /* ~8.6:1 on #000 */
+  --ds-mute: #9a9a9a;  /* ~7.5:1 on #000 — AA for small text */
+  --c-sub: var(--ds-sub);
+  --c-mute: var(--ds-mute);
+  --muted: var(--ds-sub);
+}
+/* Primary CTAs → red */
+.shop-cta,
+button.shop-cta,
+#shopSend,
+#shopOrderBtn,
+#shopCheckout,
+.btn-primary,
+button.btn-primary,
+.cta-primary,
+.landing .cta{
+  background: var(--accent-cta) !important;
+  color: #fff !important;
+  border-color: var(--accent-cta) !important;
+}
+/* measure primary: red ring already; keep light fill, red label accent via existing styles */
+
+.shop-cta:disabled,
+button.shop-cta:disabled{ opacity:.45; }
+.shop-blurb{
+  margin: 10px 0 4px;
+  font: 400 14px/1.45 var(--font-ui);
+  color: var(--ds-sub);
+  max-width: 36ch;
+}
+.shop-pb-old{
+  color: var(--ds-mute) !important;
+  text-decoration: line-through;
+  margin-left: 8px;
+}
+/* Kill decorative glass; keep real chrome */
+.hero-card, .widget, .stat, .card, .banner, .g63-info, .h48-car,
+.home-card, .tops-card, .run-card, .pilot-card, .garage-card,
+.sat-car-glow, .lap-car-glow, .ht-dot-glow, .hg-glow,
+[class*="glass"]:not(.sheet):not([class*="sheet"]){
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.sat-car-glow, .lap-car-glow, .ht-dot-glow{ opacity: 0 !important; }
+/* Sheets / nav / modals — allow existing blur (re-assert so !important content rules don't wipe if nested) */
+.sheet, .sheet-inner, .duel-sheet, .race-sheet, .crew-sheet, .crew-sheet-inner,
+.race-sheet-inner, #shopSheet, #sessionSheet, .bottom-sheet, .modal,
+.app-toast, .rail, .tabbar, .nav-blur, .ss-sheet, .shop-sheet-inner{
+  /* intentional: leave author backdrop-filter from earlier rules */
+}

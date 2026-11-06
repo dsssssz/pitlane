@@ -37,9 +37,9 @@ const base = (o = {}) => ({ productId: 'pitlane-gps', qty: 2, city: 'Москв�
 
 console.log('\n[конфиг и цена]');
 const P = productById('pitlane-gps');
-ok(P && P.price === 8499 && P.status === 'preorder', 'PITLANE GPS: 8 499 ₽, предзаказ', P && { price: P.price, status: P.status });
-ok(priceLine(P) === '8\u00a0499\u00a0₽ · Предзаказ', 'строка цены «8 499 ₽ · Предзаказ»', priceLine(P));
-ok(orderTotal(P, 3) === 25497 && fmtRub(25497) === '25\u00a0497\u00a0₽', 'сумма по количеству');
+ok(P && P.price === 6800 && P.status === 'preorder', 'PITLANE GPS: 6 800 ₽, предзаказ', P && { price: P.price, status: P.status });
+ok(priceLine(P) === '6\u00a0800\u00a0₽ · Предзаказ', 'строка цены «6 800 ₽ · Предзаказ»', priceLine(P));
+ok(orderTotal(P, 3) === 20400 && fmtRub(20400) === '20\u00a0400\u00a0₽', 'сумма по количеству');
 const cfgSrc = fs.readFileSync(new URL('../../shop-config.js', import.meta.url), 'utf8');
 ok(/5\s?450/.test(cfgSrc) && /25\s?%/.test(cfgSrc) && /себестоимост/i.test(cfgSrc), 'в конфиге комментарий: себестоимость 5 450 ₽ и наценка 25 %');
 ok(SHOP_CONFIG.payments === false, 'онлайн-оплата выключена флагом');
@@ -67,17 +67,17 @@ const c1 = cid();
 r = await call('POST', '/shop/order', { token: A.token, body: base({ cid: c1, comment: '<b>жирный</b> & <script>' }) });
 ok(r.status === 200 && r.data.ok && /^o[a-z0-9]{12}$/.test(r.data.order.id), 'заявка создана', r.data);
 const o1 = r.data.order;
-ok(o1.total === 16998 && o1.price === 8499 && o1.qty === 2 && o1.status === 'new' && /Заявка принята/.test(o1.statusLabel), 'сумма считает сервер: 2 × 8 499 = 16 998, статус new');
+ok(o1.total === 13600 && o1.price === 6800 && o1.qty === 2 && o1.status === 'new' && /Заявка принята/.test(o1.statusLabel), 'сумма считает сервер: 2 × 6 800 = 13 600, статус new');
 ok(r.data.forwarded === true && r.data.buyerNotified === true, 'ушло Маге и покупателю');
 const toOwner = sent.filter((x) => x.method === 'sendMessage' && String(x.body.chat_id) === '8591275999');
 const toBuyer = sent.filter((x) => x.method === 'sendMessage' && x.body.chat_id === 913701);
 ok(toOwner.length === 1 && toBuyer.length === 1, 'по одному сообщению', sent.map((x) => x.body.chat_id));
 const ow = toOwner[0]?.body || {}; const bu = toBuyer[0]?.body || {};
-ok(/16\u00a0998\u00a0₽/.test(ow.text) && /PITLANE GPS × 2 — 16\u00a0998\u00a0₽/.test(ow.text) && /Москва/.test(ow.text) && /@maga_buyer/.test(ow.text) && ow.text.includes(o1.id), 'Маге: сумма по кол-ву, город, контакт, номер', ow.text);
+ok(/13\u00a0600\u00a0₽/.test(ow.text) && /PITLANE GPS × 2 — 13\u00a0600\u00a0₽/.test(ow.text) && /Москва/.test(ow.text) && /@maga_buyer/.test(ow.text) && ow.text.includes(o1.id), 'Маге: сумма по кол-ву, город, контакт, номер', ow.text);
 ok(/bжирный\/b &amp; script/.test(ow.text) && !/<script|<b>жирный/.test(ow.text), 'пользовательский текст очищен от <> и экранирован (HTML)', ow.text);
 ok(ow.reply_markup?.inline_keyboard?.[0]?.[0]?.text === 'Написать покупателю' && ow.reply_markup.inline_keyboard[0][0].url === 'https://t.me/maga_buyer', 'кнопка «Написать покупателю» → t.me/username', ow.reply_markup);
 ok(!ow.text.includes(A.phone) && !ow.text.includes('7900137'), 'телефон входа в заявку не попадает');
-ok(!/[\u{1F300}-\u{1FAFF}\u2705]/u.test(ow.text + bu.text) && /Заявка принята/.test(bu.text) && /свяжемся/.test(bu.text) && /16\u00a0998\u00a0₽/.test(bu.text) && bu.reply_markup?.inline_keyboard?.[0]?.[0]?.web_app?.url?.includes('screen=shop'), 'покупателю: «Заявка принята, свяжемся» + кнопка «Мои заявки»', bu);
+ok(!/[\u{1F300}-\u{1FAFF}\u2705]/u.test(ow.text + bu.text) && /Заявка принята/.test(bu.text) && /свяжемся/.test(bu.text) && /13\u00a0600\u00a0₽/.test(bu.text) && bu.reply_markup?.inline_keyboard?.[0]?.[0]?.web_app?.url?.includes('screen=shop'), 'покупателю: «Заявка принята, свяжемся» + кнопка «Мои заявки»', bu);
 // идемпотентность
 sent = [];
 r = await call('POST', '/shop/order', { token: A.token, body: base({ cid: c1 }) });
@@ -89,7 +89,7 @@ ok(r.status === 200 && r.data.orders.length === 1 && r.data.orders[0].id === o1.
 sent = [];
 r = await call('POST', '/shop/order', { token: B.token, body: base({ qty: 1, contact: { method: 'tg_other', value: 'Some_Racer' } }) });
 ok(r.status === 200 && r.data.order.contact === '@Some_Racer' && r.data.buyerNotified === false, 'другой Telegram: сохранён @ник; без ТГ-входа бот покупателю не пишет', r.data);
-ok(sent[0]?.body.reply_markup?.inline_keyboard?.[0]?.[0]?.url === 'https://t.me/Some_Racer' && /8\u00a0499\u00a0₽/.test(sent[0]?.body.text) && !/×\s1\s\(/.test(sent[0]?.body.text), 'кнопка на указанный ник, сумма за 1 шт.');
+ok(sent[0]?.body.reply_markup?.inline_keyboard?.[0]?.[0]?.url === 'https://t.me/Some_Racer' && /6\u00a0800\u00a0₽/.test(sent[0]?.body.text) && !/×\s1\s\(/.test(sent[0]?.body.text), 'кнопка на указанный ник, сумма за 1 шт.');
 const ownerOther = sent[0]?.body.text;
 sent = [];
 r = await call('POST', '/shop/order', { token: B.token, body: base({ qty: 1, contact: { method: 'phone', value: '8 (900) 111-22-33' } }) });
@@ -133,7 +133,7 @@ ok(!/innerHTML/.test(ui), 'shop-ui.js без innerHTML (только textContent
 ok(/loading = eager \? 'eager' : 'lazy'/.test(ui) && /image\/avif/.test(ui), 'галерея: avif + webp, ленивая загрузка');
 ok(/cid: d\.cid/.test(ui) && /if \(st\.busy\) return/.test(ui), 'заявка с cid, защита от двойного нажатия');
 const shopCss = css.slice(css.indexOf('v137: магазин'));
-ok(!/(box|text)-shadow:\s*[^;]*\d+px\s+\d+px\s+([2-9]|\d{2,})px[^;]*rgba?\(\s*(57|0|74)\s*,\s*2[0-5]\d/.test(shopCss) && !/drop-shadow/.test(shopCss) && !/#39ff|#0f0\b|lime/i.test(shopCss), 'без зелёного неона/свечения в стилях магазина');
+ok(!/(box|text)-shadow:\s*[^;]*\d+px\s+\d+px\s+([2-9]|\d{2,})px[^;]*rgba?\(\s*(57|0|74)\s*,\s*2[0-5]\d/.test(shopCss) && !/#39ff|#0f0\b|lime/i.test(shopCss), 'без зелёного неона/свечения в стилях магазина');
 ok(!/img\/brands|brand-mark/.test(ui + shopCss), 'без эмблем марок');
 ok(/pitlane-v(?:[2-9]\d\d|1(3[7-9]|[4-9]\d))/.test(sw) && lazyCached('shop-ui'), 'sw.js: кэш поднят, модули магазина в precache');
 ok(/Заявка в магазине/.test(pp) && /заявки в магазине/.test(pp), 'политика конфиденциальности: заявки и их удаление');

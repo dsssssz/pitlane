@@ -13,7 +13,7 @@
     :root {
       --bg: #000;
       --fg: #f5f5f5;
-      --muted: rgba(245,245,245,.62);
+      --muted: rgba(245,245,245,.78);
       --red: #E10600;
       --safe-b: env(safe-area-inset-bottom, 0px);
     }
@@ -72,12 +72,13 @@
       pointer-events: auto;
     }
     .eyebrow {
-      font-family: "Sofia Sans Condensed", "Golos Text", system-ui, sans-serif;
+      font-family: "Golos Text", system-ui, sans-serif;
       font-size: 13px;
-      letter-spacing: .14em;
-      text-transform: uppercase;
+      letter-spacing: .02em;
+      text-transform: none;
       color: var(--muted);
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      font-weight: 500;
     }
     h1, h2 {
       font-family: "Sofia Sans Condensed", "Golos Text", sans-serif;
@@ -127,9 +128,9 @@
       transform: translateX(-50%);
       font-family: "Golos Text", system-ui, sans-serif;
       font-size: 11px;
-      letter-spacing: .16em;
-      text-transform: uppercase;
-      color: rgba(245,245,245,.45);
+      letter-spacing: .06em;
+      text-transform: none;
+      color: rgba(245,245,245,.72);
       transition: opacity .4s ease;
       pointer-events: none;
     }
@@ -178,22 +179,18 @@
         <p class="body">Телеметрия разгона в твоём телефоне.</p>
       </div>
       <div class="beat" data-from="0.12" data-to="0.36" id="beat1">
-        <div class="eyebrow">Замер</div>
         <h2>Замер 0–100 по GPS</h2>
         <p class="body">Открыл бота, нажал, поехал. Без датчиков и подписок на старте.</p>
       </div>
       <div class="beat" data-from="0.36" data-to="0.58" id="beat2">
-        <div class="eyebrow">Сообщество</div>
         <h2>Таблица лидеров и дуэли</h2>
         <p class="body">Сравни результат с друзьями и займи место в топе.</p>
       </div>
       <div class="beat" data-from="0.58" data-to="0.78" id="beat3">
-        <div class="eyebrow">Гараж</div>
         <h2>Твой гараж</h2>
         <p class="body">Машина, карточки заездов и история прямо в Telegram.</p>
       </div>
       <div class="beat" data-from="0.78" data-to="1.01" id="beat4">
-        <div class="eyebrow">Старт</div>
         <h2>Поехали</h2>
         <a class="cta" href="https://t.me/pitlane_official_bot" rel="noopener">
           <span class="dot" aria-hidden="true"></span>
@@ -219,12 +216,10 @@
       <p class="body">Открыл бота, нажал, поехал.</p>
     </section>
     <section>
-      <div class="eyebrow">Сообщество</div>
       <h2>Таблица лидеров и дуэли</h2>
       <p class="body">Сравни результат с друзьями.</p>
     </section>
     <section>
-      <div class="eyebrow">Гараж</div>
       <h2>Твой гараж</h2>
       <p class="body">Машина и история заездов в Telegram.</p>
     </section>
