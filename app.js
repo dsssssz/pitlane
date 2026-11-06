@@ -8894,6 +8894,7 @@ function buildPostCard(p, { compact = false } = {}) {
   const meta = [p.run ? (p.auto ? 'личный рекорд' : '') : p.car, padAgo(p.at)].filter(Boolean).join(' · ');
   head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, avatar: padAvaUrl(p.pilotId, p.ava), meta, pp: p.pp || null }));
   const myPid = accountPilotId();
+  if (p.pilotId && myPid && p.pilotId === myPid) card.classList.add('mine'); // v299: свои — справа
   if (p.pilotId && myPid && p.pilotId === myPid) {
     const del = padEl('button', 'pad-act pad-del');
     del.type = 'button';
@@ -12291,7 +12292,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v298';
+const APP_VERSION = 'v299';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -17137,13 +17138,21 @@ function renderPf6() {
   if (ps) { // v298: минимальная кнопка подписки — без золотой плашки, видна и гостю
     ps.hidden = false; ps.classList.toggle('on', pf6Active());
     const until = pf6Active() && PF6.pass.until ? new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
-    ps.replaceChildren(padEl('span', 'pf6-pass-k', pf6Active() ? 'Paddock Pass' : 'Подписка'), padEl('span', 'pf6-pass-v', pf6Active() ? (until ? 'до ' + until : 'активна') : PASS_STARS_206 + ' ★'));
+    ps.replaceChildren(padEl('i', 'pf6-pass-star', '★'), padEl('span', 'pf6-pass-k', pf6Active() ? 'Paddock Pass' : 'Подписка'), padEl('span', 'pf6-pass-v', pf6Active() ? (until ? 'до ' + until : 'активна') : PASS_STARS_206 + ' Stars'));
     ps.setAttribute('aria-label', pf6Active() ? 'Подписка активна' + (until ? ' до ' + until : '') : 'Оформить подписку, ' + PASS_STARS_206 + ' звёзд');
   }
+  try { pf6PaintStats(); } catch (_) {}
   try { pf6PaintPassTile(u); } catch (_) {}
   const pv = document.getElementById('pf6PassV'); if (pv) pv.textContent = pf6Active() ? 'активен' : 'от ' + PASS_STARS_206 + ' ★';
   const eb = document.getElementById('pf6EditBtn'); if (eb) eb.hidden = !u;
   pf6NavAva();
+}
+/* v299: три ключевых цифры под ником — лучшее 0–100, лучшая ¼ мили, кругов (только реальные, локальные) */
+function pf6PaintStats() {
+  const box = document.getElementById('pf6Stats'); if (!box) return;
+  const best = (d) => { let b = 0; for (const st of [state.dragBest, state.dragBestC]) for (const c of Object.values(st || {})) { const t = Number(c?.[d]?.t); if (t > 0 && (!b || t < b)) b = t; } return b; };
+  const items = [[best('0-100'), '0–100', 'с'], [best('402m'), '¼ мили', 'с'], [Array.isArray(state.laps) ? state.laps.length : 0, 'кругов', '']];
+  box.replaceChildren(...items.map(([v, k, u]) => { const c = padEl('div', 'pf6-st'); const b = padEl('b', '', v ? (u ? Number(v).toFixed(2) : String(v)) : '—'); if (v && u) b.append(padEl('small', '', ' ' + u)); c.append(b, padEl('span', '', k)); return c; }));
 }
 const PASS_STARS_206 = 250; // v225: сезон 250 ★ / 90 дней, год 799 ★
 function pf6NavAva() {
@@ -17160,7 +17169,7 @@ document.getElementById('pf6List')?.addEventListener('click', (e) => {
   const r = e.target.closest('[data-pf6]'); if (!r) return;
   const k = r.dataset.pf6; hap(6);
   if (k === 'mycar') { try { openMyCarSheet({}); } catch (_) {} }
-  else if (k === 'help') { window.__route48?.('settings'); setTimeout(() => document.getElementById('st66Help')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 260); } // v279
+  else if (k === 'help') { window.__route48?.('settings'); setTimeout(() => { const el = document.getElementById('st66Help'); if (!el) return; const hb = document.querySelector('.brand-bar')?.getBoundingClientRect().bottom || 0; window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - hb - 12), behavior: 'smooth' }); }, 260); } // v299: «Помощь» не под шапкой
   else if (k === 'pass') openPassSheet();
   else window.__route48?.(k);
 });

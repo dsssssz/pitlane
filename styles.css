@@ -8441,3 +8441,84 @@ html.v206p .cm-title { color: #f2f2f2; }
 .pfe-buy { background: #000; border: 1px solid rgba(255,255,255,.18); color: #f2f2f2; border-radius: 12px; }
 .pfe-buy span { color: #8d9096; opacity: 1; font-family: var(--font-num); }
 .pfe-ph img { filter: grayscale(1); }
+
+/* ——— v299: чат «пит-радио» — компактные тёмные пузыри, свои справа, замер — чип с временем Plex Mono ——— */
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .cp-pin .cp-top, html:not(#_):not(#_):not(#_):not(#_) #chatPage .cp-top { background: #0b0b0c !important; border: 1px solid rgba(255,255,255,.08) !important; box-shadow: none !important; border-radius: 12px; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .cp-top-k { color: #8d9096 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .cp-tabs [aria-selected="true"] { color: #fff; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .cp-tabs [data-ch] i { color: #e10600; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .cp-ink { background: #161618 !important; border: 1px solid rgba(255,255,255,.10) !important; box-shadow: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #pulseFeed { display: flex; flex-direction: column; gap: 10px; padding: 8px 0 16px; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card { display: grid; grid-template-columns: 30px minmax(0, 1fr); column-gap: 8px; align-items: start; margin: 0 !important; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; max-width: 100%; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card > * { grid-column: 2; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-head { grid-column: 1 / -1; display: contents; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-author { display: contents; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-ava { grid-column: 1; grid-row: 1 / span 6; align-self: end; width: 30px !important; height: 30px !important; font-size: 11px !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-who { grid-column: 2; grid-row: 1; display: flex; align-items: baseline; gap: 6px; min-width: 0; padding: 10px 12px 0; background: #111113; border-radius: 14px 14px 0 0; justify-self: start; max-width: 100%; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-nick { font: 600 12px/1.2 var(--font-display); letter-spacing: .06em; text-transform: uppercase; color: #f2f2f2; white-space: nowrap; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-meta { font: 400 11px/1.2 var(--font-ui); color: #6e7076; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-del { grid-column: 2; grid-row: 1; justify-self: end; align-self: start; z-index: 1; padding: 6px; opacity: .45; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-text, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-img, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-actions, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-qrow, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-trk { background: #111113; margin: 0 !important; justify-self: start; max-width: 100%; box-sizing: border-box; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-text { padding: 4px 12px 2px; font: 400 15px/1.4 var(--font-ui); color: #e9e9ec; overflow-wrap: anywhere; white-space: pre-wrap; width: 100%; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-who, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-text, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-actions, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-img { width: 100%; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run::before { content: ''; position: absolute; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run-car b { font: 600 13px/1.2 var(--font-ui); color: #f2f2f2; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run-car small { display: flex; gap: 6px; font: 500 11px/1.4 var(--font-ui); color: #8d9096; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run-car small span { background: none !important; border: 0 !important; padding: 0 !important; color: #8d9096 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run-ok { color: #e10600 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run-t { margin-left: auto; font: 600 22px/1 var(--font-num) !important; color: #fff !important; letter-spacing: -.01em; padding-left: 10px; border-left: 2px solid #e10600; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-run-t small { font: 500 12px/1 var(--font-num); color: #8d9096; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-img { padding: 6px 12px 0; border-radius: 0; max-height: 320px; object-fit: cover; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-actions { display: flex; gap: 14px; padding: 2px 12px 8px; border: 0 !important; border-radius: 0 0 14px 14px; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-act { background: none !important; border: 0 !important; padding: 4px 0 !important; min-height: 0 !important; height: auto !important; font: 500 12px/1 var(--font-num); color: #6e7076; gap: 4px; box-shadow: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-act svg { width: 15px; height: 15px; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-like[aria-pressed="true"] { color: #e10600; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-cnt-l { font-family: var(--font-ui); }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-thread { grid-column: 2; justify-self: start; margin: 4px 0 0 !important; padding: 6px 10px !important; background: none !important; border: 0 !important; border-left: 1px solid rgba(255,255,255,.14) !important; border-radius: 0 !important; font: 400 12px/1.35 var(--font-ui); color: #8d9096; text-align: left; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-thread b { color: #c9cbd0; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-thread-n { color: #8d9096 !important; display: block; margin-top: 2px; }
+/* свои — справа, без аватара, светлее */
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine { grid-template-columns: minmax(0, 1fr); padding-left: 44px !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine > * { grid-column: 1; justify-self: end; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-ava { display: none; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-who { grid-column: 1; justify-self: end; padding-right: 34px; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-del { grid-column: 1; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-who, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-text, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-run, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-actions, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-img, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-qrow { background: #1b1b1e; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-thread { border-left: 0 !important; border-right: 1px solid rgba(255,255,255,.14) !important; text-align: right; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card:not(.mine) .pad-who, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card:not(.mine) .pad-text, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card:not(.mine) .pad-run, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card:not(.mine) .pad-actions { border-bottom-left-radius: 0; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card:not(.mine) .pad-actions { border-bottom-left-radius: 4px; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-actions { border-bottom-right-radius: 4px; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pad-empty { padding: 56px 24px; text-align: center; color: #8d9096; font: 400 14px/1.45 var(--font-ui); }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pad-empty-ico { opacity: .35; }
+/* композер — плоский чёрный, тонкая линия сверху, иконка отправки */
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .cp-foot { background: #000 !important; border-top: 1px solid rgba(255,255,255,.08) !important; box-shadow: none !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-compose textarea, html:not(#_):not(#_):not(#_):not(#_) #chatPage #pulseText { background: transparent !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; font: 400 15px/1.4 var(--font-ui); color: #f2f2f2; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .send-btn { background: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; color: #e10600 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .send-btn:disabled { color: #3a3a3f !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .file-btn, html:not(#_):not(#_):not(#_):not(#_) #chatPage .cp-cam, html:not(#_):not(#_):not(#_):not(#_) #chatPage .cp-attach { background: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; color: #8d9096; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-who { flex-direction: row; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card::before, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card::after { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pc-foot textarea { background: transparent !important; border: 0 !important; padding: 9px 4px !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pc-foot #pulseSend { background: none !important; color: #e10600 !important; border-radius: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pc-foot #pulseSend:disabled { background: none !important; color: #3a3a3f !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pc-foot .file-btn { background: none !important; border: 0 !important; color: #8d9096 !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-compose.pc-foot { border-top: 1px solid rgba(255,255,255,.08); background: #000; }
+
+/* ——— v299: профиль — иерархия: крупный ник, машина, три цифры; подписка с тонкой красной кромкой ——— */
+html:not(#_):not(#_) .pf6-nm b { font: 700 34px/1 var(--font-display); letter-spacing: .01em; text-transform: none; }
+html:not(#_):not(#_) .pf6-name { margin-top: 14px; }
+html:not(#_):not(#_) .pf6-sub { margin-top: 6px; font: 400 14px/1.3 var(--font-ui); color: #8d9096; }
+.pf6-stats { width: 100%; box-sizing: border-box; display: grid; grid-template-columns: repeat(3, 1fr); margin: 18px auto 0; max-width: 340px; border-top: 1px solid rgba(255,255,255,.08); border-bottom: 1px solid rgba(255,255,255,.08); }
+.pf6-stats:empty { display: none; }
+.pf6-st { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 4px; }
+.pf6-st + .pf6-st { border-left: 1px solid rgba(255,255,255,.08); }
+.pf6-st b { font: 600 20px/1 var(--font-num); color: #f2f2f2; letter-spacing: -.01em; }
+.pf6-st b small { font: 500 11px/1 var(--font-num); color: #6e7076; }
+.pf6-st span { font: 500 11px/1 var(--font-ui); color: #8d9096; letter-spacing: .02em; }
+html:not(#_):not(#_) .pf6-pass { margin-top: 16px; border-left: 2px solid #e10600; border-radius: 4px 10px 10px 4px; padding: 10px 16px 10px 14px; align-items: center; }
+.pf6-pass .pf6-pass-star { font-style: normal; font-size: 12px; color: #e10600; line-height: 1; }
+html:not(#_):not(#_) .cta289-go { background: #e10600; color: #fff; border-radius: 10px; }
+html:not(#_):not(#_) .cta289 { border-radius: 14px; background: #0b0b0c; border-color: rgba(255,255,255,.08); }
+html:not(#_):not(#_) #view-account .pf6-g, html:not(#_):not(#_) #view-account .sc92 { border-radius: 14px; }
+html:not(#_):not(#_) #view-account .pf6-v { max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
