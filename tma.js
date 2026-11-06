@@ -98,6 +98,8 @@ export const START_ROUTE = parseStartParam(START_PARAM);
     const q = new URLSearchParams(location.search);
     let changed = false;
     for (const k of ['tgWebAppStartParam', 'startapp']) if (q.has(k)) { q.delete(k); changed = true; }
+    // v297: t.me/<bot>?startapp=shop|chip → витрина чипа
+    if (START_PARAM === 'shop' || START_PARAM === 'chip') { q.set('screen', 'shop'); q.set('skipIntro', '1'); changed = true; }
     const r = START_ROUTE;
     if (r) {
       changed = true;
