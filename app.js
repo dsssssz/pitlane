@@ -12414,7 +12414,7 @@ async function openShopSheet(productId) {
   try { plMenuClose(); } catch (_) {}
   goToView('shop');
   window.scrollTo(0, 0);
-  try { _shopMod = _shopMod || await import('./shop-ui.js'); } catch (_) { const b = document.getElementById('shopBody'); if (b) b.textContent = 'Магазин не загрузился — проверьте интернет'; return; }
+  try { _shopMod = _shopMod || await import('./shop-ui.js?v=296'); } catch (_) { const b = document.getElementById('shopBody'); if (b) b.textContent = 'Магазин не загрузился — проверьте интернет'; return; }
   _shopMod.openShop({ api, currentUser, needLogin, hap, close: shop58Leave, page: true }, productId);
 }
 function shop58Leave() { goToView(_shopFrom && document.getElementById('view-' + _shopFrom) ? _shopFrom : 'zamer'); }

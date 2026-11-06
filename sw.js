@@ -1,4 +1,4 @@
-const CACHE = 'pitlane-v296';
+const CACHE = 'pitlane-v296b';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
@@ -28,6 +28,8 @@ const CORE = [
   './img/banners/bn-track-800.webp',
   './img/flags/de.svg', './img/flags/gb.svg', './img/flags/it.svg', './img/flags/jp.svg', './img/flags/us.svg',
   './legal.js',
+  './shop-ui.js',
+  './shop-config.js',
   './img/profile-banners/neon-sochi-600.webp',
   './img/profile-banners/neon-moscow-600.webp',
   './img/profile-banners/neon-nring-600.webp',

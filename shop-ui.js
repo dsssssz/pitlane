@@ -1,7 +1,7 @@
 /* v137: магазин PITLANE — шторка: витрина → карточка товара → заявка → «Заявка принята», плюс «Мои заявки».
  * Всё строится через DOM + textContent (без вставки HTML-строк). Оплаты онлайн нет (SHOP_CONFIG.payments=false). */
 import { flyShared } from './motion.js'; // v160: фото карточки перелетает в галерею товара
-import { SHOP_SUBS, SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal, FOUNDERS, gated, founderTotal, SHOP_CATS, SHOP_DELIVERY, deliveryById, SHOP_PAY_METHODS, PAY_BADGES, cartTotals, MAX_CART_LINES, trackUrl } from './shop-config.js';
+import { SHOP_SUBS, SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal, FOUNDERS, gated, founderTotal, SHOP_CATS, SHOP_DELIVERY, deliveryById, SHOP_PAY_METHODS, PAY_BADGES, cartTotals, MAX_CART_LINES, trackUrl } from './shop-config.js?v=296';
 
 let D = null; // deps from app.js: { api, currentUser, needLogin, hap, close }
 const st = { stack: [], orders: null, tg: undefined, busy: false, draft: {}, founders: null, cat: 'all', payOn: false };
@@ -103,8 +103,8 @@ function viewList() {
     open.appendChild(t);
     open.addEventListener('click', () => { D.hap?.(6); const img = open.querySelector('img'); const from = img ? { el: img.cloneNode(true), rect: img.getBoundingClientRect() } : null; push({ k: 'product', id: p.id }); if (from && D.page) requestAnimationFrame(() => { try { flyShared(from, document.querySelector('#shopBody .shop-gal-slide img'), { dur: 420 }); } catch (_) {} }); });
     c.appendChild(open);
-    const pre = el('button', 'shop-pre', orderable(p) ? 'В корзину' : statusOf(p).label); pre.type = 'button'; pre.disabled = !orderable(p);
-    pre.addEventListener('click', () => { D.hap?.(8); cart.add(p.id); render(); });
+    const pre = el('button', 'shop-pre', orderable(p) ? (isChip(p) ? 'Оставить заявку' : 'В корзину') : statusOf(p).label); pre.type = 'button'; pre.disabled = !orderable(p);
+    pre.addEventListener('click', async () => { D.hap?.(8); cart.add(p.id); if (isChip(p)) { if (!D.currentUser()) { D.close?.(); D.needLogin('Чтобы оставить заявку, войдите — так мы сможем с вами связаться'); return; } if (st.tg === undefined) { pre.disabled = true; await loadOrders(); pre.disabled = false; } push({ k: 'form' }); } else render(); });
     if (!gated(p)) c.appendChild(pre);
     grid.appendChild(c);
   });
