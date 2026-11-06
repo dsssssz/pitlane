@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="PITLANE — замер 0–100 по GPS прямо с телефона. Таблица лидеров, дуэли, гараж." />
+  <title>PITLANE</title>
+  <link rel="preload" href="../fonts/pl-sans.woff2" as="font" type="font/woff2" crossorigin />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&display=swap&subset=cyrillic" rel="stylesheet" />
+  <style>
+    @font-face {
+      font-family: "PL Sans";
+      src: url("../fonts/pl-sans.woff2") format("woff2");
+      font-weight: 400 700;
+      font-style: normal;
+      font-display: swap;
+    }
+    :root {
+      --bg: #000;
+      --fg: #f5f5f5;
+      --muted: rgba(245,245,245,.62);
+      --red: #E10600;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: "Archivo", "PL Sans", Inter, system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+    .stage {
+      position: sticky;
+      top: 0;
+      height: 100dvh;
+      width: 100%;
+      overflow: hidden;
+      background: #000;
+    }
+    .stage video, .stage .poster, .stage .still {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #000;
+    }
+    .stage .poster { z-index: 1; }
+    .stage video { z-index: 2; opacity: 0; transition: opacity .35s ease; }
+    .stage video.is-ready { opacity: 1; }
+    .vignette {
+      position: absolute; inset: 0; z-index: 3; pointer-events: none;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 28%, rgba(0,0,0,0) 62%, rgba(0,0,0,.72) 100%),
+        radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.35) 100%);
+    }
+    .copy {
+      position: absolute; inset: 0; z-index: 4; pointer-events: none;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 0 24px calc(48px + var(--safe-b));
+      max-width: 720px;
+      margin: 0 auto;
+      left: 0; right: 0;
+    }
+    .beat {
+      position: absolute;
+      left: 24px; right: 24px; bottom: calc(48px + var(--safe-b));
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .45s ease, transform .45s ease;
+      pointer-events: none;
+    }
+    .beat.is-on {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    .eyebrow {
+      font-family: Inter, "PL Sans", system-ui, sans-serif;
+      font-size: 12px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 10px;
+    }
+    h1, h2 {
+      font-weight: 600;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+    }
+    h1 { font-size: clamp(40px, 8vw, 72px); }
+    h2 { font-size: clamp(28px, 5.5vw, 44px); font-weight: 600; }
+    .body {
+      margin-top: 12px;
+      font-family: Inter, "PL Sans", system-ui, sans-serif;
+      font-size: 16px;
+      line-height: 1.45;
+      color: var(--muted);
+      max-width: 34ch;
+    }
+    .cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 22px;
+      padding: 14px 22px;
+      border-radius: 999px;
+      background: #fff;
+      color: #000;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 15px;
+      letter-spacing: -.01em;
+      pointer-events: auto;
+      transition: transform .15s ease, background .15s ease;
+    }
+    .cta:hover { transform: scale(1.02); }
+    .cta:active { transform: scale(.98); }
+    .cta .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--red);
+    }
+    .scroll-hint {
+      position: absolute; z-index: 5;
+      left: 50%; bottom: calc(18px + var(--safe-b));
+      transform: translateX(-50%);
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 11px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: rgba(245,245,245,.45);
+      transition: opacity .4s ease;
+      pointer-events: none;
+    }
+    .scroll-hint.is-hide { opacity: 0; }
+    .spacer { height: 420vh; } /* scroll runway */
+    .fallback-stills {
+      display: none;
+      gap: 0;
+      flex-direction: column;
+    }
+    .fallback-stills img {
+      width: 100%;
+      height: 70vh;
+      object-fit: cover;
+      display: block;
+      background: #000;
+    }
+    .fallback-copy {
+      display: none;
+      padding: 48px 24px calc(64px + var(--safe-b));
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .fallback-copy h1 { margin-bottom: 28px; }
+    .fallback-copy section { margin-bottom: 28px; }
+    .fallback-copy .cta { margin-top: 8px; }
+    @media (prefers-reduced-motion: reduce) {
+      .stage, .spacer, .scroll-hint { display: none !important; }
+      .fallback-stills, .fallback-copy { display: flex; }
+      .fallback-copy { display: block; }
+    }
+    @media (max-width: 640px) {
+      .copy, .beat { left: 20px; right: 20px; }
+      .body { font-size: 15px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="stage" id="stage" aria-hidden="false">
+    <img class="poster" id="poster" src="poster.jpg" alt="" />
+    <video id="reel" muted playsinline preload="auto" poster="poster.jpg"></video>
+    <div class="vignette"></div>
+    <div class="copy">
+      <div class="beat is-on" data-from="0" data-to="0.12" id="beat0">
+        <h1>PITLANE</h1>
+        <p class="body">Телеметрия разгона в твоём телефоне.</p>
+      </div>
+      <div class="beat" data-from="0.12" data-to="0.36" id="beat1">
+        <div class="eyebrow">Замер</div>
+        <h2>Замер 0–100 по GPS</h2>
+        <p class="body">Открыл бота, нажал, поехал. Без датчиков и подписок на старте.</p>
+      </div>
+      <div class="beat" data-from="0.36" data-to="0.58" id="beat2">
+        <div class="eyebrow">Сообщество</div>
+        <h2>Таблица лидеров и дуэли</h2>
+        <p class="body">Сравни результат с друзьями и займи место в топе.</p>
+      </div>
+      <div class="beat" data-from="0.58" data-to="0.78" id="beat3">
+        <div class="eyebrow">Гараж</div>
+        <h2>Твой гараж</h2>
+        <p class="body">Машина, карточки заездов и история прямо в Telegram.</p>
+      </div>
+      <div class="beat" data-from="0.78" data-to="1.01" id="beat4">
+        <div class="eyebrow">Старт</div>
+        <h2>Поехали</h2>
+        <a class="cta" href="https://t.me/pitlane_official_bot" rel="noopener">
+          <span class="dot" aria-hidden="true"></span>
+          Открыть в Telegram
+        </a>
+      </div>
+    </div>
+    <div class="scroll-hint" id="hint">Листай</div>
+  </div>
+  <div class="spacer" id="spacer" aria-hidden="true"></div>
+
+  <div class="fallback-stills" aria-hidden="true">
+    <img src="stills/01.jpg" alt="" />
+    <img src="stills/03.jpg" alt="" />
+    <img src="stills/04.jpg" alt="" />
+    <img src="stills/05.jpg" alt="" />
+  </div>
+  <div class="fallback-copy">
+    <h1>PITLANE</h1>
+    <section>
+      <div class="eyebrow">Замер</div>
+      <h2>Замер 0–100 по GPS</h2>
+      <p class="body">Открыл бота, нажал, поехал.</p>
+    </section>
+    <section>
+      <div class="eyebrow">Сообщество</div>
+      <h2>Таблица лидеров и дуэли</h2>
+      <p class="body">Сравни результат с друзьями.</p>
+    </section>
+    <section>
+      <div class="eyebrow">Гараж</div>
+      <h2>Твой гараж</h2>
+      <p class="body">Машина и история заездов в Telegram.</p>
+    </section>
+    <a class="cta" href="https://t.me/pitlane_official_bot" rel="noopener">
+      <span class="dot" aria-hidden="true"></span>
+      Открыть в Telegram
+    </a>
+  </div>
+
+  <script>
+  (function () {
+    var reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) return;
+
+    var video = document.getElementById('reel');
+    var poster = document.getElementById('poster');
+    var hint = document.getElementById('hint');
+    var beats = Array.prototype.slice.call(document.querySelectorAll('.beat'));
+    var mobile = window.matchMedia('(max-width: 820px), (max-height: 520px)').matches
+      || (navigator.connection && navigator.connection.saveData);
+
+    // Source pick: mobile mp4 when narrow / save-data; else webm+mp4
+    if (mobile) {
+      video.src = 'pitlane-scroll-mobile.mp4';
+    } else {
+      // Prefer webm if supported
+      if (video.canPlayType('video/webm; codecs="vp9"')) {
+        video.src = 'pitlane-scroll.webm';
+      } else {
+        video.src = 'pitlane-scroll.mp4';
+      }
+    }
+
+    var duration = 0;
+    var target = 0;
+    var current = 0;
+    var seeking = false;
+    var raf = 0;
+    var primed = false;
+
+    function progress() {
+      var max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      return Math.min(1, Math.max(0, window.scrollY / max));
+    }
+
+    function setBeats(p) {
+      for (var i = 0; i < beats.length; i++) {
+        var b = beats[i];
+        var from = parseFloat(b.getAttribute('data-from'));
+        var to = parseFloat(b.getAttribute('data-to'));
+        var on = p >= from && p < to;
+        if (on !== b.classList.contains('is-on')) {
+          b.classList.toggle('is-on', on);
+        }
+      }
+      hint.classList.toggle('is-hide', p > 0.04);
+    }
+
+    function tick() {
+      raf = 0;
+      // Ease toward target for smoother scrub on sparse keyframes
+      current += (target - current) * 0.28;
+      if (Math.abs(target - current) < 0.0008) current = target;
+      if (duration > 0 && !seeking) {
+        var t = current * Math.max(0, duration - 0.05);
+        if (Math.abs(video.currentTime - t) > 0.02) {
+          seeking = true;
+          try {
+            video.currentTime = t;
+          } catch (e) {}
+        }
+      }
+      setBeats(current);
+      if (current !== target || seeking) {
+        raf = requestAnimationFrame(tick);
+      }
+    }
+
+    function onScroll() {
+      target = progress();
+      if (!raf) raf = requestAnimationFrame(tick);
+    }
+
+    video.addEventListener('seeked', function () { seeking = false; });
+    video.addEventListener('loadedmetadata', function () {
+      duration = video.duration || 0;
+      // iOS seek priming
+      try {
+        video.currentTime = 0.001;
+      } catch (e) {}
+    });
+    video.addEventListener('canplay', function () {
+      video.classList.add('is-ready');
+      poster.style.opacity = '0';
+      setTimeout(function () { poster.style.display = 'none'; }, 400);
+      primed = true;
+      onScroll();
+    });
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll);
+    video.load();
+    onScroll();
+  })();
+  </script>
+</body>
+</html>
