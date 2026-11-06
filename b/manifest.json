@@ -1,8 +1,8 @@
 {
- "app": "./b/app-BTVKQMDG.js",
- "css": "./styles-A6895B14.css",
+ "app": "./b/app-42P2SYRP.js",
+ "css": "./styles-8CB48029.css",
  "files": [
-  "./b/app-BTVKQMDG.js",
+  "./b/app-42P2SYRP.js",
   "./b/chunk-WOT6VMZA.js",
   "./b/chunk-XFCFYOWB.js",
   "./b/journal-TPIZHBOY.js",
@@ -10,6 +10,6 @@
   "./b/shop-ui-BWY6A5BF.js",
   "./b/tv2-HR4VHUKJ.js",
   "./b/video-tele-H4JCFGJJ.js",
-  "./styles-A6895B14.css"
+  "./styles-8CB48029.css"
  ]
 }

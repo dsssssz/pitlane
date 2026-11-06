@@ -153,7 +153,7 @@ function im(src, cls, alt = '') { const e = document.createElement('img'); e.src
 
 /** Аватар в рамке: kind = gold|silver|bronze|purple | Pass: forged|titanium|ceramic|gold18|chrome */
 /** v210: рамки Pass — фото-кольца снаружи аватарки; старые id мигрируют */
-export const PASS_FRAMES = [['forged', 'Forged Carbon'], ['titanium', 'Black Titanium'], ['ceramic', 'Carbon Ceramic'], ['gold18', '18K Gold'], ['chrome', 'Black Chrome']];
+export const PASS_FRAMES = [['forged', 'Кованый карбон'], ['titanium', 'Чёрный титан'], ['ceramic', 'Карбон-керамика'], ['gold18', 'Золото 18K'], ['chrome', 'Чёрный хром']]; // v298: по-русски
 const FR_LEGACY = { carbon: 'forged', chequer: 'chrome' };
 export function passFrame(k) { k = FR_LEGACY[k] || k; return PASS_FRAMES.some(([v]) => v === k) ? k : ''; }
 export function passFrameSrc(k) { k = passFrame(k); return k ? A + 'fr_' + k + '.webp' : ''; }
@@ -287,7 +287,7 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
   if (pass?.active) {
     const row = h('div', 'pp-cos');
     const pin = h('select'); [['', 'без пина'], ['helmet', 'шлем'], ['wheel', 'руль'], ['carbon', 'карбон']].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (pass.pin === v) o.selected = true; pin.appendChild(o); });
-    const fr = h('select'); [['', 'No frame'], ...PASS_FRAMES].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (passFrame(pass.frame) === v) o.selected = true; fr.appendChild(o); });
+    const fr = h('select'); [['', 'Без рамки'], ...PASS_FRAMES].forEach(([v, l]) => { const o = h('option', '', l); o.value = v; if (passFrame(pass.frame) === v) o.selected = true; fr.appendChild(o); });
     const sv = h('button', 'go-btn', 'Сохранить'); sv.type = 'button';
     sv.addEventListener('click', async () => { sv.disabled = true; msg.textContent = await onSave({ pin: pin.value, frame: fr.value }); sv.disabled = false; });
     row.append(pin, fr, sv); root.appendChild(row);
@@ -356,8 +356,8 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
   root.appendChild(hero);
   const ul = h('ul', 'ps-list');
   const perks = [
-    ['helmet', 'Nick Pins', 'Helmet, Wheel or Carbon'],
-    ['fr_forged', 'Avatar Frames', 'Forged Carbon · Black Titanium · Carbon Ceramic · 18K Gold · Black Chrome'],
+    ['helmet', 'Пин у ника', 'Шлем, руль или карбон'],
+    ['fr_forged', 'Рамка аватара', 'Кованый карбон, чёрный титан, карбон-керамика, хром'],
   ];
   for (const [k, n, d] of perks) {
     const li = h('li', 'ps-it');
@@ -371,7 +371,7 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
   if (pass?.active) {
     // v209: вместо кривых select — одна понятная кнопка в «Оформление Pass»
     const cur = h('div', 'ps-cur');
-    const PN = { helmet: 'Helmet', wheel: 'Wheel', carbon: 'Carbon' }, FN = Object.fromEntries(PASS_FRAMES);
+    const PN = { helmet: 'шлем', wheel: 'руль', carbon: 'карбон' }, FN = Object.fromEntries(PASS_FRAMES);
     cur.appendChild(h('span', '', 'Пин: ' + (PN[pass.pin] || 'нет')));
     cur.appendChild(h('span', '', 'Рамка: ' + (FN[passFrame(pass.frame)] || 'нет')));
     root.appendChild(cur);

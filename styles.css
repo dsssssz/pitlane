@@ -8403,3 +8403,41 @@ button.shop-cta:disabled{ opacity:.45; }
 .app-toast, .rail, .tabbar, .nav-blur, .ss-sheet, .shop-sheet-inner{
   /* intentional: leave author backdrop-filter from earlier rules */
 }
+
+/* v298: профиль без «золота». Подписка — одна тихая кнопка: чёрный, тонкая линия, без стекла и таблетки */
+.pf6-pass { margin-top: 14px; display: inline-flex; align-items: baseline; gap: 10px; padding: 10px 16px; border-radius: 10px; background: #000; border: 1px solid rgba(255,255,255,.14); color: #f2f2f2; font: 500 14px/1 var(--font-ui); letter-spacing: 0; transition: border-color .2s, background .2s; }
+.pf6-pass:hover, .pf6-pass:focus-visible { border-color: rgba(255,255,255,.32); }
+.pf6-pass:active { background: #0c0c0c; }
+.pf6-pass .pf6-pass-v { font: 500 13px/1 var(--font-num); color: #8d9096; }
+.pf6-pass.on { background: #000; color: #f2f2f2; border-color: rgba(255,255,255,.22); }
+.pf6-pass.on .pf6-pass-v { color: #c9cbd0; }
+.pf6-pass img { display: none; }
+.sc-all { color: #8d9096; font-weight: 500; }
+.pfe-ok, .pfe-link { color: #f2f2f2; }
+.pfe-pass { background: #0b0b0c; border-color: rgba(255,255,255,.10); }
+.pfe-ph b { color: #f2f2f2; }
+.pfe-lock { background: rgba(255,255,255,.08); color: #c9cbd0; }
+.pfe-opt.on { border-color: #e10600; background: rgba(225,6,0,.06); }
+html.v206p .cm-bubble, html.v206p .cm-arrow, html.v206p .cm-bubble[data-side="above"] .cm-arrow { border-color: rgba(255,255,255,.12); }
+html.v206p .cm-title { color: #f2f2f2; }
+#view-account #accPlan { display: none; }
+/* v298: шторка подписки — без золота: чёрный, белый текст, красный только на выбранном плане */
+.pass-inner { background: #000 !important; }
+.ps-k { color: #8d9096; letter-spacing: .24em; }
+.ps-t { font-family: var(--font-display); letter-spacing: .01em; }
+.ps-ic { filter: grayscale(1) contrast(1.05); width: 104px; height: 104px; }
+.ps-it { background: #0b0b0c; border-color: rgba(255,255,255,.08); }
+.ps-plan { background: #0b0b0c; border: 1px solid rgba(255,255,255,.10); }
+.ps-plan.on { background: #0b0b0c; outline: 1px solid #f2f2f2; outline-offset: -1px; }
+.ps-plan.on .ps-plan-dot { background: #e10600; }
+.ps-plan.on .ps-plan-dot::after { background: #000; }
+.ps-plan-badge { color: #f2f2f2; background: transparent; border: 1px solid rgba(255,255,255,.22); font-weight: 600; }
+.ps-plan-p b, .ps-price b { color: #f2f2f2; font-family: var(--font-num); font-weight: 600; }
+.ps-buy { border-radius: 12px; color: #fff; background: #e10600; font-weight: 600; font-family: var(--font-ui); }
+.ps-buy:disabled { color: #8a8a8f; background: #111113; }
+.ps-cur span { border-radius: 8px; }
+/* v298: «Изменить профиль» — группы ник/машина больше не сжимаются в 2px на низких экранах */
+.pfe-body > * { flex-shrink: 0; }
+.pfe-buy { background: #000; border: 1px solid rgba(255,255,255,.18); color: #f2f2f2; border-radius: 12px; }
+.pfe-buy span { color: #8d9096; opacity: 1; font-family: var(--font-num); }
+.pfe-ph img { filter: grayscale(1); }

@@ -79,7 +79,7 @@ function cacheCar(car) {
   st.carLoaded = true;
   try { if (st.car) localStorage.setItem(CAR_KEY, JSON.stringify(st.car)); else localStorage.removeItem(CAR_KEY); } catch (_) {}
   try { window.dispatchEvent(new Event('pl-car')); } catch (_) {} // v280: воронка
-  document.querySelectorAll('[data-mycar-line]').forEach((n) => { n.textContent = st.car ? st.car.model + ' · ' + st.car.tyre : 'не выбрана'; });
+  document.querySelectorAll('[data-mycar-line]').forEach((n) => { n.textContent = st.car ? String(st.car.model).replace(/\s*\([^)]*\)\s*$/, '') + ' · ' + (TYRE_T_LABEL[st.car.tyre] || st.car.tyre) : 'не выбрана'; }); // v298: без «(G80)» и кода резины
   document.querySelectorAll('[data-mycar-class]').forEach((n) => {
     if (!st.car) { n.textContent = ''; n.hidden = true; return; }
     const nums = [st.car.hp ? st.car.hp + ' л.с.' : '', st.car.kg ? st.car.kg + ' кг' : '', st.car.bar ? st.car.bar + ' бар' : ''].filter(Boolean).join(' · ');
