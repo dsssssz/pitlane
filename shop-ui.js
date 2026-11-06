@@ -176,7 +176,7 @@ function viewProduct(v) {
   });
   if (!gated(p)) buy.appendChild(cta); f.appendChild(buy);
   if (p.blurb) f.appendChild(el('p', 'shop-blurb', p.blurb));
-  { const n = el('div', 'shop-pay-note'); n.append(el('p', 'shop-muted', 'СДЭК 390 ₽ · 2–4 дня  ·  Почта 290 ₽ · 5–9 дней  ·  самовывоз Краснодар 0 ₽'), payBadges()); f.appendChild(n); }
+  { const n = el('div', 'shop-pay-note'); n.append(el('p', 'shop-muted', 'СДЭК 390 ₽ · 2–4 дня  ·  Почта 290 ₽ · 5–9 дней  ·  самовывоз Краснодар 0 ₽')); if (SHOP_CONFIG.payments) n.append(payBadges()); else n.append(el('p', 'shop-muted', 'Онлайн-оплаты нет — только заявка, согласуем в Telegram.')); f.appendChild(n); }
   if (p.inside) f.appendChild(insideBlock(p.inside));
   const sp = el('section', 'shop-sec'); sp.appendChild(el('h3', 'shop-h3', 'Характеристики'));
   const dl = el('dl', 'shop-specs'); for (const [k, val] of (p.specs || [])) { dl.appendChild(el('dt', '', k)); dl.appendChild(el('dd', '', val)); } sp.appendChild(dl); f.appendChild(sp);
