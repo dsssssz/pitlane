@@ -118,13 +118,6 @@
     }
     .cta:hover { transform: scale(1.02); }
     .cta:active { transform: scale(.98); }
-    .chip { position: relative; z-index: 6; background: #000; padding: 96px 24px 120px; display: grid; gap: 28px; justify-items: center; text-align: center; }
-    .chip img { width: min(520px, 100%); height: auto; border-radius: 12px; display: block; }
-    .chip h2 { font-family: "Sofia Sans Condensed", sans-serif; font-weight: 800; font-size: clamp(36px, 7vw, 64px); line-height: .95; margin: 0; color: #fff; letter-spacing: -.01em; }
-    .chip .price { font-family: "IBM Plex Mono", monospace; font-size: 28px; color: #fff; margin: 0; }
-    .chip .price s { color: var(--muted); font-size: 18px; margin-left: 10px; }
-    .chip .body { margin: 0 auto; }
-    .chip .cta.red { background: var(--red); color: #fff; margin-top: 4px; }
     .cta .dot {
       width: 8px; height: 8px; border-radius: 50%;
       background: var(--red);
@@ -173,6 +166,24 @@
       .copy, .beat { left: 20px; right: 20px; }
       .body { font-size: 15px; }
     }
+  /* v298 chip */
+.chip img{height:auto!important}
+.chip{position:relative;z-index:6;overflow:hidden}
+.chip .k{font-family:"IBM Plex Mono",monospace;font-size:12px;letter-spacing:.08em;color:#8a8a8a}
+.chip h2{font-family:"Sofia Sans Condensed",sans-serif;font-weight:800;line-height:.88;letter-spacing:-.02em;text-transform:uppercase}
+.chip .specs{display:grid;grid-template-columns:repeat(3,auto);gap:0;border-top:1px solid #222}
+.chip .specs div{padding:22px 28px 0 0}.chip .specs b{display:block;font-family:"IBM Plex Mono",monospace;font-weight:500;font-size:30px;color:#fff;letter-spacing:-.02em}.chip .specs span{font-size:13px;color:#8a8a8a;margin-top:6px;display:block}
+.chip .price{font-family:"IBM Plex Mono",monospace;font-size:44px;color:#fff;letter-spacing:-.03em}.chip .price s{font-size:16px;color:#666;margin-left:14px;vertical-align:middle}
+.chip .btn{display:inline-block;background:#E10600;color:#fff;text-decoration:none;font-weight:600;font-size:16px;padding:20px 40px;border-radius:4px}
+.chip .note{font-size:13px;color:#777;margin-top:14px}
+
+.chip{position:relative;padding:120px 24px 140px;text-align:center;background:radial-gradient(60% 45% at 50% 38%,#1b1b1b 0,#000 70%)}
+.chip .k{margin-bottom:18px}.chip h2{font-size:clamp(64px,11vw,168px)}
+.chip img{width:min(1100px,118%);margin:-10px auto 8px;display:block;position:relative;left:50%;transform:translateX(-50%);-webkit-mask-image:radial-gradient(closest-side,#000 70%,transparent 100%);mask-image:radial-gradient(closest-side,#000 70%,transparent 100%)}
+.chip .specs{max-width:760px;margin:0 auto 56px;justify-content:center;grid-template-columns:repeat(3,1fr)}.chip .specs div{padding:24px 10px 0}
+.chip .row{display:flex;gap:32px;align-items:center;justify-content:center;flex-wrap:wrap}
+@media(max-width:600px){.chip{padding:80px 20px 96px}.chip .specs b{font-size:20px}.chip .price{font-size:36px}.chip .btn{width:100%;text-align:center}.chip img{width:150%}}
+
   </style>
 </head>
 <body>
@@ -236,13 +247,9 @@
     </a>
   </div>
 
-  <section class="chip" id="chip">
-    <img src="../img/shop/gps-hero-1200.webp" alt="PITLANE GPS" loading="lazy" width="1200" height="800" />
-    <h2>PITLANE GPS</h2>
-    <p class="price">6 800 ₽<s>8 499 ₽</s></p>
-    <p class="body">GPS 25 Гц для точного замера 0–100 и 100–200. Без предоплаты.</p>
-    <a class="cta red" href="https://t.me/pitlane_official_bot?start=shop" rel="noopener">Оставить заявку</a>
-  </section>
+<section class="chip" id="chip"><div class="k">PITLANE GPS · ПРЕДЗАКАЗ</div><h2>Точность<br>гоночного уровня</h2>
+<img src="chip.webp" alt="PITLANE GPS" loading="lazy" width="1280" height="720"><div class="specs"><div><b>25 Гц</b><span>частота GPS</span></div><div><b>0–100</b><span>и 100–200 км/ч</span></div><div><b>USB-C</b><span>питание в машине</span></div></div>
+<div class="row"><div class="price">6 800 ₽<s>8 499 ₽</s></div><a class="btn" href="https://t.me/pitlane_official_bot?start=shop" rel="noopener">Оставить заявку</a></div><p class="note">Без предоплаты. Доставка с первой партией, заявка в Telegram.</p></section>
 
   <script>
   (function () {
