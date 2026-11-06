@@ -5,7 +5,7 @@
   --c-fill: #e8e9ea; --c-on-fill: #0b0c0c;
   --c-good: #7fae8f; --c-bad: #d49a9a;
 }
-@font-face { font-family: "PL Sans"; src: url("./fonts/pl-sans.woff2") format("woff2"); font-weight: 300 700; font-display: swap; } /* v159: Inter (OFL), как в приложении */
+/* v295: typefaces loaded via fonts.css (Golos / Sofia Condensed / Plex Mono; PL Sans/Num aliases) */
 :root { color-scheme: dark; }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: #1a1a1a; color: #e8e8e8; }

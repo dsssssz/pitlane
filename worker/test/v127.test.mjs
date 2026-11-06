@@ -9,13 +9,13 @@ const root = new URL('../../', import.meta.url).pathname;
 const html = fs.readFileSync(root + 'index.html', 'utf8'); const css = fs.readFileSync(root + 'styles.css', 'utf8');
 const app = fs.readFileSync(root + 'app.js', 'utf8'); const sw = fs.readFileSync(root + 'sw.js', 'utf8');
 console.log('[шрифт цифр]');
-for (const [n, lim] of [['pl-num', 12000], ['pl-sans', 60000]]) { const f = root + `fonts/${n}.woff2`; ok(fs.existsSync(f) && fs.readFileSync(f).toString('ascii', 0, 4) === 'wOF2' && fs.statSync(f).size < lim, `самохост woff2 ${n} (< ${lim / 1000} КБ)`); } // v159: Inter (OFL) — текст + цифры
+for (const [n, lim] of [['golos/cyrillic-400-normal', 20000], ['plex-mono/latin-600-normal', 25000], ['sofia-condensed/cyrillic-700-normal', 25000]]) { const f = root + `fonts/${n}.woff2`; ok(fs.existsSync(f) && fs.readFileSync(f).toString('ascii', 0, 4) === 'wOF2' && fs.statSync(f).size < lim, `самохост woff2 ${n} (< ${lim / 1000} КБ)`); } // v159: Inter (OFL) — текст + цифры
 ok(fs.existsSync(root + 'fonts/Inter-OFL.txt') && /SIL OPEN FONT LICENSE/i.test(fs.readFileSync(root + 'fonts/Inter-OFL.txt', 'utf8')), 'лицензия OFL рядом со шрифтом');
-ok(/@font-face \{ font-family: "PL Num"; src: url\("\.\/fonts\/pl-num\.woff2"\)/.test(css) && /unicode-range: U\+0020-003A/.test(css), '@font-face c unicode-range (только цифры)');
+ok(/IBM Plex Mono/.test(fs.readFileSync(root+'fonts.css','utf8')) && /PL Num/.test(fs.readFileSync(root+'fonts.css','utf8')), 'Plex Mono / PL Num alias in fonts.css');
 ok(!/Barlow Condensed|Oswald/.test(css) && !/Barlow\+Condensed|Oswald/.test(html), 'Barlow/Oswald убраны — один шрифт для цифр');
 ok(/body \{ font-variant-numeric: tabular-nums; \}/.test(css), 'tabular-nums');
 ok(/font-src 'self' data:;/.test(html) && !/fonts\.(gstatic|googleapis)\.com/.test(html) && /script-src 'self'/.test(html), 'CSP: шрифты только свои (v250 — Google Fonts убраны)');
-ok(/pl-num\.woff2/.test(sw) && /pl-sans\.woff2/.test(sw), 'шрифт в precache SW');
+ok(/fonts\.css/.test(sw) && /golos\//.test(sw) && /plex-mono\//.test(sw), 'шрифты v295 в precache SW');
 console.log('[токены и акцент]');
 for (const t of ['--c-acc', '--r-lg', '--sp-4', '--sh-1', '--font-num', '--c-line']) ok(css.includes(t + ':'), 'токен ' + t);
 ok(/\.nav-badge \{ background: var\(--c-text\) !important/.test(css) && /\.pc-bh b[^{]*\{ color: var\(--c-text\)/.test(css) && /\.tb-row\.me \{ background: var\(--ds-fill\) !important/.test(css), 'бейджи/ники/моя строка — без зелёного');

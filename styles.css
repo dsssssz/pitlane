@@ -1,9 +1,9 @@
 /* ===== v159 TOKENS — единая система PITLANE (одно место для цвета, шрифта, сетки, радиусов, движения) =====
-   Шрифт: Inter (SIL OFL 1.1, fonts/Inter-OFL.txt), самохост, сабсет латиница+кириллица: PL Sans — текст (opsz 14, 300–700), PL Num — цифры (Display, opsz 32, 200–500).
+   Шрифт v295: Sofia Sans Condensed (display) + Golos Text / PL Sans (UI) + IBM Plex Mono / PL Num (цифры, tabular). OFL в fonts/.
    Акцент: один — платиновый rgb(201,198,191), только для активного состояния (вкладка, выбор, «живой» индикатор, фокус).
    Зелёный/красный — только дельты (лучше/хуже). Сетка 8 px. Радиусы 4/6/8. Без градиентов, теней, свечения; blur — только функциональный (шторки, шапка). */
-@font-face { font-family: "PL Sans"; src: url("./fonts/pl-sans.woff2") format("woff2"); font-weight: 300 700; font-style: normal; font-display: swap; }
-@font-face { font-family: "PL Num"; src: url("./fonts/pl-num.woff2") format("woff2"); font-weight: 200 500; font-style: normal; font-display: swap; unicode-range: U+0020-003A, U+0025, U+002B, U+002D, U+00B0, U+00B7, U+00D7, U+2013, U+2014, U+2212; }
+
+
 :root {
   /* цвет */
   --ds-bg: #000; --ds-bg-1: #0a0a0a; --ds-bg-2: #141414; --ds-bg-3: #1c1c1e; --ds-fill: rgba(255,255,255,.04); --ds-fill-2: rgba(255,255,255,.07);
@@ -16,10 +16,10 @@
   /* радиусы */
   --r1: 4px; --r2: 6px; --r3: 8px;
   /* шрифт и шкала */
-  --font-ui: "PL Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-num: "PL Num", "PL Sans", system-ui, sans-serif;
-  --t-label: 500 11px/16px var(--font-ui); --t-cap: 400 13px/18px var(--font-ui); --t-body: 400 15px/22px var(--font-ui); --t-title: 600 17px/24px var(--font-ui); --t-h1: 500 28px/32px var(--font-ui);
-  --n-xl: 200 80px/1 var(--font-num); --n-l: 300 48px/1 var(--font-num); --n-m: 300 32px/1 var(--font-num); --n-s: 400 20px/1 var(--font-num);
+  --font-ui: "Golos Text", "PL Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-num: "IBM Plex Mono", "PL Num", "Golos Text", system-ui, sans-serif;--font-display: "Sofia Sans Condensed", "Golos Text", sans-serif;
+  --t-label: 500 11px/16px var(--font-ui); --t-cap: 400 13px/18px var(--font-ui); --t-body: 400 15px/22px var(--font-ui); --t-title: 600 17px/24px var(--font-ui); --t-h1: 700 30px/34px var(--font-display);
+  --n-xl: 600 72px/1 var(--font-num); --n-l: 600 48px/1 var(--font-num); --n-m: 600 32px/1 var(--font-num); --n-s: 500 20px/1 var(--font-num);
   /* движение */
   --ds-t: 200ms; --ds-ease: cubic-bezier(.2, 0, 0, 1);
   /* совместимость со старыми именами — все указывают на систему */
@@ -36,7 +36,7 @@
 :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
 html.tma { --sat: max(env(safe-area-inset-top, 0px), var(--tma-top, 0px)); --sab: max(env(safe-area-inset-bottom, 0px), var(--tma-bottom, 0px)); }
 body { font-variant-numeric: tabular-nums; }
-/* ——— v127: шрифт для цифр (самохост, Inter Display, SIL OFL 1.1 — fonts/Inter-OFL.txt); только цифры/пунктуация, буквы — Manrope ——— */
+/* ——— цифры: IBM Plex Mono / PL Num (tabular); UI: Golos; display: Sofia Sans Condensed ——— */
 /* Safe areas: device insets; inside the Telegram Mini App also Telegram's own header/controls (contentSafeAreaInset). */
 /* v133: палитра без неона — графит + платиновый акцент. Ярко-зелёный (кислотный и т.п.), green glow/neon запрещены (test/v133). */
 :root { --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px); }
@@ -186,7 +186,7 @@ main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
   border-bottom: 1px solid var(--line);
 }
 .eyebrow { color: var(--gold); font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; }
-h1, h2, h3 { font-family: var(--font-num), sans-serif; font-weight: 700; }
+h1, h2, h3 { font-family: var(--font-display), var(--font-ui), sans-serif; font-weight: 700; letter-spacing: .02em; }
 h1 { font-size: 42px; line-height: 1; letter-spacing: 0.02em; }
 h2 { font-size: 32px; margin-bottom: 6px; }
 .top-meta { display: flex; gap: 22px; }
@@ -8333,3 +8333,15 @@ html:not(#_):not(#_) .ph293-b.on { background: #1b1c1f !important; color: #f2f2f
 /* v294: рамка Pass в профиле пилота — сдвиг вверх у обёртки, а не у аватара внутри (рамка не «съезжает» вниз) */
 .pilot-banner + .pilot-head > .aw-fr { margin-top: -54px; flex: 0 0 auto; }
 .pilot-banner + .pilot-head > .aw-fr .pad-ava { margin-top: 0; }
+
+/* v295 type polish */
+h1,h2,.hero-title h1,.home-h1,.sheet-title,.ln61-sub{
+  font-family: var(--font-display), var(--font-ui), sans-serif;
+  font-weight: 700;
+  letter-spacing: .02em;
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+  max-width: 100%;
+}
+.hero-title h1{ line-height: 1.05; }
+.num, .pl-num, [data-num] { font-family: var(--font-num), monospace; font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }

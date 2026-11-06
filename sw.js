@@ -18,7 +18,7 @@ const CORE = [
   './contacts.html',
   './delete-account.html',
   './tools/tma-check.html',
-  './legal.css', './fonts/pl-sans.woff2', './fonts/pl-num.woff2',
+  './legal.css', './fonts.css', './fonts/golos/cyrillic-400-normal.woff2', './fonts/golos/latin-400-normal.woff2', './fonts/sofia-condensed/cyrillic-700-normal.woff2', './fonts/plex-mono/latin-600-normal.woff2',
   './img/forged.webp',
   './img/shop/gps-hero-720.webp',
   './img/banners/bn-gps-800.webp',

@@ -13,8 +13,8 @@ for (const t of ['--ds-bg: #000', '--ds-bg-1: #0a0a0a', '--ds-line: rgba(255,255
 { const roots = noC(css).match(/:root\s*\{[^}]*\}/g) || []; const defs = roots.join('').match(/--(c|h|r|sp|sh)-[a-z0-9-]+:/g) || []; ok(defs.length > 0 && new Set(defs).size === defs.length, 'старые имена токенов определены один раз (алиасы на систему)', defs.length + ' / ' + new Set(defs).size); }
 ok(!/--h-card:\s*linear-gradient/.test(css) && /--h-card: transparent/.test(css) && /--sh-1: none; --sh-2: none/.test(css), 'карточки и тени старых слоёв сведены к токенам системы');
 console.log('[шрифт]');
-ok(/@font-face \{ font-family: "PL Sans"; src: url\("\.\/fonts\/pl-sans\.woff2"\)/.test(css) && /--font-ui: "PL Sans"/.test(css), 'один шрифт: PL Sans (Inter) для текста');
-ok(!/fonts\.googleapis\.com\/css2/.test(html) && !/fonts\.googleapis\.com\/css2/.test(method) && /rel="preload" href="\.\/fonts\/pl-sans\.woff2"/.test(html), 'без Google Fonts, шрифт предзагружается');
+ok(/Golos Text/.test(css) && /Sofia Sans Condensed/.test(css) && /IBM Plex Mono/.test(css), 'v295: Golos + Sofia Condensed + Plex Mono');
+ok(!/fonts\.googleapis\.com\/css2/.test(html) && /fonts\.css/.test(html) && /golos\/cyrillic-400-normal\.woff2/.test(html), 'без Google Fonts, fonts.css + preload');
 ok(!/Manrope|Barlow/.test(noC(css)) && !/Manrope|Barlow/.test(legal) && !/Manrope/.test(app) && !/Manrope/.test(R('video-tele.js')) && !/Manrope/.test(R('run-marks.js')), 'Manrope/Barlow больше нигде не используются');
 console.log('[старые слои без «кожи»]');
 { const sh = [...base.matchAll(/box-shadow:\s*([^;}]+)/g)].map((m) => m[1].trim()).map((v) => v.replace(/\([^()]*\)/g, '()')).filter((v) => !/^none/.test(v) && !v.split(',').every((p) => /^\s*inset 0 0 0 1px /.test(p)) && !/^var\(--sh-\d\)/.test(v));

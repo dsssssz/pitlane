@@ -444,7 +444,7 @@ function drawTrack(id, elId, opts) {
     + '<line x1="-11" y1="-16" x2="-11" y2="16" stroke="#fff" stroke-width="2.2"/>'
     + '<rect x="-11" y="-16" width="9" height="9" fill="#111"/><rect x="-2" y="-16" width="9" height="9" fill="#eee"/>'
     + '<rect x="-11" y="-7" width="9" height="9" fill="#eee"/><rect x="-2" y="-7" width="9" height="9" fill="#111"/>'
-    + '<text x="16" y="4" fill="#C9C6BF" font-size="11" font-family="PL Sans,sans-serif" font-weight="700">С/Ф</text>'
+    + '<text x="16" y="4" fill="#C9C6BF" font-size="11" font-family="Golos Text,PL Sans,sans-serif" font-weight="700">С/Ф</text>'
     + '</g>';
   const car = live
     ? '<g id="lapCarMark" class="lap-car-mark" transform="translate(0,0) rotate(0)">'
@@ -12291,7 +12291,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v294';
+const APP_VERSION = 'v295';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -15458,7 +15458,7 @@ async function seasonImageBlob() {
   const g = c.getContext('2d');
   g.fillStyle = '#0b0b0b'; g.fillRect(0, 0, W, H);
   const NEON = '#C9C6BF'; const TXT = '#f2f2f2'; const MUTE = '#8a8a8a';
-  const font = (w, px) => `${w} ${px}px "PL Sans", system-ui, sans-serif`;
+  const font = (w, px) => `${w} ${px}px "Golos Text", "PL Sans", system-ui, sans-serif`;
   g.fillStyle = MUTE; g.font = font(700, 30); g.fillText('P I T L A N E', 64, 90);
   g.fillStyle = TXT; g.font = font(700, 64); g.fillText('Сезон экипажей', 64, 180);
   const tr = TRACKS.find((t) => t.id === s.trackId)?.name || s.trackId || '';
@@ -17550,7 +17550,7 @@ const stampDate = (at) => { try { return new Date(at).toLocaleDateString('ru-RU'
 const stampSrc = (s) => (s.src === 'chip' ? 'PITLANE GPS' : 'GPS ТЕЛЕФОНА') + ' · ЗАЧЁТ ' + s.cls;
 function stampSvg(s, uid = 'a') {
   const car = String(s.car || '').slice(0, 22);
-  return `<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Печать PITLANE ${stampEsc(stampCode(s.code))}"><g transform="translate(300 300) rotate(-8)" fill="none" stroke="#e8e8e8" font-family="Inter,Arial,sans-serif" text-anchor="middle">
+  return `<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Печать PITLANE ${stampEsc(stampCode(s.code))}"><g transform="translate(300 300) rotate(-8)" fill="none" stroke="#e8e8e8" font-family="Sofia Sans Condensed,Golos Text,Arial,sans-serif" text-anchor="middle">
 <circle r="230" stroke-width="6"/><circle r="205" stroke-width="2"/><circle r="120" stroke-width="2"/>
 <defs><path id="sT${uid}" d="M -170 0 A 170 170 0 0 1 170 0"/><path id="sB${uid}" d="M -185 0 A 185 185 0 0 0 185 0"/></defs>
 <text fill="#e8e8e8" stroke="none" font-size="28" font-weight="800" letter-spacing="5"><textPath href="#sT${uid}" startOffset="50%">PITLANE · ПРОВЕРЕНО</textPath></text>
@@ -17727,7 +17727,7 @@ async function rcCanvas(rc) {
   const k = 3; const c = document.createElement('canvas'); c.width = W * k; c.height = H * k;
   const x = c.getContext('2d'); x.scale(k, k);
   try { await document.fonts?.ready; } catch (_) {}
-  const UI = (w, s) => `${w} ${s}px "PL Sans", -apple-system, Arial, sans-serif`; const NU = (w, s) => `${w} ${s}px "PL Num", "PL Sans", -apple-system, Arial, sans-serif`;
+  const UI = (w, s) => `${w} ${s}px "Golos Text", "PL Sans", -apple-system, Arial, sans-serif`; const NU = (w, s) => `${w} ${s}px "IBM Plex Mono", "PL Num", -apple-system, Arial, sans-serif`;
   x.fillStyle = '#000'; x.fillRect(0, 0, W, H);
   x.fillStyle = 'rgba(255,255,255,.045)'; x.strokeStyle = 'rgba(255,255,255,.09)'; x.beginPath(); x.roundRect?.(6, 6, W - 12, H - 12, 22); x.fill(); x.stroke();
   let y = 36; x.textBaseline = 'alphabetic';
