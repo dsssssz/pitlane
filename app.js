@@ -2070,6 +2070,15 @@ function clearDeepLinkUrl() {
    шапка/навигация/контент разъезжаются по местам от центральной линии. ~1,1 с, раз за сессию, тап — пропустить,
    reduced-motion / слабое железо — без анимации. Заменяет старую заставку (#intro). */
 const LN61 = { T: 1340, UI: 900 }; // v163: крупный знак держится ~0,8 с, затем панели расходятся (800 + 520 мс)
+/* v301: приветствие по местному времени устройства под знаком PITLANE (строки — в карте для будущего перевода) */
+const GREET_I18N = { ru: { morning: 'Доброе утро', day: 'Добрый день', evening: 'Добрый вечер', night: 'Доброй ночи' } };
+function greetKey(h) { return h >= 5 && h < 12 ? 'morning' : h >= 12 && h < 17 ? 'day' : h >= 17 && h < 23 ? 'evening' : 'night'; }
+function greetText(d = new Date(), lang = 'ru') {
+  const t = (GREET_I18N[lang] || GREET_I18N.ru)[greetKey(d.getHours())];
+  let n = ''; try { n = String(window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '').trim().slice(0, 24); } catch (_) {}
+  return n ? t + ', ' + n : t;
+}
+try { const g = document.getElementById('lnGreet'); if (g) g.textContent = greetText(); } catch (_) {}
 (function setupLaunch() {
   const el = document.getElementById('launch');
   const root = document.documentElement;
@@ -12317,7 +12326,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v300';
+const APP_VERSION = 'v301';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;

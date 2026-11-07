@@ -8529,3 +8529,9 @@ html:not(#_):not(#_):not(#_) .cw291 img.cw-ph { z-index: 1 !important; width: 66
 html:not(#_):not(#_):not(#_) .cw291.big img.cw-ph { width: 74% !important; right: -24% !important; }
 html:not(#_):not(#_):not(#_) #view-garage .cw291 img.cw-ph { width: 66% !important; right: -22% !important; }
 html:not(#_):not(#_):not(#_) #view-garage .cw291.big img.cw-ph { width: 74% !important; right: -24% !important; }
+/* v301: приветствие под знаком на заставке — спокойно, серым, мягкое появление */
+.ln61-greet { position: absolute; left: 0; right: 0; top: 54px; text-align: center; font: 500 min(5vw, 20px)/24px "Sofia Sans Condensed", var(--font-ui); letter-spacing: .04em; color: #7d8087; white-space: nowrap; opacity: 0; }
+.ln61.go .ln61-greet { animation: ln61-greet 600ms ease-out 320ms both; }
+.ln61.skip .ln61-greet { animation: ln61-fade 160ms linear both; }
+@keyframes ln61-greet { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .ln61-greet { opacity: 1; animation: none !important; } }
