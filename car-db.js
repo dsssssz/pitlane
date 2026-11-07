@@ -107,6 +107,10 @@ function variantBtn(r, showBrand) {
   b.addEventListener('click', () => pick(r));
   return b;
 }
+/* v302: фото Маги (вырезки) в строках кузова; без фото — строка как была */
+const ROW_PH = { 'bmw|M3 (G80)': 'm3', 'bmw|M4 (F82/F83)': 'm4', 'bmw|M5 (F10)': 'm5-f10', 'bmw|M5 (F90)': 'm5', 'bmw|M5 (G90/G99)': 'm5-g90', 'bmw|M8 (F91/F92/F93)': 'm8', 'bmw|X5 M (F95)': 'x5m-f95', 'bmw|X6 (G06)': 'x6',
+  'porsche|911 (992)': '911-992-cabrio', 'mercedes|E 63 (W213)': 'e63-w213', 'mercedes|S 63 (W222/W223)': 's63-w222', 'mercedes|CLS 63 (C218)': 'cls-w218', 'mercedes|AMG GT 4-door (X290)': 'amg-gt63-4d', 'mercedes|G 63 (W463)': 'g63',
+  'mercedes|GLE Coupe 63 (C292/C167)': 'gle-coupe-c167', 'mercedes|GLS 63 / Maybach (X167)': 'gls-x167', 'toyota|Camry (XV70)': 'camry-xv70', 'toyota|Land Cruiser 200 / 300': 'lc200', 'lexus|IS F': 'isf', 'lixiang|L7 / L8 / L9': 'li-l9' };
 function render() {
   if (!st || !_db) return;
   const body = sheet.querySelector('.cdb-body'), title = sheet.querySelector('.cdb-title');
@@ -130,7 +134,7 @@ function render() {
       g.m.forEach((m) => {
         const row = el('button', 'cdb-row cdb-model'); row.type = 'button'; row.setAttribute('role', 'listitem');
         const tx = el('span', 'cdb-tx'); tx.append(el('b', '', m.n), el('span', '', m.y + ' · ' + m.v.length + ' ' + plural(m.v.length)));
-        row.append(tx, el('i', 'cdb-chev'));
+        { const p = ROW_PH[b.k + '|' + m.n]; if (p) { const im = el('img', 'cdb-ph'); im.src = './img/cars/user/' + p + '.webp'; im.alt = ''; im.decoding = 'async'; im.loading = 'lazy'; row.classList.add('has-ph'); row.append(tx, im, el('i', 'cdb-chev')); } else row.append(tx, el('i', 'cdb-chev')); }
         row.addEventListener('click', () => { if (m.v.length === 1) { const r = flat().find((x) => x.id === m.v[0][0]); if (r) return pick(r); } st.model = { b, g, m }; render(); body.scrollTop = 0; });
         nodes.push(row);
       });

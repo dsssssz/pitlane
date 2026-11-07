@@ -813,6 +813,22 @@ export function initCrewRooms(deps) {
  * v219: быстрый выбор машины со вкладки «Замер» — сразу список, один тап.
  * Резина/паспорт берутся с текущей «Моей машины»; если их нет — открываем полный лист с выбранной машиной.
  */
+/* v302: тап по карточке «Моя машина» — сразу каталог (марка → модель → кузов), выбор = моя машина */
+export function openCarPicker() {
+  const pickCar = async (c) => {
+    const base = st.car || null;
+    if (!base || !base.tyre) { setTimeout(() => openMyCarSheet({ dbCar: c }), 280); return; }
+    const local = { ...base, model: c.name, carId: c.id || undefined, at: Date.now() };
+    let car = local;
+    if (loggedIn()) {
+      const r = await api.putMyCar({ model: c.name, tyre: base.tyre, carId: c.id || undefined, ...passportOf(base) });
+      if (!r || r.ok === false) { try { D.flash?.('Не сохранилось — проверь сеть'); } catch (_) {} return; }
+      car = r.car || local;
+    }
+    cacheCar(car); D.hap?.(10);
+  };
+  openCarDb({ onPick: (c) => pickCar(c), onManual: () => setTimeout(() => openMyCarSheet(), 280) });
+}
 export function openQuickCarSheet() {
   // v226: 0 своих машин → сразу сетка марок с эмблемами (car-db); есть свои → их карточки (один тап) + «Другая машина» → та же сетка.
   const body = document.getElementById('myCarBody');

@@ -168,9 +168,10 @@ export function framedAvatar(avaEl, kind, size) {
 }
 
 /** Витрина профиля (машина сверху, без пилота) */
-export function renderShowcase(root, { car, carName, nick, res, pass, spec, cardHtml }) {
+export function renderShowcase(root, { car, carName, nick, res, pass, spec, cardHtml, modsN }) {
   root.replaceChildren();
-  if (cardHtml) { const cw = h('div', 'cw291 big sc293'); cw.innerHTML = cardHtml; root.appendChild(cw); } else {
+  if (cardHtml) { const cw = h('button', 'cw291 big sc293 tap302'); cw.type = 'button'; cw.setAttribute('aria-label', 'Сменить машину'); cw.innerHTML = cardHtml; root.appendChild(cw);
+    const mb = h('button', 'm302-btn'); mb.type = 'button'; mb.id = 'btnMods302'; mb.append(h('b', '', 'Доработки'), h('small', '', modsN ? modsN + ' выбрано ›' : 'Добавить ›')); root.appendChild(mb); } else {
   // v212: «Моя машина» — editorial-карточка: машина растворяется в фоне, крупная контурная модель, характеристики, мой лучший 0–100
   const hero = h('div', 'sc-hero ce');
   const sp = spec || {};

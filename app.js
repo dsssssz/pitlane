@@ -54,7 +54,7 @@ import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, make
 import { flushRunQueue, runQueueSize } from './api.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { brandLogoEl, brandLogoKey } from './car-db.js';
-import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
+import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, openCarPicker as openCarDbPicker, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 // v207: подсказки удалены полностью
 const tipsOnView = () => {};
@@ -1640,6 +1640,7 @@ function playEngineStart() {
 const VIEW_ALIAS61 = { home: 'zamer', run: 'zamer', cars: 'garage', journal: 'history', measure: 'zamer', track: 'lap' };
 function goToView(id, opts = {}) {
   id = VIEW_ALIAS61[id] || id;
+  if (id === 'garage') { try { openCarDbPicker(); } catch (_) {} return; } // v302: Гараж убран — выбор машины в каталоге
   if (id === 'pulse') { openChatPage(); return; } // v205: Чат — отдельная полноэкранная страница
   if (CP.open) closeChatPage({ instant: true }); // v262: смена вкладки — чат закрывается мгновенно, как обычный экран
   if (DUELS_OFF && id === 'duels') id = 'zamer';
@@ -7532,8 +7533,10 @@ function carCard291(x, meta, opts = {}) {
   const lk = brandLogoKey(x.name); const ph = userCarPhoto(x.id);
   const sp = [meta.hp ? meta.hp + ' HP' : '', meta.v0100 ? Number(meta.v0100).toFixed(1) + ' s' : ''].filter(Boolean).join(' · ');
   const y = x.id ? carYear291(x.id) : '';
+  const mods = Array.isArray(opts.mods) ? opts.mods : [];
+  const mc = mods.length ? `<span class="m302-mc">${mods.slice(0, 2).map((t) => `<span>${esc(t)}</span>`).join('')}${mods.length > 2 ? `<span class="more">+${mods.length - 2}</span>` : ''}</span>` : '';
   const yr = opts.noYear ? '' : opts.edit ? `<input class="cw-y${y ? ' f' : ''}" data-cy="${esc(x.id)}" inputmode="numeric" maxlength="4" placeholder="Год ＋" value="${y}" aria-label="Год выпуска">` : `<span class="cw-y${y ? ' f' : ''}">${y || 'Год ＋'}</span>`;
-  return `<div class="cw-t"><div class="cw-h">${lk ? `<i class="cw-lg" style="--logo:url('./img/brands/${lk}.svg')"></i>` : ''}${code ? `<span class="cw-c">${esc(code)}</span>` : ''}</div><b class="cw-n">${esc(name)}</b>${sp ? `<span class="cw-s">${esc(sp)}</span>` : ''}${yr}</div>` +
+  return `<div class="cw-t"><div class="cw-h">${lk ? `<i class="cw-lg" style="--logo:url('./img/brands/${lk}.svg')"></i>` : ''}${code ? `<span class="cw-c">${esc(code)}</span>` : ''}</div><b class="cw-n">${esc(name)}</b>${sp ? `<span class="cw-s">${esc(sp)}</span>` : ''}${mc}${yr}</div>${opts.tap ? '<span class="cw-tap" aria-hidden="true">Сменить ›</span>' : ''}` +
     (ph ? `<img class="cw-ph" src="${ph}" alt="" decoding="async" draggable="false">` : `<span class="cw-nph">${lk ? `<i class="cw-lg big" style="--logo:url('./img/brands/${lk}.svg')"></i>` : ''}</span>`);
 }
 /* v293: машина пилота → запись БД (по id, иначе по имени без «(G80)») и HTML карточки C */
@@ -12326,7 +12329,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v301';
+const APP_VERSION = 'v302';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -14985,7 +14988,7 @@ document.getElementById('homeWidgets')?.addEventListener('click', (e) => {
   const w = e.target?.closest?.('[data-hw]'); if (!w) return;
   e.stopPropagation(); hap(8);
   const k = w.dataset.hw;
-  if (k === 'garage') { openCarInGarage(w.dataset.car || homeHeroCarId()); return; }
+  if (k === 'garage') { try { openCarDbPicker(); } catch (_) {} return; }
   if (k === 'records') { goToView(w.dataset.empty === '1' ? 'run' : 'tops'); return; }
   if (k === 'tops' && w.dataset.empty === '1') { goToView('run'); return; }
   if (k === 'team') { openCrewSheet(); return; }
@@ -16902,7 +16905,7 @@ async function renderAwards92() {
     const pr = isRemoteApi() && getSessionToken() ? await api.mePass().catch(() => null) : null;
     const available = !!(pr && pr.ok !== false && pr.sales === true);
     if (pr && pr.ok !== false) pass = pr.pass || null;
-    const base = { car: mc?.carId || '', carName: mc ? shortCarName(mc.model, mc.carId) : '', nick, pass, spec: mc ? carCardSpec(mc) : null, cardHtml: mc ? carCard293Html(mc.carId || '', mc.model) : '' };
+    const base = { car: mc?.carId || '', carName: mc ? shortCarName(mc.model, mc.carId) : '', nick, pass, spec: mc ? carCardSpec(mc) : null, cardHtml: mc ? carCard293Html(mc.carId || '', mc.model, { tap: true, mods: mods302Get(mods302Key(mc)) }) : '', modsN: mc ? mods302Get(mods302Key(mc)).length : 0 };
     renderShowcase(sc, { ...base, res: computeAwards({ boards: {}, laps: state.laps, tracks: TRACKS, pid }) });
     const boards = await aw92Boards();
     renderShowcase(sc, { ...base, res: computeAwards({ boards, laps: state.laps, tracks: TRACKS, pid }) });
@@ -17827,3 +17830,62 @@ async function pfCta289() {
   try { _jnMod = _jnMod || await import('./journal.js'); const es = _jnMod.buildEntries(jnDeps61(), []); box.hidden = es.some((e) => e.kind === 'run' || e.kind === 'lap'); } catch (_) { box.hidden = true; }
 }
 document.addEventListener('click', (e) => { const b = e.target?.closest?.('[data-cta-go]'); if (b) { try { hap(8); } catch (_) {} goToView(b.dataset.ctaGo); } });
+
+/* ——— v302: Доработки — отдельный экран: категории, популярные чипы (мультивыбор), «+ Своё». Хранится локально по машине ——— */
+const MODS302_KEY = 'pitlane-mods-v302';
+const MODS302 = [
+  ['Выхлоп', ['Akrapovič', 'Eisenmann', 'Milltek', 'Armytrix', 'iPE', 'Даунпайп', 'Катбэк', 'Удаление катализаторов']],
+  ['Прошивка', ['Stage 1', 'Stage 2', 'Stage 2+', 'Stage 3']],
+  ['Турбины', ['Апгрейд турбин', 'Гибридные турбины', 'Большие турбины']],
+  ['Впуск / интеркулер', ['Впуск', 'Интеркулер']],
+  ['Топливо', ['E85', 'ТНВД', 'Форсунки']],
+  ['КПП', ['Прошивка КПП', 'Сцепление']],
+  ['Подвеска', ['Койловеры KW', 'Койловеры Bilstein', 'Койловеры H&R', 'Пружины', 'Пневма']],
+  ['Тормоза', ['Brembo', 'Керамика']],
+  ['Диски / шины', ['Кованые диски', 'Полуслик', 'Широкие шины']],
+  ['Аэро / кузов', ['Сплиттер', 'Антикрыло', 'Диффузор', 'Карбон']],
+  ['Облегчение', ['Ковши', 'Карбоновый капот', 'Литий АКБ']],
+];
+function mods302Key(mc) { return String(mc?.carId || mc?.model || '').slice(0, 80); }
+function mods302All() { try { const o = JSON.parse(localStorage.getItem(MODS302_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (_) { return {}; } }
+function mods302Get(k) { const v = mods302All()[k]; return Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 40) : []; }
+function mods302Set(k, list) { try { const o = mods302All(); if (list.length) o[k] = list.slice(0, 40); else delete o[k]; localStorage.setItem(MODS302_KEY, JSON.stringify(o)); } catch (_) {} }
+function openMods302() {
+  const mc = myCarLocal(); if (!mc) { try { openCarDbPicker(); } catch (_) {} return; }
+  const key = mods302Key(mc); const sel = new Set(mods302Get(key));
+  const custom = {}; // своё по категориям (то, чего нет в списке)
+  const known = new Set(MODS302.flatMap((c) => c[1]));
+  for (const t of sel) if (!known.has(t)) (custom['Своё'] = custom['Своё'] || []).push(t);
+  document.getElementById('mods302')?.remove();
+  const root = document.createElement('div'); root.id = 'mods302'; root.className = 'm302'; root.setAttribute('role', 'dialog'); root.setAttribute('aria-label', 'Доработки');
+  const cats = MODS302.map(([n, l]) => [n, l.concat((custom[n] || []))]);
+  if (custom['Своё']) cats.push(['Своё', custom['Своё']]);
+  let tab = 'Все';
+  const draw = () => {
+    const cnt = (l) => l.filter((t) => sel.has(t)).length;
+    const tabs = [['Все', [...sel]]].concat(cats);
+    root.innerHTML = `<div class="m302-top"><button type="button" class="m302-back">‹ Назад</button><button type="button" class="m302-reset">Сбросить</button></div>
+      <div class="m302-h"><b>Доработки</b><span>${esc(String(mc.model || '').replace(/\s*\([^)]*\)\s*$/, ''))} — выберите всё, что стоит</span></div>
+      <div class="m302-tabs">${tabs.map(([n, l]) => { const c = n === 'Все' ? sel.size : cnt(l); return `<button type="button" class="${n === tab ? 'on' : ''}" data-tab="${esc(n)}">${esc(n)}${c ? `<em>${c}</em>` : ''}</button>`; }).join('')}</div>
+      <div class="m302-body">${cats.filter(([n]) => tab === 'Все' || tab === n).map(([n, l]) => `<section><h4>${esc(n)}<small>${cnt(l) || ''}</small></h4><div class="m302-cg">${l.map((t) => `<button type="button" class="${sel.has(t) ? 'on' : ''}" data-mod="${esc(t)}">${sel.has(t) ? '✓ ' : ''}${esc(t)}</button>`).join('')}<button type="button" class="add" data-add="${esc(n)}">+ Своё</button></div></section>`).join('')}<div style="height:110px"></div></div>
+      <div class="m302-foot"><button type="button" class="m302-done">Готово${sel.size ? ' · ' + sel.size : ''}</button></div>`;
+  };
+  const close = (save) => { if (save) { mods302Set(key, [...sel]); try { void renderAwards92(); } catch (_) {} } root.remove(); };
+  root.addEventListener('click', (e) => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.classList.contains('m302-back')) return close(false);
+    if (t.classList.contains('m302-done')) { try { hap(10); } catch (_) {} return close(true); }
+    if (t.classList.contains('m302-reset')) { sel.clear(); draw(); return; }
+    if (t.dataset.tab) { tab = t.dataset.tab; draw(); root.querySelector('.m302-body').scrollTop = 0; return; }
+    if (t.dataset.mod) { const v = t.dataset.mod; if (sel.has(v)) sel.delete(v); else sel.add(v); try { hap(6); } catch (_) {} const y = root.querySelector('.m302-body').scrollTop; draw(); root.querySelector('.m302-body').scrollTop = y; return; }
+    if (t.dataset.add) { const v = String(prompt('Своя доработка') || '').replace(/[<>]/g, '').trim().slice(0, 32); if (!v) return; const c = cats.find((x) => x[0] === t.dataset.add); if (c && !c[1].includes(v)) c[1].push(v); sel.add(v); const y = root.querySelector('.m302-body').scrollTop; draw(); root.querySelector('.m302-body').scrollTop = y; }
+  });
+  draw(); document.body.appendChild(root);
+}
+window.__openMods302 = openMods302;
+document.addEventListener('click', (e) => {
+  if (e.target.closest?.('#btnMods302')) { openMods302(); return; }
+  const c = e.target.closest?.('.cw291.tap302'); if (c) { try { hap(10); } catch (_) {} try { openCarDbPicker(); } catch (_) {} }
+});
+window.addEventListener('pl-car', () => { try { void renderAwards92(); } catch (_) {} });
+try { const g = document.getElementById('view-garage'); if (g) { g.hidden = true; g.setAttribute('aria-hidden', 'true'); } } catch (_) {}
