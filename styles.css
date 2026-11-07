@@ -8522,3 +8522,10 @@ html:not(#_):not(#_) .cta289-go { background: #e10600; color: #fff; border-radiu
 html:not(#_):not(#_) .cta289 { border-radius: 14px; background: #0b0b0c; border-color: rgba(255,255,255,.08); }
 html:not(#_):not(#_) #view-account .pf6-g, html:not(#_):not(#_) #view-account .sc92 { border-radius: 14px; }
 html:not(#_):not(#_) #view-account .pf6-v { max-width: 52%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ——— v300: карточка C — реальная вырезка машины справа, ~половина уходит за край; текст и год всегда поверх и не заходят на машину ——— */
+html:not(#_):not(#_):not(#_) .cw291 .cw-t { position: relative !important; z-index: 2 !important; flex: 0 0 50% !important; max-width: 50% !important; }
+html:not(#_):not(#_):not(#_) .cw291.big .cw-t { flex-basis: 46% !important; max-width: 46% !important; }
+html:not(#_):not(#_):not(#_) .cw291 img.cw-ph { z-index: 1 !important; width: 66% !important; right: -22% !important; max-height: 92% !important; object-fit: contain !important; object-position: left center !important; filter: drop-shadow(0 10px 8px #000) !important; }
+html:not(#_):not(#_):not(#_) .cw291.big img.cw-ph { width: 74% !important; right: -24% !important; }
+html:not(#_):not(#_):not(#_) #view-garage .cw291 img.cw-ph { width: 66% !important; right: -22% !important; }
+html:not(#_):not(#_):not(#_) #view-garage .cw291.big img.cw-ph { width: 74% !important; right: -24% !important; }
