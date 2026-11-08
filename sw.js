@@ -1,8 +1,8 @@
-const CACHE = 'pitlane-v303';
+const CACHE = 'pitlane-v304';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
-const BUILD = /*BUILD*/["./b/app-MTJMBWIL.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-4F98A874.css"]/*END*/;
+const BUILD = /*BUILD*/["./b/app-7VLOZMBI.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-D9078FF7.css"]/*END*/;
 const CORE = [
   ...BUILD,
   './',
@@ -18,7 +18,7 @@ const CORE = [
   './contacts.html',
   './delete-account.html',
   './tools/tma-check.html',
-  './legal.css', './fonts.css', './fonts/golos/cyrillic-400-normal.woff2', './fonts/golos/latin-400-normal.woff2', './fonts/sofia-condensed/cyrillic-700-normal.woff2', './fonts/plex-mono/latin-600-normal.woff2',
+  './legal.css', './fonts.css', './fonts/golos/cyrillic-400-normal.woff2', './fonts/golos/latin-400-normal.woff2', './fonts/sofia-condensed/cyrillic-700-normal.woff2', './fonts/michroma/latin-400-normal.woff2', './fonts/plex-mono/latin-600-normal.woff2',
   './img/forged.webp',
   './img/shop/gps-hero-720.webp',
   './img/banners/bn-gps-800.webp',

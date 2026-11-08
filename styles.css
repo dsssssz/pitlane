@@ -8579,3 +8579,5 @@ html:not(#_):not(#_):not(#_) .pf6-pass .pf6-pass-v { font: 600 14px/1 'Sofia San
 html:not(#_):not(#_):not(#_) .pf6-pass.on .pf6-pass-v { color: #f2efe9; }
 html:not(#_):not(#_):not(#_) .pf6-pass:active { background-color: #141414; }
 html:not(#_):not(#_):not(#_) .pf6-pass .pf6-pass-star { display: none; }
+/* v304: PITLANE PASS — Michroma */
+html:not(#_):not(#_):not(#_):not(#_) #pf6Pass .pf6-pass-k { font: 400 15px/1 "Michroma", 'Sofia Sans Condensed', sans-serif; letter-spacing: .08em; }
