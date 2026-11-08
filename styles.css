@@ -8446,3 +8446,8 @@ button, a, [role="button"], [role="tab"], label { touch-action: manipulation; }
 .view { overscroll-behavior-y: contain; }
 html:not(#_):not(#_):not(#_) .pfe-in input, html:not(#_):not(#_):not(#_) .pfe-in input:focus, html:not(#_):not(#_):not(#_) .pfe-in input:focus-visible { border: 0 !important; outline: none !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; caret-color: #f2efe9; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #pfEdit .pfe-in input, html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #pfEdit .pfe-in input:focus { border: 0 !important; outline: none !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; border-radius: 0 !important; text-align: left !important; }
+
+/* v308: framed chat avatars occupy the avatar cell, not a bubble row. */
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-author > .aw-fr { grid-column: 1; grid-row: 1 / span 6; align-self: end; justify-self: center; --s: 24px !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .aw-fr .pad-ava { grid-column: auto; grid-row: auto; align-self: auto; width: var(--s) !important; height: var(--s) !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-author > .aw-fr { display: none; }
