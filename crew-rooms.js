@@ -329,7 +329,7 @@ export function openMyCarSheet(opts = {}) {
   function openCarPick() {
     const { bd, close } = subSheet('Машина');
     const g = el('div', 'mc3-glass');
-    cars.slice(0, 8).forEach((c, k) => g.appendChild(optRow(c.name, k === 0 && cur && c.name === cur.name ? 'сейчас в Боксе' : (c.year ? String(c.year) : ''), c.name === pick.model, () => {
+    cars.slice(0, 8).forEach((c, k) => g.appendChild(optRow(c.name, k === 0 && cur && c.name === cur.name ? 'текущая' : (c.year ? String(c.year) : ''), c.name === pick.model, () => {
       pick.model = c.name; pick.carId = c.id || ''; sel.value = ''; custom.classList.add('hidden'); close();
     }, carLogo(c.name))));
     const all = optRow('Все марки и модели', 'каталог с характеристиками', false, () => {
@@ -374,7 +374,7 @@ export function openMyCarSheet(opts = {}) {
     const m = pick.model.trim();
     carRow.t.textContent = m || 'Выбрать машину';
     const curN = cur && m === cur.name;
-    carRow.s.textContent = m ? [curN ? 'в Боксе' : '', pass.hp ? pass.hp + ' л.с.' : ''].filter(Boolean).join(' · ') || 'сменить' : 'из Бокса или каталога';
+    carRow.s.textContent = m ? [curN ? 'текущая' : '', pass.hp ? pass.hp + ' л.с.' : ''].filter(Boolean).join(' · ') || 'сменить' : 'марка, модель, кузов';
     carRow.b.classList.toggle('is-empty', !m);
     if (m) carRow.ic.replaceChildren(carLogo(m)); else carRow.ic.innerHTML = CAR_SVG;
     carRow.ic.classList.toggle('mc3-ic-logo', !!m);

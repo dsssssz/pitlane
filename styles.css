@@ -265,10 +265,6 @@ h2 { font-size: 32px; margin-bottom: 6px; }
   padding: 28px 18px;
   overflow: auto;
 }
-.add-wizard.hidden { display: none !important; }
-.add-wizard label { display: block; text-align: left; margin: 10px auto; max-width: 420px; }
-.add-wizard select { width: 100%; }
-.garage-hero.active { text-align: center; }
 .hero-title h1 { font-size: 42px; letter-spacing: 0.08em; margin-bottom: 8px; }
 .hero-chip {
   display: inline-block;
@@ -283,8 +279,6 @@ h2 { font-size: 32px; margin-bottom: 6px; }
   border: 0;
   height: min(42vh, 380px);
 }
-.garage-hero .photo-stage img { object-fit: contain; padding: 0; }
-#app:has(#view-garage.active) .top { display: none; }
 .colors {
   position: relative;
   left: auto;
@@ -481,7 +475,6 @@ input, select {
   .speed-num {
     transition: opacity .2s ease;
   }
-  #heroPhoto { transition: filter .45s ease, opacity .4s ease; }
   .wheel-item { transition: color .2s ease, transform .2s ease; }
   .wheel-item.on { transform: scale(1.04); }
 }
@@ -503,7 +496,6 @@ input, select {
   background:radial-gradient(ellipse at center, rgba(0,0,0,.55) 0%, rgba(0,0,0,.18) 45%, transparent 72%);
   z-index:0; pointer-events:none; filter:blur(6px);
 }
-#heroPhoto { filter: contrast(1.06) saturate(1.03); }
 .sheet { gap: 16px !important; margin-bottom: 18px; }
 .slip { margin: 22px 0; padding: 18px 16px; }
 #btnShareRun { margin-top: 8px; }
@@ -512,7 +504,6 @@ input, select {
 .avatar-btn { width:72px; height:72px; border-radius:50%; overflow:hidden; border:1px solid var(--c-acc); background:#696969; display:block; flex-shrink:0; }
 .avatar-btn img { width:100%; height:100%; object-fit:cover; background:#505050; }
 #accNick { background:#696969; color:var(--ds-text); border:1px solid #606060; border-radius:8px; padding:8px 12px; font-size:18px; width:100%; }
-.add-wizard { position:relative; z-index:5; }
 .pulse-compose textarea {
   width:100%; min-height:88px; background:#4a4a4a; color:var(--ds-text); border:1px solid #555555;
   border-radius:8px; padding:12px; resize:none; font: inherit;
@@ -617,11 +608,6 @@ body.pad-lock { overflow:hidden; }
 .pilot-posts { margin-top:0; gap:10px; }
 
 /* Passport inside box */
-.box-dyno h3 { margin: 0 0 6px; font: 700 18px/1.1 var(--font-num), sans-serif; letter-spacing: .03em; }
-.box-dyno h4 { margin: 0 0 6px; font-size: 12px; opacity: .7; text-transform: uppercase; }
-.box-dyno table { width: 100%; font-size: 13px; }
-.box-dyno td { padding: 4px 0; border-bottom: 1px solid #555555; }
-.box-dyno td:last-child { text-align: right; font-weight: 700; }
 
 /* ═══ v88: HUD заезда (Замер и Круг) — единый блок ═══ */
 .run-drive, .lap-drive { color: var(--h-text); font-variant-numeric: tabular-nums; }
@@ -874,7 +860,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   flex-direction: column;
   margin: 6px 16px 0;
 }
-.scan-thresh-lab input { width: 100%; }
 #scanStatus { text-align: center; min-height: 1.2em; margin: 6px 12px 0; color: #b5b5b5; }
 .photo-stage.scanning { outline: 1px dashed rgba(var(--acc-rgb), 0.33); }
 .photo-stage.scanning::before {
@@ -1050,7 +1035,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   color: var(--ds-text);
   box-shadow: none;
 }
-.body-paint .paint-finish button:active { transform: scale(.96); }
 
 .body-paint .paint-label {
   color: #b5b5b5;
@@ -1289,7 +1273,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   letter-spacing: .04em;
   text-transform: uppercase;
 }
-.box-dyno-head .tiny { margin: 0; opacity: .55; }
 .dyno-edit-btn {
   flex-shrink: 0;
   align-self: flex-end;
@@ -1303,8 +1286,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   letter-spacing: .08em;
   text-transform: uppercase;
 }
-.dyno-edit-btn:active { transform: scale(.97); }
-.dyno-rows { display: flex; flex-direction: column; gap: 0; }
 .dyno-row {
   display: flex;
   align-items: baseline;
@@ -1313,7 +1294,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   padding: 12px 2px;
   border-bottom: 1px solid var(--ds-line);
 }
-.dyno-row:last-child { border-bottom: 0; }
 .dyno-row span {
   font-size: 13px;
   color: #b5b5b5;
@@ -1374,14 +1354,12 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   border-top: 1px solid var(--ds-line);
   opacity: .7;
 }
-.dyno-gps-note[hidden] { display: none !important; }
 
 .dyno-edit {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
-.dyno-edit.hidden { display: none; }
 .dyno-field {
   display: flex;
   flex-direction: column;
@@ -1410,7 +1388,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   border-color: var(--c-acc);
   box-shadow: none;
 }
-.dyno-field input::placeholder { color: #808080; }
 .dyno-edit-actions {
   display: flex;
   gap: 10px;
@@ -1429,8 +1406,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   background: transparent;
   color: #b5b5b5;
 }
-.garage-hero .mycar { display: block !important; }
-.garage-hero .mycar.hidden { display: block !important; }
 .hero-title {
   display: flex;
   align-items: center;
@@ -1484,7 +1459,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   -webkit-tap-highlight-color: transparent;
   transition: color .18s ease, background .18s ease, transform .15s ease, box-shadow .18s ease;
 }
-.hero-nav svg { display: block; pointer-events: none; }
 .hero-nav:hover,
 .hero-nav:focus-visible {
   color: var(--c-acc);
@@ -1712,7 +1686,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
 #photoStage,
 .hero-photo-panel { display: none !important; }
 #podiumWrap { display: block !important; }
-#view-garage .mycar { display: block !important; }
 
 /* —— Audit gaps: hero photo / demo / park —— */
 .hero-mode-bar {
@@ -1761,7 +1734,6 @@ body.run-drive-on #app, body.lap-drive-on #app { visibility: hidden; }
   align-items: center;
 }
 .photo-actions .file-btn { cursor: pointer; }
-.scan-thresh-lab { display: flex; gap: 8px; align-items: center; opacity: .8; }
 .cult-tag.rough-sf { color: #f5c518; border-color: rgba(245,197,24,.4); }
 .share-badge.gps-c span { color: #f5c518; }
 .paywall-card.hidden { display: none !important; }
@@ -3829,7 +3801,6 @@ button { background: rgba(255,255,255,.04); color: var(--h-text); border: 1px so
 .ad-back::before { content: ''; width: 16px; height: 16px; background: currentColor; -webkit-mask: var(--back-ico) center / contain no-repeat; mask: var(--back-ico) center / contain no-repeat; }
 .ad-back::after { content: 'К списку'; font: 600 13px/1 var(--font-ui); }
 #btnLogout { width: 100%; min-height: 46px !important; margin-top: 10px; }
-.dyno-save { min-height: 44px; border-radius: 6px; border: 0; background: var(--c-fill); color: #0a0a0a; font: 700 14px/1 var(--font-ui); text-transform: none; letter-spacing: 0; }
 button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px solid rgba(var(--acc-rgb), 0.5); outline-offset: 2px; }
 
 
@@ -3905,25 +3876,11 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px s
 .share-method-foot a { color: var(--h-mute); }
 
 /* ——— Бокс / гараж (UI поверх 3D; сцена не тронута) ——— */
-#view-garage .podium-wrap { border-radius: 8px; border: 1px solid var(--h-line); overflow: hidden; }
 #view-garage .hero-title h1, #boxName { font: 700 24px/1.1 var(--font-ui); letter-spacing: -.025em; text-transform: none; color: var(--h-text); }
-#view-garage .hero-chip { border: 1px solid var(--h-line-2); background: rgba(255,255,255,.03); color: var(--h-sub); font: 600 11px/1 var(--font-ui); letter-spacing: .08em; padding: 7px 12px; }
-#view-garage .hero-nav, #view-garage .hero-grid-btn { width: 38px; height: 38px; min-height: 38px; border-radius: 50%; border: 1px solid var(--h-line-2); background: rgba(255,255,255,.04); color: #d6d6d6; box-shadow: none; }
-#view-garage .hero-grid-btn { border-radius: 8px !important; width: 32px !important; height: 32px !important; min-height: 32px !important; }
-#app .paint-finish { background: rgba(255,255,255,.03); border: 1px solid var(--h-line); border-radius: 6px; padding: 3px; gap: 2px; box-shadow: none; }
-#app .paint-finish button { border: 0 !important; min-height: 34px; }
-#app .paint-finish button.on { background: rgba(255,255,255,.12) !important; color: var(--h-text) !important; }
 #app .colors { gap: 12px; }
 #app .colors button { width: 34px; height: 34px; min-height: 34px; border: 1px solid var(--ds-line-2); box-shadow: none; }
 #app .colors button.on { box-shadow: none !important; }
 #app .paint-custom { box-shadow: none; }
-#view-garage .box-dyno { margin: 16px 0 20px; text-align: left; }
-#view-garage .box-dyno h3 { font: 700 18px/1.2 var(--font-ui); letter-spacing: -.02em; text-transform: none; color: var(--h-text); }
-#view-garage .dyno-row { border-bottom: 1px solid var(--h-line); border-top: 0; background: none; }
-#view-garage .dyno-row:last-of-type { border-bottom: 0 !important; }
-#view-garage .dyno-row > span { font: 600 10px/1.2 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--h-mute); }
-#view-garage .dyno-row strong, #view-garage .dyno-val-cell { font-family: var(--h-num); font-weight: 500; font-size: 20px; color: var(--h-text); font-variant-numeric: tabular-nums; }
-#view-garage .dyno-field span { font: 600 10px/1.2 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--h-mute); }
 .car-picker-grid { gap: 10px; }
 .cp-card { background: var(--h-card); border: 1px solid var(--h-line); border-radius: 8px; box-shadow: none; color: var(--h-text); }
 .cp-card.on { border-color: rgba(var(--acc-rgb), 0.32) !important; box-shadow: none; }
@@ -3932,9 +3889,7 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px s
 .cp-card img { mix-blend-mode: lighten; background: transparent; }
 .cp-card.on::after { content: ''; position: absolute; top: 10px; right: 10px; width: 6px; height: 6px; border-radius: 50%; background: var(--c-acc); box-shadow: none; }
 .cp-card { position: relative; }
-.empty-garage h2 { letter-spacing: -.02em; }
 #btnAddCar { min-height: 48px; padding: 0 22px; background: var(--c-fill); color: #0a0a0a; border: 0; border-radius: 6px; font: 700 15px/1 var(--font-ui); }
-.add-wizard { background: rgba(0,0,0,.86); }
 
 /* ——— Заезд: Замер ——— */
 #app .speedo { background: var(--h-card) !important; border: 1px solid var(--h-line); border-radius: 8px !important; padding: 26px 18px 18px; }
@@ -4126,12 +4081,6 @@ button:focus-visible, a:focus-visible, [tabindex]:focus-visible { outline: 2px s
 
 /* ——— спокойное появление контента экранов ——— */
 @keyframes v87In { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-#app .view.active:not(#view-home):not(#view-garage) > * { animation: v87In .5s var(--h-ease) both; }
-#app .view.active:not(#view-home):not(#view-garage) > :nth-child(2) { animation-delay: .04s; }
-#app .view.active:not(#view-home):not(#view-garage) > :nth-child(3) { animation-delay: .08s; }
-#app .view.active:not(#view-home):not(#view-garage) > :nth-child(4) { animation-delay: .12s; }
-#app .view.active:not(#view-home):not(#view-garage) > :nth-child(5) { animation-delay: .16s; }
-#app .view.active:not(#view-home):not(#view-garage) > :nth-child(n+6) { animation-delay: .2s; }
 .pulse-feed > .pulse-card { animation: v87In .45s var(--h-ease) both; }
 @media (prefers-reduced-motion: reduce) {
   #app .view.active > *, .pulse-feed > .pulse-card, .race-sheet-inner, .duel-sheet-inner, .crew-sheet-inner, .pit-help-inner, .share-card-inner, #app .tops-classic[open] > :not(summary) { animation: none !important; }
@@ -5568,7 +5517,6 @@ html.kb-open .pad-sheet .pad-sheet-inner { max-height: calc(100% - 8px); padding
 }
 .view .card + .card { margin-top: 18px; }
 .card h3 { margin-bottom: 14px; }
-#view-garage .card, #view-garage article { border-radius: 8px; }
 .view section + section, .view article + article { margin-top: 18px; }
 
 /* ===== v141: sector battle, сектора на карте, предложить трассу ===== */
@@ -5711,15 +5659,10 @@ html, body, #app { background: var(--ds-bg-1) !important; }
 #view-home .hw { background: #141518 !important; border: 1px solid var(--ds-line) !important; padding: 20px 18px !important; box-shadow: none !important; }
 #view-home .hw-k { font-size: 10.5px !important; letter-spacing: .14em; color: #6e7177 !important; }
 #view-home > * + * { margin-top: 28px !important; }
-#view-garage > * + * { margin-top: 28px !important; }
 /* 4. Пустые состояния */
 #view-home .hw-empty-t { font: 500 16px/1.3 var(--font-ui) !important; color: #e4e5e7 !important; }
 #view-home .hw-empty-s { font: 400 13px/1.5 var(--font-ui) !important; color: #7d8086 !important; margin-top: 4px; }
 .hw-empty-cta { display: inline-flex; align-self: flex-start; margin-top: 14px; padding: 10px 16px; border-radius: 8px; background: #ecebe8; color: #1b1c1e; font: 600 13px/1 var(--font-ui); }
-.empty-garage { padding: 56px 24px 40px !important; text-align: center; }
-.empty-garage h2 { font: 500 22px/1.3 var(--font-ui) !important; color: var(--ds-text); margin-top: 24px !important; }
-.empty-garage p { color: #8a8d92 !important; font: 400 14px/1.6 var(--font-ui) !important; max-width: 300px; margin: 10px auto 0 !important; }
-#app .empty-garage #btnAddCar.cta-light { margin-top: 32px; min-height: 54px; padding: 16px 28px; border-radius: 8px !important; border: 0 !important; background: #ecebe8 !important; color: #1b1c1e !important; font: 600 15px/1 var(--font-ui) !important; text-transform: none !important; box-shadow: none !important; }
 /* 6. Главная: «Замер» — главная светлая кнопка, остальное тише */
 #view-home .home-go { background: #ecebe8 !important; border: 0 !important; padding: 20px 22px !important; border-radius: 8px !important; }
 #view-home .home-go::before { display: none !important; }
@@ -5807,7 +5750,6 @@ html.v148 .view.active { animation: v48In .24s ease-out both; }
   html.v148 .run-drive:not(.hidden), html.v148 .run-drive:not(.hidden) *, html.v148 .view.active { animation: none !important; }
   .h48-start, .nav3-btn { transition: none !important; }
 }
-html.v148 #app .view.active:not(#view-home):not(#view-garage) > * { animation: none !important; }
 /* v148: graphite-only accents (no warm hues); tabs replace back button on mobile */
 html.v148 .mycar-bar.is-empty { border-color: var(--ds-line); background: #141518; }
 html.v148 .mycar-bar.is-empty .mycar-bar-k { color: #75787e; }
@@ -5879,32 +5821,8 @@ html.v152 .bn52 { display: block; margin: 4px -16px 18px; }
 html.v152 .nav3-btn { min-width: 0; }
 html.v152 .nav3 { grid-template-columns: repeat(4, 1fr); }
 /* ===== v153: Гараж — одна карточка + лента; Круг — трасса и «Старт круга» ===== */
-.g53 { display: none; }
 @media (max-width: 99999px) /* v154: и на десктопе — тот же мобильный дизайн */ {
-  html.v153 .g53 { display: block; padding-top: 6px; }
-  html.v153:not(.g53-3d) #view-garage > :not(#g53) { display: none !important; }
-  html.v153.g53-3d #view-garage .g53-list, html.v153.g53-3d #view-garage .g53-cap { display: none; }
 }
-.g53-hero { padding: 0; padding-bottom: 26px; border-radius: 8px; border: 1px solid var(--ds-line); background: #141518; overflow: hidden; text-align: center; }
-.g53-ph { aspect-ratio: 16 / 10; background: var(--ds-bg-1); }
-.g53-ph img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.g53-name { margin: 22px 20px 0; font: 500 26px/1.15 var(--font-ui); letter-spacing: -.01em; color: #ecebe8; }
-.g53-sub { margin: 8px 20px 0; font: 400 13px/1.35 var(--font-ui); color: #75787e; }
-.g53-acts { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 24px; }
-.g53-mine { min-height: 46px; padding: 0 24px !important; border: 0 !important; border-radius: 8px !important; background: #ecebe8 !important; color: #17181a !important; font: 500 14.5px/1 var(--font-ui) !important; text-transform: none !important; letter-spacing: 0 !important; box-shadow: none !important; }
-.g53-mine.on { background: #1b1d21 !important; color: rgb(201,198,191) !important; border: 1px solid var(--ds-line) !important; }
-button.g53-3d { /* v164: было «.g53-3d» — тот же класс вешается на <html> при «Цвет и детали», и вся страница получала padding 14px и чужой шрифт */  min-height: 46px; padding: 0 14px !important; border: 0 !important; background: none !important; box-shadow: none !important; color: #8b8e93 !important; font: 400 14px/1 var(--font-ui) !important; text-transform: none !important; letter-spacing: 0 !important; }
-.g53-cap { margin: 34px 4px 14px; font: 500 11px/1 var(--font-ui); letter-spacing: .16em; text-transform: uppercase; color: #6f7278; }
-.g53-list { display: flex; gap: 12px; margin: 0 -16px; padding: 0 16px 6px; overflow-x: auto; scroll-snap-type: x proximity; scroll-padding-inline: 16px; scrollbar-width: none; }
-.g53-list::-webkit-scrollbar { display: none; }
-.g53-car { flex: none; width: 128px; display: flex; flex-direction: column; gap: 10px; padding: 0 !important; border: 0 !important; background: none !important; box-shadow: none !important; scroll-snap-align: start; text-align: left; cursor: pointer; }
-.g53-th { display: block; width: 128px; height: 96px; border-radius: 8px; overflow: hidden; background: #141518; border: 1px solid var(--ds-line); }
-.g53-th img { display: block; width: 100%; height: 100%; object-fit: cover; }
-.g53-cn { font: 400 12px/1.3 var(--font-ui) !important; color: #9a9ca1 !important; text-transform: none !important; letter-spacing: 0 !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.g53-car:active .g53-th { transform: scale(.97); }
-.g53-empty { padding: 72px 24px; text-align: center; }
-.g53-empty-t { margin: 0; font: 400 16px/1.3 var(--font-ui); color: #9a9ca1; }
-.g53-add { margin-top: 24px; min-height: 48px; padding: 0 28px !important; border: 0 !important; border-radius: 8px !important; background: #ecebe8 !important; color: #17181a !important; font: 500 15px/1 var(--font-ui) !important; text-transform: none !important; box-shadow: none !important; }
 /* Круг: до старта — только трасса и кнопка */
 @media (max-width: 99999px) /* v154: и на десктопе — тот же мобильный дизайн */ {
   html.v153 #view-lap > p.muted, html.v153 #view-lap #lapTrackMode, html.v153 #view-lap #lapTrackChase, html.v153 #view-lap #btnAutodromesLap, html.v153 #view-lap #btnVideoLap, html.v153 #view-lap #btnLapStop { display: none !important; }
@@ -5985,10 +5903,6 @@ html.v154 .plm-list small, html.v154 .plm-legal a { color: #8d9096; }
 html.v154 .plm-legal { flex-wrap: wrap; gap: 6px 16px; }
 html.v154 .plm-legal a { padding: 12px 0; }
 /* живое 3D в карточках */
-.g53-ph { position: relative; overflow: hidden; }
-html.v154 .g53-ph #podiumWrap { position: absolute; inset: 0; width: auto; height: auto !important; margin: 0; border: 0 !important; border-radius: 0 !important; box-shadow: none; background: #121316; }
-html.v154 .g53-ph #podiumWrap::after { display: none; }
-html.v154 .g53-ph #view3d { background: #121316; }
 .p3d-wait { position: absolute; inset: 0; display: grid; place-items: center; font: 500 12px/1 var(--font-ui); letter-spacing: .04em; color: #6f7278; }
 .p3d-on > .p3d-wait { display: none; }
 /* «С видео» — тихая вторичная кнопка под стартом */
@@ -6389,13 +6303,7 @@ html.v159:not(#_):not(#_) .view.active { animation: ds-view var(--ds-t) var(--ds
 @media (prefers-reduced-motion: reduce) { html.v159:not(#_):not(#_) .view.active { animation: none; } html.v159:not(#_):not(#_) *, html.v159:not(#_):not(#_) *::before, html.v159:not(#_):not(#_) *::after { transition-duration: 0s !important; } }
 
 /* ——— Гараж ——— */
-html.v159:not(#_):not(#_) .g53-hero { background: transparent !important; border: 0 !important; border-radius: 0 !important; padding-bottom: var(--s3) !important; border-bottom: 1px solid var(--ds-line) !important; }
-html.v159:not(#_):not(#_) .g53-ph { border-radius: var(--r3) !important; overflow: hidden; background: var(--ds-bg-1) !important; }
 html.v159:not(#_):not(#_) .g53-ph #view3d, html.v159:not(#_):not(#_) .hw-car-3d #view3d { background: var(--ds-bg-1) !important; }
-html.v159:not(#_):not(#_) .g53-name { font: 500 24px/32px var(--font-ui) !important; letter-spacing: -.01em !important; }
-html.v159:not(#_):not(#_) .g53-sub { font: var(--t-cap) !important; color: var(--ds-sub) !important; }
-html.v159:not(#_):not(#_) .g53-cap { font: var(--t-label) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: var(--ds-sub) !important; }
-html.v159:not(#_):not(#_) .g53-list > *, html.v159:not(#_):not(#_) .g53-list button { border-radius: var(--r2) !important; background: var(--ds-bg-1) !important; border: 1px solid var(--ds-line) !important; box-shadow: none !important; }
 
 /* ——— Профиль ——— */
 html.v159:not(#_):not(#_) .prof-banner, html.v159:not(#_):not(#_) .pilot-banner { background: var(--ds-bg-1) !important; border: 1px solid var(--ds-line) !important; border-radius: var(--r3) !important; }
@@ -6662,39 +6570,9 @@ html.v159:not(#_):not(#_) .bn52-cta::after { content: ''; width: 6px; height: 6p
 html.v159:not(#_):not(#_) .bn52-dots { margin-top: 12px !important; }
 
 /* — Гараж: шоурум — */
-html.v159:not(#_):not(#_) #view-garage .g53 { padding-top: 0 !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-hero { overflow: visible !important; text-align: left !important; padding-bottom: var(--s3) !important; border-bottom: 1px solid var(--ds-line) !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-ph { aspect-ratio: auto !important; height: clamp(260px, 40vh, 380px); margin: 0 calc(-1 * var(--gutter)); border-radius: 0 !important; background: #000 !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-ph #podiumWrap, html.v159:not(#_):not(#_) #view-garage .g53-ph #view3d { background: #000 !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-ph .p3d-wait { color: var(--ds-mute); }
-html.v159:not(#_):not(#_) .g63-dots { display: flex; justify-content: center; gap: 6px; margin: var(--s1) 0 0; min-height: 20px; align-items: center; }
-html.v159:not(#_):not(#_) .g63-dot { position: relative; width: 6px; height: 6px; min-height: 0 !important; padding: 0 !important; border: 0 !important; border-radius: 3px !important; background: var(--ds-line-2) !important; box-shadow: none !important; transition: width var(--ds-t) var(--ds-ease), background-color var(--ds-t) var(--ds-ease); cursor: pointer; }
-html.v159:not(#_):not(#_) .g63-dot::after { content: ''; position: absolute; inset: -14px -4px; }
-html.v159:not(#_):not(#_) .g63-dot.on { width: 20px; background: var(--ds-text) !important; }
-html.v159:not(#_):not(#_) .g63-info { padding-top: var(--s2); touch-action: pan-y; user-select: none; -webkit-user-select: none; }
-html.v159:not(#_):not(#_) #view-garage .g53-name { margin: 0 !important; font: 600 32px/36px var(--font-ui) !important; letter-spacing: -.02em !important; color: #fff !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-sub { margin: 8px 0 0 !important; }
-html.v159:not(#_):not(#_) .g63-specs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: var(--s2); padding-top: var(--s2); border-top: 1px solid var(--ds-line); }
-html.v159:not(#_):not(#_) .g63-s { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 0 var(--s2); border-left: 1px solid var(--ds-line); }
-html.v159:not(#_):not(#_) .g63-s:first-child { padding-left: 0; border-left: 0; }
-html.v159:not(#_):not(#_) .g63-v { font: 300 28px/1 var(--font-num) !important; letter-spacing: -.02em; color: var(--ds-text); white-space: nowrap; }
-html.v159:not(#_):not(#_) .g63-v small { margin-left: 4px; font: 400 13px/1 var(--font-ui); color: var(--ds-sub); letter-spacing: 0; }
-html.v159:not(#_):not(#_) .g63-s.is-empty .g63-v { color: var(--ds-mute); }
-html.v159:not(#_):not(#_) .g63-k { font: var(--t-label); letter-spacing: .08em; text-transform: uppercase; color: var(--ds-sub); white-space: nowrap; }
-html.v159:not(#_):not(#_) #view-garage .g53-cap { margin: var(--s3) 0 var(--s2) !important; text-align: left !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-list { gap: var(--s1) !important; margin: 0 calc(-1 * var(--gutter)) !important; padding: 0 var(--gutter) var(--s1) !important; scroll-padding-inline: var(--gutter) !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-list > .g53-car { width: 132px !important; background: none !important; border: 0 !important; border-radius: 0 !important; gap: 8px !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-th { width: 132px !important; height: 82px !important; border-radius: var(--r2) !important; background: #0c0b0e !important; border: 1px solid var(--ds-line) !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-car.on .g53-th { border-color: var(--ds-acc) !important; }
-html.v159:not(#_):not(#_) #view-garage .g53-car.on .g53-cn { color: var(--ds-text) !important; }
 
 /* — кнопки: одна система. Главное действие — светлая, вторичное — волосок; одна строка, равная ширина, 48 px — */
 html.v159:not(#_):not(#_) .g53-acts, html.v159:not(#_):not(#_) .hh-acts, html.v159:not(#_):not(#_) .shop-acts, html.v159:not(#_):not(#_) .ls58-act, html.v159:not(#_):not(#_) .lh58-act { display: flex !important; gap: var(--s1) !important; justify-content: stretch !important; align-items: stretch !important; }
-html.v159:not(#_):not(#_) .g53-acts { margin-top: var(--s2) !important; }
-html.v159:not(#_):not(#_) .g53-acts > button, html.v159:not(#_):not(#_) .g53-add { flex: 1 1 0 !important; min-width: 0; height: 48px !important; min-height: 48px !important; padding: 0 var(--s2) !important; border-radius: var(--r2) !important; font: 600 15px/1 var(--font-ui) !important; letter-spacing: 0 !important; text-transform: none !important; box-shadow: none !important; }
-html.v159:not(#_):not(#_) .g53-mine { background: var(--ds-light) !important; color: var(--ds-on-light) !important; border: 1px solid var(--ds-light) !important; }
-html.v159:not(#_):not(#_) .g53-mine.on { background: transparent !important; color: var(--ds-acc) !important; border: 1px solid rgba(var(--acc-rgb), .5) !important; }
-html.v159:not(#_):not(#_) #g53Studio.g53-3d { background: transparent !important; color: var(--ds-text) !important; border: 1px solid var(--ds-line-2) !important; }
 html.v159:not(#_):not(#_) .go-btn, html.v159:not(#_):not(#_) .btn-primary, html.v159:not(#_):not(#_) .cta-light, html.v159:not(#_):not(#_) .shop-cta, html.v159:not(#_):not(#_) .ls58-p, html.v159:not(#_):not(#_) .plm-cta, html.v159:not(#_):not(#_) .btn-secondary, html.v159:not(#_):not(#_) .shop-cta-2, html.v159:not(#_):not(#_) .ls58-b, html.v159:not(#_):not(#_) .lh58-b, html.v159:not(#_):not(#_) .hh-btn { min-height: 48px !important; border-radius: var(--r2) !important; }
 /* аудит кнопок: вторичное — во всю ширину строкой 48 px (как «Предложить трассу»), выбор машины — строка параметров с шевроном, а не «таблетка» */
 html.v159:not(#_):not(#_) #view-lap #btnAutodromesLap.ad-linkish { display: flex !important; align-items: center; justify-content: center; width: 100% !important; height: 48px !important; min-height: 48px !important; margin: var(--s1) 0 0 !important; padding: 0 var(--s2) !important; border: 1px solid var(--ds-line-2) !important; border-radius: var(--r2) !important; background: transparent !important; color: var(--ds-text) !important; font: 500 15px/1 var(--font-ui) !important; text-decoration: none !important; box-shadow: none !important; }
@@ -6714,52 +6592,12 @@ html.v159:not(#_):not(#_) #view-home #homeWidgets .hw-empty-s { font: 400 12px/1
 html.v159:not(#_):not(#_) #view-home #homeWidgets .hw-body > * { max-width: 100%; min-width: 0; }
 html.v159:not(#_):not(#_) #view-home #homeWidgets .hw-body { overflow: hidden; }
 /* флаг страны у большого имени в Гараже */
-html.v159:not(#_):not(#_) #view-garage .g53-name .g64-flag { display: inline-flex; vertical-align: middle; margin-left: 10px; width: 26px; height: 19.5px; border-radius: 3px; overflow: hidden; transform: translateY(-3px); outline: 1px solid var(--ds-line); outline-offset: -1px; }
-html.v159:not(#_):not(#_) #view-garage .g53-name .g64-flag img { width: 100%; height: 100%; object-fit: cover; display: block; }
 /* «Цвет и детали»: без дубля имени со стрелками — имя и свайп уже сверху */
-html.v159:not(#_):not(#_).g53-3d #view-garage .mycar > .hero-title { display: none !important; }
-html.v159:not(#_):not(#_) #view-garage .mycar { padding: 0 !important; margin: 0 !important; background: transparent !important; border: 0 !important; text-align: left !important; }
 /* машина для зачёта / резина — строка параметров */
-html.v159:not(#_):not(#_) #view-garage #myCarBar { display: flex !important; align-items: center !important; justify-content: space-between !important; gap: var(--s2) !important; min-height: 72px; padding: var(--s2) 0 !important; margin: 0 !important; border: 0 !important; border-bottom: 1px solid var(--ds-line) !important; border-radius: 0 !important; background: transparent !important; text-align: left !important; }
-html.v159:not(#_):not(#_) #view-garage .mycar-bar-txt { display: flex !important; flex-direction: column; align-items: flex-start !important; gap: 4px; min-width: 0; text-align: left !important; }
-html.v159:not(#_):not(#_) #view-garage .mycar-bar-k { font: var(--t-label) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: var(--ds-sub) !important; }
-html.v159:not(#_):not(#_) #view-garage .mycar-bar-v { font: 500 15px/20px var(--font-ui) !important; color: var(--ds-text) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-html.v159:not(#_):not(#_) #view-garage .mycar-bar-cls { font: 400 12px/16px var(--font-ui) !important; color: var(--ds-mute) !important; }
-html.v159:not(#_):not(#_) #view-garage #btnMyCarGarage { flex: none; height: 40px !important; min-height: 40px !important; padding: 0 var(--s2) !important; border-radius: var(--r2) !important; border: 1px solid var(--ds-line-2) !important; background: transparent !important; color: var(--ds-text) !important; font: 500 14px/1 var(--font-ui) !important; }
 /* цвет кузова: подпись слева, финиш — сегменты во всю ширину, образцы — квадраты ровной сеткой */
-html.v159:not(#_):not(#_) #view-garage .body-paint { padding: var(--s3) 0 !important; margin: 0 !important; border: 0 !important; border-bottom: 1px solid var(--ds-line) !important; background: transparent !important; text-align: left !important; }
-html.v159:not(#_):not(#_) #view-garage .paint-label { margin: 0 0 var(--s2) !important; text-align: left !important; font: var(--t-label) !important; letter-spacing: .08em !important; text-transform: uppercase !important; color: var(--ds-sub) !important; }
 /* v165: «Что красим» — сегмент; категории — прокручиваемые вкладки с платиновой чертой (как у конфигуратора), имя краски под сеткой */
-html.v159:not(#_):not(#_) #view-garage .pl65-head { display: flex; align-items: baseline; justify-content: space-between; }
-html.v159:not(#_):not(#_) #view-garage #pl65Target { display: grid !important; grid-auto-flow: column; grid-auto-columns: 1fr; width: 100% !important; margin: 0 0 var(--s2) !important; padding: 2px !important; gap: 2px !important; border: 1px solid var(--ds-line-2) !important; border-radius: var(--r2) !important; background: transparent !important; }
-html.v159:not(#_):not(#_) #view-garage #pl65Target[hidden], html.v159:not(#_):not(#_) #view-garage #pl65Target button[hidden], html.v159:not(#_):not(#_) #view-garage #paintFinish[hidden], html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom[hidden] { display: none !important; }
-html.v159:not(#_):not(#_) #view-garage #pl65Target button { min-height: 36px !important; height: 36px; border: 0 !important; border-radius: var(--r1) !important; background: transparent !important; color: var(--ds-sub) !important; font: 500 13px/1 var(--font-ui) !important; box-shadow: none !important; transition: background-color var(--ds-t) var(--ds-ease), color var(--ds-t) var(--ds-ease); }
-html.v159:not(#_):not(#_) #view-garage #pl65Target button.on { background: var(--ds-fill-2) !important; color: var(--ds-text) !important; }
-html.v159:not(#_):not(#_) #view-garage #paintFinish { display: flex !important; flex-wrap: nowrap !important; justify-content: flex-start !important; gap: 22px !important; width: auto !important; margin: 0 calc(-1 * var(--s2)) var(--s2) !important; padding: 0 var(--s2) !important; overflow-x: auto; scrollbar-width: none; border: 0 !important; border-bottom: 1px solid var(--ds-line) !important; border-radius: 0 !important; background: transparent !important; scroll-snap-type: x proximity; }
-html.v159:not(#_):not(#_) #view-garage #paintFinish::-webkit-scrollbar { display: none; }
-html.v159:not(#_):not(#_) #view-garage #paintFinish button { position: relative; flex: 0 0 auto; min-width: 0 !important; min-height: 40px !important; height: 40px; padding: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; color: var(--ds-mute) !important; font: 500 14px/1 var(--font-ui) !important; box-shadow: none !important; scroll-snap-align: center; transition: color var(--ds-t) var(--ds-ease); }
-html.v159:not(#_):not(#_) #view-garage #paintFinish button::after { content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--ds-acc); transform: scaleX(0); transition: transform 240ms var(--ds-ease); }
-html.v159:not(#_):not(#_) #view-garage #paintFinish button.on { color: var(--ds-text) !important; }
-html.v159:not(#_):not(#_) #view-garage #paintFinish button.on::after { transform: scaleX(1); }
-html.v159:not(#_):not(#_) #view-garage #paintFinish button.has:not(.on) { color: var(--ds-sub) !important; }
-html.v159:not(#_):not(#_) #view-garage .pl65-name { display: flex; align-items: baseline; gap: 10px; margin: var(--s2) 0 0 !important; min-height: 22px; text-align: left !important; }
-html.v159:not(#_):not(#_) #view-garage .pl65-name b { font: 500 17px/22px var(--font-ui); color: var(--ds-text); }
-html.v159:not(#_):not(#_) #view-garage .pl65-name span { font: 400 13px/18px var(--font-ui); color: var(--ds-mute); }
-html.v159:not(#_):not(#_) #view-garage #colorBar { display: grid !important; grid-template-columns: repeat(8, minmax(0, 1fr)) !important; gap: 10px !important; justify-content: stretch !important; margin: 0 !important; }
-html.v159:not(#_):not(#_) #view-garage #colorBar > button, html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom { position: relative; width: auto !important; height: auto !important; min-height: 0 !important; min-width: 0 !important; max-width: none !important; aspect-ratio: 1 / 1; padding: 0 !important; margin: 0 !important; border-radius: var(--r1) !important; border: 1px solid var(--ds-line-2) !important; box-shadow: none !important; transform: none; outline: 0; transition: outline-color var(--ds-t) var(--ds-ease); }
 html.v159:not(#_):not(#_) #view-garage #colorBar > button.on, html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom.on { outline: 2px solid var(--ds-acc) !important; outline-offset: 2px; } /* v165: 2px */
-html.v159:not(#_):not(#_) #view-garage #colorBar > button:active { transform: scale(.92); transition: transform 90ms var(--ds-ease); }
-html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom { overflow: hidden; background: var(--ds-surface-2, #16181b) !important; display: grid; place-items: center; }
-html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom::after { content: '+'; font: 300 20px/1 var(--font-ui); color: var(--ds-text); pointer-events: none; }
-html.v159:not(#_):not(#_) #view-garage #colorBar > .paint-custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 /* паспорт динамики — заголовок + строки-волоски */
-html.v159:not(#_):not(#_) #view-garage #boxDyno { padding: var(--s3) 0 !important; margin: 0 !important; border: 0 !important; border-radius: 0 !important; background: transparent !important; }
-html.v159:not(#_):not(#_) #view-garage .box-dyno-head { display: flex !important; align-items: flex-start !important; justify-content: space-between !important; gap: var(--s2); margin-bottom: var(--s2) !important; }
-html.v159:not(#_):not(#_) #view-garage .box-dyno-head h3 { margin: 0 !important; font: 600 20px/24px var(--font-ui) !important; letter-spacing: -.01em !important; color: var(--ds-text) !important; text-transform: none !important; }
-html.v159:not(#_):not(#_) #view-garage #btnDynoEdit { height: 40px !important; min-height: 40px !important; padding: 0 var(--s2) !important; border-radius: var(--r2) !important; font: 500 14px/1 var(--font-ui) !important; }
-html.v159:not(#_):not(#_) #view-garage .dyno-row { min-height: 48px; padding: 0 !important; border-bottom: 1px solid var(--ds-line) !important; background: transparent !important; }
-html.v159:not(#_):not(#_) #view-garage .dyno-row span { font: 400 14px/20px var(--font-ui) !important; color: var(--ds-sub) !important; text-transform: none !important; letter-spacing: 0 !important; }
-html.v159:not(#_):not(#_) #view-garage .dyno-row strong { font: 300 20px/1 var(--font-num) !important; color: var(--ds-text) !important; }
 /* шторка «Графика»: варианты строками с подсказкой, выбран — платиновая точка */
 html.v159:not(#_):not(#_) .gfx64-list { display: flex; flex-direction: column; padding-top: var(--s1); }
 html.v159:not(#_):not(#_) .gfx64-o { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: space-between; gap: var(--s2); min-height: 64px; padding: var(--s1) 0; border-bottom: 1px solid var(--ds-line); cursor: pointer; -webkit-tap-highlight-color: transparent; }
@@ -6770,7 +6608,6 @@ html.v159:not(#_):not(#_) .gfx64-o i { flex: none; width: 20px; height: 20px; bo
 html.v159:not(#_):not(#_) .gfx64-o.on i { border-color: var(--ds-acc); border-width: 6px; box-shadow: none; background: #0a0a0a; }
 html.v159:not(#_):not(#_) .gfx64-o:active { opacity: .7; }
 html.v159:not(#_):not(#_) .gfx64-note { margin: var(--s2) 0 0; font: 400 12px/16px var(--font-ui); color: var(--ds-mute); }
-html.v159:not(#_):not(#_) #view-garage .g64-gfx { margin-top: var(--s1); }
 
 /* ===== v166: Настройки — сгруппированные списки (iOS Settings), одна система строк ===== */
 html.v159:not(#_):not(#_) #view-settings.active { display: block; padding: var(--s3) var(--s3) calc(var(--s8) + 24px) !important; }
@@ -6860,7 +6697,6 @@ html.v159:not(#_):not(#_) .brand-bar .bb-title { position: absolute; top: calc(v
 html.v159:not(#_):not(#_) .brand-bar.bb-t-on > b { opacity: 0; transform: translateY(-8px); }
 html.v159:not(#_):not(#_) .brand-bar.bb-t-on .bb-title { opacity: 1; transform: none; }
 html.v159:not(#_):not(#_) #view-home #hwCar .hw-car-img { translate: 0 var(--px171, 0px); will-change: translate; }
-html.v159:not(#_):not(#_) #view-garage #podiumWrap { translate: 0 var(--px171, 0px); opacity: var(--po171, 1); }
 html.v159:not(#_):not(#_) .pl-skel-list { display: grid; gap: 8px; padding: 4px 0; }
 html.v159:not(#_):not(#_) .pl-skel-row { height: 64px; border-radius: var(--r2); background: var(--ds-bg-2) !important; }
 html.v159:not(#_):not(#_) .pl-skel-row:nth-child(2) { opacity: .8; } html.v159:not(#_):not(#_) .pl-skel-row:nth-child(3) { opacity: .6; } html.v159:not(#_):not(#_) .pl-skel-row:nth-child(4) { opacity: .45; }
@@ -6942,7 +6778,6 @@ html.v159:not(#_):not(#_) .bn52.bn80-run .bn52-dot.on.bn80-p::before { animation
 html.v159:not(#_):not(#_) .prof-banner { background-color: #101010 !important; background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; }
 html.v159:not(#_):not(#_) #rdFinal .rd-hero { background-color: var(--ds-bg-1); background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; border: 1px solid var(--ds-line); border-radius: var(--r3); padding: var(--s3) var(--s2) !important; }
 html.v159:not(#_):not(#_) #view-shop .shop-card-hero { background-color: var(--ds-bg-1); background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; border: 1px solid var(--ds-line) !important; border-radius: var(--r3) !important; padding: var(--s2) !important; }
-html.v159:not(#_):not(#_) #view-garage #g63Specs { background-color: var(--ds-bg-1); background-image: var(--carbon) !important; background-size: 12px 12px !important; background-repeat: repeat !important; border: 1px solid var(--ds-line); border-radius: var(--r3); padding: var(--s2) !important; }
 
 /* v187: фиксы по аудиту */
 html.v159:not(#_):not(#_) #view-home #hwCar { aspect-ratio: auto !important; height: auto !important; }
@@ -7121,7 +6956,6 @@ html.v159:not(#_):not(#_) #view-home #hwPad .pc-bh b { font-weight: 500; color: 
 html.v159:not(#_):not(#_) #view-home #hwPad .pc-bt { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ds-sub); }
 .tb-empty > b::first-letter, .pc-empty-t b::first-letter { text-transform: uppercase; }
 /* v194: аудит 360px — кнопки гаража в одну строку, шапка витрины наград */
-html.v159:not(#_):not(#_) .g53-mine, html.v159:not(#_):not(#_) .g53-3d { white-space: nowrap; padding-left: 12px !important; padding-right: 12px !important; }
 .sc-head { flex-wrap: wrap; gap: 2px 10px; }
 .sc-head h3 { white-space: nowrap; }
 
@@ -7330,7 +7164,7 @@ html.pfe-open .nav3 { visibility: hidden; }
 .pfe-row + .pfe-row::before { content: ''; position: absolute; left: 14px; right: 0; top: 0; height: 1px; background: rgba(255,255,255,.06); }
 .pfe-k { flex: 1; font: 500 15px/1.2 var(--font-ui); }
 .pfe-in .pfe-k { flex: none; width: 56px; color: #8d9096; }
-.pfe-in input { all: unset; flex: 1; min-width: 0; font: 500 16px/1.2 var(--font-ui); color: #f2efe9; text-align: right; }
+.pfe-in input { all: unset; flex: 1; min-width: 0; font: 500 16px/1.2 var(--font-ui); color: #f2efe9; text-align: left; }
 .pfe-v { color: #8d9096; font: 400 14px/1.2 var(--font-ui); max-width: 55%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pfe-hint { margin: -2px 14px 8px; color: #6f7278; font: 400 12px/1.35 var(--font-ui); }
 .pfe-pass { position: relative; margin-top: 10px; padding: 14px; border-radius: 18px; background: linear-gradient(180deg, rgba(214,178,98,.10), rgba(214,178,98,.02) 60%), #101114; border: 1px solid rgba(214,178,98,.22); }
@@ -8272,10 +8106,6 @@ html:not(#_):not(#_):not(#_) #myCarSheet .race-sheet-head { background: var(--ds
 .rc-car { display: flex; align-items: center; gap: 9px; }
 .rc-logo { flex: none; width: 30px; height: 22px; background: #f2efe9; -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
 /* v289: Гараж без 3D — реальный рендер машины */
-#view-garage .g53-ph.g53-2d { display: grid; place-items: center; background: #000; }
-#view-garage .g53-ph.g53-2d .g53-img { width: 100%; height: 100%; object-fit: contain; }
-#view-garage .g53-ph.g53-2d .cdb-logo.big { width: 72px; height: 72px; }
-.g63-note { margin: 6px 2px 0; font: 400 11px/1.3 var(--font-ui); color: rgba(255,255,255,.45); }
 /* v289: один призыв на пустом профиле */
 .cta289 { margin: 14px 0 4px; padding: 16px; border: 1px solid rgba(255,255,255,.1); border-radius: 16px; background: #111; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .cta289[hidden] { display: none; }
@@ -8293,9 +8123,6 @@ html:not(#_):not(#_):not(#_) #myCarSheet .race-sheet-head { background: var(--ds
 .cph289-l { display: block; width: 44%; height: 44%; background: #f2efe9; -webkit-mask: var(--logo) center / contain no-repeat; mask: var(--logo) center / contain no-repeat; }
 
 /* v291: карточка-«пасс» машины (концепт C) — Гараж: главная карточка + список вместо ленты */
-html:not(#_):not(#_) #view-garage .g53-ph.g53-2d { height: auto !important; aspect-ratio: auto !important; margin: 0 !important; background: none !important; border-radius: 0 !important; overflow: visible; }
-html:not(#_):not(#_) #view-garage .g53-name, html:not(#_):not(#_) #view-garage .g53-sub { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); margin: 0 !important; }
-html:not(#_):not(#_) #view-garage .g53-list { display: flex; flex-direction: column; gap: 10px !important; margin: 0 !important; padding: 0 !important; overflow: visible !important; }
 .cw291 { position: relative; display: flex; align-items: center; width: 100%; min-height: 118px; padding: 14px 0 14px 18px; box-sizing: border-box; border-radius: 20px !important; background: #0d0e10 !important; border: 1px solid #1a1b1e !important; overflow: hidden; text-align: left; color: #f2f2f2; font-family: var(--font-ui); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .cw291.on { border-color: #e8e6e1 !important; }
 .cw291:active { transform: scale(.99); }
@@ -8317,10 +8144,6 @@ input.cw-y:focus { border-style: solid; border-color: #55585e; }
 .cw291.big .cw-n { font-size: 20px; }
 .cw291.big .cw-ph { width: 60%; right: -36px; }
 .cw291.big .cw-t { flex-basis: 48%; max-width: 48%; }
-html:not(#_):not(#_):not(#_) #view-garage input.cw-y { width: 74px !important; height: auto !important; min-height: 0 !important; margin: 8px 0 0 !important; padding: 3px 8px !important; border-radius: 7px !important; font: 500 12px/1.35 var(--font-ui) !important; border: 1px dashed #3a3b3f !important; background: none !important; color: #e8e6e1 !important; box-shadow: none !important; }
-html:not(#_):not(#_):not(#_) #view-garage input.cw-y.f { border: 1px solid transparent !important; background: #1b1c1f !important; }
-html:not(#_):not(#_):not(#_) #view-garage .cw291 img.cw-ph { position: absolute !important; display: block !important; right: -30px !important; left: auto !important; top: 50% !important; transform: translateY(-50%) !important; width: 52% !important; height: auto !important; object-fit: contain !important; }
-html:not(#_):not(#_):not(#_) #view-garage .cw291.big img.cw-ph { width: 60% !important; right: -36px !important; }
 /* v293: карточка C в Профиле (своём и чужом) */
 html:not(#_):not(#_):not(#_) .cw291.sc293, html:not(#_):not(#_):not(#_) .cw291.pc293 { margin: 0 0 14px !important; cursor: default; }
 html:not(#_):not(#_):not(#_) .cw291 img.cw-ph { position: absolute !important; display: block !important; right: -30px !important; left: auto !important; top: 50% !important; transform: translateY(-50%) !important; width: 52% !important; height: auto !important; max-width: none !important; object-fit: contain !important; margin: 0 !important; border-radius: 0 !important; }
@@ -8527,8 +8350,6 @@ html:not(#_):not(#_):not(#_) .cw291 .cw-t { position: relative !important; z-ind
 html:not(#_):not(#_):not(#_) .cw291.big .cw-t { flex-basis: 46% !important; max-width: 46% !important; }
 html:not(#_):not(#_):not(#_) .cw291 img.cw-ph { z-index: 1 !important; width: 66% !important; right: -22% !important; max-height: 92% !important; object-fit: contain !important; object-position: left center !important; filter: drop-shadow(0 10px 8px #000) !important; }
 html:not(#_):not(#_):not(#_) .cw291.big img.cw-ph { width: 74% !important; right: -24% !important; }
-html:not(#_):not(#_):not(#_) #view-garage .cw291 img.cw-ph { width: 66% !important; right: -22% !important; }
-html:not(#_):not(#_):not(#_) #view-garage .cw291.big img.cw-ph { width: 74% !important; right: -24% !important; }
 /* v301: приветствие под знаком на заставке — спокойно, серым, мягкое появление */
 .ln61-greet { position: absolute; left: 0; right: 0; top: 54px; text-align: center; font: 500 min(5vw, 20px)/24px "Sofia Sans Condensed", var(--font-ui); letter-spacing: .04em; color: #7d8087; white-space: nowrap; opacity: 0; }
 .ln61.go .ln61-greet { animation: ln61-greet 600ms ease-out 320ms both; }
@@ -8589,3 +8410,39 @@ html:not(#_):not(#_):not(#_) #passSheet .ps-plan { background: rgba(0,0,0,.72); 
 html:not(#_):not(#_):not(#_) #passSheet .ps-plan.on { outline: 1px solid #f2f2f2; outline-offset: -1px; }
 html:not(#_):not(#_):not(#_) #passSheet .ps-plan-pop { font-style: normal; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #000; background: #f2efe9; padding: 2px 7px; border-radius: 6px; }
 html:not(#_):not(#_):not(#_) #passSheet .ps-plan-badge { color: #c9cbd0; }
+
+/* v306: пропорции шторок как в iOS — строки 48–60px, текст 15–17px, ровные отступы */
+html:not(#_):not(#_):not(#_) .race-sheet-title, html:not(#_):not(#_):not(#_) .race-sheet-inner > .race-sheet-head .race-sheet-title { font-size: 18px !important; line-height: 1.25 !important; }
+html:not(#_):not(#_):not(#_) .race-sheet-sub { font-size: 14px; line-height: 1.35; }
+html:not(#_):not(#_):not(#_) .mc3-row, html:not(#_):not(#_):not(#_) .mc3-opt { min-height: 56px; padding-top: 9px; padding-bottom: 9px; padding-left: 14px; padding-right: 14px; }
+html:not(#_):not(#_):not(#_) .mc3-ic { width: 30px; height: 30px; border-radius: 8px; }
+html:not(#_):not(#_):not(#_) .mc3-tx b { font-size: 16px; line-height: 1.25; }
+html:not(#_):not(#_):not(#_) .mc3-tx span { font-size: 13px; line-height: 1.3; }
+html:not(#_):not(#_):not(#_) .cdb-row { min-height: 52px; padding: 10px 14px; margin-bottom: 6px; }
+html:not(#_):not(#_):not(#_) .cdb-row.has-ph { padding-top: 6px; padding-bottom: 6px; }
+html:not(#_):not(#_):not(#_) .cdb-row .cdb-ph { height: 44px; width: 96px; }
+html:not(#_):not(#_):not(#_) .cdb-tx b { font-size: 16px; line-height: 20px; }
+html:not(#_):not(#_):not(#_) .cdb-tx span { font-size: 12.5px; }
+html:not(#_):not(#_):not(#_) .ps-plan { padding: 12px 14px; }
+html:not(#_):not(#_):not(#_) .st66-row { min-height: 50px; font-size: 16px; }
+/* поля ввода — текст слева, как обычно */
+html:not(#_):not(#_) input[type="text"], html:not(#_):not(#_) input:not([type]), html:not(#_):not(#_) input[type="search"], html:not(#_):not(#_) textarea { direction: ltr; }
+html:not(#_):not(#_):not(#_) .pfe-in input, html:not(#_):not(#_):not(#_) #accNick { text-align: left !important; }
+
+/* v306: свайп шторок вниз — ручка, подложка гаснет за пальцем */
+.sd-handle { display: block; width: 36px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.24); margin: 0 auto 10px; flex: none; }
+.sd-root.sd-on { transition: none !important; }
+.sd-panel.sd-drag { will-change: transform; }
+.race-sheet-inner, .cdb-inner, .rd50-sheet { overscroll-behavior: contain; }
+/* горизонтальные ленты — свайп пальцем со снапом */
+.sw-x { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; touch-action: pan-x pan-y; scrollbar-width: none; }
+.sw-x::-webkit-scrollbar { display: none; }
+.sw-x > * { scroll-snap-align: start; flex: none; }
+/* v306: отклик касаний — без серой вспышки и задержки, ленты свайпаются пальцем */
+html { -webkit-tap-highlight-color: transparent; }
+button, a, [role="button"], [role="tab"], label { touch-action: manipulation; }
+#topsChips, .tp-chips, .chips-row { overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; touch-action: pan-x pan-y; scrollbar-width: none; scroll-padding-inline: 16px; }
+#topsChips::-webkit-scrollbar { display: none; }
+.view { overscroll-behavior-y: contain; }
+html:not(#_):not(#_):not(#_) .pfe-in input, html:not(#_):not(#_):not(#_) .pfe-in input:focus, html:not(#_):not(#_):not(#_) .pfe-in input:focus-visible { border: 0 !important; outline: none !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; caret-color: #f2efe9; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #pfEdit .pfe-in input, html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #pfEdit .pfe-in input:focus { border: 0 !important; outline: none !important; box-shadow: none !important; background: transparent !important; padding: 0 !important; border-radius: 0 !important; text-align: left !important; }

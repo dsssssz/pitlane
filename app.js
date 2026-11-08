@@ -883,135 +883,8 @@ function fmtPassShort(v) {
 }
 
 
-/** v135: флаг страны марки справа от названия в Боксе (только флаг; логотипов/эмблем марок нет). */
-function applyBoxFlag(name) {
-  const f = document.getElementById('boxFlag'); if (!f) return;
-  const b = brandOf(name);
-  f.hidden = !b;
-  if (!b) return;
-  const c = COUNTRIES[b.cc] || ''; f.title = c; f.setAttribute('aria-label', c);
-  const im = f.querySelector('img'); if (im && im.getAttribute('src') !== flagUrl(b)) im.src = flagUrl(b);
-}
-
-function renderDynoMarkRow(elId, stockVal, factObj, manualVal) {
-  const el = document.getElementById(elId);
-  if (!el) return;
-  const hasStock = stockVal != null && Number.isFinite(Number(stockVal));
-  const fact = factObj?.median;
-  const hasFact = fact != null && Number.isFinite(Number(fact));
-  const hasManual = manualVal != null && Number.isFinite(Number(manualVal))
-    && (!hasStock || Number(manualVal) !== Number(stockVal));
-  const n = factObj?.n || 0;
-
-  let html = '<span class="dyno-split">';
-  html += `<em class="dyno-stock" title="Сток (каталог)">сток <b>${hasStock ? fmtPassShort(stockVal) : '—'}</b></em>`;
-  html += `<em class="dyno-fact${hasFact ? ' has-fact' : ''}" title="Факт — медиана честных A/B GPS">факт <b>${hasFact ? fmtPassShort(fact) : '—'}</b></em>`;
-  html += '</span>';
-  if (hasFact || hasManual) {
-    const bits = [];
-    if (hasFact) bits.push(`из ${n} честных`);
-    if (hasManual) bits.push(`правка ${fmtPassShort(manualVal)}`);
-    html += `<small class="dyno-meta">${bits.join(' · ')}</small>`;
-  }
-  el.innerHTML = html;
-  el.classList.add('dyno-val-cell');
-}
-
-function applyPassportUI() {
-  const id = passportId();
-  const p = getPassport(id);
-  const stock = getPassportStock(id);
-  const manual = getPassportManual(id);
-  const gps = getPassportGps(id);
-  const setTxt = (elId, val) => { const el = document.getElementById(elId); if (el) el.textContent = val; };
-  setTxt('boxName', p.name);
-  applyBoxFlag(p.name);
-  setTxt('boxTrim', p.trim || '');
-
-  const anyFact = PASSPORT_GPS_MARKS.some((m) => (gps[m]?.n || 0) > 0);
-  const anyManual = PASSPORT_GPS_MARKS.some((m) => {
-    const v = manual[m];
-    return v != null && Number.isFinite(Number(v)) && Number(v) !== Number(stock[m]);
-  });
-  let hint = stock.note || p.note || 'сток каталога';
-  if (anyFact) hint = 'сток vs факт GPS · только A/B';
-  else if (anyManual) hint = 'ручная правка · факт появится после A/B замеров';
-  else hint = (PASSPORT_STOCK[id]?.note) || 'сток каталога · замерь A/B для факта';
-  setTxt('dynoHint', hint);
-
-  renderDynoMarkRow('d0100', stock.v0100, gps.v0100, manual.v0100);
-  renderDynoMarkRow('d100200', stock.v100200, gps.v100200, manual.v100200);
-  renderDynoMarkRow('d200300', stock.v200300, gps.v200300, manual.v200300);
-  renderDynoMarkRow('d80120', stock.v80120, gps.v80120, manual.v80120);
-
-  setTxt('dHp', fmtPass(p.hp, 'л.с.'));
-  setTxt('dNm', fmtPass(p.nm, 'Н·м'));
-  setTxt('dKg', fmtPass(p.kg, 'кг'));
-  const pt = (p.hp && p.kg) ? Math.round((p.hp / p.kg) * 1000) : null;
-  setTxt('dPt', pt != null ? String(pt) : '—');
-
-  const noteEl = document.getElementById('dynoGpsNote');
-  if (noteEl) {
-    noteEl.hidden = !anyFact;
-    noteEl.textContent = anyFact ? 'Факт — медиана последних честных A/B · C не считаем' : '';
-  }
-}
-
-function setDynoEditMode(on) {
-  document.getElementById('dynoView')?.classList.toggle('hidden', on);
-  document.getElementById('dynoEditForm')?.classList.toggle('hidden', !on);
-  document.getElementById('btnDynoEdit')?.classList.toggle('hidden', on);
-  if (!on) return;
-  const p = getPassport();
-  const stock = getPassportStock();
-  const manual = getPassportManual();
-  // Edit = manual override fields (not GPS fact). Prefill manual if set, else stock.
-  const fill = (id, mark) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const v = manual[mark] != null ? manual[mark] : stock[mark];
-    el.value = v != null ? v : '';
-  };
-  fill('e0100', 'v0100');
-  fill('e100200', 'v100200');
-  fill('e200300', 'v200300');
-  fill('e80120', 'v80120');
-  fill('eHp', 'hp');
-  fill('eNm', 'nm');
-  fill('eKg', 'kg');
-}
-
-function saveDynoEdit(ev) {
-  ev?.preventDefault?.();
-  const id = passportId();
-  const num = (elId) => {
-    const raw = document.getElementById(elId)?.value?.trim();
-    if (raw === '' || raw == null) return null;
-    const n = Number(raw);
-    return Number.isFinite(n) ? n : null;
-  };
-  state.passport = state.passport || {};
-  state.passport[id] = {
-    ...(state.passport[id] || {}),
-    hp: num('eHp'),
-    nm: num('eNm'),
-    kg: num('eKg'),
-    v0100: num('e0100'),
-    v100200: num('e100200'),
-    v200300: num('e200300'),
-    v80120: num('e80120'),
-    note: 'ручная правка',
-    manualAt: Date.now(),
-  };
-  // Do NOT write into meas / passportGps — GPS fact stays the phone truth.
-  save();
-  setDynoEditMode(false);
-  applyPassportUI();
-  try { applyCarUI(); } catch (_) {}
-  hap(14);
-}
-
-
+/* v306: экран паспорта/правки характеристик жил в Гараже — удалён вместе с ним */
+function applyPassportUI() {}
 
 /* -------- Garage hero: ALWAYS cinematic 3D podium (photo/empty UX removed) -------- */
 let heroMode = '3d'; // locked; photo mode retired
@@ -7554,9 +7427,6 @@ function carPh289(name) { const w = document.createElement('div'); w.className =
 function bootPodium() {}
 // Podium boots only after intro finish (or immediate finish when skipped).
 
-document.getElementById('btnDynoEdit')?.addEventListener('click', () => setDynoEditMode(true));
-document.getElementById('btnDynoCancel')?.addEventListener('click', () => setDynoEditMode(false));
-document.getElementById('dynoEditForm')?.addEventListener('submit', saveDynoEdit);
 document.getElementById('btnCarPrev')?.addEventListener('click', () => cyclePodiumModel(-1));
 document.getElementById('btnCarNext')?.addEventListener('click', () => cyclePodiumModel(1));
 
@@ -7654,49 +7524,6 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeCarPi
   inner.addEventListener('touchcancel', end, { passive: true });
 })();
 
-
-document.getElementById('liveryInput')?.addEventListener('change', async (e) => {
-  const files = [...(e.target.files || [])].slice(0, 3);
-  if (!files.length) return;
-  const hero = document.getElementById('heroPhoto');
-  if (hero) hero.src = URL.createObjectURL(files[0]);
-  const cnv = document.createElement('canvas');
-  cnv.width = cnv.height = 1024;
-  const ctx = cnv.getContext('2d');
-  ctx.fillStyle = '#696969';
-  ctx.fillRect(0, 0, 1024, 1024);
-  for (let i = 0; i < files.length; i++) {
-    const img = await new Promise((res, rej) => {
-      const im = new Image();
-      im.onload = () => res(im);
-      im.onerror = rej;
-      im.src = URL.createObjectURL(files[i]);
-    });
-    const w = 1024 / files.length;
-    ctx.drawImage(img, i * w, 0, w, 1024);
-  }
-  state.customLivery = cnv;
-  paintCar(currentCar());
-});
-
-document.getElementById('glbInput')?.addEventListener('change', (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  const url = URL.createObjectURL(file);
-  void ensurePodium3d().then(() => gltfLoader.load(url, (gltf) => fitGlb(gltf.scene)));
-});
-
-document.getElementById('btnResetModel')?.addEventListener('click', () => {
-  state.customLivery = null;
-  loadPodiumModel(podiumModelId || 'g87-m2');
-});
-
-document.querySelectorAll('[data-photo]').forEach((b) => {
-  b.addEventListener('click', () => {
-    const img = document.getElementById('heroPhoto');
-    if (img) img.src = b.dataset.photo;
-  });
-});
 
 const paint = { body: null, wheel: null, finish: 'gloss' };
 const PAINT_CATS = [['gloss', 'Солид'], ['metallic', 'Металлик'], ['pearl', 'Перламутр'], ['matte', 'Мат'], ['satin', 'Сатин'], ['chrome', 'Хром'], ['candy', 'Кэнди']];
@@ -8288,43 +8115,6 @@ function applyPaint() {
   if (!paint.body) { photo.src = base; return; }
   recolorSrc(base, paint.body).then((url) => { photo.src = url; });
 }
-document.getElementById('colorBar')?.addEventListener('click', (e) => { // v165: образцы строятся динамически — делегирование
-  const b = e.target?.closest?.('button[data-hex]'); if (!b) return;
-  if (pl65.target !== 'body') { pickPartPaint(pl65.target, b.dataset.hex || null); return; }
-  paint.mb = b.dataset.paint || 'polar-white';
-  pickBodyPaint(b.dataset.hex || null, b.dataset.fin || pl65.cat);
-});
-document.getElementById('paintCustom')?.addEventListener('input', (e) => { const v = e.target?.value; if (v) pickBodyPaint(v, pl65.cat); });
-document.getElementById('paintCustom')?.addEventListener('change', (e) => { const v = e.target?.value; if (v) pickBodyPaint(v, pl65.cat); });
-document.getElementById('paintFinish')?.addEventListener('click', (e) => { // v165: вкладка категории — показать палитру (не перекрашивает)
-  const btn = e.target?.closest?.('button[data-finish]'); if (!btn) return;
-  pl65.cat = btn.dataset.finish || 'gloss'; renderPaintUI(); try { hap(4); } catch (_) {}
-  try { btn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' }); } catch (_) {}
-});
-window.__pl65pre = PAINT_FINISH_PRESETS; window.__pl65g = PAINT_GAIN; // harness: подбор параметров
-window.__pl65mat = () => { const r = []; glbRoot?.traverse((o) => { if (!o.isMesh) return; (Array.isArray(o.material) ? o.material : [o.material]).forEach((m) => { if (m?.userData?.__isPaintClone && r.length < 2) r.push({ t: m.type, c: m.color.getHexString(), rough: m.roughness, metal: m.metalness, cc: m.clearcoat, env: m.envMapIntensity, sp: m.specularIntensity, spc: m.specularColor?.getHexString(), sh: m.sheen, em: m.emissive?.getHexString(), emMap: !!m.emissiveMap, nm: !!m.normalMap, rm: !!m.roughnessMap, mm: !!m.metalnessMap, ao: !!m.aoMap, ir: m.iridescence, tr: m.transmission }); }); }); return r; };
-window.__pl65 = () => { try { return { ...pl65Avail(), target: pl65.target, cat: pl65.cat }; } catch (_) { return null; } };
-document.getElementById('pl65Target')?.addEventListener('click', (e) => {
-  const btn = e.target?.closest?.('button[data-target]'); if (!btn) return;
-  pl65.target = btn.dataset.target; renderPaintUI(); try { hap(4); } catch (_) {}
-});
-document.querySelectorAll('#wheelBar button').forEach((b) => {
-  b.addEventListener('click', () => {
-    document.querySelectorAll('#wheelBar button').forEach((x) => x.classList.remove('on'));
-    b.classList.add('on');
-  });
-});
-function shiftCar(dir) {
-  const list = garageList().length ? garageList() : CARS;
-  const i = Math.max(0, list.findIndex((c) => c.id === state.carId));
-  const nextId = list[(i + dir + list.length) % list.length].id;
-  paint.wheel = null;
-  selectActiveCar(nextId);
-  try { applyStoredBodyPaint(); } catch (_) {}
-}
-document.getElementById('carPrev')?.addEventListener('click', () => shiftCar(-1));
-document.getElementById('carNext')?.addEventListener('click', () => shiftCar(1));
-
 const BODY_IMG = {
   sedan: './img/sil/sedan.svg',
   coupe: './img/sil/coupe.svg',
@@ -8409,291 +8199,6 @@ const CATALOG = {
   Volkswagen: { 'Golf R': { years: [2021, 2022, 2023, 2024], engines: ['2.0 turbo 320 л.с.'] } },
   Honda: { 'Civic Type R': { years: [2023, 2024, 2025], engines: ['2.0 turbo 330 л.с.'] } },
 };
-
-function fillSelect(el, items) {
-  if (!el) return;
-  el.innerHTML = items.map((v) => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
-}
-function syncWizard() {
-  const brand = document.getElementById('wBrand')?.value;
-  const models = brand ? Object.keys(CATALOG[brand] || {}) : [];
-  fillSelect(document.getElementById('wModel'), models);
-  const model = document.getElementById('wModel')?.value;
-  const spec = brand && model ? CATALOG[brand][model] : null;
-  const wSil = document.getElementById('wSil');
-  if (wSil) wSil.src = (spec && BODY_IMG[spec.body]) || BODY_IMG.sedan || './img/sil/sedan.svg';
-  fillSelect(document.getElementById('wYear'), (spec?.years || []).map(String));
-  fillSelect(document.getElementById('wEngine'), spec?.engines || []);
-}
-function openWizard() {
-  document.getElementById('emptyGarage')?.classList.add('hidden'); // wizard open
-  document.getElementById('addWizard')?.classList.remove('hidden');
-  document.querySelector('#view-garage .mycar')?.classList.add('hidden');
-  fillSelect(document.getElementById('wBrand'), Object.keys(CATALOG));
-  syncWizard();
-}
-document.getElementById('btnAddCar')?.addEventListener('click', openWizard);
-document.getElementById('btnAddCar2')?.addEventListener('click', openWizard);
-document.getElementById('wBrand')?.addEventListener('change', syncWizard);
-document.getElementById('wModel')?.addEventListener('change', syncWizard);
-document.getElementById('wCancel')?.addEventListener('click', () => {
-  document.getElementById('addWizard')?.classList.add('hidden');
-  applyCarUI();
-});
-document.getElementById('wSave')?.addEventListener('click', () => {
-  const brand = document.getElementById('wBrand').value;
-  const model = document.getElementById('wModel').value;
-  const year = Number(document.getElementById('wYear').value);
-  const engine = document.getElementById('wEngine').value;
-  const spec = CATALOG[brand]?.[model] || {};
-  const stock = CARS.find((c) => c.name === `${brand} ${model}` || c.name.endsWith(model));
-  const hp = parseInt((engine.match(/(\d{3,4})\s*л/) || [])[1] || stock?.hp || 0, 10);
-  const car = {
-    id: 'mine-' + Date.now(),
-    name: `${brand} ${model}`,
-    cls: engine,
-    year,
-    trim: engine,
-    side: BODY_IMG[spec.body] || BODY_IMG.sedan,
-    wheels: model.includes('C63') ? './img/c63-wheels.png' : null,
-    color: stock?.color || 0x888888,
-    v0100: stock?.v0100 ?? null,
-    v100200: stock?.v100200 ?? null,
-    v200300: stock?.v200300 ?? null,
-    v80120: stock?.v80120 ?? null,
-    hp: hp || stock?.hp || 0,
-    nm: stock?.nm || 0,
-    kg: stock?.kg || 0,
-    lap: stock?.lap || { track: 'moscow', time: '—' },
-  };
-  state.garage = garageList();
-  state.garage.push(car);
-  save();
-  selectActiveCar(car.id, { skipPodium: true });
-});
-
-function shiftGarage(dir) {
-  const list = garageList();
-  if (!list.length) return;
-  const i = Math.max(0, list.findIndex((c) => c.id === state.carId));
-  selectActiveCar(list[(i + dir + list.length) % list.length].id);
-}
-
-function setScanStatus(text) {
-  const el = document.getElementById('scanStatus');
-  if (el) el.textContent = text || '';
-}
-
-function colorDist(r1, g1, b1, r2, g2, b2) {
-  const dr = r1 - r2, dg = g1 - g2, db = b1 - b2;
-  return Math.sqrt(dr * dr + dg * dg + db * db);
-}
-
-/** Flood-fill background from borders → transparent PNG, auto-crop, soft edges. */
-function studioCut(img, thresh) {
-  const maxW = 1280;
-  const scale = Math.min(1, maxW / Math.max(img.width, 1));
-  const w = Math.max(2, Math.round(img.width * scale));
-  const h = Math.max(2, Math.round(img.height * scale));
-  const src = document.createElement('canvas');
-  src.width = w; src.height = h;
-  const sctx = src.getContext('2d', { willReadFrequently: true });
-  sctx.drawImage(img, 0, 0, w, h);
-  const image = sctx.getImageData(0, 0, w, h);
-  const d = image.data;
-  const n = w * h;
-  const bgMask = new Uint8Array(n); // 1 = background
-
-  // median-ish background from border samples
-  const samples = [];
-  const pushPx = (x, y) => {
-    const i = (y * w + x) * 4;
-    samples.push([d[i], d[i + 1], d[i + 2]]);
-  };
-  for (let x = 0; x < w; x += Math.max(1, (w / 40) | 0)) {
-    pushPx(x, 0); pushPx(x, h - 1);
-  }
-  for (let y = 0; y < h; y += Math.max(1, (h / 40) | 0)) {
-    pushPx(0, y); pushPx(w - 1, y);
-  }
-  samples.sort((a, b) => (a[0] + a[1] + a[2]) - (b[0] + b[1] + b[2]));
-  const mid = samples[samples.length >> 1] || [20, 20, 20];
-  const br = mid[0], bg = mid[1], bb = mid[2];
-  const tol = 8 + thresh * 1.35;
-
-  const nearBg = (idx) => {
-    const i = idx * 4;
-    return colorDist(d[i], d[i + 1], d[i + 2], br, bg, bb) <= tol;
-  };
-
-  // flood from borders
-  const stack = [];
-  const tryPush = (x, y) => {
-    if (x < 0 || y < 0 || x >= w || y >= h) return;
-    const idx = y * w + x;
-    if (bgMask[idx]) return;
-    if (!nearBg(idx)) return;
-    bgMask[idx] = 1;
-    stack.push(idx);
-  };
-  for (let x = 0; x < w; x++) { tryPush(x, 0); tryPush(x, h - 1); }
-  for (let y = 0; y < h; y++) { tryPush(0, y); tryPush(w - 1, y); }
-  while (stack.length) {
-    const idx = stack.pop();
-    const x = idx % w;
-    const y = (idx / w) | 0;
-    tryPush(x + 1, y); tryPush(x - 1, y); tryPush(x, y + 1); tryPush(x, y - 1);
-  }
-
-  // dilate background once to eat fringe
-  const dil = bgMask.slice();
-  for (let y = 1; y < h - 1; y++) {
-    for (let x = 1; x < w - 1; x++) {
-      const idx = y * w + x;
-      if (bgMask[idx]) continue;
-      if (bgMask[idx - 1] || bgMask[idx + 1] || bgMask[idx - w] || bgMask[idx + w]) {
-        if (nearBg(idx)) dil[idx] = 1;
-      }
-    }
-  }
-
-  // alpha + feather
-  for (let idx = 0; idx < n; idx++) {
-    const i = idx * 4;
-    if (dil[idx]) {
-      d[i + 3] = 0;
-      continue;
-    }
-    // edge soft: count bg neighbors
-    const x = idx % w;
-    const y = (idx / w) | 0;
-    let bgN = 0;
-    for (let oy = -2; oy <= 2; oy++) {
-      for (let ox = -2; ox <= 2; ox++) {
-        const nx = x + ox, ny = y + oy;
-        if (nx < 0 || ny < 0 || nx >= w || ny >= h) { bgN++; continue; }
-        if (dil[ny * w + nx]) bgN++;
-      }
-    }
-    if (bgN > 0) {
-      const a = Math.max(0, 255 - bgN * 12);
-      d[i + 3] = a;
-    } else {
-      d[i + 3] = 255;
-    }
-  }
-  sctx.putImageData(image, 0, 0);
-
-  // bbox of opaque pixels
-  let minX = w, minY = h, maxX = 0, maxY = 0, solid = 0;
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const a = d[(y * w + x) * 4 + 3];
-      if (a > 24) {
-        solid++;
-        if (x < minX) minX = x;
-        if (y < minY) minY = y;
-        if (x > maxX) maxX = x;
-        if (y > maxY) maxY = y;
-      }
-    }
-  }
-  if (solid < n * 0.02) {
-    // failed cut — return original contained jpeg
-    return src.toDataURL('image/jpeg', 0.88);
-  }
-  const pad = Math.round(Math.max(w, h) * 0.03);
-  minX = Math.max(0, minX - pad);
-  minY = Math.max(0, minY - pad);
-  maxX = Math.min(w - 1, maxX + pad);
-  maxY = Math.min(h - 1, maxY + pad);
-  const cw = maxX - minX + 1;
-  const ch = maxY - minY + 1;
-
-  // plate canvas: car + soft shadow under
-  const outW = cw;
-  const outH = Math.round(ch * 1.12);
-  const out = document.createElement('canvas');
-  out.width = outW;
-  out.height = outH;
-  const octx = out.getContext('2d');
-  // shadow ellipse
-  octx.save();
-  octx.translate(outW / 2, outH * 0.92);
-  octx.scale(1, 0.28);
-  const grd = octx.createRadialGradient(0, 0, 4, 0, 0, outW * 0.42);
-  grd.addColorStop(0, 'rgba(0,0,0,0.55)');
-  grd.addColorStop(1, 'rgba(0,0,0,0)');
-  octx.fillStyle = grd;
-  octx.beginPath();
-  octx.arc(0, 0, outW * 0.42, 0, Math.PI * 2);
-  octx.fill();
-  octx.restore();
-  // car body
-  octx.drawImage(src, minX, minY, cw, ch, 0, Math.round(outH * 0.02), cw, ch);
-  return out.toDataURL('image/png');
-}
-
-let lastScanFile = null;
-async function runScan(file) {
-  if (!file) return;
-  if (!garageList().length) {
-    setScanStatus('Сначала добавь автомобиль в гараж');
-    openWizard();
-    return;
-  }
-  lastScanFile = file;
-  const carId = state.carId || garageList()[0].id;
-  state.carId = carId;
-  setScanStatus('Вырезаю кузов…');
-  document.getElementById('photoStage')?.classList.add('scanning');
-  await new Promise((r) => requestAnimationFrame(() => r()));
-  try {
-    const img = await new Promise((res, rej) => {
-      const im = new Image();
-      im.onload = () => res(im);
-      im.onerror = rej;
-      im.src = URL.createObjectURL(file);
-    });
-    const thresh = Number(document.getElementById('scanThresh')?.value || 30);
-    const cut = studioCut(img, thresh);
-    state.scans = state.scans || {};
-    state.scans[carId] = cut;
-    save();
-    applyCarUI();
-    document.getElementById('photoStage')?.classList.add('has-cutout');
-    /* photo hero retired */ setHeroMode('3d');
-    setScanStatus('Кузов на стенде. Ползунок — если фон съел машину или остался.');
-  } catch (err) {
-    console.warn(err);
-    setScanStatus('Не удалось обработать фото');
-  } finally {
-    document.getElementById('photoStage')?.classList.remove('scanning');
-  }
-}
-document.getElementById('scanInput')?.addEventListener('change', (e) => {
-  const f = e.target.files?.[0];
-  if (f) void runScan(f);
-});
-document.getElementById('scanThresh')?.addEventListener('change', () => {
-  if (lastScanFile) void runScan(lastScanFile);
-});
-document.getElementById('scanReset')?.addEventListener('click', () => {
-  const id = state.carId;
-  if (state.scans) delete state.scans[id];
-  paint.mb = 'polar-white';
-  save();
-  applyCarUI();
-});
-document.getElementById('btnRemoveCar')?.addEventListener('click', () => {
-  const id = state.carId;
-  if (!id) return;
-  if (state.scans) delete state.scans[id];
-  state.garage = garageList().filter((c) => c.id !== id);
-  state.carId = state.garage[0]?.id || null;
-  save();
-  applyCarUI();
-});
 
 // v104: ручной ввод времени в топ удалён — топ пишет только сервер по сырому треку
 
@@ -12336,7 +11841,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v305';
+const APP_VERSION = 'v306';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -16732,44 +16237,71 @@ window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
 })();
 
 /* v169: потянуть шторку вниз за верх — закрыть (iOS-жест). Работает поверх существующих кнопок закрытия, ничего не ломает. */
-(function sheetDrag169() {
-  const PANELS = '.race-sheet-panel, .ds-sheet-panel, .tgs-panel, .crew-sheet-panel, .rd50-sheet';
-  const CLOSE = '[data-close], .race-sheet-close, .ds-sheet-x, .tgs-close, .plm-close, button[aria-label="Закрыть"], button[aria-label="Close"]';
+(function sheetDrag306() { /* v306: свайп вниз для всех шторок (iOS/Telegram): тянется за пальцем с любого места, если контент
+  прокручен в самый верх; резинка вверх; подложка гаснет; закрытие по расстоянию или скорости. Свои жесты у #carPickerInner и #tgSheetPanel. */
+  const PANELS = '.race-sheet-inner, .cdb-inner, .rd50-sheet, .ds-sheet-panel, .crew-sheet-panel, .race-sheet-panel';
+  const SKIP = '#carPickerInner, #tgSheetPanel';
+  const CLOSE = '[data-close], .race-sheet-close, .ds-sheet-x, .cdb-x, .tgs-close, .plm-close, button[aria-label="Закрыть"], button[aria-label="Close"]';
+  const ROOTS = '.race-sheet, .cdb-sheet, .ds-sheet, .crew-sheet, [role=dialog]';
+  const addHandles = () => document.querySelectorAll(PANELS).forEach((p) => {
+    if (p.matches(SKIP) || p.dataset.sd) return; p.dataset.sd = '1';
+    if (p.querySelector('.race-sheet-handle, .sd-handle, .tgs-grab')) return;
+    const hd = document.createElement('i'); hd.className = 'sd-handle'; hd.setAttribute('aria-hidden', 'true'); p.prepend(hd);
+  });
+  addHandles(); try { new MutationObserver(() => { clearTimeout(addHandles.t); addHandles.t = setTimeout(addHandles, 120); }).observe(document.body, { childList: true }); } catch (_) {}
+  const scroller = (el, panel) => { for (let n = el; n && n !== panel.parentElement; n = n.parentElement) { if (n.scrollHeight > n.clientHeight + 1) { const oy = getComputedStyle(n).overflowY; if (oy === 'auto' || oy === 'scroll') return n; } if (n === panel) break; } return null; };
+  const hScroll = (el, panel) => { for (let n = el; n && n !== panel; n = n.parentElement) { if (n.scrollWidth > n.clientWidth + 1) { const ox = getComputedStyle(n).overflowX; if (ox === 'auto' || ox === 'scroll') return true; } } return false; };
   let g = null;
+  const fade = (k) => { if (!g) return; if (g.scrim) g.scrim.style.opacity = String(k); else if (g.bg) g.root.style.backgroundColor = g.bg.replace(/rgba?\(([^)]*)\)/, (m, c) => { const p = c.split(',').map((x) => x.trim()); const a = p[3] != null ? Number(p[3]) : 1; return `rgba(${p[0]},${p[1]},${p[2]},${(a * k).toFixed(3)})`; }); };
   document.addEventListener('touchstart', (e) => {
-    const t = e.touches && e.touches[0]; if (!t || e.touches.length > 1) return;
-    const panel = e.target.closest && e.target.closest(PANELS); if (!panel) return;
-    if (e.target.closest('input, textarea, select, [type=range], canvas, .no-drag')) return;
-    const r = panel.getBoundingClientRect();
-    if (t.clientY - r.top > 72) return;
-    g = { panel, y0: t.clientY, dy: 0, t0: performance.now(), on: false };
+    const t = e.touches && e.touches[0]; if (!t || e.touches.length > 1) { g = null; return; }
+    const panel = e.target.closest && e.target.closest(PANELS); if (!panel || panel.matches(SKIP)) return;
+    if (e.target.closest('input, textarea, select, [type=range], canvas, .no-drag, [data-no-sheet-drag]')) return;
+    const root = panel.closest(ROOTS) || panel.parentElement;
+    const bg = root ? getComputedStyle(root).backgroundColor : '';
+    g = { panel, root, sc: scroller(e.target, panel), hs: hScroll(e.target, panel), x0: t.clientX, y0: t.clientY, dy: 0, on: false, pts: [[t.clientY, performance.now()]],
+      scrim: root && root.querySelector(':scope > .race-sheet-scrim, :scope > .crew-sheet-scrim, :scope > .ds-sheet-scrim'), bg: bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent' ? bg : '' };
   }, { passive: true });
   document.addEventListener('touchmove', (e) => {
-    if (!g) return; const t = e.touches[0]; const dy = t.clientY - g.y0;
-    if (!g.on && dy > 8) { g.on = true; g.panel.style.transition = 'none'; }
-    if (!g.on) return;
-    g.dy = Math.max(0, dy);
-    g.panel.style.transform = 'translate3d(0,' + (g.dy < 0 ? 0 : g.dy) + 'px,0)';
-  }, { passive: true });
+    if (!g) return; const t = e.touches[0]; const dy = t.clientY - g.y0; const dx = t.clientX - g.x0;
+    if (!g.on) {
+      if (Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) { g = null; return; } // горизонтальная лента/карусель
+      if (dy > 6 && (!g.sc || g.sc.scrollTop <= 0)) { g.on = true; g.y0 = t.clientY; g.panel.classList.add('sd-panel', 'sd-drag'); g.panel.style.transition = 'none'; g.root?.classList.add('sd-root', 'sd-on'); }
+      else if (dy < -4 || (g.sc && g.sc.scrollTop > 0)) { g = null; return; }
+      if (!g.on) return;
+    }
+    if (e.cancelable) e.preventDefault();
+    const d = t.clientY - g.y0;
+    const y = d >= 0 ? d : -Math.min(24, Math.sqrt(-d) * 3); // резинка вверх
+    g.dy = d; g.y = y; g.pts.push([t.clientY, performance.now()]); if (g.pts.length > 6) g.pts.shift();
+    g.panel.style.transform = 'translate3d(0,' + y.toFixed(1) + 'px,0)';
+    const h = g.panel.offsetHeight || 600; fade(Math.max(0, 1 - Math.max(0, y) / h));
+  }, { passive: false });
   const end = () => {
-    if (!g) return; const p = g.panel; const fast = g.dy / Math.max(1, performance.now() - g.t0) > 0.6;
-    const close = g.on && (g.dy > 110 || (fast && g.dy > 40));
-    p.style.transition = 'transform 320ms cubic-bezier(.32,.72,0,1)';
+    if (!g) return; const G = g; g = null; if (!G.on) return;
+    const p = G.panel; const a = G.pts[0], z = G.pts[G.pts.length - 1];
+    const v = (z[0] - a[0]) / Math.max(1, z[1] - a[1]); // px/ms
+    const h = p.offsetHeight || 600;
+    const close = (G.y || 0) > Math.min(140, h * 0.28) || (v > 0.5 && (G.y || 0) > 24);
+    const reset = () => { p.style.transition = ''; p.style.transform = ''; p.classList.remove('sd-drag'); if (G.scrim) G.scrim.style.opacity = ''; if (G.root) { G.root.style.backgroundColor = ''; G.root.classList.remove('sd-on'); } };
     if (close) {
-      p.style.transform = 'translate3d(0,100%,0)';
-      const root = p.closest('.race-sheet, .ds-sheet, .crew-sheet, .tgs, [role=dialog]') || p.parentElement;
-      const btn = (root && root.querySelector(CLOSE)) || p.querySelector(CLOSE);
-      setTimeout(() => { try { if (btn) btn.click(); else { const sc = root && root.querySelector('.ds-sheet-scrim, .race-sheet-scrim, .crew-sheet-scrim'); if (sc) sc.click(); } } catch (_) {} setTimeout(() => { p.style.transform = ''; p.style.transition = ''; }, 60); }, 200);
+      const ms = Math.max(140, Math.min(300, (h - (G.y || 0)) / Math.max(0.8, v)));
+      p.style.transition = `transform ${ms}ms cubic-bezier(.2,.7,.3,1)`; p.style.transform = 'translate3d(0,' + (h + 40) + 'px,0)'; fade(0);
+      setTimeout(() => {
+        try { const btn = (G.root && G.root.querySelector(CLOSE)) || p.querySelector(CLOSE); if (btn) btn.click(); else if (G.root) { G.root.classList.add('hidden'); G.root.setAttribute('aria-hidden', 'true'); } } catch (_) {}
+        setTimeout(reset, 60);
+      }, ms);
       try { hap(8); } catch (_) {}
     } else {
-      p.style.transform = '';
-      setTimeout(() => { p.style.transition = ''; }, 340);
+      p.style.transition = 'transform 380ms cubic-bezier(.32,.72,0,1)'; p.style.transform = 'translate3d(0,0,0)';
+      if (G.scrim) { G.scrim.style.transition = 'opacity 300ms'; G.scrim.style.opacity = ''; }
+      if (G.root) G.root.style.backgroundColor = '';
+      setTimeout(reset, 400);
     }
-    g = null;
   };
   document.addEventListener('touchend', end, { passive: true });
   document.addEventListener('touchcancel', end, { passive: true });
-  window.__sd169 = true;
+  window.__sd169 = true; window.__sd306 = true;
 })();
 
 /* v171: большой заголовок экрана при прокрутке «сворачивается» в шапку (как в iOS), а фото машины — лёгкий параллакс. Только transform/opacity, один rAF на кадр. */
