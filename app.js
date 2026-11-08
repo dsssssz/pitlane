@@ -12329,7 +12329,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v302';
+const APP_VERSION = 'v303';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -17172,8 +17172,9 @@ function renderPf6() {
   const ps = document.getElementById('pf6Pass');
   if (ps) { // v298: минимальная кнопка подписки — без золотой плашки, видна и гостю
     ps.hidden = false; ps.classList.toggle('on', pf6Active());
-    const until = pf6Active() && PF6.pass.until ? new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' }) : '';
-    ps.replaceChildren(padEl('i', 'pf6-pass-star', '★'), padEl('span', 'pf6-pass-k', pf6Active() ? 'Paddock Pass' : 'Подписка'), padEl('span', 'pf6-pass-v', pf6Active() ? (until ? 'до ' + until : 'активна') : PASS_STARS_206 + ' Stars'));
+    const until = pf6Active() && PF6.pass.until ? new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '';
+    // v303: карбоновая пилюля PITLANE PASS с красной линией слева
+    ps.replaceChildren(padEl('span', 'pf6-pass-k', 'PITLANE PASS'), padEl('span', 'pf6-pass-v', pf6Active() ? 'Активен' + (until ? ' · до ' + until : '') : '90 дней · ' + PASS_STARS_206 + ' Stars ›'));
     ps.setAttribute('aria-label', pf6Active() ? 'Подписка активна' + (until ? ' до ' + until : '') : 'Оформить подписку, ' + PASS_STARS_206 + ' звёзд');
   }
   try { pf6PaintStats(); } catch (_) {}
