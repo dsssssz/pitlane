@@ -50,7 +50,41 @@ const SESS_TTL = 90 * 24 * 60 * 60; // 90 days — индекс сессий и 
 /* v104: cookie httpOnly невозможна (Pages ↔ workers.dev — кросс-сайт, Safari/Telegram режут сторонние
  * cookie), поэтому — короткий access-токен + ротируемый refresh-токен (оба случайные 192 бит, в KV). */
 const ACCESS_TTL = 24 * 60 * 60;        // 24 ч
-const REFRESH_TTL = 60 * 24 * 60 * 60;  // 60 дней, одноразовый (ротация)
+const REFRESH_TTL = 30 * 24 * 60 * 60;  // v307: 30 дней, одноразовый (ротация) — каждое обновление продлевает ещё на 30
+/* v307: токены и OTP в KV — только как SHA-256 (ключи sess:h:<hash>, rt:h:<hash>). Старые ключи sess:<token>/rt:<token>
+ * читаются как запасной путь и сразу переписываются в хэш (миграция при чтении, без разлогина). */
+const sessKey = (t) => 'sess:h:' + sha256Hex('pl-sess:' + t);
+const rtKey = (t) => 'rt:h:' + sha256Hex('pl-rt:' + t);
+const otpHash = (phone, code) => sha256Hex('pl-otp:' + phone + ':' + code);
+
+/** v307: сессия по access-токену: сначала хэш-ключ, затем старый открытый ключ → перенос в хэш. */
+async function loadSess(kv, token) {
+  if (!token) return null;
+  const hk = sessKey(token);
+  const raw = await kv.get(hk);
+  if (raw) { try { return JSON.parse(raw); } catch (_) { return null; } }
+  const legacy = await kv.get('sess:' + token);
+  if (!legacy) return null;
+  let s; try { s = JSON.parse(legacy); } catch (_) { return null; }
+  if (s && s.pilotId) {
+    if (s.rt && !s.rtk) { s.rtk = rtKey(s.rt); delete s.rt; }
+    await kv.put(hk, JSON.stringify(s), { expirationTtl: s.rtk ? ACCESS_TTL : SESS_TTL });
+    await kv.delete('sess:' + token);
+    const idx = (await kvJson(kv, 'sessidx:' + s.pilotId)) || [];
+    if (Array.isArray(idx)) await kv.put('sessidx:' + s.pilotId, JSON.stringify([...new Set(idx.map((x) => (x === token ? hk : x)))]), { expirationTtl: SESS_TTL });
+  }
+  return s;
+}
+
+/** v307: refresh-запись: хэш-ключ или старый открытый (старый удаляется вызывающим через вернувшийся key). */
+async function loadRt(kv, rt) {
+  const hk = rtKey(rt);
+  const a = await kvJson(kv, hk);
+  if (a) return { r: a, key: hk };
+  const b = await kvJson(kv, 'rt:' + rt);
+  if (b) return { r: b, key: 'rt:' + rt };
+  return null;
+}
 const TERMS_VER = '07.10.2026';
 const OTP_PHONE_LIMIT = 5; // per 15 min
 const OTP_IP_LIMIT = 20; // soft per 15 min
@@ -419,13 +453,13 @@ async function issueSession(kv, rec, provider) {
   const token = randomToken();
   const refreshToken = randomToken();
   await kv.put(
-    'sess:' + token,
-    JSON.stringify({ pilotId: rec.id, nick: rec.nick, provider, at: Date.now(), rt: refreshToken }),
+    sessKey(token),
+    JSON.stringify({ pilotId: rec.id, nick: rec.nick, provider, at: Date.now(), rtk: rtKey(refreshToken) }),
     { expirationTtl: ACCESS_TTL }
   );
-  await addSessIdx(kv, rec.id, token);
-  await kv.put('rt:' + refreshToken, JSON.stringify({ pilotId: rec.id, provider, at: Date.now() }), { expirationTtl: REFRESH_TTL, metadata: { pid: rec.id } });
-  await addSessIdx(kv, rec.id, 'rt:' + refreshToken);
+  await addSessIdx(kv, rec.id, sessKey(token));
+  await kv.put(rtKey(refreshToken), JSON.stringify({ pilotId: rec.id, provider, at: Date.now() }), { expirationTtl: REFRESH_TTL, metadata: { pid: rec.id } });
+  await addSessIdx(kv, rec.id, rtKey(refreshToken));
   return { token, refreshToken, expiresIn: ACCESS_TTL };
 }
 
@@ -435,10 +469,10 @@ async function resolvePilot(req, env) {
   const m = auth.match(/^Bearer\s+(\S+)/i);
   if (m) {
     const token = m[1].trim();
-    const raw = await env.PITLANE.get('sess:' + token);
-    if (raw) {
+    const s0 = await loadSess(env.PITLANE, token);
+    if (s0) {
       try {
-        const s = JSON.parse(raw);
+        const s = s0;
         if (s?.pilotId && isPilotUuid(s.pilotId)) {
           return {
             id: s.pilotId,
@@ -453,11 +487,12 @@ async function resolvePilot(req, env) {
           const phone = normPhone(s.phone);
           const { pilot } = await ensurePilotForProvider(env.PITLANE, 'phone', phone, {});
           await env.PITLANE.put(
-            'sess:' + token,
+            sessKey(token),
             JSON.stringify({ pilotId: pilot.id, nick: pilot.nick, provider: 'phone', at: s.at || Date.now() }),
             { expirationTtl: SESS_TTL }
           );
-          await addSessIdx(env.PITLANE, pilot.id, token);
+          await env.PITLANE.delete('sess:' + token);
+          await addSessIdx(env.PITLANE, pilot.id, sessKey(token));
           return { id: pilot.id, name: safeName(pilot.nick, ''), token, authed: true, provider: 'phone' };
         }
       } catch (_) {}
@@ -2389,7 +2424,7 @@ async function deleteAccount(kv, pid, currentToken, env = { PITLANE: kv }) {
   // sessions
   const tokens = new Set(((await kvJson(kv, 'sessidx:' + pid)) || []).filter(Boolean));
   if (currentToken) tokens.add(currentToken);
-  for (const t of tokens) { await del(String(t).startsWith('rt:') ? t : 'sess:' + t); rep.sessions++; }
+  for (const t of tokens) { const ts = String(t); await del(ts.startsWith('rt:') || ts.startsWith('sess:') ? ts : 'sess:' + ts); if (!ts.startsWith('rt:') && !ts.startsWith('sess:')) await del(sessKey(ts)); rep.sessions++; }
   await del('sessidx:' + pid);
   for (const k of await kvListAll(kv, 'rt:')) if (k.metadata && k.metadata.pid === pid) { await del(k.name); rep.sessions++; }
   // v107: заявки на треки (дедуп) и жалобы — привязаны к аккаунту через metadata.pid
@@ -2913,7 +2948,7 @@ async function notifyDuel(env, d, submitterId) {
 const GPS_H = {
   get json() { return json; }, get readJson() { return readJson; }, get limitOr429() { return limitOr429; }, get requireAuth() { return requireAuth; },
   get kvJson() { return kvJson; }, get safeDecode() { return safeDecode; }, get cleanLabel() { return cleanLabel; }, get randB36() { return randB36; },
-  get randomToken() { return randomToken; }, get sha256Hex() { return sha256Hex; }, get isPilotUuid() { return isPilotUuid; },
+  get randomToken() { return randomToken; }, get sha256Hex() { return sha256Hex; }, get isPilotUuid() { return isPilotUuid; }, get loadSess() { return loadSess; },
 };
 
 /** v115: helpers for ./music.js */
@@ -3095,7 +3130,7 @@ export default {
 
         await env.PITLANE.put(
           'otp:' + phone,
-          JSON.stringify({ code, exp: Date.now() + OTP_TTL_SEC * 1000, tries: 0 }),
+          JSON.stringify({ ch: otpHash(phone, code), exp: Date.now() + OTP_TTL_SEC * 1000, tries: 0 }),
           { expirationTtl: OTP_TTL_SEC }
         );
 
@@ -3136,7 +3171,7 @@ export default {
           await env.PITLANE.delete('otp:' + phone);
           return json({ ok: false, error: 'too many attempts' }, 429, headers);
         }
-        if (code !== String(otp.code)) {
+        if (otp.ch ? !timingSafeEqualStr(otpHash(phone, code), String(otp.ch)) : code !== String(otp.code)) {
           otp.tries = tries;
           const remainTtl = Math.max(30, Math.ceil((otp.exp - Date.now()) / 1000));
           await env.PITLANE.put('otp:' + phone, JSON.stringify(otp), {
@@ -3221,9 +3256,10 @@ export default {
         const body = await readJson(req, BODY_LIMITS.auth);
         const rt = String(body?.refreshToken || '');
         if (!/^[A-Za-z0-9_-]{20,80}$/.test(rt)) return json({ error: 'invalid session', code: 'session_expired' }, 401, headers);
-        const r = await kvJson(env.PITLANE, 'rt:' + rt);
+        const found = await loadRt(env.PITLANE, rt);
+        const r = found && found.r;
         if (!r || !isPilotUuid(r.pilotId)) return json({ error: 'invalid session', code: 'session_expired' }, 401, headers);
-        await env.PITLANE.delete('rt:' + rt);
+        await env.PITLANE.delete(found.key);
         const rec = await loadPilot(env.PITLANE, r.pilotId);
         if (!rec) return json({ error: 'invalid session', code: 'session_expired' }, 401, headers);
         const sess = await issueSession(env.PITLANE, rec, r.provider || null);
@@ -3233,14 +3269,17 @@ export default {
       if (req.method === 'POST' && path === '/auth/logout') {
         const lb = await readJson(req, BODY_LIMITS.auth).catch(() => null);
         const lrt = String(lb?.refreshToken || '');
-        if (/^[A-Za-z0-9_-]{20,80}$/.test(lrt)) await env.PITLANE.delete('rt:' + lrt);
+        if (/^[A-Za-z0-9_-]{20,80}$/.test(lrt)) { await env.PITLANE.delete(rtKey(lrt)); await env.PITLANE.delete('rt:' + lrt); }
         if (pilot.authed && pilot.token) {
-          const sv = await kvJson(env.PITLANE, 'sess:' + pilot.token);
-          if (sv && sv.rt) await env.PITLANE.delete('rt:' + sv.rt);
+          const sk = sessKey(pilot.token);
+          const sv = await kvJson(env.PITLANE, sk);
+          if (sv && sv.rtk) await env.PITLANE.delete(sv.rtk);
+          if (sv && sv.rt) { await env.PITLANE.delete('rt:' + sv.rt); await env.PITLANE.delete(rtKey(sv.rt)); }
+          await env.PITLANE.delete(sk);
           await env.PITLANE.delete('sess:' + pilot.token);
           const idx = (await kvJson(env.PITLANE, 'sessidx:' + pilot.id)) || [];
-          if (Array.isArray(idx) && idx.includes(pilot.token)) {
-            const rest = idx.filter((t) => t !== pilot.token);
+          if (Array.isArray(idx) && (idx.includes(pilot.token) || idx.includes(sk))) {
+            const rest = idx.filter((t) => t !== pilot.token && t !== sk);
             if (rest.length) await env.PITLANE.put('sessidx:' + pilot.id, JSON.stringify(rest), { expirationTtl: SESS_TTL });
             else await env.PITLANE.delete('sessidx:' + pilot.id);
           }

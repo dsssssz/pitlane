@@ -94,7 +94,7 @@ export async function gpsRoute(ctx) {
     const origin = req.headers.get('Origin') || '';
     if (origin && headers['Access-Control-Allow-Origin'] !== origin) return h.json({ error: 'origin' }, 403, headers);
     const tok = protoToken(req);
-    const sess = tok ? await h.kvJson(kv, 'sess:' + tok) : null;
+    const sess = tok ? await h.loadSess(kv, tok) : null;
     if (!sess || !h.isPilotUuid(sess.pilotId)) return h.json({ error: 'auth required', code: 'session_expired' }, 401, headers);
     const stub = liveStub(env, sess.pilotId);
     if (!stub) return h.json({ error: 'live unavailable', code: 'live_unavailable' }, 503, headers);
