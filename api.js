@@ -861,7 +861,7 @@ export const api = {
   async setCity(city) { return await remoteKeep('/me', { method: 'PUT', body: JSON.stringify({ city }) }); }, // v234
   async setNick(nick) { return await remoteKeep('/me', { method: 'PUT', body: JSON.stringify({ nick }) }); }, // v206
   async mePass() { return await remoteKeep('/me/pass'); },
-  async passInvoice(plan) { return await remoteKeep('/me/pass/invoice', { method: 'POST', body: JSON.stringify({ via: 'link', plan: plan === 'year' ? 'year' : 'season' }) }); },
+  async passInvoice(plan) { return await remoteKeep('/me/pass/invoice', { method: 'POST', body: JSON.stringify({ via: 'link', plan: ['month', 'season', 'year'].includes(plan) ? plan : 'season' }) }); },
   async putPassCosmetics(c) { return await remoteKeep('/me/pass/cosmetics', { method: 'PUT', body: JSON.stringify(c || {}) }); },
   async roomInvoice(id, via) { return await remoteKeep('/rooms/' + encodeURIComponent(id) + '/invoice', { method: 'POST', body: JSON.stringify({ via: via || 'link' }) }); },
   // v98: teams (public profile + feed; private part = rooms above)

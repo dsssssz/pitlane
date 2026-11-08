@@ -78,6 +78,17 @@ export function sanitizeMyCar(body, h) {
     if (v !== undefined) out[k] = v;
   }
   if (out.prep || out.tyreT || out.hp || out.kg || out.bar) out.self = true; // «со слов пилота»
+  // v305: доработки машины (чипы «Доработки») — до 16 коротких подписей, без телефонов/ссылок; видны в публичном профиле
+  if (Array.isArray(body?.mods)) {
+    const seen = new Set(); const mods = [];
+    for (const x of body.mods.slice(0, 32)) {
+      const t = h.cleanLabel(x, 32);
+      if (!t || h.containsPhone(t) || /https?:|www\.|t\.me|@/i.test(t)) continue;
+      const k = t.toLowerCase(); if (seen.has(k)) continue; seen.add(k); mods.push(t);
+      if (mods.length >= 16) break;
+    }
+    out.mods = mods;
+  }
   return out;
 }
 export const PREP_CLASSES = ['stock', 'st1', 'st2'];
@@ -279,6 +290,10 @@ export async function roomsRoute(ctx) {
       const c = sanitizeMyCar(body, h);
       if (c.error) return h.json({ error: c.error }, 400, headers);
       const rec = { ...c, at: Date.now() };
+      if (rec.mods === undefined) { // v305: без поля mods — сохраняем прежние доработки той же машины
+        const prev = await loadMyCar(kv, pilot.id, h);
+        if (prev && Array.isArray(prev.mods) && (prev.carId || '') === (rec.carId || '') && prev.model === rec.model) rec.mods = prev.mods;
+      }
       await kv.put('mycar:' + pilot.id, JSON.stringify(rec));
       return h.json({ ok: true, car: rec }, 200, headers);
     }

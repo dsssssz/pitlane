@@ -108,7 +108,7 @@ function variantBtn(r, showBrand) {
   return b;
 }
 /* v302: фото Маги (вырезки) в строках кузова; без фото — строка как была */
-const ROW_PH = { 'bmw|M3 (G80)': 'm3', 'bmw|M4 (F82/F83)': 'm4', 'bmw|M5 (F10)': 'm5-f10', 'bmw|M5 (F90)': 'm5', 'bmw|M5 (G90/G99)': 'm5-g90', 'bmw|M8 (F91/F92/F93)': 'm8', 'bmw|X5 M (F95)': 'x5m-f95', 'bmw|X6 (G06)': 'x6',
+const ROW_PH = { 'bmw|M3 (G80)': 'm3', 'bmw|M4 (F82/F83)': 'm4-f82', 'bmw|M5 (F10)': 'm5-f10', 'bmw|M5 (F90)': 'm5', 'bmw|M5 (G90/G99)': 'm5-g90', 'bmw|M8 (F91/F92/F93)': 'm8', 'bmw|X5 M (F95)': 'x5m-f95', 'bmw|X6 (G06)': 'x6',
   'porsche|911 (992)': '911-992-cabrio', 'mercedes|E 63 (W213)': 'e63-w213', 'mercedes|S 63 (W222/W223)': 's63-w222', 'mercedes|CLS 63 (C218)': 'cls-w218', 'mercedes|AMG GT 4-door (X290)': 'amg-gt63-4d', 'mercedes|G 63 (W463)': 'g63',
   'mercedes|GLE Coupe 63 (C292/C167)': 'gle-coupe-c167', 'mercedes|GLS 63 / Maybach (X167)': 'gls-x167', 'toyota|Camry (XV70)': 'camry-xv70', 'toyota|Land Cruiser 200 / 300': 'lc200', 'lexus|IS F': 'isf', 'lixiang|L7 / L8 / L9': 'li-l9' };
 function render() {
@@ -155,3 +155,6 @@ function render() {
   body.replaceChildren(...nodes);
 }
 function plural(n) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'версия' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'версии' : 'версий'; }
+
+/** v305: фото строки кузова для варианта из БД (по id) — для карточки «Моя машина» */
+export function carDbRowPhoto(id) { const r = carDbById(id); if (!r) return ''; const p = ROW_PH[r.b.k + '|' + r.m.n]; return p ? './img/cars/user/' + p + '.webp' : ''; }

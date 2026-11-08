@@ -53,7 +53,7 @@ import * as LB from './lap-battle.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { flushRunQueue, runQueueSize } from './api.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
-import { brandLogoEl, brandLogoKey } from './car-db.js';
+import { brandLogoEl, brandLogoKey, carDbById, carDbRowPhoto } from './car-db.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, openCarPicker as openCarDbPicker, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 // v207: подсказки удалены полностью
@@ -7530,7 +7530,7 @@ function carCard291(x, meta, opts = {}) {
   const code = (String(meta.trim || '').match(/^([A-Z]{1,2}\d{2,3})\b/) || [])[1] || '';
   let name = String(x.name || '').replace(/^BMW\s+/i, '').replace(/^G87\s+/, '');
   if (/Competition/.test(meta.trim || '') && !/Competition/.test(name)) name += ' Competition';
-  const lk = brandLogoKey(x.name); const ph = userCarPhoto(x.id);
+  const lk = brandLogoKey(x.name); const ph = meta.ph || userCarPhoto(x.id);
   const sp = [meta.hp ? meta.hp + ' HP' : '', meta.v0100 ? Number(meta.v0100).toFixed(1) + ' s' : ''].filter(Boolean).join(' · ');
   const y = x.id ? carYear291(x.id) : '';
   const mods = Array.isArray(opts.mods) ? opts.mods : [];
@@ -7541,6 +7541,8 @@ function carCard291(x, meta, opts = {}) {
 }
 /* v293: машина пилота → запись БД (по id, иначе по имени без «(G80)») и HTML карточки C */
 function resolveCar293(id, name) {
+  // v305: вариант из каталога (db.*) — мощность/разгон/фото строго этого варианта (F90 M5 600 vs Competition 625, F82 vs G82)
+  if (id && /^db\./.test(id)) { let r = null; try { r = carDbById(id); } catch (_) {} if (r) return { x: { id, name: String(name || r.name) }, meta: { hp: r.hp || null, v0100: r.v0100 || null, trim: String(r.m?.n || '').replace(/^.*\(([^)]*)\).*$/, '$1'), ph: carDbRowPhoto(id) } }; }
   const nz = (v) => String(v || '').toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/[^a-z0-9а-я]+/g, ' ').trim();
   let c = id ? CARS.find((x) => x.id === id) : null;
   if (!c && name) { const n = nz(name); c = CARS.find((x) => nz(x.name) === n) || CARS.find((x) => n.startsWith(nz(x.name)) || nz(x.name).startsWith(n)) || null;
@@ -9241,6 +9243,11 @@ function padShow(id, on) {
   el.classList.toggle('hidden', !on);
   el.setAttribute('aria-hidden', on ? 'false' : 'true');
   document.body.classList.toggle('pad-lock', !!document.querySelector('.pad-sheet:not(.hidden)'));
+  if (!on) { // v305: закрытие ветки — снимаем фокус со скрытого поля, иначе клавиатура/--kb «залипают» и поле чата перестаёт работать
+    const a = document.activeElement; if (a && el.contains(a)) { try { a.blur(); } catch (_) {} }
+    if (id === 'padCommentsSheet') { try { _comPost = null; } catch (_) {} const t = document.getElementById('padComText'); if (t) t.style.height = ''; }
+    setTimeout(() => { try { window.dispatchEvent(new Event('pl-kb-sync')); } catch (_) {} }, 150);
+  }
 }
 function padCloseSheets() { padShow('padCommentsSheet', false); padShow('pilotSheet', false); }
 
@@ -9428,7 +9435,7 @@ function renderPilotProfile(pr) {
     if (pr.car) fig.appendChild(padEl('figcaption', '', pr.car));
     body.appendChild(fig);
   }
-  if (pr.car) { const cw = padEl('div', 'cw291 big pc293'); cw.innerHTML = carCard293Html(pr.carId || '', pr.car, { noYear: true }); body.appendChild(cw); } // v293: карточка C
+  if (pr.car) { const cw = padEl('div', 'cw291 big pc293'); cw.innerHTML = carCard293Html(pr.carId || '', pr.car, { noYear: true, mods: (pr.carMods && Array.isArray(pr.carMods.mods) && (!pr.carMods.model || pr.carMods.model === pr.car)) ? pr.carMods.mods.map(String).slice(0, 16) : [] }); body.appendChild(cw); } // v293: карточка C
 
   const stats = padEl('div', 'pilot-stats');
   const zh = (pr.best && pr.best.zeroHundred) || [];
@@ -12329,7 +12336,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v304';
+const APP_VERSION = 'v305';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12587,81 +12594,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     setTimeout(sync3d, 900);
     window.__mount3d = mountPodium;
   }
-  /* v153: Гараж — большая карточка текущей машины + лента остальных */
-  (() => {
-    const host = document.getElementById('g53'); if (!host) return;
-    const curId = () => { try { return podiumModelId || defaultPodiumId(); } catch (_) { return 'g87-m2'; } };
-    const render = () => {
-      const list = MODEL_CATALOG.slice();
-      const empty = !list.length && !garageList().length;
-      document.getElementById('g53Empty').hidden = !empty;
-      document.getElementById('g53Hero').hidden = empty;
-      if (empty) { document.getElementById('g53List').innerHTML = ''; return; }
-      const id = curId(); const m = list.find((x) => x.id === id) || list[0];
-      const meta = (() => { try { return CARS.find((c) => c.id === m.id) || {}; } catch (_) { return {}; } })();
-      if (document.getElementById('view-garage')?.classList.contains('active')) mountPodium('garage'); // v154: живая 3D-модель в карточке
-      { const h = document.getElementById('g53Name'); h.textContent = m.name; // v164: флаг страны марки рядом с именем (как на карточке Главной)
-        try { const br = brandOf(m.name); if (br) { const f = padEl('span', 'cb-flag g64-flag'); f.setAttribute('role', 'img'); f.setAttribute('aria-label', COUNTRIES[br.cc] || ''); f.title = COUNTRIES[br.cc] || ''; const im = document.createElement('img'); im.alt = ''; im.decoding = 'async'; im.draggable = false; im.src = flagUrl(br); f.appendChild(im); h.appendChild(f); } } catch (_) {} }
-      document.getElementById('g53Sub').textContent = [m.year, meta.cls].filter(Boolean).join(' · ');
-      g63Paint(list, m, meta);
-      const mine = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
-      const isMine = !!(mine && (mine.carId === m.id || mine.model === m.name));
-      const mb = document.getElementById('g53Mine'); mb.textContent = isMine ? 'Моя машина' : 'Это моя машина'; mb.classList.toggle('on', isMine);
-      // v163: лента — все машины (текущая отмечена), студийные рендеры вместо снимков старого подиума
-      document.getElementById('g53List').innerHTML = list.map((x) => `<button type="button" class="cw291${x.id === m.id ? ' on' : ''}" role="listitem" data-g53="${esc(x.id)}"${x.id === m.id ? ' aria-current="true"' : ''}>${carCard291(x, CARS.find((c) => c.id === x.id))}</button>`).join('');
-      try { const c = null; const l = c?.parentElement; if (c && l) { const cr = c.getBoundingClientRect(), lr = l.getBoundingClientRect(); l.scrollLeft += cr.left - lr.left - (lr.width - cr.width) / 2; } } catch (_) {} // v251: только по горизонтали — scrollIntoView прокручивал страницу и прятал 3D
-    };
-    /* v163: имя крупно + тонкая строка характеристик (мощность, 0–100 завода, мой лучший) и точки-индикатор */
-    function g63Paint(list, m, meta) {
-      const specs = document.getElementById('g63Specs');
-      if (specs) {
-        let best = null; try { best = homeBest0100(m.id, null); } catch (_) {}
-        const cell = (k, v, u) => { const c = padEl('span', 'g63-s' + (v ? '' : ' is-empty')); c.setAttribute('role', 'listitem'); const b = padEl('b', 'g63-v', v || '—'); if (v && u) b.appendChild(padEl('small', '', u)); c.append(b, padEl('span', 'g63-k', k)); return c; };
-        specs.replaceChildren(cell('Мощность', meta.hp ? String(meta.hp) : '', 'л.с.'), cell('0–100', meta.v0100 ? Number(meta.v0100).toFixed(1) : '', 'с'), cell('Мой лучший', best ? best.t.toFixed(2) : '', 'с'));
-        { let n = document.getElementById('g63SpecsNote'); if (!n) { n = padEl('p', 'g63-note'); n.id = 'g63SpecsNote'; specs.after(n); } n.textContent = (meta.hp || meta.v0100) ? 'Мощность и 0–100 — данные производителя' : ''; n.hidden = !(meta.hp || meta.v0100); }
-      }
-      const dots = document.getElementById('g63Dots');
-      if (dots) {
-        if (dots.childElementCount !== list.length) dots.innerHTML = list.map((x, i) => `<button type="button" class="g63-dot" role="tab" data-g53="${esc(x.id)}" aria-label="${esc(x.name)}"></button>`).join('');
-        dots.querySelectorAll('.g63-dot').forEach((d) => { const on = d.dataset.g53 === m.id; d.classList.toggle('on', on); d.setAttribute('aria-selected', on ? 'true' : 'false'); });
-      }
-    }
-    const g63Step = (d) => {
-      const list = MODEL_CATALOG; if (!list.length) return;
-      const i = Math.max(0, list.findIndex((x) => x.id === curId()));
-      try { pickPodiumCar(list[(i + d + list.length) % list.length].id); } catch (_) {}
-      render();
-    };
-    document.getElementById('g63Dots')?.addEventListener('click', (e) => { const b = e.target.closest('[data-g53]'); if (!b) return; try { pickPodiumCar(b.dataset.g53); } catch (_) {} render(); });
-    // свайп влево/вправо по имени и характеристикам — следующая/предыдущая машина (вращение 3D пальцем остаётся на самой модели)
-    (() => {
-      const z = document.getElementById('g63Info'); if (!z) return;
-      let x0 = 0, y0 = 0, on = false;
-      z.addEventListener('pointerdown', (e) => { on = true; x0 = e.clientX; y0 = e.clientY; }, { passive: true });
-      z.addEventListener('pointerup', (e) => { if (!on) return; on = false; const dx = e.clientX - x0, dy = e.clientY - y0; if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy) * 1.4) g63Step(dx < 0 ? 1 : -1); }, { passive: true });
-      z.addEventListener('pointercancel', () => { on = false; }, { passive: true });
-      z.style.touchAction = 'pan-y';
-    })();
-    window.__g63Step = g63Step;
-    document.getElementById('g53List')?.addEventListener('click', (e) => {
-      const b = e.target.closest('[data-g53]'); if (!b) return;
-      try { pickPodiumCar(b.dataset.g53); } catch (_) {}
-      render(); try { host.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {}
-    });
-    document.getElementById('g53Art')?.addEventListener('input', (e) => { const i = e.target.closest('[data-cy]'); if (!i) return; i.value = i.value.replace(/\D/g, '').slice(0, 4); const ok = /^(19|20)\d\d$/.test(i.value) && +i.value <= new Date().getFullYear() + 1; i.classList.toggle('f', ok); if (ok || !i.value) { setCarYear291(i.dataset.cy, ok ? i.value : ''); const b = document.querySelector(`#g53List [data-g53="${i.dataset.cy}"] .cw-y`); if (b) { b.textContent = ok ? i.value : 'Год ＋'; b.classList.toggle('f', ok); } } });
-    document.getElementById('g53Art')?.addEventListener('keydown', (e) => { if (e.key === 'Enter' && e.target.matches('[data-cy]')) e.target.blur(); });
-    document.getElementById('g53Mine')?.addEventListener('click', () => { document.getElementById('btnMyCarGarage')?.click(); setTimeout(render, 300); });
-    document.getElementById('g53Studio')?.addEventListener('click', (e) => {
-      const on = document.documentElement.classList.toggle('g53-3d');
-      e.currentTarget.setAttribute('aria-expanded', on ? 'true' : 'false'); e.currentTarget.textContent = on ? 'Скрыть' : 'Цвет и детали';
-      try { window.dispatchEvent(new Event('resize')); } catch (_) {}
-    });
-    document.getElementById('g53Add')?.addEventListener('click', () => { document.documentElement.classList.add('g53-3d'); document.getElementById('btnAddCar')?.click(); });
-    const gv = document.getElementById('view-garage');
-    if (gv) new MutationObserver(() => { if (gv.classList.contains('active')) { try { render(); } catch (_) {} } }).observe(gv, { attributes: true, attributeFilter: ['class'] });
-    setTimeout(() => { try { render(); } catch (_) {} }, 700);
-    window.__g53 = render;
-  })();
+  /* v305: блок Гаража (g53) удалён — выбор машины только в каталоге */
   /* v153: Круг — выбор трассы и «Старт круга»; история и аналитика — по кнопке */
   document.getElementById('l53More')?.addEventListener('click', (e) => {
     const v = document.getElementById('view-lap'); const on = v.classList.toggle('l53-open');
@@ -15074,6 +15007,7 @@ syncHomeBtn();
     setTimeout(sync, 350);
   });
   document.addEventListener('focusout', () => setTimeout(sync, 120));
+  window.addEventListener('pl-kb-sync', () => { last = -1; sync(); }); // v305
 })();
 function sheetNavOn() { return document.documentElement.classList.contains('nav-widgets') && !!window.matchMedia?.('(max-width: 900px)').matches; }
 /* ——— v124: нижняя панель из трёх пунктов (Дуэли · Paddock · Трассы) → шторка в стиле Telegram ——— */
@@ -17174,8 +17108,8 @@ function renderPf6() {
     ps.hidden = false; ps.classList.toggle('on', pf6Active());
     const until = pf6Active() && PF6.pass.until ? new Date(PF6.pass.until).toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }) : '';
     // v303: карбоновая пилюля PITLANE PASS с красной линией слева
-    ps.replaceChildren(padEl('span', 'pf6-pass-k', 'PITLANE PASS'), padEl('span', 'pf6-pass-v', pf6Active() ? 'Активен' + (until ? ' · до ' + until : '') : '90 дней · ' + PASS_STARS_206 + ' Stars ›'));
-    ps.setAttribute('aria-label', pf6Active() ? 'Подписка активна' + (until ? ' до ' + until : '') : 'Оформить подписку, ' + PASS_STARS_206 + ' звёзд');
+    ps.replaceChildren(padEl('span', 'pf6-pass-k', 'PITLANE PASS'), padEl('span', 'pf6-pass-v', 'от ' + PASS_STARS_206 + ' Stars ›'));
+    ps.setAttribute('aria-label', pf6Active() ? 'Подписка активна' + (until ? ' до ' + until : '') : 'PITLANE PASS, от ' + PASS_STARS_206 + ' звёзд');
   }
   try { pf6PaintStats(); } catch (_) {}
   try { pf6PaintPassTile(u); } catch (_) {}
@@ -17190,7 +17124,7 @@ function pf6PaintStats() {
   const items = [[best('0-100'), '0–100', 'с'], [best('402m'), '¼ мили', 'с'], [Array.isArray(state.laps) ? state.laps.length : 0, 'кругов', '']];
   box.replaceChildren(...items.map(([v, k, u]) => { const c = padEl('div', 'pf6-st'); const b = padEl('b', '', v ? (u ? Number(v).toFixed(2) : String(v)) : '—'); if (v && u) b.append(padEl('small', '', ' ' + u)); c.append(b, padEl('span', '', k)); return c; }));
 }
-const PASS_STARS_206 = 250; // v225: сезон 250 ★ / 90 дней, год 799 ★
+const PASS_STARS_206 = 150; // v305: от 150 ★ (месяц) · сезон 350 · год 1190
 function pf6NavAva() {
   const n = document.getElementById('n6Ava'); if (!n) return;
   const src = pf6Ava();
@@ -17295,7 +17229,7 @@ function renderPfEdit() {
   pick('Пин у ника', PF6_PIN, 'pin', (v) => (v ? awardImg(v, true) : ''));
   if (!on) {
     const up = padEl('button', 'pfe-buy'); up.type = 'button';
-    up.append(padEl('b', '', 'Открыть с Paddock Pass'), padEl('span', '', PASS_STARS_206 + ' ★ за сезон · 799 ★ за год'));
+    up.append(padEl('b', '', 'Открыть с Paddock Pass'), padEl('span', '', 'от ' + PASS_STARS_206 + ' ★ · сезон 350 ★ · год 1190 ★'));
     up.addEventListener('click', () => { hap(8); openPassSheet(); });
     ps.append(up);
   }
@@ -17849,8 +17783,18 @@ const MODS302 = [
 ];
 function mods302Key(mc) { return String(mc?.carId || mc?.model || '').slice(0, 80); }
 function mods302All() { try { const o = JSON.parse(localStorage.getItem(MODS302_KEY) || '{}'); return o && typeof o === 'object' ? o : {}; } catch (_) { return {}; } }
-function mods302Get(k) { const v = mods302All()[k]; return Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 40) : []; }
-function mods302Set(k, list) { try { const o = mods302All(); if (list.length) o[k] = list.slice(0, 40); else delete o[k]; localStorage.setItem(MODS302_KEY, JSON.stringify(o)); } catch (_) {} }
+function mods302Get(k) { let v = mods302All()[k]; if (!Array.isArray(v)) { const mc = myCarLocal(); if (mc && Array.isArray(mc.mods) && mods302Key(mc) === k) v = mc.mods; } // v305: доработки с сервера (профиль)
+   return Array.isArray(v) ? v.filter((x) => typeof x === 'string').slice(0, 40) : []; }
+function mods302Set(k, list) { try { const o = mods302All(); if (list.length) o[k] = list.slice(0, 16); else o[k] = []; localStorage.setItem(MODS302_KEY, JSON.stringify(o)); } catch (_) {} void mods302Sync(k, list.slice(0, 16)); }
+/* v305: доработки → профиль на сервере (видят другие пилоты) */
+async function mods302Sync(k, list) {
+  try {
+    const mc = myCarLocal(); if (!mc || mods302Key(mc) !== k || !currentUser() || !isRemoteApi() || !mc.tyre) return;
+    const pass = {}; for (const f of ['prep', 'tyreT', 'hp', 'kg', 'bar']) if (mc[f] != null && mc[f] !== '') pass[f] = mc[f];
+    const r = await api.putMyCar({ model: mc.model, tyre: mc.tyre, carId: mc.carId || undefined, ...pass, mods: list });
+    if (r && r.ok !== false && r.car) { try { localStorage.setItem('pitlane-mycar-v1', JSON.stringify({ ...mc, ...r.car })); } catch (_) {} }
+  } catch (_) {}
+}
 function openMods302() {
   const mc = myCarLocal(); if (!mc) { try { openCarDbPicker(); } catch (_) {} return; }
   const key = mods302Key(mc); const sel = new Set(mods302Get(key));
@@ -17889,4 +17833,3 @@ document.addEventListener('click', (e) => {
   const c = e.target.closest?.('.cw291.tap302'); if (c) { try { hap(10); } catch (_) {} try { openCarDbPicker(); } catch (_) {} }
 });
 window.addEventListener('pl-car', () => { try { void renderAwards92(); } catch (_) {} });
-try { const g = document.getElementById('view-garage'); if (g) { g.hidden = true; g.setAttribute('aria-hidden', 'true'); } } catch (_) {}

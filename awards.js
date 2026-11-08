@@ -7,7 +7,8 @@
 const MSK = 3 * 3600 * 1000;
 const WEEK = 7 * 86400000;
 export const PASS_STARS = 250; // v225: сезон 90 дней
-export const PASS_PLANS = [{ id: 'year', stars: 799, days: 365, t: 'Год', sub: '365 дней · 67 ★ в месяц', old: 1000, badge: '−20%' }, { id: 'season', stars: 250, days: 90, t: 'Сезон', sub: '90 дней · 83 ★ в месяц' }];
+// v305: три тарифа (сервер проверяет сумму: worker/src/paddock.js PASS_PLANS); выгода — к помесячной оплате
+export const PASS_PLANS = [{ id: 'month', stars: 150, days: 30, t: 'Месяц', sub: '30 дней' }, { id: 'season', stars: 350, days: 90, t: 'Сезон', sub: '90 дней · 117 ★ в месяц', old: 450, badge: '−22%', pop: true }, { id: 'year', stars: 1190, days: 365, t: 'Год', sub: '365 дней · 99 ★ в месяц', old: 1800, badge: '−34%' }];
 const A = './img/awards/';
 export const AWARDS = {
   p1: { n: 'Подиум P1', d: 'P1 недели на трассе' },
@@ -29,7 +30,7 @@ export const PASS_ITEMS = [
 ];
 export function awardImg(k, small) { return A + k + (small ? '_s' : '') + '.webp'; }
 /* v293: свои фото Маги (вырезка) — везде, где показывается машина; у M3 выбор фото (фиолетовая по умолчанию / бордовая) */
-export const USER_PH = { m8: 1, m4: 1, m3: 1, 'bmw-g70': 1, 'gls63-x166': 1, 'e63-w213': 1, lc200: 1, 'camry-xv80': 1, 'li-l9': 1, 'camry-xv70': 1, 'x7-g07': 1, 'g63': 1, 'g63-w463': 1, 'x6': 1, 'isf': 1, 'm5': 1, 'm5-f10': 1, 'm5-g90': 1, 'gls-x167': 1, 's63-w222': 1, 'cls-w218': 1, 'gle-coupe-c167': 1, 'bmw-7-g12': 1, 'panamera': 1, '911-992-cabrio': 1, 'x5m-f95': 1, 'amg-gt63-4d': 1 };
+export const USER_PH = { m8: 1, 'm4-f82': 1, m3: 1, 'bmw-g70': 1, 'gls63-x166': 1, 'e63-w213': 1, lc200: 1, 'camry-xv80': 1, 'li-l9': 1, 'camry-xv70': 1, 'x7-g07': 1, 'g63': 1, 'g63-w463': 1, 'x6': 1, 'isf': 1, 'm5': 1, 'm5-f10': 1, 'm5-g90': 1, 'gls-x167': 1, 's63-w222': 1, 'cls-w218': 1, 'gle-coupe-c167': 1, 'bmw-7-g12': 1, 'panamera': 1, '911-992-cabrio': 1, 'x5m-f95': 1, 'amg-gt63-4d': 1 };
 export const PH_ALT = { m3: [['', 'Фиолетовая'], ['m3-burgundy', 'Бордовая']] };
 const PHK = 'pitlane-car-photo-v293';
 export function carPhotoPick(id) { try { const v = JSON.parse(localStorage.getItem(PHK) || '{}')[id] || ''; return PH_ALT[id]?.some((a) => a[0] === v) ? v : ''; } catch (_) { return ''; } }
@@ -349,9 +350,7 @@ export function spin3d(src, px, cols, n, period, cls, drag) {
 export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustomize, guest, onLogin }) {
   root.replaceChildren();
   const hero = h('div', 'ps-hero');
-  hero.appendChild(spin3d('./img/pass/pass-emblem-sprite.webp', 264, 12, 120, 6000, 'ps-ic'));
-  hero.appendChild(h('span', 'ps-k', 'PITLANE'));
-  hero.appendChild(h('h2', 'ps-t', 'Paddock Pass'));
+  hero.appendChild(h('h2', 'ps-t ps-wm', 'PITLANE PASS')); // v305: только словесный знак (Michroma), без эмблемы
   hero.appendChild(h('p', 'ps-d', pass?.active ? 'Активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'Твой стиль в паддоке: пины и рамка у ника'));
   root.appendChild(hero);
   const ul = h('ul', 'ps-list');
@@ -380,18 +379,18 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
     root.appendChild(b);
   } else {
     // v225: выбор плана в стиле Telegram Premium — год (выгодно) / сезон
-    let sel = 'year';
+    let sel = 'season'; // v305: «Популярный» выбран по умолчанию
     const plans = h('div', 'ps-plans'); plans.setAttribute('role', 'radiogroup');
     const b = h('button', 'ps-buy'); b.type = 'button';
     const sync = () => {
       for (const c of plans.children) { const on = c.dataset.plan === sel; c.classList.toggle('on', on); c.setAttribute('aria-checked', on ? 'true' : 'false'); }
       const P = PASS_PLANS.find((x) => x.id === sel);
-      b.textContent = guest ? 'Войти, чтобы купить' : available ? `Купить ${P.id === 'year' ? 'год' : 'сезон'} за ${P.stars} ★` : 'Скоро';
+      b.textContent = guest ? 'Войти, чтобы купить' : available ? `Купить ${({ month: 'месяц', season: 'сезон', year: 'год' })[P.id]} за ${P.stars} ★` : 'Скоро';
     };
     for (const P of PASS_PLANS) {
       const c = h('button', 'ps-plan'); c.type = 'button'; c.dataset.plan = P.id; c.setAttribute('role', 'radio');
       c.appendChild(h('i', 'ps-plan-dot'));
-      const t = h('div', 'ps-plan-t'); const tt = h('b', '', P.t); if (P.badge) tt.appendChild(h('em', 'ps-plan-badge', P.badge)); t.appendChild(tt); t.appendChild(h('small', '', P.sub)); c.appendChild(t);
+      const t = h('div', 'ps-plan-t'); const tt = h('b', '', P.t); if (P.pop) tt.appendChild(h('em', 'ps-plan-pop', 'Популярный')); if (P.badge) tt.appendChild(h('em', 'ps-plan-badge', P.badge)); t.appendChild(tt); t.appendChild(h('small', '', P.sub)); c.appendChild(t);
       const pr = h('div', 'ps-plan-p'); if (P.old) pr.appendChild(h('s', '', P.old.toLocaleString('ru-RU') + ' ★')); pr.appendChild(h('b', '', P.stars + ' ★')); c.appendChild(pr);
       c.addEventListener('click', () => { sel = P.id; sync(); });
       plans.appendChild(c);

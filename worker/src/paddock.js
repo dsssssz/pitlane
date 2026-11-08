@@ -10,9 +10,10 @@ import { champBadge } from './season.js';
 export const PASS_STARS = 149; // legacy: старая подписка 30 дней (только продления уже оформленных)
 export const PASS_PERIOD_S = 2592000;
 // v225: разовые планы — сезон 90 дней и год 365 дней (сумма проверяется на сервере)
-export const PASS_PLANS = { season: { stars: 250, days: 90, label: 'Сезон · 90 дней' }, year: { stars: 799, days: 365, label: 'Год · 365 дней' } };
+// v305: три тарифа — месяц 150 / сезон 350 / год 1190 Stars
+export const PASS_PLANS = { month: { stars: 150, days: 30, label: 'Месяц · 30 дней' }, season: { stars: 350, days: 90, label: 'Сезон · 90 дней' }, year: { stars: 1190, days: 365, label: 'Год · 365 дней' } };
 const PAYLOAD_RE = /^pp1:([A-Za-z0-9_-]{6,64})$/;
-const PAYLOAD2_RE = /^pp2:(season|year):([A-Za-z0-9_-]{6,64})$/;
+const PAYLOAD2_RE = /^pp2:(month|season|year):([A-Za-z0-9_-]{6,64})$/;
 function parsePayload(x) {
   x = String(x || '');
   let m = x.match(PAYLOAD2_RE); if (m) return { plan: m[1], pid: m[2], stars: PASS_PLANS[m[1]].stars, days: PASS_PLANS[m[1]].days };
@@ -41,21 +42,21 @@ export async function passRoute({ req, env, path, pilot, headers, h }) {
   const kv = env.PITLANE;
   const p = await loadPass(kv, pilot.id);
   if (req.method === 'GET' && path === '/me/pass') {
-    return h.json({ ok: true, sales: passSalesOn(env), stars: PASS_PLANS.season.stars, plans: PASS_PLANS, pass: active(p) ? { active: true, until: p.until, ...publicPass(p) } : null }, 200, headers);
+    return h.json({ ok: true, sales: passSalesOn(env), stars: PASS_PLANS.month.stars, plans: PASS_PLANS, pass: active(p) ? { active: true, until: p.until, ...publicPass(p) } : null }, 200, headers);
   }
   if (req.method === 'POST' && path === '/me/pass/invoice') {
     if (!passSalesOn(env)) return h.json({ error: 'подписка пока недоступна' }, 403, headers);
     const lim = await h.limitOr429(env, headers, [['rl:ppinv:p:' + pilot.id, 10, 3600]]);
     if (lim) return lim;
     const body = await h.readJson(req, 1024).catch(() => ({}));
-    const plan = body?.plan === 'year' ? 'year' : 'season';
+    const plan = Object.prototype.hasOwnProperty.call(PASS_PLANS, body?.plan) ? body.plan : 'season';
     const P = PASS_PLANS[plan];
     const spec = {
-      title: 'Paddock Pass · ' + (plan === 'year' ? 'год' : 'сезон'),
+      title: 'PITLANE PASS · ' + ({ month: 'месяц', season: 'сезон', year: 'год' }[plan]),
       description: 'Внешний вид в Pitlane на ' + P.days + ' дней: рамки и пины. Разовая оплата, без автопродления. Награды за время не продаются.',
       payload: 'pp2:' + plan + ':' + pilot.id,
       currency: 'XTR',
-      prices: [{ label: 'Paddock Pass · ' + P.label, amount: P.stars }],
+      prices: [{ label: 'PITLANE PASS · ' + P.label, amount: P.stars }],
     };
     const r = await h.tgCall(env, 'createInvoiceLink', spec);
     if (!r?.ok || typeof r.result !== 'string') return h.json({ error: 'telegram: ' + String(r?.description || 'fail').slice(0, 120) }, 502, headers);

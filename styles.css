@@ -8581,3 +8581,11 @@ html:not(#_):not(#_):not(#_) .pf6-pass:active { background-color: #141414; }
 html:not(#_):not(#_):not(#_) .pf6-pass .pf6-pass-star { display: none; }
 /* v304: PITLANE PASS — Michroma */
 html:not(#_):not(#_):not(#_):not(#_) #pf6Pass .pf6-pass-k { font: 400 15px/1 "Michroma", 'Sofia Sans Condensed', sans-serif; letter-spacing: .08em; }
+/* v305: шторка PITLANE PASS — чёрный, карбон, Michroma только у знака */
+html:not(#_):not(#_):not(#_) #passSheet .pass-inner { background: #000 url('img/carbon-twill.svg'); }
+html:not(#_):not(#_):not(#_) #passSheet .ps-hero { padding: 8px 0 14px; text-align: left; }
+html:not(#_):not(#_):not(#_) #passSheet .ps-wm { margin: 0; font: 400 22px/1.1 "Michroma", 'Sofia Sans Condensed', sans-serif; letter-spacing: .08em; color: #f2efe9; }
+html:not(#_):not(#_):not(#_) #passSheet .ps-plan { background: rgba(0,0,0,.72); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; }
+html:not(#_):not(#_):not(#_) #passSheet .ps-plan.on { outline: 1px solid #f2f2f2; outline-offset: -1px; }
+html:not(#_):not(#_):not(#_) #passSheet .ps-plan-pop { font-style: normal; font-size: 11px; font-weight: 600; letter-spacing: .04em; color: #000; background: #f2efe9; padding: 2px 7px; border-radius: 6px; }
+html:not(#_):not(#_):not(#_) #passSheet .ps-plan-badge { color: #c9cbd0; }

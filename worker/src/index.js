@@ -3942,6 +3942,7 @@ export default {
         const prof = await buildPilotProfile(env.PITLANE, pid, viewer);
         if (!prof) return json({ error: 'not found' }, 404, headers);
         try { const tmp = { pilotId: pid }; await attachPass(env.PITLANE, [tmp]); if (tmp.pp) prof.pp = tmp.pp; } catch (_) {} // v206: рамка/номер/пин в чужом профиле
+        try { const mc = await loadMyCar(env.PITLANE, pid, ROOM_H); if (mc && Array.isArray(mc.mods) && mc.mods.length) prof.carMods = { model: mc.model, carId: mc.carId || null, mods: mc.mods.slice(0, 16) }; } catch (_) {} // v305: доработки машины
         return json(prof, 200, headers);
       }
 
