@@ -11841,7 +11841,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v306';
+const APP_VERSION = 'v306.1';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -16274,7 +16274,7 @@ window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
     const d = t.clientY - g.y0;
     const y = d >= 0 ? d : -Math.min(24, Math.sqrt(-d) * 3); // резинка вверх
     g.dy = d; g.y = y; g.pts.push([t.clientY, performance.now()]); if (g.pts.length > 6) g.pts.shift();
-    g.panel.style.transform = 'translate3d(0,' + y.toFixed(1) + 'px,0)';
+    g.panel.style.translate = '0 ' + y.toFixed(1) + 'px'; // translate — не конфликтует с анимацией появления (transform)
     const h = g.panel.offsetHeight || 600; fade(Math.max(0, 1 - Math.max(0, y) / h));
   }, { passive: false });
   const end = () => {
@@ -16283,17 +16283,17 @@ window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
     const v = (z[0] - a[0]) / Math.max(1, z[1] - a[1]); // px/ms
     const h = p.offsetHeight || 600;
     const close = (G.y || 0) > Math.min(140, h * 0.28) || (v > 0.5 && (G.y || 0) > 24);
-    const reset = () => { p.style.transition = ''; p.style.transform = ''; p.classList.remove('sd-drag'); if (G.scrim) G.scrim.style.opacity = ''; if (G.root) { G.root.style.backgroundColor = ''; G.root.classList.remove('sd-on'); } };
+    const reset = () => { p.style.transition = ''; p.style.translate = ''; p.classList.remove('sd-drag'); if (G.scrim) G.scrim.style.opacity = ''; if (G.root) { G.root.style.backgroundColor = ''; G.root.classList.remove('sd-on'); } };
     if (close) {
       const ms = Math.max(140, Math.min(300, (h - (G.y || 0)) / Math.max(0.8, v)));
-      p.style.transition = `transform ${ms}ms cubic-bezier(.2,.7,.3,1)`; p.style.transform = 'translate3d(0,' + (h + 40) + 'px,0)'; fade(0);
+      p.style.transition = `translate ${ms}ms cubic-bezier(.2,.7,.3,1)`; p.style.translate = '0 ' + (h + 40) + 'px'; fade(0);
       setTimeout(() => {
         try { const btn = (G.root && G.root.querySelector(CLOSE)) || p.querySelector(CLOSE); if (btn) btn.click(); else if (G.root) { G.root.classList.add('hidden'); G.root.setAttribute('aria-hidden', 'true'); } } catch (_) {}
         setTimeout(reset, 60);
       }, ms);
       try { hap(8); } catch (_) {}
     } else {
-      p.style.transition = 'transform 380ms cubic-bezier(.32,.72,0,1)'; p.style.transform = 'translate3d(0,0,0)';
+      p.style.transition = 'translate 380ms cubic-bezier(.32,.72,0,1)'; p.style.translate = '0 0';
       if (G.scrim) { G.scrim.style.transition = 'opacity 300ms'; G.scrim.style.opacity = ''; }
       if (G.root) G.root.style.backgroundColor = '';
       setTimeout(reset, 400);
