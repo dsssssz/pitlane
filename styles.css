@@ -8528,3 +8528,11 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComText:focus { border-color: r
 html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComSend { flex: none; width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; margin: 0 0 1px !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important; display: grid !important; place-items: center; background: #e10600 !important; color: #fff !important; box-shadow: none !important; transition: transform .18s cubic-bezier(.3,1.5,.5,1), opacity .14s, background .15s; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComSend:disabled { background: #1c1c1f !important; color: #5f6167 !important; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComSend:not(:disabled):active { transform: scale(.88); }
+
+/* v315: статус ника под полем («свободен» / «занят») */
+.pfe-nick-st { margin: 6px 14px 0; min-height: 0; font: 500 12.5px/1.35 var(--font-ui); color: #8d9096; }
+.pfe-nick-st:empty { display: none; }
+.pfe-nick-st.ok { color: #9fd3a8; }
+.pfe-nick-st.ok::before { content: '✓ '; }
+.pfe-nick-st.bad { color: #ff5a4f; }
+.pfe-nick-st.wait { color: #6f7278; }

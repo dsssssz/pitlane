@@ -1947,12 +1947,18 @@ const LN61 = { T: 1340, UI: 900 }; // v163: крупный знак держит
 /* v301: приветствие по местному времени устройства под знаком PITLANE (строки — в карте для будущего перевода) */
 const GREET_I18N = { ru: { morning: 'Доброе утро', day: 'Добрый день', evening: 'Добрый вечер', night: 'Доброй ночи' } };
 function greetKey(h) { return h >= 5 && h < 12 ? 'morning' : h >= 12 && h < 17 ? 'day' : h >= 17 && h < 23 ? 'evening' : 'night'; }
+/** v315: имя в приветствии — ник Pitlane из профиля; имя из Telegram — только если ника нет (или он автоматический «пилотXXXX»). */
+function greetName() {
+  try { const n = String(JSON.parse(localStorage.getItem('pitlane-prof-v1') || '{}').nick || '').trim(); if (n && !/^пилот[0-9a-f]{4}$/i.test(n)) return Array.from(n).slice(0, 24).join(''); } catch (_) {}
+  try { return String(window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '').trim().slice(0, 24); } catch (_) { return ''; }
+}
 function greetText(d = new Date(), lang = 'ru') {
   const t = (GREET_I18N[lang] || GREET_I18N.ru)[greetKey(d.getHours())];
-  let n = ''; try { n = String(window.Telegram?.WebApp?.initDataUnsafe?.user?.first_name || '').trim().slice(0, 24); } catch (_) {}
+  const n = greetName();
   return n ? t + ', ' + n : t;
 }
-try { const g = document.getElementById('lnGreet'); if (g) g.textContent = greetText(); } catch (_) {}
+function paintGreet() { try { const g = document.getElementById('lnGreet'); if (g) g.textContent = greetText(); } catch (_) {} }
+paintGreet();
 (function setupLaunch() {
   const el = document.getElementById('launch');
   const root = document.documentElement;
@@ -8281,8 +8287,15 @@ function loadProfUI() {
   if (nick && document.activeElement !== nick) nick.value = p.nick || '';
   if (img && p.avatar) img.src = p.avatar;
 }
-document.getElementById('accNick')?.addEventListener('change', (e) => {
-  const p = profile(); p.nick = e.target.value.trim(); saveProf(p);
+document.getElementById('accNick')?.addEventListener('change', async (e) => { // v315: через проверку уникальности
+  const want = e.target.value.trim(); const before = profile().nick || '';
+  if (!want || want === before) return;
+  if (isRemoteApi() && getSessionToken() && currentUser()) {
+    const r = await saveNickServer(want);
+    if (!r.ok) { e.target.value = before; try { plFlash(nickMsg(r.code)); } catch (_) {} return; }
+    nickApplyLocal(r.nick || want); return;
+  }
+  const p = profile(); p.nick = want; saveProf(p); paintGreet();
 });
 document.getElementById('accAvatarIn')?.addEventListener('change', (e) => {
   const f = e.target.files?.[0]; if (!f) return;
@@ -9975,9 +9988,7 @@ async function createDuelFromUi() {
   }
   const nickEl = document.getElementById('duelNick');
   const nick = (nickEl?.value || '').trim() || duelPilotNick();
-  if (nickEl) {
-    const p = profile(); p.nick = nick; saveProf(p);
-  }
+  // v315: ник аккаунта меняется только в профиле (через проверку уникальности) — тут лишь подпись к дуэли
   const note = (document.getElementById('duelNote')?.value || '').trim();
   const trackId = _duelType === 'lap' ? (document.getElementById('duelTrackSelect')?.value || TRACKS[0]?.id) : undefined;
   let ghostId;
@@ -10980,10 +10991,53 @@ function setMyBannerLocal(b) {
 function renderAccBanner() {
   paintBannerImg(document.getElementById('accBanner'), myBanner(), accountPilotId(), 1200);
 }
+/* ——— v315: уникальные ники — проверка на лету (GET /nick/check), сохранение через сервер, флаг «дубль» ——— */
+const NICK_I18N = { ru: { taken: 'Этот никнейм уже занят', dup: 'Этот никнейм уже занят — выбери другой', free: 'Ник свободен', short: 'Слишком короткий ник', invalid: 'В нике нужны буквы или цифры', checking: 'Проверяем…', offline: 'ник сохранён только на телефоне' } };
+function nickT(k, lang = 'ru') { return (NICK_I18N[lang] || NICK_I18N.ru)[k] || ''; }
+function nickMsg(code) { return code === 'NICK_TAKEN' ? nickT('taken') : code === 'NICK_SHORT' ? nickT('short') : code === 'NICK_INVALID' ? nickT('invalid') : nickT('offline'); }
+function nickIsDup() { try { return localStorage.getItem('pitlane-nick-dup') === '1'; } catch (_) { return false; } }
+function nickShow(el, kind, text) { if (!el) return; el.className = 'pfe-nick-st' + (kind ? ' ' + kind : ''); el.textContent = text || ''; }
+/** → { ok:true, nick } | { ok:false, code:'NICK_TAKEN'|'NICK_SHORT'|'NICK_INVALID'|'NET' } */
+async function saveNickServer(nick) {
+  const r = await api.setNick(nick).catch(() => null);
+  if (r && r.ok !== false) { try { localStorage.setItem('pitlane-nick-dup', '0'); } catch (_) {} return { ok: true, nick: r.nick || nick }; }
+  if (r && (r.code === 'NICK_TAKEN' || r.code === 'NICK_SHORT' || r.code === 'NICK_INVALID')) return { ok: false, code: r.code };
+  return { ok: false, code: 'NET' };
+}
+function nickApplyLocal(nick) {
+  const p = profile(); p.nick = nick; saveProf(p);
+  const ni = document.getElementById('accNick'); if (ni) ni.value = nick;
+  const u = currentUser(); if (u && nick) { u.nick = nick; try { saveAuth(); } catch (_) {} }
+  paintGreet();
+}
+/** Ник с сервера — истина (вход, запуск): локальный ник, не прошедший проверку, заменяется; nickDup — «смени ник при следующем редактировании». */
+function nickFromServer(me) {
+  if (!me || me.ok === false || typeof me.nick !== 'string' || !me.nick) return;
+  try { localStorage.setItem('pitlane-nick-dup', me.nickDup ? '1' : '0'); } catch (_) {}
+  if ((profile().nick || '') !== me.nick) { nickApplyLocal(me.nick); try { loadProfUI(); renderPf6(); } catch (_) {} }
+}
+/** Живая проверка в поле ника: 350 мс после ввода; свой текущий ник — без подсказки (или «занят», если он дубль). */
+function nickBindCheck(inp, st, ownNick) {
+  let t = 0, seq = 0;
+  const run = async () => {
+    const v = inp.value.trim(); const my = ++seq;
+    if (!v) { nickShow(st, '', ''); return; }
+    if (v === (ownNick() || '')) { nickShow(st, nickIsDup() ? 'bad' : '', nickIsDup() ? nickT('dup') : ''); return; }
+    if (!isRemoteApi()) { nickShow(st, '', ''); return; }
+    nickShow(st, 'wait', nickT('checking'));
+    const r = await api.nickCheck(v).catch(() => null);
+    if (my !== seq) return;
+    if (!r || r.ok === false) { nickShow(st, '', ''); return; }
+    if (r.free) nickShow(st, 'ok', nickT('free')); else nickShow(st, 'bad', nickMsg(r.code));
+  };
+  inp.addEventListener('input', () => { clearTimeout(t); t = setTimeout(run, 350); });
+  void run();
+}
 async function syncMyBanner() {
   if (!ghostCanUploadBanner()) return;
   const me = await api.me().catch(() => null);
   if (me && me.ok !== false && 'banner' in me) setMyBannerLocal(me.banner);
+  try { nickFromServer(me); } catch (_) {} // v315
 }
 function ghostCanUploadBanner() {
   const tok = getSessionToken();
@@ -11282,9 +11336,7 @@ async function createCrewFromUi() {
   const name = (document.getElementById('crewName')?.value || '').trim();
   const nickEl = document.getElementById('crewNick');
   const nick = (nickEl?.value || '').trim() || crewPilotNick();
-  if (nickEl) {
-    try { const p = profile() || {}; p.nick = nick; saveProf(p); } catch (_) {}
-  }
+  // v315: ник аккаунта меняется только в профиле (через проверку уникальности)
   if (!name) {
     const hint = document.getElementById('crewHint');
     if (hint) hint.textContent = 'Укажи название экипажа.';
@@ -11909,7 +11961,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v314';
+const APP_VERSION = 'v315';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -16811,7 +16863,9 @@ function renderPfEdit() {
   inp.addEventListener('input', () => { d.nick = inp.value.trim(); pfePreview(); });
   lab.append(inp); g1.append(lab);
   b.append(g1);
-  b.append(padEl('p', 'pfe-hint', 'Ник видят все. До 24 символов.'));
+  const st = padEl('p', 'pfe-nick-st'); st.id = 'pfeNickSt'; st.setAttribute('role', 'status'); st.setAttribute('aria-live', 'polite'); b.append(st); // v315: «свободен» / «занят»
+  b.append(padEl('p', 'pfe-hint', 'Ник видят все. До 24 символов, у каждого пилота свой.'));
+  nickBindCheck(inp, st, () => pf6Nick());
   const g2 = padEl('div', 'pfe-g');
   const rowBtn = (k, v, fn) => { const r = padEl('button', 'pfe-row'); r.type = 'button'; r.append(padEl('span', 'pfe-k', k)); if (v) r.append(padEl('span', 'pfe-v', v)); r.append(padEl('b', 'pf6-ch')); r.addEventListener('click', fn); return r; };
   const mc = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
@@ -16859,11 +16913,13 @@ document.getElementById('pfeSave')?.addEventListener('click', async (e) => {
   const errs = [];
   try {
     const nick = String(d.nick || '').slice(0, 24);
-    if (nick !== pf6Nick()) {
-      const p = profile(); p.nick = nick; saveProf(p);
-      const ni = document.getElementById('accNick'); if (ni) ni.value = nick;
-      const u = currentUser(); if (u && nick) { u.nick = nick; try { saveAuth(); } catch (_) {} }
-      if (nick && isRemoteApi() && getSessionToken()) { const r = await api.setNick(nick).catch(() => null); if (!r || r.ok === false) errs.push('ник сохранён только на телефоне'); }
+    if (nick !== pf6Nick() || (nick && nickIsDup())) { // v315: сначала сервер (уникальность), потом телефон
+      if (nick && isRemoteApi() && getSessionToken() && currentUser()) {
+        const r = await saveNickServer(nick);
+        if (!r.ok && r.code !== 'NET') { nickShow(document.getElementById('pfeNickSt'), 'bad', nickMsg(r.code)); try { document.getElementById('pfeNick')?.focus(); } catch (_) {} hap(20); return; }
+        if (!r.ok) errs.push(nickT('offline'));
+        nickApplyLocal(r.ok && r.nick ? r.nick : nick);
+      } else if (nick) nickApplyLocal(nick);
     }
     if (pf6Active()) {
       const c = pf6Cos();

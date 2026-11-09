@@ -355,10 +355,72 @@ function defaultNick(pid) {
   return 'пилот' + String(pid || '').replace(/^p_/, '').replace(/-/g, '').slice(0, 4);
 }
 
+/**
+ * v315: ник — NFKC, без невидимых / нулевой ширины / управляющих символов, пробелы схлопнуты; нужна хоть одна буква/цифра.
+ * (аудит: ники из одних невидимых символов и «двойники» с zero-width внутри)
+ */
+const NICK_INVIS_RE = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\u2800\u3164\uFE00-\uFE0F\uFEFF\uFFA0\p{Cc}\p{Cf}\p{Co}\p{Cs}<>]/gu;
+function cleanNickText(v) {
+  let s = String(v == null ? '' : v);
+  try { s = s.normalize('NFKC'); } catch (_) {}
+  s = s.replace(NICK_INVIS_RE, '').replace(/\s+/gu, ' ').trim();
+  return Array.from(s).slice(0, 24).join('').trim();
+}
 function sanitizeNick(v) {
-  const s = cleanLabel(v, 24);
-  if (!s || containsPhone(s)) return '';
+  const s = cleanNickText(v);
+  if (!s || !/[\p{L}\p{N}]/u.test(s) || containsPhone(s)) return '';
   return s;
+}
+
+/* —— v315: уникальные ники. KV nick:<ключ> → pilotId; ключ без регистра, диакритики и латинских «двойников» кириллицы —— */
+const NICK_FOLD = { a: 'а', b: 'в', c: 'с', e: 'е', h: 'н', i: 'і', j: 'ј', k: 'к', m: 'м', o: 'о', p: 'р', s: 'ѕ', t: 'т', x: 'х', y: 'у', '0': 'о', 'ё': 'е', 'й': 'и', 'ї': 'і' };
+function nickKey(v) {
+  const s = sanitizeNick(v);
+  if (!s) return '';
+  return Array.from(s.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '')).map((ch) => NICK_FOLD[ch] || ch).join('');
+}
+const NICK_MIN = 2;
+/** Свободен ли ключ для pid: нет владельца / это он / запись устарела (владелец удалён или сменил ник — индекс не почистился). */
+async function nickOwner(kv, k) {
+  const cur = await kv.get('nick:' + k);
+  if (!cur) return null;
+  const rec = await loadPilot(kv, cur);
+  if (!rec || nickKey(rec.nick) !== k) return null;
+  return cur;
+}
+async function claimNick(kv, pid, k) {
+  const key = 'nick:' + k;
+  const cur = await kv.get(key);
+  if (cur === pid) return true;
+  if (cur && (await nickOwner(kv, k))) return false;
+  await kv.put(key, pid);
+  return (await kv.get(key)) === pid; // перечитали: в гонке побеждает тот, чья запись осталась
+}
+async function releaseNick(kv, pid, k) {
+  if (!k) return;
+  try { if ((await kv.get('nick:' + k)) === pid) await kv.delete('nick:' + k); } catch (_) {}
+}
+/** Смена ника аккаунта (rec не сохраняет — это делает вызывающий). → { ok, changed } | { ok:false, code } */
+async function setPilotNick(kv, rec, wanted) {
+  const nick = sanitizeNick(wanted);
+  if (!nick) return { ok: false, code: 'NICK_INVALID' };
+  if (Array.from(nick).length < NICK_MIN) return { ok: false, code: 'NICK_SHORT' };
+  const k = nickKey(nick);
+  if (rec.nk === k && rec.nick === nick) return { ok: true, changed: false };
+  if (!(await claimNick(kv, rec.id, k))) return { ok: false, code: 'NICK_TAKEN' };
+  const oldK = rec.nk || nickKey(rec.nick);
+  if (oldK && oldK !== k) await releaseNick(kv, rec.id, oldK);
+  rec.nick = nick; rec.nk = k; delete rec.nkDup;
+  return { ok: true, changed: true };
+}
+/** Ленивая дозапись индекса для старых аккаунтов: свободно → закрепляем; занят другим (дубль) → помечаем nkDup, аккаунт работает,
+ *  но при следующем редактировании ник придётся сменить. Чтение/запись — только если состояние ещё не записано. → true, если rec изменился */
+async function backfillNick(kv, rec) {
+  const k = nickKey(rec && rec.nick);
+  if (!k || rec.nk === k || rec.nkDup === k) return false;
+  if (await claimNick(kv, rec.id, k)) { rec.nk = k; delete rec.nkDup; return true; }
+  rec.nkDup = k; delete rec.nk;
+  return true;
 }
 
 function isLegacyPhoneNick(nick, phone) {
@@ -403,11 +465,20 @@ async function ensurePilotForProvider(kv, type, providerId, defaults = {}) {
   let legacy = null;
   if (type === 'phone') legacy = await kvJson(kv, 'user:' + providerId);
   const legacyNick = legacy?.nick && !isLegacyPhoneNick(legacy.nick, providerId) ? sanitizeNick(legacy.nick) : '';
+  // v315: ник нового аккаунта — первый свободный из (Telegram username / имя, старый ник), иначе «пилотXXXX»
+  let nick = '', nk = '';
+  for (const c of [...(Array.isArray(defaults.nicks) ? defaults.nicks : [defaults.nick]), legacyNick]) {
+    const n = sanitizeNick(c); const k = nickKey(n);
+    if (!n || Array.from(n).length < NICK_MIN || !k) continue;
+    if (await claimNick(kv, pid, k)) { nick = n; nk = k; break; }
+  }
+  if (!nick) { nick = defaultNick(pid); const k = nickKey(nick); if (k && (await claimNick(kv, pid, k))) nk = k; }
   const rec = {
     id: pid,
     createdAt: Number(legacy?.createdAt) || now,
     providers: [{ type, id: String(providerId), at: now }],
-    nick: sanitizeNick(defaults.nick) || legacyNick || defaultNick(pid),
+    nick,
+    ...(nk ? { nk } : {}),
     photoRef: defaults.photoUrl || null,
     trialEnds: Number(legacy?.trialEnds) || now + 7 * DAY_MS,
     plan: legacy?.plan || 'trial',
@@ -1341,7 +1412,7 @@ async function rateHit(kv, key, limit, ttlSec) {
  * Окно и порог — как у привязки (wrangler.toml: чтение 240/мин, запись 40/мин), отдельный счётчик на каждый ключ.
  * Нет привязки (тесты / локально) или она упала → прежний KV-счётчик.
  */
-const RL_READ_KEY_RE = /^rl:(stock|chalg|music|pnum|season|cseason|stampg|shopf):/;
+const RL_READ_KEY_RE = /^rl:(stock|chalg|music|pnum|season|cseason|stampg|shopf|nickchk):/;
 async function ipHit(env, key, limit, ttlSec) {
   const rl = env && env[RL_READ_KEY_RE.test(key) ? 'RL_READ' : 'RL_WRITE'];
   if (rl && typeof rl.limit === 'function') {
@@ -1924,10 +1995,12 @@ async function verifyTmaInitData(initData, botToken, opts = {}) {
 
 /** Shared by /auth/telegram (login widget) and /auth/tma (Mini App): same `auth:tg:<id>` → same pilot uuid. */
 async function loginTelegramUser(env, v, provider) {
+  const full = [v.firstName, v.lastName].filter(Boolean).join(' ');
   const { pilot: rec, created } = await ensurePilotForProvider(env.PITLANE, 'tg', v.id, {
-    nick: v.username || [v.firstName, v.lastName].filter(Boolean).join(' '),
+    nicks: [v.username, full, v.firstName].filter(Boolean), // v315: первый свободный
     photoUrl: v.photoUrl,
   });
+  await backfillNick(env.PITLANE, rec); // v315: старые аккаунты попадают в индекс ников при входе
   const prov = (rec.providers || []).find((x) => x.type === 'tg');
   if (prov) prov.username = v.username || null;
   if (v.photoUrl && (!rec.photoRef || created)) rec.photoRef = v.photoUrl;
@@ -1936,7 +2009,7 @@ async function loginTelegramUser(env, v, provider) {
   if (!rec.termsAt || rec.termsVer !== TERMS_VER) { rec.termsAt = Date.now(); rec.termsVer = TERMS_VER; }
   await savePilot(env.PITLANE, rec);
   const sess = await issueSession(env.PITLANE, rec, provider);
-  return { ok: true, ...sess, pilotId: rec.id, nick: rec.nick, provider, created, user: ownerUser(rec) };
+  return { ok: true, ...sess, pilotId: rec.id, nick: rec.nick, provider, created, user: ownerUser(rec), ...(rec.nkDup ? { nickDup: true } : {}) };
 }
 
 const TMA_PARAM_RE = /^(st|ch|duel|crew|room|team|lap|run|s|track|tops)_[A-Za-z0-9_-]{1,56}$/;
@@ -2481,6 +2554,7 @@ async function deleteAccount(kv, pid, currentToken, env = { PITLANE: kv }) {
   if (!isPilotUuid(pid)) return rep;
   const rec = await loadPilot(kv, pid);
   const del = async (key) => { await kv.delete(key); };
+  if (rec) await releaseNick(kv, pid, rec.nk || nickKey(rec.nick)); // v315: ник снова свободен
   // v121: настройки/счётчики/копилка уведомлений и отметка «писал боту»
   try {
     await deleteNotifyKeys(kv, pid, NOTIFY_H);
@@ -3271,15 +3345,19 @@ export default {
         }
         await env.PITLANE.delete('otp:' + phone);
 
-        const { pilot: rec } = await ensurePilotForProvider(env.PITLANE, 'phone', phone, { nick: body?.nick });
-        const wantNick = sanitizeNick(body?.nick);
-        if (wantNick) rec.nick = wantNick;
+        const { pilot: rec, created: newAcc } = await ensurePilotForProvider(env.PITLANE, 'phone', phone, { nick: body?.nick });
+        let nickError = null; // v315: занятый ник не мешает войти — остаётся прежний, клиент покажет «занят»
+        if (body?.nick != null && String(body.nick).trim() && !(newAcc && rec.nick === sanitizeNick(body.nick))) {
+          const nr = await setPilotNick(env.PITLANE, rec, body.nick);
+          if (!nr.ok) nickError = nr.code;
+        }
+        await backfillNick(env.PITLANE, rec);
         rec.lastLogin = Date.now();
         await savePilot(env.PITLANE, rec);
         const sess = await issueSession(env.PITLANE, rec, 'phone');
         // `phone` is echoed only to its owner (this response), never in public endpoints.
         return json(
-          { ok: true, ...sess, pilotId: rec.id, phone, nick: rec.nick, provider: 'phone', user: ownerUser(rec) },
+          { ok: true, ...sess, pilotId: rec.id, phone, nick: rec.nick, provider: 'phone', user: ownerUser(rec), ...(nickError ? { nickError } : {}), ...(rec.nkDup ? { nickDup: true } : {}) },
           200,
           headers
         );
@@ -3449,13 +3527,30 @@ export default {
           const lim = await limitOr429(env, headers, [['rl:me:p:' + pilot.id, 30, 3600]]);
           if (lim) return lim;
           const body = await readJson(req, BODY_LIMITS.auth);
-          const nick = sanitizeNick(body?.nick);
           let dirty = false;
-          if (nick) { rec.nick = nick; dirty = true; }
+          if (body && body.nick != null) { // v315: уникальный ник; занят → 409 NICK_TAKEN, ничего не меняем
+            const nr = await setPilotNick(env.PITLANE, rec, body.nick);
+            if (!nr.ok) return json({ ok: false, error: nr.code === 'NICK_TAKEN' ? 'nick taken' : 'invalid nick', code: nr.code, nick: rec.nick }, nr.code === 'NICK_TAKEN' ? 409 : 400, headers);
+            if (nr.changed) dirty = true;
+          }
           if (body && 'city' in body) { const c = sanitizeCity(body.city); if (c) rec.city = c; else delete rec.city; dirty = true; } // v234
           if (dirty) await savePilot(env.PITLANE, rec);
         }
-        return json({ ok: true, pilotId: rec.id, nick: rec.nick, city: rec.city || '', user: ownerUser(rec), banner: publicBanner(rec), carPhoto: publicCarPhoto(rec, true) }, 200, headers);
+        if (await backfillNick(env.PITLANE, rec)) await savePilot(env.PITLANE, rec); // v315: один раз на аккаунт
+        return json({ ok: true, pilotId: rec.id, nick: rec.nick, ...(rec.nkDup ? { nickDup: true } : {}), city: rec.city || '', user: ownerUser(rec), banner: publicBanner(rec), carPhoto: publicCarPhoto(rec, true) }, 200, headers);
+      }
+
+      // —— v315: проверка ника на лету (поле «Ник» в профиле / онбординге) ——
+      if (req.method === 'GET' && path === '/nick/check') {
+        const lim = await limitOr429(env, headers, [['rl:nickchk:ip:' + ip, 240, 60]]);
+        if (lim) return lim;
+        const raw = url.searchParams.get('n') || '';
+        const nick = sanitizeNick(raw);
+        if (!nick) return json({ ok: true, free: false, code: 'NICK_INVALID' }, 200, headers);
+        if (Array.from(nick).length < NICK_MIN) return json({ ok: true, nick, free: false, code: 'NICK_SHORT' }, 200, headers);
+        const owner = await nickOwner(env.PITLANE, nickKey(nick));
+        const free = !owner || (pilot.authed && owner === pilot.id);
+        return json({ ok: true, nick, free, ...(free ? {} : { code: 'NICK_TAKEN' }) }, 200, headers);
       }
 
       // —— Account deletion (Google Play / 152-ФЗ) ——

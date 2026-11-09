@@ -860,6 +860,7 @@ export const api = {
   // v192: Paddock Pass (Stars, только внешний вид). Без деплоя воркера → { ok:false, status:404 }
   async setCity(city) { return await remoteKeep('/me', { method: 'PUT', body: JSON.stringify({ city }) }); }, // v234
   async setNick(nick) { return await remoteKeep('/me', { method: 'PUT', body: JSON.stringify({ nick }) }); }, // v206
+  async nickCheck(n) { return await remoteKeep('/nick/check?n=' + encodeURIComponent(String(n || '').slice(0, 64))); }, // v315: занят ли ник
   async mePass() { return await remoteKeep('/me/pass'); },
   async putAvatar(ava) { return await remoteKeep('/me/avatar', { method: 'PUT', body: JSON.stringify({ ava }) }); }, // v314: аватарка с сайта → чат/топы
   async deleteAvatar() { return await remoteKeep('/me/avatar', { method: 'DELETE' }); },
