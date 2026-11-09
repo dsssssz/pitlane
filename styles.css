@@ -8451,3 +8451,8 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #pfEdit .pfe-in input, html
 html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-author > .aw-fr { grid-column: 1; grid-row: 1 / span 6; align-self: end; justify-self: center; --s: 24px !important; }
 html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .aw-fr .pad-ava { grid-column: auto; grid-row: auto; align-self: auto; width: var(--s) !important; height: var(--s) !important; }
 html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-author > .aw-fr { display: none; }
+
+/* v309: own messages also show the (framed) avatar, on the right. */
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine { grid-template-columns: minmax(0, 1fr) 30px; padding-left: 14px !important; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine > .pad-head > .pad-author > .pad-ava, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-author > .aw-fr { display: grid; grid-column: 2; grid-row: 1 / span 6; align-self: end; justify-self: center; }
+html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .aw-fr .pad-ava { display: grid; grid-column: auto; grid-row: auto; }
