@@ -8439,6 +8439,7 @@ function buildPostCard(p, { compact = false } = {}) {
   head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, avatar: padAvaUrl(p.pilotId, p.ava), meta, pp: p.pp || null }));
   const myPid = accountPilotId();
   if (p.pilotId && myPid && p.pilotId === myPid) card.classList.add('mine'); // v299: свои — справа
+  if (card.classList.contains('mine')) { const nk = head.querySelector('.pad-nick'); if (nk && nk.firstChild && nk.firstChild.nodeType === 3) nk.firstChild.nodeValue = 'Вы'; } // v309: свои подписаны «Вы»
   if (p.pilotId && myPid && p.pilotId === myPid) {
     const del = padEl('button', 'pad-act pad-del');
     del.type = 'button';
@@ -11841,7 +11842,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v309';
+const APP_VERSION = 'v310';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
