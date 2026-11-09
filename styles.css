@@ -8456,3 +8456,75 @@ html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-author > .a
 html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine { grid-template-columns: minmax(0, 1fr) 30px; padding-left: 14px !important; }
 html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine > .pad-head > .pad-author > .pad-ava, html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .pad-author > .aw-fr { display: grid; grid-column: 2; grid-row: 1 / span 6; align-self: end; justify-self: center; }
 html:not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine .aw-fr .pad-ava { display: grid; grid-column: auto; grid-row: auto; }
+
+/* ——— v314: значки у ника (пин Pass · #07 · титул) — один вид в чате, комментариях, топах и профиле ——— */
+.nb314 { display: inline-flex; align-items: center; gap: 3px; flex: none; margin-left: 4px; vertical-align: -2px; line-height: 1; }
+.nb314 > * { flex: none; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.nb314 .nb-pin, .nb314 .nb-champ { width: 15px; height: 15px; object-fit: contain; display: block; }
+.nb314 .nb-pn { display: inline-flex; align-items: center; height: 15px; padding: 0 4px; border-radius: 3px; background: #000; border: 1px solid rgba(255,255,255,.32); color: #f2f2f2; font: 700 10px/1 var(--font-display); letter-spacing: .04em; font-variant-numeric: tabular-nums; text-transform: none; box-sizing: border-box; }
+.pf6-nm .nb314 .nb-pin, .pf6-nm .nb314 .nb-champ { width: 20px; height: 20px; }
+.pf6-nm .nb314 .nb-pn { height: 20px; padding: 0 6px; font-size: 13px; border-radius: 4px; }
+.tb-nick .nb314, .t72-lead-name .nb314, .t72-sz-nm .nb314 { margin-left: 3px; }
+.nb-pn-big { display: grid !important; place-items: center; width: 132px !important; height: 84px !important; margin: 0 auto; border-radius: 10px; background: #000; border: 2px solid rgba(255,255,255,.5); color: #fff; font: 800 44px/1 var(--font-display); letter-spacing: .02em; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-nick { display: inline-flex; align-items: center; gap: 0; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-nick .nb314 { margin-left: 5px; vertical-align: 0; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-nick .nb-pin, html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-nick .nb-champ { width: 14px; height: 14px; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-nick .nb-pn { height: 14px; font-size: 9.5px; padding: 0 3px; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card .pad-who { align-items: center; }
+
+/* ——— v314: композер чата как в Telegram iOS: скрепка · «пилюля» с тёмной заливкой · круглая «Отправить» ——— */
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot { padding: 6px 8px 6px 4px !important; background: #000 !important; border-top: .5px solid rgba(255,255,255,.1) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .pulse-compose { display: flex !important; flex-flow: row wrap !important; align-items: flex-end !important; gap: 0 6px !important; padding: 0 !important; margin: 0 !important; border: 0 !important; background: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .file-btn { order: 0; flex: none; display: grid !important; place-items: center; width: 38px !important; height: 36px !important; min-width: 38px !important; min-height: 36px !important; padding: 0 !important; margin: 0 !important; border: 0 !important; border-radius: 50% !important; background: none !important; color: #8d9096 !important; font-size: 0 !important; transition: color .15s, transform .12s; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .file-btn::before, html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .file-btn::after { content: none !important; display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .file-btn .pc-clip { display: block; width: 26px; height: 26px; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .file-btn .file-lbl { display: none; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .file-btn:active { transform: scale(.9); color: #f2f2f2 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .pc-has-img .file-btn { color: #f2f2f2 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseText { order: 1; flex: 1 1 0 !important; min-width: 0; box-sizing: border-box; min-height: 36px !important; height: 36px; max-height: 128px; margin: 0 !important; padding: 7px 14px !important; resize: none; overflow-y: auto; border: 1px solid rgba(255,255,255,.09) !important; border-radius: 18px !important; background: #141416 !important; box-shadow: none !important; outline: none !important; color: #f2f2f2 !important; caret-color: #f2f2f2; font: 400 16px/20px var(--font-ui) !important; -webkit-appearance: none; appearance: none; transition: border-color .15s; scrollbar-width: none; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseText::-webkit-scrollbar { display: none; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseText::placeholder { color: #5f6167; opacity: 1; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseText:focus { border-color: rgba(255,255,255,.16) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .pulse-compose-bar { display: contents !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseSend { order: 2; flex: none; position: relative; display: grid !important; place-items: center; box-sizing: border-box; width: 34px !important; height: 34px !important; min-width: 0 !important; min-height: 0 !important; margin: 0 0 1px !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important; background: #e10600 !important; color: #fff !important; font-size: 0 !important; box-shadow: none !important; opacity: 1; transform: scale(1); overflow: hidden; transition: width .18s ease, margin .18s ease, opacity .14s ease, transform .18s cubic-bezier(.3,1.5,.5,1), background .15s; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseSend::before, html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseSend::after { content: none !important; display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseSend .send-ico { display: block !important; width: 20px; height: 20px; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseSend .send-lbl { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseSend:disabled { width: 0 !important; margin-left: -6px !important; opacity: 0; transform: scale(.4); pointer-events: none; background: #e10600 !important; color: #fff !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseSend:not(:disabled):active { transform: scale(.88); background: #b80500 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseCount { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseMsg { order: 3; flex-basis: 100%; margin: 4px 0 0 44px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot #pulseMsg:empty { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .cp-attach { order: -2; }
+/* выбранное фото — превью над строкой (как вложение в Telegram) */
+.pc-att { display: none; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot .pc-att:not([hidden]) { order: -1; flex-basis: 100%; display: flex; align-items: center; gap: 10px; margin: 0 0 6px 44px; padding: 6px 6px 6px 6px; border-radius: 12px; background: #0e0e10; border: 1px solid rgba(255,255,255,.08); }
+#chatFoot .pc-att img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; flex: none; }
+#chatFoot .pc-att-t { flex: 1; min-width: 0; font: 500 13px/1.25 var(--font-ui); color: #c9cbd0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#chatFoot .pc-att-x { flex: none; display: grid; place-items: center; width: 30px; height: 30px; min-height: 0; padding: 0; border: 0; border-radius: 50%; background: rgba(255,255,255,.08); color: #c9cbd0; }
+#chatFoot .pc-att-x svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+/* safe area снизу и клавиатура iOS: панель ровно над клавиатурой, без «прыжка» на высоту нижнего меню */
+html.chat-open.kb-open:not(#_):not(#_):not(#_):not(#_):not(#_) .chat-page { bottom: var(--kb, 0px) !important; }
+html.chat-open.kb-open:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot { padding-bottom: 6px !important; }
+html.chat-open:not(.kb-open):not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage #chatFoot { padding-bottom: 6px !important; }
+/* поля ввода в чате и ветке — 16px: iOS не приближает экран при фокусе */
+#pulseText, #padComText { font-size: 16px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComText, html:not(#_):not(#_):not(#_):not(#_):not(#_) #pulseText { font-size: 16px !important; }
+
+/* ——— v314: «хвостики» пузырей как в Telegram (минимально, цвет пузыря) ——— */
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card:not(.compact) .pad-actions { position: relative; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card:not(.mine):not(.compact) .pad-actions { border-bottom-left-radius: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine:not(.compact) .pad-actions { border-bottom-right-radius: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card:not(.compact) .pad-actions::after { content: ''; position: absolute; bottom: 0; left: -7px; width: 8px; height: 14px; background: #111113; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 14'%3E%3Cpath d='M8 0v14H.6C.1 14-.2 13.4.2 13 4 9.6 7.6 5.8 8 0z'/%3E%3C/svg%3E") center / 100% 100% no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 14'%3E%3Cpath d='M8 0v14H.6C.1 14-.2 13.4.2 13 4 9.6 7.6 5.8 8 0z'/%3E%3C/svg%3E") center / 100% 100% no-repeat; pointer-events: none; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .pulse-card.mine:not(.compact) .pad-actions::after { left: auto; right: -7px; background: #1b1b1e; transform: scaleX(-1); }
+/* v314: поповер значка у ника — без золота (чёрный, минимальный) */
+html:not(#_):not(#_) .pin209-c { background: #0e0e10 !important; border-top: 1px solid rgba(255,255,255,.1) !important; }
+html:not(#_):not(#_) .pin209-k { color: #8d9096 !important; }
+html:not(#_):not(#_) .pin209-b { background: #f2f2f2 !important; color: #000 !important; }
+/* v314: поле ветки — тот же вид, что композер чата (пилюля + круглая «Отправить») */
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComCompose { display: flex !important; align-items: flex-end !important; gap: 8px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComText { flex: 1 1 0; min-width: 0; box-sizing: border-box; min-height: 36px !important; max-height: 128px; margin: 0 !important; padding: 7px 14px !important; resize: none; border: 1px solid rgba(255,255,255,.09) !important; border-radius: 18px !important; background: #141416 !important; box-shadow: none !important; outline: none !important; color: #f2f2f2 !important; font: 400 16px/20px var(--font-ui) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComText:focus { border-color: rgba(255,255,255,.16) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComSend { flex: none; width: 34px !important; height: 34px !important; min-width: 34px !important; min-height: 34px !important; margin: 0 0 1px !important; padding: 0 !important; border: 0 !important; border-radius: 50% !important; display: grid !important; place-items: center; background: #e10600 !important; color: #fff !important; box-shadow: none !important; transition: transform .18s cubic-bezier(.3,1.5,.5,1), opacity .14s, background .15s; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComSend:disabled { background: #1c1c1f !important; color: #5f6167 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComSend:not(:disabled):active { transform: scale(.88); }

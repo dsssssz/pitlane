@@ -958,7 +958,12 @@ function buildSectorLeaderboard(rows, sectorIndex) {
   return [...best.values()].sort((a, b) => a.ms - b.ms).slice(0, 50);
 }
 
-async function rememberPilotMeta(kv, pilotId, name, avatar) {
+/**
+ * v314: аватарка с сайта (своё фото, data:image) главнее фото Telegram: TG-ссылка из поста / круга не затирает
+ * загруженную на сайте картинку. Явная замена/сброс — только через PUT/DELETE /me/avatar (opts.force).
+ * Без изменений KV не пишем (раньше каждый пост в чат = лишняя запись).
+ */
+async function rememberPilotMeta(kv, pilotId, name, avatar, opts = {}) {
   if (!pilotId) return;
   const key = 'pilotmeta:' + String(pilotId).slice(0, 64);
   let prev = {};
@@ -966,11 +971,13 @@ async function rememberPilotMeta(kv, pilotId, name, avatar) {
   if (raw) {
     try { prev = JSON.parse(raw) || {}; } catch { prev = {}; }
   }
-  const next = {
-    nick: safeName(name || prev.nick),
-    avatar: avatar || prev.avatar || null,
-    at: Date.now(),
-  };
+  const prevAv = prev.avatar || null;
+  let av = prevAv;
+  if (opts.force) av = avatar || null;
+  else if (avatar && !(String(prevAv || '').startsWith('data:') && !String(avatar).startsWith('data:'))) av = avatar;
+  const nick = safeName(name || prev.nick);
+  if (raw && av === prevAv && nick === prev.nick && Date.now() - (Number(prev.at) || 0) < 86400000) return;
+  const next = { nick, avatar: av, at: Date.now() };
   await kv.put(key, JSON.stringify(next), { expirationTtl: SESS_TTL });
 }
 
@@ -1078,8 +1085,17 @@ function publicPulse(p, viewer = '') {
     ...(p.ch === 'tracks' && typeof p.trk === 'string' && slugOk(p.trk) ? { trk: p.trk } : {}),
     ...(p.pp && typeof p.pp === 'object' ? { pp: p.pp } : {}),
     ...(typeof p._ava === 'string' ? { ava: p._ava } : {}),
+    ...nickBadges(p),
     ...(viewer && p.cid && p.pilotId === viewer ? { cid: p.cid } : {}),
   };
+}
+
+/** v314: значки у ника (номер #NN и титул сезона) — из attachPass, только проверенные поля. */
+function nickBadges(r) {
+  const o = {};
+  if (Number.isInteger(r && r.pn) && r.pn >= 1 && r.pn <= 99) o.pn = r.pn;
+  if (r && r.sw && typeof r.sw.label === 'string') o.sw = { label: String(r.sw.label).slice(0, 40) };
+  return o;
 }
 
 function publicPulseList(rows, viewer = '') {
@@ -1104,6 +1120,8 @@ function publicComment(c, viewer = '') {
     at: Number(c.at) || null,
     mine: !!(viewer && c.pilotId === viewer),
     ...(typeof c._ava === 'string' ? { ava: c._ava } : {}),
+    ...(c.pp && typeof c.pp === 'object' ? { pp: c.pp } : {}),
+    ...nickBadges(c),
   };
 }
 
@@ -3877,11 +3895,13 @@ export default {
             if (ilim) return ilim;
             await env.PITLANE.put('pimg:' + row.id, img, { expirationTtl: PULSE_IMG_TTL, metadata: { pid: pilot.id } });
           }
-          try { const av = sanitizeAvatar(body && body.ava) || sanitizeAvatar(prec?.photoRef); if (av) await rememberPilotMeta(env.PITLANE, pilot.id, row.who, av); } catch (_) {} // v311: аватарка автора для чата
+          try { const av = sanitizeAvatar(body && body.ava); if (av) await rememberPilotMeta(env.PITLANE, pilot.id, row.who, av); } catch (_) {} // v311; v314: TG-фото не затирает аватарку сайта, без ava — фолбэк photoRef при чтении
           const { res, rows } = await pulseOp(env, { t: 'add', row });
           if (img && res.dup) await env.PITLANE.delete('pimg:' + row.id); // повтор того же cid — фото уже у исходного поста
           const h2 = { ...headers, 'X-Pulse-Id': String(res.id || ''), ...(res.dup ? { 'X-Pulse-Dup': '1' } : {}) };
-          return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30), viewer), 200, h2);
+          const outRows = await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30);
+          await attachPass(env.PITLANE, outRows, 30); // v314: значки у ника и сразу после отправки
+          return json(publicPulseList(outRows, viewer), 200, h2);
         }
       }
 
@@ -3926,7 +3946,9 @@ export default {
           const rows = await readList(env.PITLANE, 'pulse');
           if (!rows.some((x) => x && x.id === postId)) return json({ error: 'not found' }, 404, headers);
           const list = (await kvJson(env.PITLANE, ckey)) || [];
-          const out = (await attachAvaVer(env.PITLANE, Array.isArray(list) ? list : [], 30)).map((c) => publicComment(c, viewer)).filter(Boolean);
+          const withAva = await attachAvaVer(env.PITLANE, Array.isArray(list) ? list : [], 30);
+          await attachPass(env.PITLANE, withAva, 30); // v314: рамка/пин/номер у ников в комментариях
+          const out = withAva.map((c) => publicComment(c, viewer)).filter(Boolean);
           return json({ postId, count: out.length, comments: out }, 200, headers);
         }
         if (req.method === 'POST') {
@@ -4023,7 +4045,9 @@ export default {
         // Only the author (by account id) can delete a post.
         const { res, rows } = await pulseOp(env, { t: 'del', id, pid: pilot.id });
         if (res.deleted && POST_ID_RE.test(id)) await env.PITLANE.delete('pcom:' + id);
-        return json(publicPulseList(rows.slice(0, 200), viewer), 200, headers);
+        const outRows = await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30); // v314: после удаления аватарки/значки не пропадают
+        await attachPass(env.PITLANE, outRows, 30);
+        return json(publicPulseList(outRows, viewer), 200, headers);
       }
 
       // —— v127: миниатюра аватарки пилота (кэшируемая; только уже сохранённые thumbs ≤16 КБ или Telegram CDN) ——
@@ -4092,7 +4116,7 @@ export default {
         if (!isPilotUuid(pid)) return json({ error: 'not found' }, 404, headers);
         const prof = await buildPilotProfile(env.PITLANE, pid, viewer);
         if (!prof) return json({ error: 'not found' }, 404, headers);
-        try { const tmp = { pilotId: pid }; await attachPass(env.PITLANE, [tmp]); if (tmp.pp) prof.pp = tmp.pp; } catch (_) {} // v206: рамка/номер/пин в чужом профиле
+        try { const tmp = { pilotId: pid }; await attachPass(env.PITLANE, [tmp]); if (tmp.pp) prof.pp = tmp.pp; Object.assign(prof, nickBadges(tmp)); } catch (_) {} // v206; v314: номер и титул: рамка/номер/пин в чужом профиле
         try { const mc = await loadMyCar(env.PITLANE, pid, ROOM_H); if (mc && Array.isArray(mc.mods) && mc.mods.length) prof.carMods = { model: mc.model, carId: mc.carId || null, mods: mc.mods.slice(0, 16) }; } catch (_) {} // v305: доработки машины
         return json(prof, 200, headers);
       }
@@ -4148,6 +4172,22 @@ export default {
       }
 
       // —— v89: Profile banner ——
+      // —— v314: аватарка с сайта → сервер (чтобы в чате/топах её видели другие, даже без нового поста) ——
+      if (path === '/me/avatar' && (req.method === 'PUT' || req.method === 'DELETE')) {
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
+        const lim = await limitOr429(env, headers, [['rl:mava:p:' + pilot.id, 20, 3600]]);
+        if (lim) return lim;
+        const rec = await loadPilot(env.PITLANE, pilot.id);
+        if (!rec) return json({ error: 'account not found' }, 404, headers);
+        const body = req.method === 'PUT' ? await readJson(req, BODY_LIMITS.auth) : null;
+        const av = req.method === 'PUT' ? sanitizeAvatar(body && body.ava) : null;
+        if (req.method === 'PUT' && !av) return json({ error: 'invalid avatar' }, 400, headers);
+        await rememberPilotMeta(env.PITLANE, pilot.id, rec.nick || '', av, { force: true }); // DELETE → снова фото Telegram (photoRef)
+        const cur = av || sanitizeAvatar(rec.photoRef);
+        return json({ ok: true, ava: cur ? avatarVer(cur) : null, custom: !!av }, 200, headers);
+      }
+
       if (path === '/me/banner' && (req.method === 'PUT' || req.method === 'DELETE')) {
         const denied = requireAuth(pilot, headers);
         if (denied) return denied;

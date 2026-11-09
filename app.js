@@ -8385,7 +8385,7 @@ function padCount(n) {
   return String(n);
 }
 /** Author chip (avatar + nick + meta); a button opening the public profile when the id is an account. */
-function padAuthor({ name, pilotId, avatar, meta, size = 40, pp = null }) {
+function padAuthor({ name, pilotId, avatar, meta, size = 40, pp = null, pn = null, sw = null, own = false }) {
   name = padName(name);
   const clickable = isPublicPilot(pilotId);
   const el = padEl(clickable ? 'button' : 'div', 'pad-author');
@@ -8397,7 +8397,7 @@ function padAuthor({ name, pilotId, avatar, meta, size = 40, pp = null }) {
   el.appendChild(ava);
   const who = padEl('span', 'pad-who');
   const nk = padEl('span', 'pad-nick', name || 'Пилот');
-  if (pp && ['helmet', 'wheel', 'carbon'].includes(pp.pin)) { try { const b = document.createElement('img'); b.className = 'lb92-b pad-pin'; b.dataset.pin = pp.pin; b.alt = 'Пин'; b.src = awardImg(pp.pin, true); nk.appendChild(b); } catch (_) {} }
+  try { nickBadges({ pp, pn, sw }, nk, { own }); } catch (_) {} // v314: пин · #07 · титул — как в топах и профиле
   who.appendChild(nk);
   if (meta) who.appendChild(padEl('span', 'pad-meta', meta));
   el.appendChild(who);
@@ -8447,8 +8447,10 @@ function buildPostCard(p, { compact = false } = {}) {
   card.dataset.post = p.id;
   const head = padEl('header', 'pad-head');
   const meta = [p.run ? (p.auto ? 'личный рекорд' : '') : p.car, padAgo(p.at)].filter(Boolean).join(' · ');
-  head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, avatar: padAvaUrl(p.pilotId, p.ava), meta, pp: p.pp || null }));
   const myPid = accountPilotId();
+  const isMine = !!(p.pilotId && myPid && p.pilotId === myPid);
+  // v314: свои — аватарка с сайта прямо с устройства (без ожидания синка), оформление Pass — своё, если сервер не прислал
+  head.appendChild(padAuthor({ name: p.who, pilotId: compact ? '' : p.pilotId, avatar: (isMine && padMyAvaSrc()) || padAvaUrl(p.pilotId, p.ava), meta, pp: p.pp || (isMine ? padMyPP() : null), pn: p.pn ?? (isMine ? padMyPn() : null), sw: p.sw || null, own: isMine }));
   if (p.pilotId && myPid && p.pilotId === myPid) card.classList.add('mine'); // v299: свои — справа
   if (card.classList.contains('mine')) { const nk = head.querySelector('.pad-nick'); if (nk && nk.firstChild && nk.firstChild.nodeType === 3) nk.firstChild.nodeValue = 'Вы'; } // v309: свои подписаны «Вы»
   if (p.pilotId && myPid && p.pilotId === myPid) {
@@ -8789,7 +8791,7 @@ function renderComments(list) {
     const row = padEl('div', 'pad-com');
     row.dataset.cid = c.id;
     if (isQ && post.best === c.id) { row.classList.add('best'); { const bt = padEl('span', 'pad-best-tag', 'Лучший ответ'); bt.style.gridColumn = '1 / -1'; bt.style.gridRow = '1'; row.prepend(bt); } }
-    row.appendChild(padAuthor({ name: c.who, pilotId: c.pilotId, avatar: padAvaUrl(c.pilotId, c.ava), meta: padAgo(c.at), size: 34 }));
+    row.appendChild(padAuthor({ name: c.who, pilotId: c.pilotId, avatar: (c.mine && padMyAvaSrc()) || padAvaUrl(c.pilotId, c.ava), meta: padAgo(c.at), size: 34, pp: c.pp || (c.mine ? padMyPP() : null), pn: c.pn ?? null, sw: c.sw || null, own: !!c.mine })); // v314
     if (c.mine) {
       const del = padEl('button', 'pad-act pad-del');
       del.type = 'button';
@@ -8939,7 +8941,7 @@ function renderPilotProfile(pr) {
   const head = padEl('div', 'pilot-head' + (ban.classList.contains('has-banner') ? ' on-banner' : ''));
   { let av = padAvatar(pr.nick, pr.avatar, 84); if (pr.pp?.frame) { try { av = framedAvatar(av, pr.pp.frame, 84); } catch (_) {} } head.appendChild(av); } // v206
   const who = padEl('div', 'pilot-who');
-  { const h = padEl('h2', 'pilot-nick'); h.append(pf6NameRow(pr.nick || 'Пилот', pr.pp || null, 'pf6-nm', false)); who.appendChild(h); } // v206
+  { const h = padEl('h2', 'pilot-nick'); h.append(pf6NameRow(pr.nick || 'Пилот', pr.pp || null, 'pf6-nm', false, { pn: pr.pn, sw: pr.sw })); who.appendChild(h); } // v206
   who.appendChild(pr.car && brandOf(pr.car) ? carNameRow(pr.car, { rowTag: 'p', cls: 'pilot-car' }) : padEl('p', 'pilot-car', pr.car || 'Машина не указана')); // v135: флаг страны марки
   if (isMyPilotId(pr.pilotId)) who.appendChild(padEl('span', 'pilot-you', 'это ты'));
   head.appendChild(who);
@@ -9448,7 +9450,7 @@ function buildOutCard(it) {
   const card = padEl('article', 'pulse-card pad-out is-' + it.status);
   card.dataset.cid = it.cid;
   const head = padEl('header', 'pad-head');
-  head.appendChild(padAuthor({ name: pulseWho(), pilotId: accountPilotId(), avatar: padAvaUrl(accountPilotId(), ''), meta: [pickedCar()?.name || '', 'сейчас'].filter(Boolean).join(' · ') }));
+  head.appendChild(padAuthor({ name: pulseWho(), pilotId: accountPilotId(), avatar: padMyAvaSrc(), meta: [pickedCar()?.name || '', 'сейчас'].filter(Boolean).join(' · '), pp: padMyPP(), pn: padMyPn(), own: true })); // v314
   card.appendChild(head);
   card.appendChild(padEl('p', 'pad-text', it.text));
   if (it.img && PAD_IMG_RE.test(String(it.img))) { const im = document.createElement('img'); im.className = 'pad-img'; im.alt = ''; im.src = it.img; card.appendChild(im); }
@@ -9504,6 +9506,19 @@ async function padAvaForServer() {
   _avaSrv = { k, v };
   return v;
 }
+/** v314: аватарка с сайта → сервер сразу после смены и при запуске (если изменилась / раз в неделю), а не только с новым постом. */
+const AVA_SYNC_KEY = 'pitlane-ava-sync';
+async function padSyncAvatar(force = false) {
+  if (!(isRemoteApi() && getSessionToken() && currentUser())) return;
+  if (!/^data:image\//i.test(String(profile()?.avatar || ''))) return; // фото Telegram сервер и так знает (photoRef)
+  const v = await padAvaForServer(); if (!v) return;
+  const k = accountPilotId() + ':' + v.length + ':' + v.slice(-64);
+  let st = {}; try { st = JSON.parse(localStorage.getItem(AVA_SYNC_KEY) || '{}') || {}; } catch (_) {}
+  if (!force && st.k === k && Date.now() - (Number(st.at) || 0) < 7 * 86400000) return;
+  const r = await api.putAvatar(v).catch(() => null);
+  if (r && r.ok) { try { localStorage.setItem(AVA_SYNC_KEY, JSON.stringify({ k, at: Date.now() })); } catch (_) {} _padChatAt = 0; }
+}
+setTimeout(() => { void padSyncAvatar().catch(() => {}); }, 4000);
 async function padDeliver(it) {
   it.status = 'sending'; it.kind = ''; padOutSave(); padPaintOut();
   let ava = ''; try { ava = await padAvaForServer(); } catch (_) {}
@@ -9546,6 +9561,7 @@ async function padSendFromComposer() {
   const cnt = document.getElementById('pulseCount'); if (cnt) cnt.textContent = '0/280';
   if (inp) inp.value = '';
   if (msg) msg.textContent = '';
+  padPaintAtt(); // v314
   padSyncSendBtn();
   const att = CP.att || CP.ch === 'runs' ? padLastRun() : null;
   const it = { cid: padNewCid(), text: text.slice(0, 280), img: null, at: Date.now(), car: pickedCar()?.name || '', status: 'sending', ch: CP.ch, ...(CP.ch === 'tracks' && CP.trk ? { trk: CP.trk } : {}), ...(att ? { run: att } : {}) };
@@ -9556,6 +9572,22 @@ async function padSendFromComposer() {
   await padDeliver(it);
 }
 document.getElementById('pulseSend')?.addEventListener('click', () => { void padSendFromComposer(); });
+/** v314: выбранное фото — превью над строкой ввода (как вложение в Telegram), ✕ убирает. */
+function padPaintAtt() {
+  const inp = document.getElementById('pulseImg'); const box = document.getElementById('pcAtt');
+  const f = inp?.files?.[0] || null;
+  pulseText?.closest('.pulse-compose')?.classList.toggle('pc-has-img', !!f);
+  if (!box) return;
+  if (box._url) { try { URL.revokeObjectURL(box._url); } catch (_) {} box._url = ''; }
+  box.replaceChildren(); box.hidden = !f;
+  if (!f) return;
+  const im = document.createElement('img'); im.alt = ''; try { box._url = URL.createObjectURL(f); im.src = box._url; } catch (_) {}
+  const x = padEl('button', 'pc-att-x'); x.type = 'button'; x.setAttribute('aria-label', 'Убрать фото');
+  x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7 7 17"/></svg>';
+  x.addEventListener('click', () => { if (inp) inp.value = ''; padPaintAtt(); try { pulseText?.focus(); } catch (_) {} });
+  box.append(im, padEl('span', 'pc-att-t', (pulseText?.value || '').trim() ? 'Фото' : 'Фото · добавь подпись'), x);
+}
+document.getElementById('pulseImg')?.addEventListener('change', () => { padPaintAtt(); try { pulseText?.focus(); } catch (_) {} });
 // v134: тап по кнопке не уводит фокус из поля — клавиатура iOS не схлопывается и кнопка не «уезжает» из-под пальца
 ['pointerdown', 'mousedown'].forEach((ev) => document.getElementById('pulseSend')?.addEventListener(ev, (e) => { if (document.activeElement === pulseText) e.preventDefault(); }));
 document.getElementById('pulseFeed')?.addEventListener('click', (e) => {
@@ -9574,7 +9606,9 @@ document.getElementById('pulseFeed')?.addEventListener('click', (e) => {
 window.addEventListener('online', () => { for (const it of _padOut) if (it.status === 'failed' && (it.kind === 'net' || it.kind === 'server')) void padDeliver(it); });
 padSyncSendBtn();
 // v125: поле «Написать в Paddock…» в шторке растёт по тексту (до ~4 строк)
-pulseText?.addEventListener('input', () => { if (!pulseText.closest('.pc-foot')) { pulseText.style.height = ''; return; } pulseText.style.height = 'auto'; pulseText.style.height = Math.min(pulseText.scrollHeight, 112) + 'px'; });
+function padGrow() { if (!pulseText) return; if (!pulseText.closest('.pc-foot') || !pulseText.value) { pulseText.style.height = ''; return; } pulseText.style.height = '0px'; pulseText.style.height = Math.max(36, Math.min(pulseText.scrollHeight + 2, 128)) + 'px'; } // v314: пустое — одна строка; +2 — рамка пилюли
+let _padGrowT = 0;
+pulseText?.addEventListener('input', () => { padGrow(); clearTimeout(_padGrowT); _padGrowT = setTimeout(padGrow, 220); }); // повтор — после анимации кнопки «Отправить» (ширина поля меняется)
 document.getElementById('pulseFeed')?.addEventListener('click', (e) => { void padOnCardClick(e); });
 
 try { hydratePassportGpsFromGarage(); } catch (_) {}
@@ -11875,7 +11909,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v313';
+const APP_VERSION = 'v314';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -15256,10 +15290,9 @@ function buildTopsRow(r, i, sel, ctx) {
   if ((r.name || '').length > 12) nick.title = r.name;
   if (lb || (r.pp && typeof r.pp === 'object')) { // v205: Pass-косметика и в топах разгона
     const bk = lb ? rowBadge(ctx.raw, r) : '';
-    const pin = r.pp && ['helmet', 'wheel', 'carbon'].includes(r.pp.pin) ? r.pp.pin : '';
-    for (const k of [bk, pin].filter(Boolean)) { const b = document.createElement('img'); b.className = 'lb92-b'; b.alt = ''; b.src = awardImg(k, true); b.title = AW_LIST[k]?.n || k; nick.appendChild(b); }
+    if (bk) { const b = document.createElement('img'); b.className = 'lb92-b'; b.alt = ''; b.src = awardImg(bk, true); b.title = AW_LIST[bk]?.n || bk; nick.appendChild(b); }
   }
-  pnSwTags(r, nick); // v280
+  nickBadges(r, nick); // v314: пин Pass · #07 · титул — общий вид
   li.appendChild(nick);
   const carEl = padEl('span', 'tb-car', shortCarName(r.car, r.carId) || '');
   // v113: бейдж класса (со слов пилота); старые заезды — «класс не указан»
@@ -15478,18 +15511,31 @@ function t72Tilt() {
     q(((e.clientX - r.left) / r.width) * 2 - 1, ((e.clientY - r.top) / r.height) * 2 - 1);
   }, { passive: true });
 }
-function t72Plates(r, host) {
-  // косметика — только реальные данные Pass (значок у ника); номеров пока нет — ничего не выдумываем
-  const pin = r.pp && ['helmet', 'wheel', 'carbon'].includes(r.pp.pin) ? r.pp.pin : '';
-  if (pin) { const b = document.createElement('img'); b.className = 'lb92-b'; b.alt = ''; b.src = awardImg(pin, true); b.title = AW_LIST[pin]?.n || pin; host.appendChild(b); }
-  pnSwTags(r, host); // v280
+function t72Plates(r, host) { nickBadges(r, host); } // v314: только реальные данные сервера
+function pnSwTags(r, host) { nickBadges(r, host, { pin: false }); } // v280 → v314
+/**
+ * v314: значки у ника — один вид везде (чат, комментарии, топы, профиль): пин Paddock Pass · номер пилота «#07» · титул сезона.
+ * Только то, что отдал сервер (pp / pn / sw). Мелкие, по базовой линии ника; каждый нажимается и объясняет, что это (openPin209).
+ */
+const NB_PINS = ['helmet', 'wheel', 'carbon'];
+function nickBadges(r, host, { own = false, pin = true } = {}) {
+  if (!r || !host) return host;
+  const box = padEl('span', 'nb314');
+  const pp = r.pp && typeof r.pp === 'object' ? r.pp : null;
+  const tap = (el, k) => { el.dataset.pin = k; el.setAttribute('role', 'button'); el.tabIndex = 0; if (own) el.dataset.own = '1'; return el; };
+  if (pin && pp && NB_PINS.includes(pp.pin)) {
+    const b = tap(document.createElement('img'), pp.pin); b.className = 'nb-pin'; b.alt = ({ helmet: 'Пин «Шлем»', wheel: 'Пин «Руль»', carbon: 'Пин «Карбон»' })[pp.pin]; b.decoding = 'async'; b.src = awardImg(pp.pin, true); box.appendChild(b);
+  }
+  const n = Number(r.pn);
+  if (Number.isInteger(n) && n >= 1 && n <= 99) { const t = tap(padEl('b', 'nb-pn', '#' + String(n).padStart(2, '0')), 'pn'); t.dataset.n = String(n); t.setAttribute('aria-label', 'Номер пилота ' + n); box.appendChild(t); }
+  if (r.sw && typeof r.sw.label === 'string') { const c = tap(document.createElement('img'), 'champ'); c.className = 'nb-champ'; c.alt = 'Чемпион сезона'; c.decoding = 'async'; c.src = awardImg('champ', true); c.dataset.l = String(r.sw.label).slice(0, 40); box.appendChild(c); }
+  if (box.childNodes.length) host.appendChild(box);
+  return host;
 }
-/** v280: номер пилота (#NN, Stars) и титул сезона города — только реальные данные сервера. */
-function pnSwTags(r, host) {
-  if (!r || !host) return;
-  if (Number.isInteger(r.pn) && r.pn >= 1 && r.pn <= 99) host.appendChild(padEl('b', 'pn-tag', '#' + r.pn));
-  if (r.sw && typeof r.sw.label === 'string') { const t = padEl('i', 'sw-tag', 'чемпион'); t.title = 'Чемпион сезона · ' + r.sw.label; host.appendChild(t); }
-}
+/** v314: свои значки/аватарка — с устройства (сервер присылает их в ленте, но черновик и старый ответ — без них). */
+function padMyAvaSrc() { const a = String(profile()?.avatar || ''); return PAD_IMG_RE.test(a) || PAD_AVA_RE.test(a) ? a : (currentUser()?.photo || ''); }
+function padMyPP() { try { const c = pf6Cos(); return c.frame || c.pin ? c : null; } catch (_) { return null; } }
+function padMyPn() { try { const v = Number(localStorage.getItem('pitlane-pnum')); return Number.isInteger(v) && v >= 1 && v <= 99 ? v : null; } catch (_) { return null; } }
 function t72CarImg(r, cls) {
   const src = carCropSrc(r.carId);
   if (!src) { const w = padEl('span', cls + ' logo293'); if (r.car && brandLogoKey(r.car)) w.appendChild(brandLogoEl(r.car)); else w.classList.add('none'); return w; }
@@ -16527,7 +16573,7 @@ function cpPaintPin() {
       rows.forEach((r, i) => {
         const li = padEl('li', 'cp-mrow p' + (i + 1));
         li.append(padEl('span', 'cp-pos', 'P' + (i + 1)));
-        li.append(padAuthor({ name: r.name, pilotId: r.pilotId, avatar: r.avatar || '', meta: shortCarName(r.car, r.carId) || '', size: 28, pp: r.pp || null }));
+        li.append(padAuthor({ name: r.name, pilotId: r.pilotId, avatar: r.avatar || '', meta: shortCarName(r.car, r.carId) || '', size: 28, pp: r.pp || null, pn: r.pn ?? null, sw: r.sw || null }));
         li.append(padEl('b', 'cp-time', Number(r.t).toFixed(2) + ' с'));
         ol.append(li);
       });
@@ -16641,9 +16687,10 @@ function pf6Ava() { return profile().avatar || currentUser()?.photo || currentUs
 function pf6Active() { return !!(PF6.pass && PF6.pass.active); }
 function pf6Cos() { return pf6Active() ? { frame: passFrame(PF6.pass.frame),  pin: PF6.pass.pin || '' } : { frame: '', pin: '' }; }
 /** ник + номер + пин — один и тот же вид везде, где есть pp */
-function pf6NameRow(name, pp, cls = 'pf6-nm', own = true) {
+function pf6NameRow(name, pp, cls = 'pf6-nm', own = true, extra = null) {
   const row = padEl('span', cls);
   row.append(padEl('b', '', name || 'Пилот'));
+  try { const x = extra || (own ? { pn: padMyPn() } : {}); nickBadges({ pn: x.pn, sw: x.sw }, row, { own, pin: false }); } catch (_) {} // v314: #07 и титул и в профиле
   if (pp && pp.pin) { const im = pp.pin === 'helmet' ? helmet3d('pf6-pin') : document.createElement('img'); im.className = 'pf6-pin' + (pp.pin === 'helmet' ? ' spin3' : ''); im.dataset.pin = pp.pin; if (own) im.dataset.own = '1'; im.alt = 'Пин'; im.setAttribute('role', 'button'); im.tabIndex = 0; if (im.tagName === 'IMG') im.src = awardImg(pp.pin, true); row.append(im); }
   return row;
 }
@@ -16658,6 +16705,7 @@ async function pf6LoadPass(force) {
   if (!(isRemoteApi() && getSessionToken() && currentUser())) { PF6.pass = null; return; }
   const r = await api.mePass().catch(() => null);
   if (r && r.ok !== false) { PF6.pass = r.pass || null; if (PF6.pass) PF6.pass.frame = passFrame(PF6.pass.frame); PF6.sales = r.sales === true; }
+  try { const pn = await api.pnumMe(); if (pn && pn.ok !== false) { if (Number.isInteger(pn.number)) localStorage.setItem('pitlane-pnum', String(pn.number)); else localStorage.removeItem('pitlane-pnum'); } } catch (_) {} // v314: свой #07 у ника
   // v222: значок «Основатель» — сервер считает по подтверждённой заявке на чип
   const so = await api.shopOrders().catch(() => null);
   if (so && so.ok) { try { localStorage.setItem('pl_founder', so.founder ? '1' : '0'); } catch (_) {} }
@@ -16828,11 +16876,12 @@ document.getElementById('pfeSave')?.addEventListener('click', async (e) => {
   if (errs.length) { if (msg) msg.textContent = 'Не всё сохранилось — ' + errs.join(', '); hap(20); return; }
   try { window.Telegram?.WebApp?.HapticFeedback?.notificationOccurred?.('success'); } catch (_) { hap(10); }
   AW92.at = 0; _z202At = 0;
+  void padSyncAvatar().catch(() => {}); // v314
   renderPf6(); try { void renderAwards92(); } catch (_) {}
   closePfEdit();
   try { plFlash('Профиль сохранён'); } catch (_) {}
 });
-document.getElementById('accAvatarIn')?.addEventListener('change', () => setTimeout(() => { renderPf6(); if (!pfeEl()?.classList.contains('hidden')) renderPfEdit(); }, 300));
+document.getElementById('accAvatarIn')?.addEventListener('change', () => setTimeout(() => { renderPf6(); if (!pfeEl()?.classList.contains('hidden')) renderPfEdit(); void padSyncAvatar(true).catch(() => {}); }, 300)); // v314: сразу на сервер
 
 /* —— навигация: нижняя панель синхронизируется со всеми экранами; подстраницы профиля → назад в профиль —— */
 const N6_SUB = { garage: 'account', settings: 'account', history: 'account', cars: 'account', shop: 'account', home: 'zamer' };
@@ -16860,7 +16909,8 @@ setTimeout(() => { try { renderPf6(); if (document.getElementById('view-account'
 
 /* v209: пины у ника кликабельны — премиальный поповер с объяснением */
 const PIN209 = { helmet: ['Пин «Шлем»', 'Гоночный шлем у ника'], wheel: ['Пин «Руль»', 'Руль у ника'], carbon: ['Пин «Карбон»', 'Карбоновый знак у ника'] };
-function openPin209(k, own) {
+function openPin209(k, own, el) {
+  if (k === 'pn' || k === 'champ') return openBadge314(k, own, el);
   const m = PIN209[k]; if (!m) return;
   document.getElementById('pin209')?.remove();
   const ov = padEl('div', 'pin209'); ov.id = 'pin209'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', m[0]);
@@ -16878,8 +16928,25 @@ function openPin209(k, own) {
 document.addEventListener('click', (e) => {
   const p = e.target.closest?.('[data-pin]'); if (!p || p.closest('.pin209')) return;
   e.preventDefault(); e.stopPropagation(); hap(6);
-  openPin209(p.dataset.pin, p.dataset.own === '1' && !p.closest('#pfEdit'));
+  openPin209(p.dataset.pin, p.dataset.own === '1' && !p.closest('#pfEdit'), p);
 }, true);
+/** v314: номер пилота и титул сезона — тот же поповер, что у пинов */
+function openBadge314(k, own, el) {
+  document.getElementById('pin209')?.remove();
+  const n = Number(el?.dataset?.n) || 0;
+  const t = k === 'pn' ? ['НОМЕР ПИЛОТА', 'Номер #' + String(n).padStart(2, '0'), 'Личный гоночный номер — закреплён за пилотом навсегда. Только внешний вид, на время и топ не влияет.']
+    : ['СЕЗОН ГОРОДА', 'Чемпион сезона', (el?.dataset?.l || '') + (el?.dataset?.l ? '. ' : '') + 'Лучший результат месяца в своём городе.'];
+  const ov = padEl('div', 'pin209'); ov.id = 'pin209'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', t[1]);
+  const c = padEl('div', 'pin209-c');
+  let ic; if (k === 'pn') ic = padEl('span', 'pin209-i nb-pn-big', '#' + String(n).padStart(2, '0')); else { ic = document.createElement('img'); ic.src = awardImg('champ'); ic.alt = ''; ic.className = 'pin209-i'; }
+  c.append(ic, padEl('span', 'pin209-k', t[0]), padEl('h3', '', t[1]), padEl('p', '', t[2]));
+  const x = padEl('button', 'pin209-x', 'Закрыть'); x.type = 'button'; x.addEventListener('click', () => close()); c.append(x);
+  ov.append(c);
+  function close() { ov.classList.remove('on'); setTimeout(() => ov.remove(), 220); }
+  ov.addEventListener('click', (e) => { if (e.target === ov) close(); });
+  document.body.append(ov);
+  requestAnimationFrame(() => requestAnimationFrame(() => ov.classList.add('on')));
+}
 document.addEventListener('keydown', (e) => { if ((e.key === 'Enter' || e.key === ' ') && e.target?.matches?.('[data-pin]')) { e.preventDefault(); e.target.click(); } });
 
 

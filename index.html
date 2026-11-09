@@ -2,7 +2,7 @@
 <html lang="ru" class="v297 v296 v159 v148 v150 v152 v153 v154 v155 v156 v158 v160 v161 v162 v163 v164 v165 v166 v167 v168 v169 v170 v171 v172 v173 v174 v175 v176 v177 v178 v179 v180 v181 v182 v184 nav-widgets v206p">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
     <!-- v80: minimal CSP that cannot break the app (no plugins, no <base> hijack, forms only to self) -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-z2CTz9Y7ug2+lIHkdShb8RDoC8+FDWBnh50ogSss6nA=' 'sha256-8XvUhfOyAQ0xrN2l4lAR1NWN2swizirH1cFFwd7NzCY='; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://pitlane-api.pitlane-taksimaga.workers.dev wss://pitlane-api.pitlane-taksimaga.workers.dev https://api.open-meteo.com https://server.arcgisonline.com https://tile.openstreetmap.org; media-src 'self' data: blob: https://pitlane-api.pitlane-taksimaga.workers.dev; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
@@ -33,7 +33,7 @@
     <meta name="twitter:title" content="PITLANE — Замеряй. Сравнивай. Побеждай." />
     <meta name="twitter:description" content="Разгоны 0–100 и круги по GPS с проверкой на сервере. Честные топы — прямо в Telegram." />
     <meta name="twitter:image" content="https://dsssssz.github.io/pitlane/img/og-1200x630.jpg" />
-    <meta name="pitlane-build" content="v313" />
+    <meta name="pitlane-build" content="v314" />
     <script src="./upd.js"></script>
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/golos/cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin />
@@ -41,8 +41,8 @@
     <link rel="preload" href="./fonts/plex-mono/latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="./fonts.css" />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-TW55E6Q4.js" />
-    <link rel="stylesheet" href="./styles-AF03BEDD.css" />
+    <link rel="modulepreload" href="./b/app-XEAILFXF.js" />
+    <link rel="stylesheet" href="./styles-ABB7F872.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -444,11 +444,12 @@
           <div class="pad-live" id="pulseLive" hidden></div>
           <article class="card pulse-compose">
             <button type="button" class="cp-attach" id="cpAttach" hidden aria-pressed="false" aria-label="Прикрепить машину и последний замер"></button>
-            <textarea id="pulseText" maxlength="280" rows="3" placeholder="Написать в чат…" data-i18n-placeholder="pad.ph"></textarea>
+            <div class="pc-att" id="pcAtt" hidden></div>
+            <textarea id="pulseText" maxlength="280" rows="3" enterkeyhint="send" placeholder="Написать в чат…" data-i18n-placeholder="pad.ph"></textarea>
             <div class="pulse-compose-bar">
-              <label class="file-btn pill" aria-label="Добавить фото">фото<input id="pulseImg" type="file" accept="image/*" hidden></label>
+              <label class="file-btn pill" aria-label="Добавить фото"><svg class="pc-clip" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true" focusable="false"><path d="M20.2 11.3 12.4 19a5 5 0 0 1-7.1-7.1l7.9-7.9a3.3 3.3 0 0 1 4.7 4.7l-7.9 7.9a1.7 1.7 0 0 1-2.4-2.4l7.3-7.3" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="file-lbl">фото</span><input id="pulseImg" type="file" accept="image/*" hidden></label>
               <span id="pulseCount">0/280</span>
-              <button type="button" id="pulseSend" class="send-btn" aria-label="Отправить в чат" disabled><svg class="send-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 19.1V5.6M5.9 11.5 12 5.4l6.1 6.1" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="send-lbl" data-i18n="pad.send">Опубликовать</span></button>
+              <button type="button" id="pulseSend" class="send-btn" aria-label="Отправить в чат" disabled><svg class="send-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" focusable="false"><path d="M12 18.5V6.2M6.6 11.4 12 6l5.4 5.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span class="send-lbl" data-i18n="pad.send">Опубликовать</span></button>
             </div>
             <p class="tiny" id="pulseMsg"></p>
           </article>
@@ -1307,6 +1308,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-TW55E6Q4.js"></script>
+    <script type="module" src="./b/app-XEAILFXF.js"></script>
   </body>
 </html>
