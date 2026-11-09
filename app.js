@@ -9472,9 +9472,30 @@ function padSyncSendBtn() {
   const b = document.getElementById('pulseSend');
   if (b) b.disabled = !(pulseText?.value || '').trim();
 }
+/** v311: компактная аватарка для сервера (чтобы другие видели её в чате): TG-ссылка как есть, своё фото — 96px JPEG ≤16 КБ. */
+let _avaSrv = { k: '', v: '' };
+async function padAvaForServer() {
+  const a = String(profile()?.avatar || '');
+  if (!a) return '';
+  if (/^https:\/\/([\w-]+\.)*(telegram\.org|t\.me|telesco\.pe)\//i.test(a) && a.length <= 500) return a;
+  if (!/^data:image\//i.test(a)) return '';
+  const k = a.length + ':' + a.slice(-48);
+  if (_avaSrv.k === k) return _avaSrv.v;
+  let v = '';
+  try {
+    const img = new Image(); img.src = a; await img.decode();
+    const c = document.createElement('canvas'); c.width = c.height = 96;
+    const s = Math.min(img.naturalWidth, img.naturalHeight) || 1;
+    c.getContext('2d').drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, 96, 96);
+    for (const q of [0.8, 0.6, 0.45]) { const d = c.toDataURL('image/jpeg', q); if (d.length <= 15500) { v = d; break; } }
+  } catch (_) { v = ''; }
+  _avaSrv = { k, v };
+  return v;
+}
 async function padDeliver(it) {
   it.status = 'sending'; it.kind = ''; padOutSave(); padPaintOut();
-  const r = await api.sendPulse({ cid: it.cid, id: 'p' + it.at, who: pulseWho(), text: it.text, img: it.img || null, at: it.at, likes: [], car: it.car || '', ch: it.ch || 'gen', ...(it.trk ? { trk: it.trk } : {}), ...(it.run ? { run: it.run } : {}) });
+  let ava = ''; try { ava = await padAvaForServer(); } catch (_) {}
+  const r = await api.sendPulse({ ...(ava ? { ava } : {}), cid: it.cid, id: 'p' + it.at, who: pulseWho(), text: it.text, img: it.img || null, at: it.at, likes: [], car: it.car || '', ch: it.ch || 'gen', ...(it.trk ? { trk: it.trk } : {}), ...(it.run ? { run: it.run } : {}) });
   if (r.ok) {
     it.status = 'sent';
     it.post = (r.rows || []).find((p) => p && (p.cid === it.cid || (r.id && p.id === r.id))) || null;
@@ -11842,7 +11863,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v310';
+const APP_VERSION = 'v311';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;

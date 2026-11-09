@@ -756,7 +756,7 @@ async function attachAvaVer(kv, rows, max = 30) {
   const ids = [];
   for (const r of rows) { if (r && isPilotUuid(r.pilotId) && !ids.includes(r.pilotId)) ids.push(r.pilotId); if (ids.length >= max) break; }
   const ver = new Map();
-  await Promise.all(ids.map(async (id) => { try { const m = await kvJson(kv, 'pilotmeta:' + id); const av = sanitizeAvatar(m?.avatar); if (av) ver.set(id, avatarVer(av)); } catch (_) {} }));
+  await Promise.all(ids.map(async (id) => { try { const m = await kvJson(kv, 'pilotmeta:' + id); const av = sanitizeAvatar(m?.avatar) || sanitizeAvatar((await loadPilot(kv, id))?.photoRef); if (av) ver.set(id, avatarVer(av)); } catch (_) {} }));
   return rows.map((r) => (r && ver.has(r.pilotId) ? { ...r, _ava: ver.get(r.pilotId) } : r));
 }
 
@@ -3782,6 +3782,7 @@ export default {
           const row = sanitizePulse(body, pilot);
           if (!row) return json({ error: 'invalid pulse' }, 400, headers);
           if (row.run) await verifyRunAtt(env.PITLANE, pilot.id, row.run); // v258
+          try { const av = sanitizeAvatar(body && body.ava) || sanitizeAvatar((await loadPilot(env.PITLANE, pilot.id))?.photoRef); if (av) await rememberPilotMeta(env.PITLANE, pilot.id, row.who, av); } catch (_) {} // v311: аватарка автора для чата
           const { res, rows } = await pulseOp(env, { t: 'add', row });
           const h2 = { ...headers, 'X-Pulse-Id': String(res.id || ''), ...(res.dup ? { 'X-Pulse-Dup': '1' } : {}) };
           return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30), viewer), 200, h2);
@@ -3920,7 +3921,7 @@ export default {
         const pid = safeDecode(m[1]);
         if (!isPilotUuid(pid)) return json({ error: 'not found' }, 404, headers);
         const meta = await kvJson(env.PITLANE, 'pilotmeta:' + pid);
-        const av = sanitizeAvatar(meta?.avatar);
+        const av = sanitizeAvatar(meta?.avatar) || sanitizeAvatar((await loadPilot(env.PITLANE, pid))?.photoRef); // v311: фолбэк на фото из Telegram
         if (!av) return json({ error: 'not found' }, 404, headers);
         const cache = { 'Cache-Control': 'public, max-age=86400', 'X-Content-Type-Options': 'nosniff', 'Cross-Origin-Resource-Policy': 'cross-origin' };
         if (av.startsWith('data:')) {
