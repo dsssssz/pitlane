@@ -31,7 +31,12 @@ export const PASS_ITEMS = [
 export function awardImg(k, small) { return A + k + (small ? '_s' : '') + '.webp'; }
 /* v293: свои фото Маги (вырезка) — везде, где показывается машина; у M3 выбор фото (фиолетовая по умолчанию / бордовая) */
 export const USER_PH = { m8: 1, 'm4-f82': 1, m3: 1, 'bmw-g70': 1, 'gls63-x166': 1, 'e63-w213': 1, lc200: 1, 'camry-xv80': 1, 'li-l9': 1, 'camry-xv70': 1, 'x7-g07': 1, 'g63': 1, 'g63-w463': 1, 'x6': 1, 'isf': 1, 'm5': 1, 'm5-f10': 1, 'm5-g90': 1, 'gls-x167': 1, 's63-w222': 1, 'cls-w218': 1, 'gle-coupe-c167': 1, 'bmw-7-g12': 1, 'panamera': 1, '911-992-cabrio': 1, 'x5m-f95': 1, 'amg-gt63-4d': 1 };
-export const PH_ALT = { m3: [['', 'Фиолетовая'], ['m3-burgundy', 'Бордовая']] };
+export const PH_ALT = {
+  m3: [['', 'Фиолетовая'], ['m3-burgundy', 'Бордовая']],
+  g63: [['', 'W463A'], ['g63-w463', 'W463']],
+  'bmw-g70': [['', 'G70'], ['bmw-7-g12', 'G12']],
+  'gls-x167': [['', 'X167'], ['gls63-x166', 'X166']],
+};
 const PHK = 'pitlane-car-photo-v293';
 export function carPhotoPick(id) { try { const v = JSON.parse(localStorage.getItem(PHK) || '{}')[id] || ''; return PH_ALT[id]?.some((a) => a[0] === v) ? v : ''; } catch (_) { return ''; } }
 export function setCarPhotoPick(id, v) { try { const o = JSON.parse(localStorage.getItem(PHK) || '{}'); if (v) o[id] = v; else delete o[id]; localStorage.setItem(PHK, JSON.stringify(o)); } catch (_) {} }

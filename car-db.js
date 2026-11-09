@@ -108,9 +108,21 @@ function variantBtn(r, showBrand) {
   return b;
 }
 /* v302: фото Маги (вырезки) в строках кузова; без фото — строка как была */
-const ROW_PH = { 'bmw|M3 (G80)': 'm3', 'bmw|M4 (F82/F83)': 'm4-f82', 'bmw|M5 (F10)': 'm5-f10', 'bmw|M5 (F90)': 'm5', 'bmw|M5 (G90/G99)': 'm5-g90', 'bmw|M8 (F91/F92/F93)': 'm8', 'bmw|X5 M (F95)': 'x5m-f95', 'bmw|X6 (G06)': 'x6',
-  'porsche|911 (992)': '911-992-cabrio', 'mercedes|E 63 (W213)': 'e63-w213', 'mercedes|S 63 (W222/W223)': 's63-w222', 'mercedes|CLS 63 (C218)': 'cls-w218', 'mercedes|AMG GT 4-door (X290)': 'amg-gt63-4d', 'mercedes|G 63 (W463)': 'g63',
-  'mercedes|GLE Coupe 63 (C292/C167)': 'gle-coupe-c167', 'mercedes|GLS 63 / Maybach (X167)': 'gls-x167', 'toyota|Camry (XV70)': 'camry-xv70', 'toyota|Land Cruiser 200 / 300': 'lc200', 'lexus|IS F': 'isf', 'lixiang|L7 / L8 / L9': 'li-l9' };
+const ROW_PH = {
+  'bmw|M3 (G80)': 'm3', 'bmw|M4 (F82/F83)': 'm4-f82', 'bmw|M5 (F10)': 'm5-f10', 'bmw|M5 (F90)': 'm5',
+  'bmw|M5 (G90/G99)': 'm5-g90', 'bmw|M8 (F91/F92/F93)': 'm8', 'bmw|X5 M (F95)': 'x5m-f95', 'bmw|X6 (G06)': 'x6',
+  'porsche|911 (992)': '911-992-cabrio', 'mercedes|E 63 (W213)': 'e63-w213', 'mercedes|S 63 (W222/W223)': 's63-w222', 'mercedes|CLS 63 (C218)': 'cls-w218',
+  'mercedes|AMG GT 4-door (X290)': 'amg-gt63-4d', 'mercedes|G 63 (W463)': 'g63', 'mercedes|GLE Coupe 63 (C292/C167)': 'gle-coupe-c167', 'mercedes|GLS 63 / Maybach (X167)': 'gls-x167',
+  'toyota|Camry (XV70)': 'camry-xv70', 'toyota|Land Cruiser 200 / 300': 'lc200', 'lexus|IS F': 'isf', 'lixiang|L7 / L8 / L9': 'li-l9',
+  'bmw|M4 (G82/G83)': 'm4-g82', 'bmw|M2 (G87)': 'm2-g87', 'bmw|M3 (F80)': 'm3-f80', 'bmw|X5 (G05)': 'x5-g05',
+  'bmw|X6 M (F96)': 'x6m-f96', 'bmw|5 Series (G30/G60)': '5-g30', 'bmw|M2 Competition (F87)': 'm2-f87-comp', 'bmw|M3 Touring (G81)': 'm3-g81',
+  'mercedes|C 63 (W205)': 'c63-w205', 'mercedes|C 63 S E Performance (W206)': 'c63-w206', 'mercedes|GLC 63 (X253/X254)': 'glc63', 'mercedes|GLE 63 (W166/V167)': 'gle63',
+  'mercedes|CLA 45 (C117/C118)': 'cla45', 'mercedes|A 45 S (W177)': 'a45s', 'audi|RS 6 Avant (C8)': 'rs6-c8', 'audi|RS 7 (C7/C8)': 'rs7-c8',
+  'audi|RS Q8': 'rsq8', 'audi|RS 3 (8Y)': 'rs3-8y', 'audi|R8 (4S)': 'r8-4s', 'porsche|Cayenne (9YA)': 'cayenne-9ya',
+  'porsche|Macan (95B)': 'macan-95b', 'porsche|Panamera (971)': 'panamera', 'porsche|Cayenne Coupe (9YB)': 'cayenne-coupe-9yb', 'toyota|Land Cruiser Prado': 'prado',
+  'toyota|GR Supra (A90)': 'supra-a90', 'lexus|LX 570 / 600': 'lx600', 'lexus|GS F': 'gsf', 'nissan|GT-R (R35)': 'gtr-r35',
+  'kia|Stinger': 'stinger', 'tank|300 / 400 / 500': 'tank300', 'bmw|M760i (G11/G70)': 'bmw-g70', 'bmw|X7 M50i / M60i': 'x7-g07'
+};
 function render() {
   if (!st || !_db) return;
   const body = sheet.querySelector('.cdb-body'), title = sheet.querySelector('.cdb-title');
