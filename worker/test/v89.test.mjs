@@ -206,14 +206,14 @@ ok(r.status === 200 && r.data.banner === null, 'banner reset');
 }
 
 console.log('\n[share card ghost line]');
-r = await call('POST', '/share', { ip: '10.9.7.1', body: { payload: { car: 'BMW', nick: 'Мага', type: 'lap', track: 'Сочи', time: '1:58.50', ghost: 'Побил на 0.42 с<script>', ghostVs: 'лидер · Артём', evil: 'x' } } });
+r = await call('POST', '/share', { token: A.token, ip: '10.9.7.1', body: { payload: { car: 'BMW', nick: 'Мага', type: 'lap', track: 'Сочи', time: '1:58.50', ghost: 'Побил на 0.42 с<script>', ghostVs: 'лидер · Артём', evil: 'x' } } });
 ok(r.status === 200 && r.data.id, 'share with ghost line stored');
 {
   const sh = await call('GET', '/share/' + r.data.id);
   const p = sh.data.payload || sh.data;
   ok(p.ghost === 'Побил на 0.42 сscript' && p.ghostVs === 'лидер · Артём' && p.evil === undefined, 'ghost line sanitized, unknown fields dropped');
 }
-r = await call('POST', '/share', { ip: '10.9.7.1', body: { payload: { car: 'BMW', type: '402m', time: '12.40 с' } } });
+r = await call('POST', '/share', { token: A.token, ip: '10.9.7.1', body: { payload: { car: 'BMW', type: '402m', time: '12.40 с' } } });
 {
   const sh = await call('GET', '/share/' + r.data.id);
   const p = sh.data.payload || sh.data;
@@ -221,13 +221,13 @@ r = await call('POST', '/share', { ip: '10.9.7.1', body: { payload: { car: 'BMW'
 }
 
 console.log('\n[v111 share delta + duel id]');
-r = await call('POST', '/share', { ip: '10.9.7.2', body: { payload: { car: 'BMW', type: 'lap', time: '1:58.50', pbD: -0.4004, duelId: 'dabc123xyz', trace: [[1, 2]], points: [1] } } });
+r = await call('POST', '/share', { token: A.token, ip: '10.9.7.2', body: { payload: { car: 'BMW', type: 'lap', time: '1:58.50', pbD: -0.4004, duelId: 'dabc123xyz', trace: [[1, 2]], points: [1] } } });
 {
   const sh = await call('GET', '/share/' + r.data.id);
   const p = sh.data.payload || sh.data;
   ok(p.pbD === -0.4 && p.pbFirst === undefined && p.duelId === 'dabc123xyz' && p.trace === undefined && p.points === undefined, 'pbD + duelId kept, raw track dropped');
 }
-r = await call('POST', '/share', { ip: '10.9.7.2', body: { payload: { car: 'BMW', type: '0-100', time: '4.10 с', pbD: 9999, pbFirst: true, duelId: '../x<script>' } } });
+r = await call('POST', '/share', { token: A.token, ip: '10.9.7.2', body: { payload: { car: 'BMW', type: '0-100', time: '4.10 с', pbD: 9999, pbFirst: true, duelId: '../x<script>' } } });
 {
   const sh = await call('GET', '/share/' + r.data.id);
   const p = sh.data.payload || sh.data;

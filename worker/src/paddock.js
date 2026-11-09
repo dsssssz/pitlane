@@ -103,6 +103,22 @@ export async function passSuccessfulPayment(env, msg, now = Date.now()) {
   return { ok: true, pilotId: pid, until };
 }
 
+/**
+ * v312: возврат Stars за Pass (message.refunded_payment) → срок Pass сокращается на оплаченный период.
+ * rec — запись paycharge:<charge> (kind:'pass'); пилот — по Telegram id плательщика; только если этот charge был зачтён этому Pass.
+ */
+export async function passRefunded(env, rec, charge, h, now = Date.now()) {
+  const kv = env.PITLANE;
+  const pid = rec && rec.tg ? await kv.get(h.providerKey('tg', String(rec.tg))) : null;
+  if (!pid) return { ok: true, pilotId: null };
+  const p = await loadPass(kv, pid);
+  if (!p || !Array.isArray(p.charges) || !p.charges.includes(charge)) return { ok: true, pilotId: pid, until: p ? Number(p.until) || 0 : 0 };
+  const days = PASS_PLANS[rec.plan] ? PASS_PLANS[rec.plan].days : 30;
+  const until = rec.plan === 'legacy' ? Math.min(now, Number(p.until) || 0) : Math.max(0, (Number(p.until) || 0) - days * 86400000);
+  await kv.put('pass:' + pid, JSON.stringify({ ...p, until, charges: p.charges.filter((c) => c !== charge), refunds: [...(p.refunds || []).slice(-11), charge] }));
+  return { ok: true, pilotId: pid, until };
+}
+
 /** Публичные косметики пилотов в строках топа: r.pp = { number, frame, pin } только у активных. */
 export async function attachPass(kv, rows, max = 40) {
   const ids = [];

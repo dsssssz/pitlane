@@ -82,10 +82,12 @@ console.log('[график и шейр]');
 console.log('[сервер: кривая и отметки на карточке]');
 {
   const kv = new MemKV(); const env = { PITLANE: kv, SMS_DEMO: '1' };
+  let tok = null; // v312: карточки — только с аккаунтом
   const call = async (method, path, body) => {
-    const res = await worker.fetch(new Request('https://api.test' + path, { method, headers: { Origin: 'https://dsssssz.github.io', 'Content-Type': 'application/json', 'CF-Connecting-IP': '10.17.0.' + Math.floor(Math.random() * 200) }, body: body ? JSON.stringify(body) : undefined }), env);
+    const res = await worker.fetch(new Request('https://api.test' + path, { method, headers: { Origin: 'https://dsssssz.github.io', 'Content-Type': 'application/json', 'CF-Connecting-IP': '10.17.0.' + Math.floor(Math.random() * 200), ...(tok ? { Authorization: 'Bearer ' + tok } : {}) }, body: body ? JSON.stringify(body) : undefined }), env);
     const t = await res.text(); let d; try { d = JSON.parse(t); } catch { d = t; } return { status: res.status, data: d };
   };
+  { const o = await call('POST', '/auth/otp', { phone: '79001170777' }); tok = (await call('POST', '/auth/verify', { phone: '79001170777', code: o.data.demoCode, nick: 'Мага' })).data.token; }
   let r = await call('POST', '/share', { payload: { car: 'BMW', type: '0-100', time: '3.73 с', curve: { s: 27.5, v: [0, 50.4, 100, 200, 300] }, splits: { '0-100': [3.728, 100.2], '60ft': [2.052, 62], hack: [1, 1], '402m': [11.35, 9999] }, lat: 55.1, trace: [1] } });
   ok(r.status === 200 && r.data.id, 'POST /share ок');
   const p = ((x) => x.payload || x)((await call('GET', '/share/' + r.data.id)).data);

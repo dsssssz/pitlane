@@ -1,5 +1,5 @@
 import { PulseHub, pulseOp, PULSE_CID_RE } from './pulsehub.js';
-import { passRoute, passPreCheckout, passSuccessfulPayment, isPassPayload, attachPass, passSalesOn } from './paddock.js'; // v192 Paddock Pass
+import { passRoute, passPreCheckout, passSuccessfulPayment, isPassPayload, attachPass, passSalesOn, passRefunded } from './paddock.js'; // v192 Paddock Pass
 import { runWeather, publicWx } from './wx.js';
 import { sanitizeCarPhoto, publicCarPhoto, carPhotoKey, PCAR_BODY, PCAR_MAX } from './carphoto.js';
 import { listFollows, setFollow, followImproveNotify, deleteFollowKeys, FOLLOW_MAX } from './follow.js';
@@ -7,7 +7,7 @@ import { TG_BANNER_URL, START_CAPTION, RULE as COPY_RULE, startKeyboard, startPa
 import { seasonRoute, seasonRecord0100, citySeasonRoute, citySeasonRecord } from './season.js';
 import { chalRoute, chalOnDrag } from './chal.js'; // v280
 import { stampRoute } from './stamp.js'; // v282
-import { pnumRoute, pnumPreCheckout, pnumSuccessfulPayment, isPnumPayload, pnumOf } from './pnum.js'; // v280
+import { pnumRoute, pnumPreCheckout, pnumSuccessfulPayment, isPnumPayload, pnumOf, pnumRefunded } from './pnum.js'; // v280
 import { funnelRoute } from './funnel.js'; // v280
 import { notifyEvent, notifyCron, overtakeNotify, indexDuelEnd, msgChallenge, loadPrefs, savePrefs, markStarted, setChatStop, chatState, deleteNotifyKeys, NOTIFY_TYPES, NOTIFY_LABELS, NOTIFY_DAILY_MAX, NOTIFY_BOT_TEXT } from './notify.js';
 import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } from './music.js';
@@ -611,6 +611,20 @@ function bestPerPilot(rows) {
   }
   return [...best.values()].sort((a, b) => a._ms - b._ms);
 }
+/**
+ * v312: доска кругов перед записью (writeList хранит 200): сначала лучший зачтённый круг каждого пилота (по времени),
+ * затем остальные зачтённые круги по времени, в конце старые незачтённые. Раньше круги дописывались в конец без
+ * сортировки — после 200 записей новые (даже рекорды) молча отбрасывались.
+ */
+function trimLapBoard(rows, cls) {
+  const ok = cls === 'c' ? isClassCRow : isValidGpsRow;
+  const ms = (r) => lapMsOf(r);
+  const valid = rows.filter((r) => r && ok(r) && ms(r) != null).sort((a, b) => ms(a) - ms(b) || (a.at || 0) - (b.at || 0));
+  const seen = new Set(); const head = []; const rest = [];
+  for (const r of valid) { if (r.pilotId && !seen.has(r.pilotId)) { seen.add(r.pilotId); head.push(r); } else rest.push(r); }
+  const vs = new Set(valid);
+  return [...head, ...rest, ...rows.filter((r) => r && !vs.has(r))];
+}
 function rankOf(list, pid) { const i = list.findIndex((r) => r.pilotId === pid); return i < 0 ? null : { pos: i + 1, of: list.length }; }
 function trackHistory(rows, pid) {
   const mine = rows.filter((r) => r && r.pilotId === pid && lapMsOf(r) != null);
@@ -692,7 +706,7 @@ function sanitizeDrag(body, pilot, disc, opts = {}) {
   const carId = slugOk(body?.carId) ? String(body.carId) : null;
   const car = cleanLabel(body?.car, 80);
   const row = {
-    name: safeName(pilot.name || body?.name),
+    name: safeName(pilot.name), // v312: ник — из аккаунта, не из тела запроса
     car: car && !containsPhone(car) ? car : '',
     carId,
     disc,
@@ -848,7 +862,7 @@ function sanitizeRoomLap(body, pilot, trackId) {
   if (tMs == null || tMs < trackMinLapMs(trackId) || tMs > LAP_MAX_MS) return { code: 'speed_flag' };
   const loose = verifyLapLoose(body, Date.now(), tMs);
   const row = {
-    name: safeName(body?.name || pilot.name), car: '', t, ms: tMs, gps: true,
+    name: safeName(pilot.name), car: '', t, ms: tMs, gps: true, // v312
     valid: !!loose.ok, srv: 1, at: Date.now(), pilotId: pilot.id || null,
   };
   if (loose.ok) Object.assign(row, loose.pass); else row.gpsQ = null;
@@ -857,7 +871,7 @@ function sanitizeRoomLap(body, pilot, trackId) {
 
 function lapRowFrom(body, pilot, trackId, v) {
   const row = {
-    name: safeName(body?.name || pilot.name),
+    name: safeName(pilot.name), // v312
     car: cleanLabel(body?.car, 80),
     t: fmtLapMsStr(v.tMs),
     ms: v.tMs,
@@ -981,6 +995,9 @@ async function enrichSectorAvatars(kv, rows) {
 }
 
 const PULSE_CH = ['gen', 'runs', 'tracks', 'q'];
+const PULSE_IMG_RE = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i;
+const PULSE_IMG_TTL = 365 * 86400; // v312: фото поста; при удалении / вытеснении поста ключ удаляется сразу
+const PULSE_IMG_DAY = 30; // v312: фото в чат на пилота в сутки
 /** v258: замер внутри сообщения — {d: дисциплина, t: секунды, src: chip|phone, car}. ok (в топе) ставит только сервер. */
 function sanitizeRunAtt(r) {
   if (!r || typeof r !== 'object') return null;
@@ -1009,13 +1026,16 @@ function sanitizePulse(body, pilot) {
   if (!text && !run) return null;
   const img = body?.img ? String(body.img) : '';
   const car = cleanLabel(body?.car, 80);
+  const okImg = PULSE_IMG_RE.test(img) && img.length <= 200_000;
   return {
     // v80: id is always server-generated (a client-chosen id could collide with / shadow another post)
     id: Date.now().toString(36) + '-' + randB36(8),
-    // Name fallback is a generic label — never the pilot id / phone.
-    who: safeName(body.who, '') || safeName(pilot.name, '') || 'Пилот',
+    // v312: ник — только из аккаунта (body.who игнорируется: им можно было писать от чужого имени)
+    who: safeName(pilot.name, '') || 'Пилот',
     text,
-    img: /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i.test(img) && img.length <= 200_000 ? img : null,
+    // v312: фото не лежит в ленте (15 фото по 200 КБ вытесняли весь чат) — отдельный ключ pimg:<id>, в ленте флаг
+    img: null,
+    ...(okImg ? { hasImg: 1, _img: img } : {}),
     car: car && !containsPhone(car) ? car : '',
     at: Date.now(),
     likes: [],
@@ -1042,7 +1062,8 @@ function publicPulse(p, viewer = '') {
     id: p.id,
     who: safeName(p.who, 'Пилот'),
     text: String(p.text || ''),
-    img: p.img || null,
+    img: null, // v312: картинки — только через GET /pulse/:id/img
+    hasImg: !!(p.img || p.hasImg),
     car: car && !containsPhone(car) ? car : '',
     at: p.at || null,
     likeCount: likes.length,
@@ -1244,6 +1265,31 @@ function sanitizeSharePayload(p) {
   }
   return out;
 }
+/**
+ * v312: карточка «подтверждена», только если такой результат этого пилота лежит в топе (сервер его зачёл).
+ * → { ok, gpsQ } ; иначе ok:false (карточка помечается «не подтверждено»).
+ */
+async function shareRunMatch(kv, pid, out) {
+  if (!isPilotUuid(pid)) return { ok: false };
+  if (out.type === 'lap') {
+    if (!out.trackId) return { ok: false };
+    const ms = out.ms != null ? out.ms : parseLapMs(String(out.time || '').replace(/\s.*$/, ''));
+    if (!(ms > 0)) return { ok: false };
+    const tol = Math.max(150, ms * 0.005);
+    for (const c of ['ab', 'c']) {
+      const r = (await readList(kv, boardKey('lap', out.trackId, c))).find((x) => x && x.pilotId === pid && (c === 'c' ? isClassCRow(x) : isValidGpsRow(x)) && Math.abs(lapMsOf(x) - ms) <= tol);
+      if (r) return { ok: true, gpsQ: r.gpsQ };
+    }
+    return { ok: false };
+  }
+  const t = parseFloat(String(out.time || '').replace(',', '.'));
+  if (!(t > 0)) return { ok: false };
+  for (const c of ['ab', 'c']) {
+    const r = (await readList(kv, boardKey('drag', out.type, c))).find((x) => x && x.pilotId === pid && (c === 'c' ? isClassCRow(x) : isValidGpsRow(x)) && Math.abs(Number(x.t) - t) < 0.006);
+    if (r) return { ok: true, gpsQ: r.gpsQ };
+  }
+  return { ok: false };
+}
 const SHARE_SPLIT_KEYS = ['0-60', '0-100', '100-200', '0-200', '200-300', '0-300', '60ft', '201m', '402m'];
 
 /**
@@ -1271,10 +1317,26 @@ async function rateHit(kv, key, limit, ttlSec) {
   return false;
 }
 
-/** Several KV windows at once; returns a 429 Response or null. */
+/**
+ * v312: лимиты по IP (в т.ч. анонимные запросы) — через Workers Rate Limiting (RL_READ / RL_WRITE, в памяти колоации,
+ * без записей KV): раньше каждый анонимный запрос писал счётчик в KV и мог выбрать суточную квоту записей.
+ * Окно и порог — как у привязки (wrangler.toml: чтение 240/мин, запись 40/мин), отдельный счётчик на каждый ключ.
+ * Нет привязки (тесты / локально) или она упала → прежний KV-счётчик.
+ */
+const RL_READ_KEY_RE = /^rl:(stock|chalg|music|pnum|season|cseason|stampg|shopf):/;
+async function ipHit(env, key, limit, ttlSec) {
+  const rl = env && env[RL_READ_KEY_RE.test(key) ? 'RL_READ' : 'RL_WRITE'];
+  if (rl && typeof rl.limit === 'function') {
+    try { const { success } = await rl.limit({ key }); return !success; } catch (_) {}
+  }
+  return rateHit(env.PITLANE, key, limit, ttlSec);
+}
+const isIpKey = (key) => /^rl:[a-z0-9]+:ip:/.test(String(key));
+
+/** Several KV windows at once; returns a 429 Response or null. v312: ключи *:ip:* — через ipHit (без KV). */
 async function limitOr429(env, headers, rules) {
   for (const [key, limit, ttl] of rules) {
-    if (await rateHit(env.PITLANE, key, limit, ttl)) {
+    if (isIpKey(key) ? await ipHit(env, key, limit, ttl) : await rateHit(env.PITLANE, key, limit, ttl)) {
       return json({ error: 'rate limit', retry: ttl }, 429, { ...headers, 'Retry-After': String(ttl) });
     }
   }
@@ -1445,7 +1507,7 @@ function sanitizeDuelRun(body, pilot, type, trackId, disc) {
  * Guests → device id (dev_…) from header/body; phone-shaped or account-uuid guest ids are refused.
  */
 function pilotLabel(pilot, body) {
-  const name = safeName(pilot.name || body?.nick || body?.name || body?.createdBy);
+  const name = safeName(pilot.name); // v312: только ник аккаунта (body.nick / createdBy игнорируются)
   if (pilot.authed && pilot.id) return { id: pilot.id, name };
   // v104: гостей больше нет — дуэли / экипажи / отметки только с аккаунтом
   return { id: '', name };
@@ -3023,6 +3085,16 @@ export default {
         }
         const msg = upd && (upd.message || null);
         if (msg && msg.refunded_payment) { // v184: возврат Stars → откатить продление сезона (раньше не обрабатывался)
+          // v312: по виду платежа — Pass (срок) и номер пилота (освободить); остальное — сезоны экипажей
+          const rch = String(msg.refunded_payment.telegram_payment_charge_id || '').slice(0, 128);
+          const prec = rch ? await kvJson(env.PITLANE, 'paycharge:' + rch) : null;
+          if (prec && (prec.kind === 'pass' || prec.kind === 'pnum')) {
+            if (prec.refundedAt) return json({ ok: true, refunded: true, duplicate: true }, 200, headers);
+            prec.refundedAt = Date.now();
+            await env.PITLANE.put('paycharge:' + rch, JSON.stringify(prec));
+            const r = prec.kind === 'pass' ? await passRefunded(env, prec, rch, ROOM_H) : await pnumRefunded(env, prec, ROOM_H);
+            return json({ ok: true, refunded: !!r?.ok, duplicate: false, kind: prec.kind }, 200, headers);
+          }
           const r = await roomsRefundedPayment(env, msg, ROOM_H);
           return json({ ok: true, refunded: !!r?.ok, duplicate: !!r?.duplicate }, 200, headers);
         }
@@ -3056,7 +3128,7 @@ export default {
       const adm = String(env.TG_ADMIN_SECRET || '');
       const got = String(req.headers.get('X-Admin-Secret') || '');
       if (adm.length < 32) return json({ error: 'not found' }, 404, headers);
-      if (await rateHit(env.PITLANE, 'rl:tgsetup:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
+      if (await ipHit(env, 'rl:tgsetup:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
       if (!timingSafeEqualStr(adm, got)) return json({ error: 'not found' }, 404, headers);
       if (url.searchParams.get('preview') === '1') {
         // send the real /start welcome to the owner chat only (FEEDBACK_CHAT_ID), nothing else
@@ -3091,7 +3163,7 @@ export default {
         }
 
         const phoneLimited = await rateHit(env.PITLANE, 'rl:otp:ph:' + phone, OTP_PHONE_LIMIT, 900);
-        const ipLimited = await rateHit(env.PITLANE, 'rl:otp:ip:' + ip, OTP_IP_LIMIT, 900);
+        const ipLimited = await ipHit(env, 'rl:otp:ip:' + ip, OTP_IP_LIMIT, 900);
         if (phoneLimited || ipLimited) {
           return json({ error: 'rate limit', retry: 900 }, 429, headers);
         }
@@ -3142,7 +3214,7 @@ export default {
       }
 
       if (req.method === 'POST' && path === '/auth/verify') {
-        if (await rateHit(env.PITLANE, 'rl:otpv:ip:' + ip, 30, 900)) {
+        if (await ipHit(env, 'rl:otpv:ip:' + ip, 30, 900)) {
           return json({ ok: false, error: 'rate limit', retry: 900 }, 429, headers);
         }
         const body = await readJson(req, BODY_LIMITS.auth);
@@ -3217,7 +3289,7 @@ export default {
       if (req.method === 'POST' && path === '/auth/telegram') {
         const tg = telegramConfig(env);
         if (!tg.enabled) return json({ ok: false, error: 'Telegram not configured' }, 503, headers);
-        if (await rateHit(env.PITLANE, 'rl:tg:ip:' + ip, 30, 900)) {
+        if (await ipHit(env, 'rl:tg:ip:' + ip, 30, 900)) {
           return json({ ok: false, error: 'rate limit', retry: 900 }, 429, headers);
         }
         const body = await readJson(req, BODY_LIMITS.auth);
@@ -3231,7 +3303,7 @@ export default {
       if (req.method === 'POST' && (path === '/auth/tma' || path === '/tma/share-prepare')) {
         const tg = telegramConfig(env);
         if (!tg.enabled) return json({ ok: false, error: 'Telegram not configured' }, 503, headers);
-        if (await rateHit(env.PITLANE, 'rl:tma:ip:' + ip, 60, 900)) {
+        if (await ipHit(env, 'rl:tma:ip:' + ip, 60, 900)) {
           return json({ ok: false, error: 'rate limit', retry: 900 }, 429, headers);
         }
         const body = await readJson(req, BODY_LIMITS.auth);
@@ -3384,7 +3456,7 @@ export default {
         const adm = String(env.ADMIN_TOKEN || '');
         const got = String(req.headers.get('X-Admin-Token') || '');
         if (adm.length < 24) return json({ error: 'not found' }, 404, headers);
-        if (await rateHit(env.PITLANE, 'rl:adm:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
+        if (await ipHit(env, 'rl:adm:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
         if (!timingSafeEqualStr(adm, got)) return json({ error: 'not found' }, 404, headers);
         const dry = url.searchParams.get('dry') === '1';
         const report = await migratePilots(env.PITLANE, { dry, env });
@@ -3396,7 +3468,7 @@ export default {
         const adm = String(env.ADMIN_TOKEN || '');
         const got = String(req.headers.get('X-Admin-Token') || '');
         if (adm.length < 24) return json({ error: 'not found' }, 404, headers);
-        if (await rateHit(env.PITLANE, 'rl:adm:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
+        if (await ipHit(env, 'rl:adm:ip:' + ip, 10, 3600)) return json({ error: 'not found' }, 404, headers);
         if (!timingSafeEqualStr(adm, got)) return json({ error: 'not found' }, 404, headers);
         const { rows: before } = await pulseOp(env, { t: 'replace', rows: [] });
         let cdel = 0, cursor;
@@ -3456,28 +3528,40 @@ export default {
 
       // —— Share cards ——
       if (req.method === 'POST' && path === '/share') {
+        // v312: карточки результата — только с аккаунтом (раньше аноним мог выпустить «VALID · A» с любым ником и временем)
+        const denied = requireAuth(pilot, headers);
+        if (denied) return denied;
         const body = await readJson(req, BODY_LIMITS.share);
         const payload = sanitizeSharePayload(body?.payload ?? body);
         if (!payload) {
           return json({ error: 'invalid payload' }, 400, headers);
         }
-        // anonymous write → per-IP window + global daily cap (KV quota guard)
-        const lim = await limitOr429(env, headers, [['rl:share:ip:' + ip, 30, 3600], ['rl:share:day:' + moscowDateKey(), 3000, 86400]]);
+        const lim = await limitOr429(env, headers, [['rl:share:p:' + pilot.id, 60, 3600], ['rl:share:day:' + moscowDateKey(), 3000, 86400]]);
         if (lim) return lim;
+        const prec = await loadPilot(env.PITLANE, pilot.id);
+        payload.nick = safeName(prec?.nick, '') || safeName(pilot.name); // v312: ник — из аккаунта
+        const mt = await shareRunMatch(env.PITLANE, pilot.id, payload);
+        payload.srvOk = mt.ok;
+        if (mt.ok) { payload.valid = true; if (mt.gpsQ) payload.gpsQ = mt.gpsQ; } else payload.valid = false;
         const id = shareId();
-        await env.PITLANE.put('share:' + id, JSON.stringify(payload), {
+        await env.PITLANE.put('share:' + id, JSON.stringify({ ...payload, pid: pilot.id }), {
           expirationTtl: SHARE_TTL,
         });
-        return json({ id }, 200, headers);
+        return json({ id, srvOk: mt.ok }, 200, headers);
       }
 
       // v233: картинка для Telegram Stories (shareToStory нужен публичный https-URL медиа)
       {
         const sm = path.match(/^\/share\/([A-Za-z0-9_-]{4,40})\/story(\.jpg)?$/);
         if (sm && req.method === 'POST') {
-          const lim = await limitOr429(env, headers, [['rl:story:ip:' + ip, 20, 3600], ['rl:story:day:' + moscowDateKey(), 2000, 86400]]);
+          // v312: картинку карточки может положить только её автор
+          const denied = requireAuth(pilot, headers);
+          if (denied) return denied;
+          const lim = await limitOr429(env, headers, [['rl:story:p:' + pilot.id, 20, 3600], ['rl:story:day:' + moscowDateKey(), 2000, 86400]]);
           if (lim) return lim;
-          if (!(await env.PITLANE.get('share:' + sm[1]))) return json({ error: 'not found' }, 404, headers);
+          const card = await kvJson(env.PITLANE, 'share:' + sm[1]);
+          if (!card) return json({ error: 'not found' }, 404, headers);
+          if (card.pid !== pilot.id) return json({ error: 'forbidden' }, 403, headers);
           const body = await readJson(req, BODY_LIMITS.story);
           const im = sanitizeBannerImage(body?.img);
           if (im.error || im.mime !== 'image/jpeg') return json({ error: im.error || 'jpeg only' }, 400, headers);
@@ -3501,8 +3585,12 @@ export default {
         if (!raw) return json({ error: 'not found' }, 404, headers);
         try {
           // v80: whitelist on read too (old cards were stored verbatim; phone-ish nicks → «пилот»)
-          const payload = sanitizeSharePayload(JSON.parse(raw));
+          const rec = JSON.parse(raw);
+          const payload = sanitizeSharePayload(rec);
           if (!payload) return json({ error: 'not found' }, 404, headers);
+          // v312: «подтверждено» — только для карточек, которые сервер сверил с топом при создании
+          payload.srvOk = !!(rec && isPilotUuid(rec.pid) && rec.srvOk === true);
+          if (!payload.srvOk) payload.valid = false;
           return json(payload, 200, headers);
         } catch {
           return json({ error: 'corrupt' }, 500, headers);
@@ -3625,7 +3713,7 @@ export default {
         await applyWeather(env, row, res.geo); // v128
 
         row.pilotId = pilot.id;
-        { const pr = await loadPilot(env.PITLANE, pilot.id); if (pr?.city) row.city = pr.city; } // v234
+        { const pr = await loadPilot(env.PITLANE, pilot.id); if (pr?.city) row.city = pr.city; const nn = safeName(pr?.nick, ''); if (nn) row.name = nn; } // v234; v312: ник аккаунта
         const av = row.avatar || null;
         // keep KV lap lists lean — avatar lives in pilotmeta, not on every row
         delete row.avatar;
@@ -3635,7 +3723,7 @@ export default {
           const crows = await readList(env.PITLANE, ckey);
           const cbefore = crows.slice();
           crows.push(row);
-          await writeList(env.PITLANE, ckey, crows);
+          await writeList(env.PITLANE, ckey, trimLapBoard(crows, 'c')); // v312
           await defer(lapOvertake(env, trackId, 'c', cbefore, crows, pilot.id)); // v121
           return json({ ok: true, cls: 'c', wx: row.wx ? publicWx(row.wx) : null, rows: publicRows(crows.filter(isClassCRow)) }, 200, headers);
         }
@@ -3643,7 +3731,7 @@ export default {
         const rows = await readList(env.PITLANE, key);
         const lbefore = rows.slice();
         rows.push(row);
-        await writeList(env.PITLANE, key, rows);
+        await writeList(env.PITLANE, key, trimLapBoard(rows, 'ab')); // v312
         await defer(lapOvertake(env, trackId, 'ab', lbefore, rows, pilot.id)); // v121
         await indexPilotTop(env.PITLANE, pilot.id, 'l', trackId);
         // remember nick/avatar for sector tops (A/B only; avatar optional)
@@ -3761,12 +3849,12 @@ export default {
               .sort((a, b) => ((b.likes || []).length - (a.likes || []).length) || ((b.at || 0) - (a.at || 0)))
               .slice(0, 10);
             const dayA = await attachAvaVer(env.PITLANE, day);
-            return json(publicPulseList(dayA, viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
+            return json(publicPulseList(dayA, viewer), 200, headers);
           }
           rows.sort((a, b) => (b.at || 0) - (a.at || 0));
           // v125: ?recent=1 → свежие 12 постов, лёгкий ответ без картинок — превью «чата» на Главной
           if (url.searchParams.get('recent') === '1') {
-            return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 12)), viewer).map((p) => ({ ...p, img: null, hasImg: !!p.img })), 200, headers);
+            return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 12)), viewer), 200, headers);
           }
           const full = await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30);
           await attachPass(env.PITLANE, full, 30); // v205: номер/рамка/пин Pass у ников в чате
@@ -3779,14 +3867,37 @@ export default {
           const lim = await limitOr429(env, headers, [['rl:pulseb:p:' + pilot.id, 15, 60], ['rl:pulse:p:' + pilot.id, 60, 3600], ['rl:pulsed:p:' + pilot.id, 300, 86400]]);
           if (lim) return lim;
           const body = await readJson(req, BODY_LIMITS.pulse);
-          const row = sanitizePulse(body, pilot);
+          const prec = await loadPilot(env.PITLANE, pilot.id);
+          const row = sanitizePulse(body, { ...pilot, name: safeName(prec?.nick, '') || pilot.name }); // v312: ник аккаунта
           if (!row) return json({ error: 'invalid pulse' }, 400, headers);
           if (row.run) await verifyRunAtt(env.PITLANE, pilot.id, row.run); // v258
-          try { const av = sanitizeAvatar(body && body.ava) || sanitizeAvatar((await loadPilot(env.PITLANE, pilot.id))?.photoRef); if (av) await rememberPilotMeta(env.PITLANE, pilot.id, row.who, av); } catch (_) {} // v311: аватарка автора для чата
+          const img = row._img || null; delete row._img;
+          if (img) {
+            const ilim = await limitOr429(env, headers, [['rl:pimg:p:' + pilot.id, PULSE_IMG_DAY, 86400]]); // v312
+            if (ilim) return ilim;
+            await env.PITLANE.put('pimg:' + row.id, img, { expirationTtl: PULSE_IMG_TTL, metadata: { pid: pilot.id } });
+          }
+          try { const av = sanitizeAvatar(body && body.ava) || sanitizeAvatar(prec?.photoRef); if (av) await rememberPilotMeta(env.PITLANE, pilot.id, row.who, av); } catch (_) {} // v311: аватарка автора для чата
           const { res, rows } = await pulseOp(env, { t: 'add', row });
+          if (img && res.dup) await env.PITLANE.delete('pimg:' + row.id); // повтор того же cid — фото уже у исходного поста
           const h2 = { ...headers, 'X-Pulse-Id': String(res.id || ''), ...(res.dup ? { 'X-Pulse-Dup': '1' } : {}) };
           return json(publicPulseList(await attachAvaVer(env.PITLANE, rows.slice(0, 200), 30), viewer), 200, h2);
         }
+      }
+
+      // v312: фото поста (отдельный ключ pimg:<id>; старые посты — из встроенного img в ленте)
+      m = path.match(/^\/pulse\/([^/]+)\/img$/);
+      if (req.method === 'GET' && m) {
+        const id = safeDecode(m[1]);
+        if (!POST_ID_RE.test(id)) return json({ error: 'not found' }, 404, headers);
+        let src = await env.PITLANE.get('pimg:' + id);
+        if (!src) { const p = (await readList(env.PITLANE, 'pulse')).find((x) => x && x.id === id); src = p && typeof p.img === 'string' ? p.img : null; }
+        const mm = src && PULSE_IMG_RE.test(src) ? src.match(/^data:(image\/[a-z]+);base64,(.+)$/i) : null;
+        if (!mm) return json({ error: 'not found' }, 404, headers);
+        const bin = atob(mm[2]);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return new Response(bytes, { status: 200, headers: { ...headers, 'Content-Type': mm[1].toLowerCase().replace('jpg', 'jpeg'), 'X-Content-Type-Options': 'nosniff', 'Content-Security-Policy': "default-src 'none'", 'Cross-Origin-Resource-Policy': 'cross-origin', 'Cache-Control': 'public, max-age=86400' } });
       }
 
       // v83: like toggle → compact answer { id, likeCount, liked } (client updates optimistically)
@@ -4506,7 +4617,7 @@ export default {
         let crew;
         try { crew = JSON.parse(raw); } catch { return json({ error: 'corrupt' }, 500, headers); }
         const who = pilotLabel(pilot, body);
-        const nick = safeName(body?.nick || who.name);
+        const nick = who.name; // v312
         const pilotId = who.id;
         if (!pilotId) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         crew.members = Array.isArray(crew.members) ? crew.members : [];
@@ -4549,7 +4660,7 @@ export default {
         let crew;
         try { crew = JSON.parse(raw); } catch { return json({ error: 'corrupt' }, 500, headers); }
         const who = pilotLabel(pilot, body);
-        const nick = safeName(body?.nick || who.name);
+        const nick = who.name; // v312
         const pilotId = who.id;
         if (!pilotId) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         crew.members = Array.isArray(crew.members) ? crew.members : [];
@@ -4615,7 +4726,7 @@ export default {
             car: row.car || '',
             monthKey: mk,
           };
-          if (body?.nick) member.nick = safeName(body.nick);
+          member.nick = who.name; // v312
           await env.PITLANE.put('crew:' + id, JSON.stringify(crew));
         }
         const board = await buildCrewBoard(env.PITLANE, crew);
@@ -4681,7 +4792,7 @@ export default {
         }
         const picked = pickSessionOfDay(manual);
         const who = pilotLabel(pilot, body);
-        const nick = safeName(body?.nick || who.name);
+        const nick = who.name; // v312
         const pilotId = who.id;
         if (!pilotId) return json({ error: 'auth required', code: 'no_account' }, 401, headers);
         const akey = `session:att:${picked.date}:${picked.trackId}`;

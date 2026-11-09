@@ -27,7 +27,7 @@ const r = await call('GET', '/pulse?recent=1');
 ok(r.status === 200 && Array.isArray(r.data) && r.data.length === 10 && r.data[0].text === 'пост 9', 'свежие сначала', r.data?.[0]?.text);
 ok(r.data.every((p) => p.img === null) && r.data[0].hasImg === true, 'лёгкий ответ: без картинок, флаг hasImg');
 ok(r.data.every((p) => !('likes' in p) && !('phone' in p)) && 'commentCount' in r.data[0], 'тот же публичный whitelist');
-ok((await call('GET', '/pulse')).data.find((p) => p.text === 'пост 9').img?.startsWith('data:image'), 'обычный GET /pulse не изменился');
+{ const p9 = (await call('GET', '/pulse')).data.find((p) => p.text === 'пост 9'); ok(p9 && p9.img === null && p9.hasImg === true, 'v312: обычный GET /pulse тоже без встроенных картинок (флаг hasImg, фото — GET /pulse/:id/img)'); }
 
 console.log('[иконка-облачко]');
 ok((html.match(/class="ico ico-pad ico-chat"/g) || []).length === 2 && !/class="ico-ring"/.test(html), 'кружок заменён облачками: панель, скрытая вкладка rail, меню');

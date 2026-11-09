@@ -19,6 +19,15 @@ export const SNAP_MIN_MS = 1100; // v184: KV — не чаще 1 записи/с
 
 const byAt = (a, b) => (b.at || 0) - (a.at || 0);
 
+/** v312: пост ушёл из ленты (удалён автором, вытеснен лимитом, очистка) → его фото и комментарии из KV тоже. */
+export async function dropPostKeys(kv, ids) {
+  for (const id of ids || []) {
+    if (!id || !/^[A-Za-z0-9_-]{1,64}$/.test(String(id))) continue;
+    try { await kv.delete('pimg:' + id); } catch (_) {}
+    try { await kv.delete('pcom:' + id); } catch (_) {}
+  }
+}
+
 /** Обрезка до лимитов (число постов и байты снимка). Возвращает оставшиеся строки (новые сверху). */
 export function trimPulse(rows) {
   let list = rows.filter((r) => r && r.id).sort(byAt).slice(0, PULSE_KEEP);
@@ -140,7 +149,10 @@ export async function pulseOp(env, op) {
   let kept = rows;
   if (out.changed.size || out.removed.size) {
     kept = trimPulse(rows);
+    const keep = new Set(kept.map((r) => r.id));
+    for (const r of rows) if (!keep.has(r.id)) out.removed.add(r.id);
     await env.PITLANE.put('pulse', JSON.stringify(kept));
+    await dropPostKeys(env.PITLANE, out.removed); // v312
   } else kept = rows.slice().sort(byAt);
   return { res: out.res, rows: kept };
 }
@@ -188,6 +200,7 @@ export class PulseHub {
       if (Object.keys(put).length) await st.put(put);
       if (out.removed.size) await st.delete([...out.removed].map((id) => 'p:' + id));
       await this.snapshot();
+      if (out.removed.size) await dropPostKeys(this.env.PITLANE, out.removed); // v312: фото и комментарии ушедших постов
     }
     return { res: out.res, rows: this.rows };
   }

@@ -85,4 +85,16 @@ export async function pnumSuccessfulPayment(env, msg, h, now = Date.now()) {
   await kv.put(ckey, JSON.stringify(rec));
   return { ok: true, pilotId: p.pid, n: p.n };
 }
+/** v312: возврат Stars за номер (message.refunded_payment) → номер освобождается, если он всё ещё у этого плательщика. */
+export async function pnumRefunded(env, rec, h) {
+  const kv = env.PITLANE;
+  const n = Number(rec && rec.n);
+  if (!okN(n) || rec.error) return { ok: true, released: false }; // номер не выдавался (гонка → уже возвращено)
+  const pid = rec.tg ? await kv.get(h.providerKey('tg', String(rec.tg))) : null;
+  const o = await ownerOf(kv, n);
+  if (!pid || o !== pid) return { ok: true, released: false };
+  await kv.delete('pnum:' + n);
+  if ((await pnumOf(kv, pid)) === n) await kv.delete('pnumof:' + pid);
+  return { ok: true, released: true, n, pilotId: pid };
+}
 export async function deleteAccountPnum(kv, pid) { const n = await pnumOf(kv, pid); if (n) { try { await kv.delete('pnum:' + n); } catch (_) {} } try { await kv.delete('pnumof:' + pid); } catch (_) {} }

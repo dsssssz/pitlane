@@ -226,7 +226,7 @@ export async function teamsRoute(ctx) {
     if (room.requests.length >= TEAM_REQ_MAX) return h.json({ error: 'too many requests' }, 409, headers);
     if ((room.members || []).length >= ROOM_MAX_MEMBERS) return h.json({ error: 'room full', max: ROOM_MAX_MEMBERS }, 409, headers);
     const note = h.cleanText(body?.note, 140);
-    room.requests.push({ pilotId: pilot.id, nick: h.safeName(body?.nick || pilot.name), at: Date.now(), note: h.containsPhone(note) ? '' : note });
+    room.requests.push({ pilotId: pilot.id, nick: h.safeName(pilot.name), at: Date.now(), note: h.containsPhone(note) ? '' : note });
     await saveRoom(kv, room);
     return h.json({ ok: true, requested: true }, 200, headers);
   }

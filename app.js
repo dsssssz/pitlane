@@ -5899,6 +5899,10 @@ function openShareCard(payload) {
       mark = 'СИМУЛЯТОР';
       badge.classList.add('invalid');
       honesty = 'симулятор · не реальный заезд, не в топ';
+    } else if (payload.srvOk === false) { // v312: карточка с сервера, результата нет в топе PITLANE
+      mark = 'НЕ ПОДТВЕРЖДЕНО';
+      badge.classList.add('invalid');
+      honesty = 'Результат не сверен с топом PITLANE';
     } else if (payload.src === 'phone') {
       // v118: телефон — свой зачёт C (не «не в топ»): честная метка и точность
       mark = payload.valid === false ? 'ТЕЛЕФОН · ЗАЧЁТ C · НЕ ПРИНЯТ' : 'ТЕЛЕФОН · ЗАЧЁТ C';
@@ -8322,6 +8326,13 @@ function padEl(tag, cls, text) {
   return el;
 }
 const PAD_IMG_RE = /^data:image\/(jpeg|jpg|png|webp);base64,[A-Za-z0-9+/=]+$/i;
+/** v312: фото поста — с Worker (GET /pulse/:id/img); старые посты/свой черновик — встроенный data:image */
+function padImgSrc(p) {
+  if (p && p.img && PAD_IMG_RE.test(String(p.img))) return String(p.img);
+  if (p && p.hasImg && /^[A-Za-z0-9_-]{1,64}$/.test(String(p.id || '')) && apiBase()) return apiBase() + '/pulse/' + encodeURIComponent(p.id) + '/img';
+  return '';
+}
+const padIsImgUrl = (src) => PAD_IMG_RE.test(String(src || '')) || (!!apiBase() && String(src || '').startsWith(apiBase() + '/pulse/') && /\/img$/.test(String(src)));
 const PAD_AVA_RE = /^https:\/\/([\w-]+\.)*(telegram\.org|t\.me|telesco\.pe)\/[^"'<>\s]+$/i;
 const isPublicPilot = (id) => /^p_[0-9a-f-]{36}$/.test(String(id || ''));
 /** v194: ник без видимых букв/цифр (одни комбинирующие знаки, пробелы) → «Пилот» */
@@ -8471,12 +8482,13 @@ function buildPostCard(p, { compact = false } = {}) {
     tx.appendChild(document.createTextNode(p.text));
     card.appendChild(tx);
   }
-  if (p.img && PAD_IMG_RE.test(String(p.img))) {
+  const imgSrc = padImgSrc(p); // v312
+  if (imgSrc) {
     const img = document.createElement('img');
     img.className = 'pad-img';
     img.alt = '';
     img.loading = 'lazy';
-    img.src = p.img;
+    img.src = imgSrc;
     img.dataset.full = '1';
     img.setAttribute('role', 'button'); img.setAttribute('aria-label', 'Открыть фото');
     card.appendChild(img);
@@ -8710,7 +8722,7 @@ async function padToggleLike(id, btn) {
 
 /* v260: фото на весь экран по тапу */
 function padOpenPhoto(src) {
-  if (!src || !PAD_IMG_RE.test(String(src))) return;
+  if (!src || !padIsImgUrl(src)) return; // v312: и URL фото поста с Worker
   const ov = padEl('div', 'pad-photo'); ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Фото');
   const im = document.createElement('img'); im.src = src; im.alt = '';
   const x = padEl('button', 'pad-photo-x pl-x', '×'); x.type = 'button'; x.setAttribute('aria-label', 'Закрыть');
@@ -11863,7 +11875,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v311';
+const APP_VERSION = 'v312';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;

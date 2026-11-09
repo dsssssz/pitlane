@@ -52,7 +52,7 @@ r = await call(env, 'GET', '/share/%E0%A4%A');
 ok(r.status === 404, 'malformed %-escape → 404, not 500');
 
 console.log('\n[body size / validation]');
-r = await call(env, 'POST', '/share', { raw: JSON.stringify({ payload: { car: 'x'.repeat(20000) } }) });
+r = await call(env, 'POST', '/share', { token: A.token, raw: JSON.stringify({ payload: { car: 'x'.repeat(20000) } }) });
 ok(r.status === 413, 'share body > 8 KB → 413');
 r = await call(env, 'POST', '/pulse', { token: A.token, raw: JSON.stringify({ text: 'x', img: 'data:image/jpeg;base64,' + 'A'.repeat(300000) }) });
 ok(r.status === 413, 'pulse body > 256 KB → 413');
@@ -142,10 +142,10 @@ r = await call(env, 'POST', '/crew', { token: C.token, body: { name: 'Bad', trac
 ok(r.status === 400, 'crew trackId must be a slug');
 
 console.log('\n[share whitelist]');
-r = await call(env, 'POST', '/share', { body: { payload: { car: 'M2', nick: '+7 900 111-00-01', time: '4.10', type: 'lap', trackId: '"><img src=x onerror=alert(1)>', paint: 'url(https://evil/x)', sectors: [1, 2, 3], evil: 'x', pilotId: '79001110001' } } });
+r = await call(env, 'POST', '/share', { token: A.token, body: { payload: { car: 'M2', nick: '+7 900 111-00-01', time: '4.10', type: 'lap', trackId: '"><img src=x onerror=alert(1)>', paint: 'url(https://evil/x)', sectors: [1, 2, 3], evil: 'x', pilotId: '79001110001' } } });
 ok(r.status === 200 && r.data.id, 'share stored');
 r = await call(env, 'GET', '/share/' + r.data.id);
-ok(r.data.nick === 'пилот' && !r.data.trackId && !r.data.paint && !r.data.evil && !r.data.pilotId && r.data.sectors.length === 3, 'share payload whitelisted (phone nick, xss trackId, css paint, extra fields dropped)');
+ok(r.data.nick === 'Алиса' && !r.text.includes('+7 900') && !r.data.trackId && !r.data.paint && !r.data.evil && !r.data.pilotId && r.data.sectors.length === 3, 'share payload whitelisted (nick from account — v312, xss trackId, css paint, extra fields dropped)');
 await kv.put('share:legacy1234', JSON.stringify({ nick: 'Мага', car: 'M2', time: '4.1', trackId: '"><svg onload=1>', phone: '79001110001' }));
 r = await call(env, 'GET', '/share/legacy1234');
 ok(r.data.nick === 'Мага' && !r.data.trackId && !r.text.includes('79001110001'), 'legacy stored share sanitized on read');

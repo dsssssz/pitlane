@@ -55,12 +55,12 @@ for (let i = 0; i < 245; i++) { last = (await call('GET', '/stock/lap/sochi?car=
 ok(last === 429, 'stock lookups rate-limited per IP');
 
 console.log('\n[share card stock/sector fields]');
-r = await call('POST', '/share', { body: { payload: { car: 'BMW', type: 'lap', time: '2:00.00', stD: -0.2004, stLab: 'G87<b>', secI: 1, secD: 0.3, trace: [1] } } });
+r = await call('POST', '/share', { token: A.token, body: { payload: { car: 'BMW', type: 'lap', time: '2:00.00', stD: -0.2004, stLab: 'G87<b>', secI: 1, secD: 0.3, trace: [1] } } });
 {
   const p = ((x) => x.payload || x)((await call('GET', '/share/' + r.data.id)).data);
   ok(p.stD === -0.2 && p.stLab === 'G87b' && p.secI === 1 && p.secD === 0.3 && p.trace === undefined, 'stD/stLab/secI/secD kept and cleaned');
 }
-r = await call('POST', '/share', { body: { payload: { car: 'BMW', type: 'lap', time: '2:00.00', stD: 5, stNone: true, secI: 1.5, secD: 0.3, secOk: true } } });
+r = await call('POST', '/share', { token: A.token, body: { payload: { car: 'BMW', type: 'lap', time: '2:00.00', stD: 5, stNone: true, secI: 1.5, secD: 0.3, secOk: true } } });
 {
   const p = ((x) => x.payload || x)((await call('GET', '/share/' + r.data.id)).data);
   ok(p.stD === undefined && p.stNone === true && p.secI === undefined && p.secOk === true, 'stD without label / fractional sector dropped');

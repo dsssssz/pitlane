@@ -323,7 +323,7 @@ export async function roomsRoute(ctx) {
       name,
       createdAt: now,
       createdBy: pilot.id,
-      members: [{ pilotId: pilot.id, nick: h.safeName(body?.nick || pilot.name), role: 'captain', joinedAt: now }],
+      members: [{ pilotId: pilot.id, nick: h.safeName(pilot.name), role: 'captain', joinedAt: now }],
       invite: code,
       sessions: [],
       tracks: [],
@@ -540,7 +540,7 @@ async function joinRoom(ctx, room, body) {
   if (room.members.length >= ROOM_MAX_MEMBERS) return h.json({ error: 'room full', max: ROOM_MAX_MEMBERS }, 409, headers);
   const idx = (await h.kvJson(kv, 'roomidx:' + pilot.id)) || [];
   if (idx.length >= ROOM_MAX_JOINED) return h.json({ error: 'too many rooms', max: ROOM_MAX_JOINED }, 409, headers);
-  room.members.push({ pilotId: pilot.id, nick: h.safeName(body?.nick || pilot.name), role: 'member', joinedAt: Date.now() });
+  room.members.push({ pilotId: pilot.id, nick: h.safeName(pilot.name), role: 'member', joinedAt: Date.now() });
   if (Array.isArray(room.requests)) room.requests = room.requests.filter((r) => r.pilotId !== pilot.id);
   await saveRoom(kv, room);
   await indexRoom(kv, pilot.id, room.id, h);

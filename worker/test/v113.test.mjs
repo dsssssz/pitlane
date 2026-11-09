@@ -66,10 +66,10 @@ r = await call('GET', '/tops/drag/0-100?prep=stock');
 ok(r.data.length === 1 && r.data[0].carId === 'g87-m2', 'drag tops filter prep=stock');
 
 console.log('\n[share card class]');
-r = await call('POST', '/share', { body: { payload: { car: 'BMW', type: 'lap', time: '1:58.60', prep: 'st2', tyreT: 'semi' } } });
+r = await call('POST', '/share', { token: A.token, body: { payload: { car: 'BMW', type: 'lap', time: '1:58.60', prep: 'st2', tyreT: 'semi' } } });
 let p = ((x) => x.payload || x)((await call('GET', '/share/' + r.data.id)).data);
 ok(p.prep === 'st2' && p.tyreT === 'semi', 'class on share card');
-r = await call('POST', '/share', { body: { payload: { car: 'BMW', type: 'lap', time: '1:58.60', prep: '<b>', tyreT: 'x' } } });
+r = await call('POST', '/share', { token: A.token, body: { payload: { car: 'BMW', type: 'lap', time: '1:58.60', prep: '<b>', tyreT: 'x' } } });
 p = ((x) => x.payload || x)((await call('GET', '/share/' + r.data.id)).data);
 ok(p.prep === undefined && p.tyreT === undefined, 'unknown class dropped');
 console.log(fails ? `\n✗ ${fails} failed` : '\n✓ v113 all passed');
