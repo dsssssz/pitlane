@@ -44,6 +44,7 @@ function ensureThree() {
 }
 import { createExtGps } from './ext-gps.js';
 import { spring, countUp, flyShared, drawIn, reduced as motionReduced } from './motion.js'; // v160: движение
+import { tick as tickNum } from './ticker.js'; // v316: докатывающиеся цифры (замер, дельты, топы)
 /* v120: блок показывается, только когда в нём есть хотя бы N записей (пустая таблица хуже отсутствующей) */
 const SHOW_MIN = { leaders: 3, track: 1, sessionDay: 1, sectors: 3, season: 2 };
 function showWhen(id, on) { const e = typeof id === 'string' ? document.getElementById(id) : id; if (e) e.hidden = !on || e.classList.contains('v123-off'); } // v123: скрытые блоки старой Главной не всплывают
@@ -2688,6 +2689,8 @@ function setRunText(id, text) {
   const el = document.getElementById(id);
   if (el) el.textContent = text;
 }
+/** v316: то же, но число докатывается (только когда значение появилось/поменялось) */
+function tickRunText(id, text, opts) { const el = document.getElementById(id); if (el) tickNum(el, text, opts); }
 
 /* v153: «Старт» вкладки «Замер» раскрывается в спидометр — круг растёт из центра кнопки (clip-path).
  * Логику не задерживает: класс ставится в момент открытия оверлея (после подтверждения безопасности, если оно было). */
@@ -2798,7 +2801,7 @@ function rdGridSet(k, val, sub, { flash = false, pre = false } = {}) {
   const li = rdCell(k);
   if (!li) return;
   if (pre && li.classList.contains('done')) return;
-  li.children[1].textContent = String(val);
+  if (!pre && flash) tickNum(li.children[1], String(val), { dur: 600 }); else { li.children[1].__tk = (li.children[1].__tk || 0) + 1; li.children[1].textContent = String(val); li.children[1].__tkText = String(val); } // v316
   li.children[2].textContent = String(sub || '');
   li.classList.toggle('pre', pre);
   if (!pre) li.classList.add('done');
@@ -2816,25 +2819,17 @@ function r275Dl(k, sec) {
 function rd50Set(k, val) {
   const row = rd50Row(k); if (!row) return;
   const b = row.querySelector('b'); if (!b) return;
-  b.textContent = String(val) + (k === 'trap' ? ' км/ч' : ' с');
-  /* v277b: значение отрезка проявляется (blur/slide) и коротко досчитывается до итога; без анимации при prefers-reduced-motion */
-  try {
-    const fin = Number(val), suf = k === 'trap' ? ' км/ч' : ' с', dec = (String(val).split('.')[1] || '').length;
-    if (fin > 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      b.classList.remove('r277-in'); void b.offsetWidth; b.classList.add('r277-in');
-      const t0 = performance.now(), dur = 520, tok = (b._r277 = (b._r277 || 0) + 1);
-      const step = (t) => { if (b._r277 !== tok) return; const q = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - q, 3);
-        b.textContent = (q < 1 ? (fin * e).toFixed(dec) : String(val)) + suf; if (q < 1) requestAnimationFrame(step); };
-      requestAnimationFrame(step);
-    }
-  } catch (_) {}
+  /* v277b → v316: значение отрезка проявляется и докатывается до итога (tick: ease-out, tabular, без анимации при «уменьшить движение») */
+  const suf = k === 'trap' ? ' км/ч' : ' с';
+  if (Number(val) > 0) { b.classList.remove('r277-in'); void b.offsetWidth; b.classList.add('r277-in'); tickNum(b, String(val) + suf, { dur: 600 }); }
+  else b.textContent = String(val) + suf;
   const em = row.querySelector('.r275-dl'); const dl = k === 'trap' ? null : r275Dl(k, Number(val));
-  if (em) { em.textContent = dl ? dl.text : ''; em.className = 'r275-dl' + (dl ? ' ' + dl.cls : ''); }
+  if (em) { if (dl) tickNum(em, dl.text, { dur: 600, from: 0 }); else em.textContent = ''; em.className = 'r275-dl' + (dl ? ' ' + dl.cls : ''); }
   row.classList.remove('on'); void row.offsetWidth; row.classList.add('on');
   _hapKey = true; try { hap(12); } finally { _hapKey = false; } // v153: лёгкий «щелчок» при фиксации отметки
 }
 function rd50Reset() {
-  document.querySelectorAll('#rd50Rows .rd50-row').forEach((r) => { r.classList.remove('on'); const b = r.querySelector('b'); if (b) { b._r277 = (b._r277 || 0) + 1; b.classList.remove('r277-in'); b.textContent = '—'; } const em = r.querySelector('.r275-dl'); if (em) { em.textContent = ''; em.className = 'r275-dl'; } });
+  document.querySelectorAll('#rd50Rows .rd50-row').forEach((r) => { r.classList.remove('on'); const b = r.querySelector('b'); if (b) { b._r277 = (b._r277 || 0) + 1; b.__tk = (b.__tk || 0) + 1; b.__tkText = undefined; b.classList.remove('r277-in'); b.textContent = '—'; } const em = r.querySelector('.r275-dl'); if (em) { em.__tk = (em.__tk || 0) + 1; em.__tkText = undefined; em.textContent = ''; em.className = 'r275-dl'; } });
   rd50Sheet(false);
 }
 function rd50Sheet(open) {
@@ -3513,7 +3508,7 @@ function showMarkPop(key, sec, src, lagMs, at) {
     // правда — gps-core по сырому треку; значение чипа — только ранний показ, пока точки в пути
     if (src === 'chip' || prevPop.src === 'core') return;
     prevPop.src = 'core'; prevPop.sec = sec;
-    if (box?.dataset.k === key) { setRunText('runPopV', fmtRunSec(sec)); setRunText('runPopN', popNote('core')); }
+    if (box?.dataset.k === key) { tickRunText('runPopV', fmtRunSec(sec), { dur: 400 }); setRunText('runPopN', popNote('core')); }
     return;
   }
   run.pops[key] = { sec, src, lagMs, at: Date.now() };
@@ -3521,7 +3516,7 @@ function showMarkPop(key, sec, src, lagMs, at) {
   if (!box) return;
   box.dataset.k = key;
   setRunText('runPopK', POP_LABEL[key] || key);
-  setRunText('runPopV', fmtRunSec(sec));
+  { const pv = document.getElementById('runPopV'); if (pv) { pv.__tkText = undefined; tickNum(pv, fmtRunSec(sec), { from: 0, dur: 600 }); } } // v316: каждая новая отметка — счёт от нуля
   setRunText('runPopN', popNote(src, lagMs));
   box.classList.remove('hidden', 'pop-in', 'pop-out');
   void box.offsetWidth;
@@ -3613,7 +3608,7 @@ function rdDeltas() {
   const isHero0100 = document.getElementById('rdHeroK')?.textContent === '0–100';
   const dt = p && isHero0100 ? pbDeltaText(p, true) : null;
   d.className = 'rd-delta' + (dt ? ' ' + dt.cls : '');
-  d.textContent = dt ? dt.text : ''; d.hidden = !dt;
+  if (dt) tickNum(d, dt.text, { dur: 650 }); else d.textContent = ''; d.hidden = !dt; // v316
   // v153: новый личный рекорд — число проявляется медленно, по герою один раз проходит тонкая платиновая линия
   if (p && isHero0100 && Number.isFinite(p.pbD) && p.pbD <= -0.005 && run.pbAnimFor !== p) { run.pbAnimFor = p; rd53Pb(); }
   let sText = ''; let sCls = '';
@@ -3697,7 +3692,7 @@ function renderRunSummary() {
   const fmtS = (sec, k) => (isPh && M[k] ? fmtPhoneSec(sec, tp0, S) : fmtRunSec(sec));
   const heroK = ['0-100', '402m', '201m', '0-60', '60ft'].filter((k) => !(isPh && PHONE_NO_DISCS.includes(k))).find((k) => M[k]) || (chip('0-100') ? '0-100' : null);
   setRunText('rdHeroK', heroK ? RM_LABEL[heroK] + (isPh ? ' · телефон' : '') : 'Vmax');
-  setRunText('rdHeroV', heroK ? fmtS(M[heroK]?.sec ?? chip(heroK), heroK) : (S.vmax > 0 ? `${Math.round(S.vmax)} км/ч` : '—'));
+  tickRunText('rdHeroV', heroK ? fmtS(M[heroK]?.sec ?? chip(heroK), heroK) : (S.vmax > 0 ? `${Math.round(S.vmax)} км/ч` : '—'), { dur: 750 });
   setRunText('rdStDist', S.t0 != null ? `${Math.round(S.dist)} м` : '—');
   const q = M['402m'] ? '402m' : M['201m'] ? '201m' : null;
   setRunText('rdStQK', q ? RM_LABEL[q] : '¼ мили');
@@ -3753,7 +3748,7 @@ function renderChipOnlySummary(ev) {
   rdPhase('final');
   const k0 = m['0-100'] > 0 ? '0-100' : null;
   setRunText('rdHeroK', k0 ? '0–100' : 'Vmax');
-  setRunText('rdHeroV', k0 ? fmtRunSec(m['0-100'] / 1000) : (ev.vmax > 0 ? `${Math.round(ev.vmax)} км/ч` : '—'));
+  tickRunText('rdHeroV', k0 ? fmtRunSec(m['0-100'] / 1000) : (ev.vmax > 0 ? `${Math.round(ev.vmax)} км/ч` : '—'), { dur: 750 });
   ['rdStDist', 'rdStQ', 'rdStSlope'].forEach((id) => setRunText(id, '—'));
   setRunText('rdStSlopeN', '');
   const tb = document.getElementById('rdTable');
@@ -11961,7 +11956,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v315';
+const APP_VERSION = 'v316';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -15602,7 +15597,8 @@ function t72RenderLead(sel, rows) {
   m.appendChild(padEl('i', 't72-sheen'));
   const top = [ '№ 1', topsCityOn() ? myCity() : '', r.at ? 'рекорд ' + t72Ago(r.at) : '' ].filter(Boolean).join(' · ');
   m.appendChild(padEl('span', 't72-lead-cap', top));
-  const t = padEl('b', 't72-lead-t', t72Fmt(sel, r._ms)); if (sel.kind !== 'lap') t.appendChild(padEl('small', '', 'с'));
+  const t = padEl('b', 't72-lead-t'); const tv = padEl('span', 't72-lead-v'); t.appendChild(tv); if (sel.kind !== 'lap') t.appendChild(padEl('small', '', 'с'));
+  tickNum(tv, t72Fmt(sel, r._ms), { key: t72TkKey(sel, r, 0) + ':lead', dur: 780 }); // v316: время лидера докатывается при появлении/смене
   m.appendChild(t);
   const nm = padEl('span', 't72-lead-name', clipText(r.name || 'пилот', 16)); t72Plates(r, nm);
   if (isMyPilotId(r.pilotId)) nm.appendChild(padEl('em', 't72-you', 'ты'));
@@ -15653,12 +15649,14 @@ function t72RenderLine(sel, rows, me) {
   box.appendChild(ax);
   show(me > 0 ? me - 1 : 1);
 }
+/* v316: ключ «докатывания» строки топа — дисциплина + пилот: перерисовка с тем же значением не анимируется */
+function t72TkKey(sel, r, i) { return 't72:' + sel.kind + ':' + sel.id + ':' + (r.pilotId || r.name || i); }
 function t72Row(sel, rows, i, maxGap) {
-  const r = rows[i];
+  const r = rows[i]; const tk = t72TkKey(sel, r, i);
   const li = padEl('li', 'tb-row t72-row' + (i < 3 ? ' podium p' + (i + 1) : ''));
   const pid = r.pilotId && isPublicPilot(r.pilotId) ? r.pilotId : '';
   if (pid) { li.dataset.pilot = pid; if (r.at) li.dataset.at = String(r.at); li.tabIndex = 0; li.setAttribute('role', 'button'); }
-  li.appendChild(padEl('span', 'tb-n', String(i + 1)));
+  { const n = padEl('span', 'tb-n'); li.appendChild(n); tickNum(n, String(i + 1), { key: tk + ':n', dur: 520 }); }
   li.appendChild(t72CarImg(r, 't72-car'));
   const who = padEl('span', 't72-who');
   const nick = padEl('span', 'tb-nick', isMyPilotId(r.pilotId) ? 'Ты' : clipText(r.name || 'пилот', 14));
@@ -15669,10 +15667,10 @@ function t72Row(sel, rows, i, maxGap) {
   who.appendChild(padEl('span', 'tb-car', [shortCarName(r.car, r.carId) || '', PREP_SHORT[r.prep] || ''].filter(Boolean).join(' · ')));
   li.appendChild(who);
   const tm = padEl('span', 'tb-t');
-  tm.appendChild(padEl('b', '', t72Fmt(sel, r._ms)));
+  { const tb = padEl('b'); tm.appendChild(tb); tickNum(tb, t72Fmt(sel, r._ms), { key: tk + ':t', dur: 680 }); }
   if (r.chip === 1) { const v = padEl('small', 'tb-src chip', 'чип'); v.title = 'подтверждено чипом PITLANE GPS'; tm.appendChild(v); }
   if (r.gpsQ) tm.dataset.q = r.gpsQ;
-  if (i > 0) tm.appendChild(padEl('small', 'lb92-gap', '+' + t72Gap(r._ms - rows[0]._ms)));
+  if (i > 0) { const g = padEl('small', 'lb92-gap'); tm.appendChild(g); tickNum(g, '+' + t72Gap(r._ms - rows[0]._ms), { key: tk + ':g', dur: 680 }); }
   if (maxGap > 0 && i > 0) { const bar = padEl('i', 't72-gapbar'); bar.style.setProperty('--g', Math.max(.06, Math.min(1, (r._ms - rows[0]._ms) / maxGap)).toFixed(3)); tm.appendChild(bar); }
   li.appendChild(tm);
   if (isMyPilotId(r.pilotId)) li.classList.add('me');
@@ -16523,6 +16521,7 @@ async function renderAwards92() {
       onCustomize: () => { closePassSheet(); setTimeout(() => openPfEdit({ focusPass: true }), 120); },
       onSave: async (c) => { const r = await api.putPassCosmetics(c); if (!r || r.ok === false) return 'Не сохранилось: ' + (r?.error || 'сеть'); AW92.at = 0; void renderAwards92(); return 'Сохранено'; },
     });
+    if (pp) ps316Stagger(pp); // v316
   } finally { AW92.busy = false; }
 }
 
@@ -16533,10 +16532,47 @@ function openPassSheet() {
   const sh = document.getElementById('passSheet'); if (!sh) return;
   const body = document.getElementById('passBody');
   if (body && !body.childElementCount) { try { renderPassSheet(body, { pass: null, available: false, guest: !currentUser(), onLogin: passLogin, onBuy: async () => '', onSave: async () => '' }); } catch (_) {} }
-  sh.classList.remove('hidden'); sh.setAttribute('aria-hidden', 'false');
+  const was = !sh.classList.contains('hidden');
+  sh.classList.remove('hidden', 'ps316-out'); sh.setAttribute('aria-hidden', 'false');
+  if (!was) passSheetIn(sh);
   try { void renderAwards92(); } catch (_) {}
 }
-function closePassSheet() { const sh = document.getElementById('passSheet'); if (!sh) return; sh.classList.add('hidden'); sh.setAttribute('aria-hidden', 'true'); }
+/* v316: PITLANE PASS — шторка выезжает пружиной (лёгкий перелёт), содержимое проявляется по очереди; закрытие — вниз, свайп/подложка/×. */
+let _ps316 = null; let _ps316At = 0;
+/** Очередь появления: герой → что входит → планы → кнопка. Если содержимое перерисовалось (ответ сервера), уже показанное не мигает. */
+function ps316Stagger(body) {
+  if (!body || !_ps316At) return;
+  const el = performance.now() - _ps316At;
+  body.querySelectorAll('.ps-hero, .ps-it, .ps-note, .ps-cur, .ps-plan, .ps-buy, .ps-msg').forEach((n, i) => {
+    const d = 110 + i * 42;
+    if (motionReduced() || el >= d) { n.classList.remove('ps316-st'); n.style.animationDelay = ''; return; }
+    n.style.animationDelay = Math.round(d - el) + 'ms'; n.classList.add('ps316-st');
+  });
+}
+function passSheetIn(sh) {
+  const p = sh.querySelector('.pass-inner'); if (!p) return;
+  sh.classList.remove('ps316-on'); void sh.offsetWidth; sh.classList.add('ps316-on'); // подложка (CSS)
+  _ps316?.snap(0); p.style.transform = '';
+  if (motionReduced()) return;
+  _ps316At = performance.now(); ps316Stagger(document.getElementById('passBody'));
+  const h = p.offsetHeight || 600;
+  _ps316 = spring({ k: 210, zeta: 0.78, value: h, eps: 0.3, onUpdate: (y) => { p.style.transform = Math.abs(y) < 0.3 ? '' : `translate3d(0, ${y.toFixed(1)}px, 0)`; } });
+  p.style.transform = `translate3d(0, ${h}px, 0)`;
+  _ps316.set(0);
+}
+function closePassSheet() {
+  const sh = document.getElementById('passSheet'); if (!sh || sh.classList.contains('hidden')) return;
+  const p = sh.querySelector('.pass-inner');
+  const hide = () => { _ps316?.snap(0); if (p) p.style.transform = ''; sh.classList.add('hidden'); sh.classList.remove('ps316-on', 'ps316-out'); sh.setAttribute('aria-hidden', 'true'); };
+  // после свайпа шторка уже ушла вниз (translate) — просто прячем; «уменьшить движение» — сразу
+  if (!p || p.classList.contains('sd-drag') || motionReduced()) { hide(); return; }
+  sh.classList.add('ps316-out');
+  const h = p.offsetHeight || 600; const y0 = _ps316 ? _ps316.x : 0; _ps316?.snap(y0);
+  const a = p.animate?.([{ transform: `translate3d(0, ${y0}px, 0)` }, { transform: `translate3d(0, ${h + 24}px, 0)` }], { duration: 240, easing: 'cubic-bezier(.4,0,1,1)', fill: 'forwards' });
+  if (!a) { hide(); return; }
+  const fin = () => { try { a.cancel(); } catch (_) {} hide(); };
+  a.finished.then(fin, fin);
+}
 document.getElementById('btnPass')?.addEventListener('click', () => openPassSheet());
 document.getElementById('passClose')?.addEventListener('click', () => closePassSheet());
 document.getElementById('passSheet')?.addEventListener('click', (e) => { if (e.target === e.currentTarget) closePassSheet(); });
@@ -17287,7 +17323,29 @@ function rcFromRun(S, tp, el, pts) {
     splits, vmax: S?.vmax > 0 ? Math.round(S.vmax) : null, dist: S?.t0 != null && S.dist > 0 ? Math.round(S.dist) : null, curve,
     gps: { src: tp.src, hz: Number.isFinite(tp.hz) ? tp.hz : null, acc: Number.isFinite(tp.avgAcc) ? tp.avgAcc : null, sv, slope: el && Number.isFinite(el.slope) ? Number(el.slope.toFixed(1)) : null, q: tp.gpsQ },
     wx: null, ver: false, stamp: null,
+    pb0: (() => { const o = {}; for (const k of RC_ORDER) { const t = r275Pb0(k); if (t) o[k] = t; } return o; })(), // v316: прошлый личный рекорд (снимок на старте) — дельта у главной цифры
   };
+}
+/* v316: главная цифра чека — 0–100, иначе ¼ / ⅛ мили, 0–60… Дельта — только к реальному прошлому рекорду; хуже — красным. */
+const RC_HERO = ['0-100', '402m', '201m', '0-60', '0-200', '100-200'];
+const RC_I18N = { ru: { pbNew: 'новый личный рекорд', pbOld: 'к личному рекорду', sec: 'с' } };
+function rcT(k, lang = 'ru') { return (RC_I18N[lang] || RC_I18N.ru)[k] || ''; }
+function rcHero(rc) {
+  const s = RC_HERO.map((k) => rc.splits.find((z) => z.k === k)).find(Boolean) || rc.splits[0];
+  if (!s) return null;
+  const pb = Number(rc.pb0?.[s.k]); const d = pb > 0 ? s.sec - pb : null;
+  const dl = d != null && Math.abs(d) >= 0.005 ? { text: (d < 0 ? '−' : '+') + Math.abs(d).toFixed(2), cls: d < 0 ? 'up' : 'dn', note: d < 0 ? rcT('pbNew') : rcT('pbOld') } : null;
+  return { k: s.k, sec: s.sec, dl };
+}
+function rcTickNum(el, pre, pad, sign, body, post) {
+  const [a, b] = body.split('.');
+  el.innerHTML = stampEsc(pre + sign) + (pad ? `<span class="tk-pad" aria-hidden="true" style="visibility:hidden">${pad}</span>` : '') + a + (b != null ? `<span class="rc-dd">.${b}</span>` : '') + stampEsc(post);
+}
+function rcTicks(rc, card) {
+  card.querySelectorAll('[data-tk]').forEach((el) => {
+    const hero = el.classList.contains('rc-hv');
+    tickNum(el, el.dataset.tk, { key: 'rc:' + rc.at + ':' + el.dataset.tkk, dur: hero ? 780 : 620, render: el.dataset.tkr === 'n' ? rcTickNum : null });
+  });
 }
 function rcGpsBits(rc) {
   const g = rc.gps || {}; const b = [];
@@ -17323,16 +17381,19 @@ function rcTrustText(rc) {
 function rcRender() {
   const rc = _rc; const host = document.getElementById('rcView'); if (!rc || !host) return;
   const card = host.querySelector('.rc-card');
-  const rows = rc.splits.map((s) => `<div class="rc-row"><span class="rc-l">${stampEsc(RM_LABEL[s.k] || s.k)}</span><span class="rc-t">${rcNum(s.sec)}</span><span class="rc-v">${s.v || ''}</span><span class="rc-m">${s.d != null ? s.d : ''}</span></div>`).join('');
+  const rows = rc.splits.map((s) => `<div class="rc-row"><span class="rc-l">${stampEsc(RM_LABEL[s.k] || s.k)}</span><span class="rc-t" data-tk="${s.sec.toFixed(2)}" data-tkk="${s.k}" data-tkr="n">${rcNum(s.sec)}</span><span class="rc-v">${s.v || ''}</span><span class="rc-m">${s.d != null ? s.d : ''}</span></div>`).join('');
   const sub = [rc.tyre, rc.cls].filter(Boolean).join(' · ');
+  const H = rcHero(rc);
+  const heroHtml = H ? `<div class="rc-hero"><span class="rc-hk">${stampEsc(RM_LABEL[H.k] || H.k)}</span><div class="rc-hl"><b class="rc-hv" data-tk="${H.sec.toFixed(2)}" data-tkk="hero:${H.k}" data-tkr="n">${rcNum(H.sec)}</b><span class="rc-hu">${rcT('sec')}</span></div>${H.dl ? `<p class="rc-hd ${H.dl.cls}"><span data-tk="${H.dl.text}" data-tkk="hd:${H.k}">${H.dl.text}</span> <i>${stampEsc(H.dl.note)}</i></p>` : ''}</div>` : '';
   card.innerHTML = (rc.demo ? '<span class="rc-demo">ПРИМЕР</span>' : '') + `<div class="rc-head"><b>PITLANE</b><span>${stampEsc(rcDate(rc.at))}</span></div>
-<div class="rc-car">${brandLogoKey(rc.car) ? `<i class="rc-logo" style="--logo:url('./img/brands/${brandLogoKey(rc.car)}.svg')" aria-hidden="true"></i>` : ''}<span>${stampEsc(rc.car || 'Машина не выбрана')}</span></div>${sub ? `<div class="rc-sub">${stampEsc(sub)}</div>` : ''}
+<div class="rc-car">${brandLogoKey(rc.car) ? `<i class="rc-logo" style="--logo:url('./img/brands/${brandLogoKey(rc.car)}.svg')" aria-hidden="true"></i>` : ''}<span>${stampEsc(rc.car || 'Машина не выбрана')}</span></div>${sub ? `<div class="rc-sub">${stampEsc(sub)}</div>` : ''}${heroHtml}
 ${rows ? `<div class="rc-row rc-cap"><span>Отрезок</span><span>Время, с</span><span>км/ч</span><span>м</span></div>${rows}` : '<p class="rc-empty">До 60 км/ч не дошло — отрезков нет</p>'}
 <div class="rc-tot">${rc.vmax ? `<span>VMAX <b>${rc.vmax}</b> км/ч</span>` : '<span></span>'}${rc.dist ? `<span>ДИСТАНЦИЯ <b>${rc.dist}</b> м</span>` : ''}</div>
 ${rcChartSvg(rc, 326, 74)}
 <div class="rc-gps">${rcGpsBits(rc).map((b) => `<span>${stampEsc(b)}</span>`).join('')}</div>
 <div class="rc-foot">${rc.stamp ? `<div class="rc-stamp">${stampSvg(rc.stamp, 'rc')}</div><div><div class="rc-code">${stampEsc(stampCode(rc.stamp.code))}</div><div class="rc-tr ok">${rcTrustText(rc)}</div></div>` : `<div class="rc-tr${rc.ver ? ' ok' : ''}">${stampEsc(rcTrustText(rc))}</div>`}</div>`;
   host.querySelector('[data-rc="duel"]').hidden = !(rc === run.rc && run.pendingShare);
+  rcTicks(rc, card); // v316: цифры докатываются при первом показе (повторная отрисовка после вердикта — без анимации)
   rcFit();
 }
 function rcFit() {
@@ -17391,7 +17452,8 @@ function rcFromSlip(sl) {
 /** Картинка для «Поделиться» — та же раскладка, что на экране (координат нет). */
 async function rcCanvas(rc) {
   const W = 390; const P = 18; const RH = 30;
-  const H = 96 + (rc.tyre || rc.cls ? 16 : 0) + 24 + rc.splits.length * RH + 34 + (rc.curve ? 84 : 0) + 40 + (rc.stamp ? 100 : 30) + 20;
+  const HR = rcHero(rc); // v316: главная цифра — как на экране
+  const H = 96 + (rc.tyre || rc.cls ? 16 : 0) + (HR ? 128 : 0) + 24 + rc.splits.length * RH + 34 + (rc.curve ? 84 : 0) + 40 + (rc.stamp ? 100 : 30) + 20;
   const k = 3; const c = document.createElement('canvas'); c.width = W * k; c.height = H * k;
   const x = c.getContext('2d'); x.scale(k, k);
   try { await document.fonts?.ready; } catch (_) {}
@@ -17410,6 +17472,15 @@ async function rcCanvas(rc) {
   x.fillStyle = '#fff'; x.font = UI(600, 19); x.fillText(String(rc.car || 'Машина не выбрана').slice(0, 30), carX, y);
   const sub = [rc.tyre, rc.cls].filter(Boolean).join(' · ');
   if (sub) { y += 18; x.fillStyle = '#8e8e93'; x.font = UI(400, 12); x.fillText(sub.slice(0, 56), P + 6, y); }
+  if (HR) {
+    const DP = (w, s2) => `${w} ${s2}px "Sofia Sans Condensed", "Golos Text", Arial, sans-serif`;
+    y += 32; x.fillStyle = '#8e8e93'; x.font = UI(500, 10); x.letterSpacing = '2px'; x.fillText(String(RM_LABEL[HR.k] || HR.k).toUpperCase(), P + 6, y); x.letterSpacing = '0px';
+    y += 90; const [ha, hb] = HR.sec.toFixed(2).split('.'); x.font = DP(500, 108); x.letterSpacing = '-3px';
+    x.fillStyle = '#fff'; x.fillText(ha, P + 2, y); const wa = x.measureText(ha).width; x.fillStyle = '#8e8e93'; x.fillText('.' + hb, P + 2 + wa, y); const wb2 = x.measureText('.' + hb).width; x.letterSpacing = '0px';
+    x.font = DP(500, 22); x.fillText(rcT('sec'), P + 10 + wa + wb2, y);
+    if (HR.dl) { x.textAlign = 'right'; x.font = DP(600, 20); x.fillStyle = HR.dl.cls === 'dn' ? '#e10600' : '#f2efe9'; x.fillText(HR.dl.text, W - P - 6, y - 18); x.font = UI(400, 10); x.fillStyle = '#8e8e93'; x.fillText(HR.dl.note, W - P - 6, y); x.textAlign = 'left'; }
+    y += 6;
+  }
   const cx = [P + 6, W - P - 112, W - P - 54, W - P - 6];
   y += 28; x.font = UI(500, 9.5); x.fillStyle = '#8e8e93'; x.fillText('ОТРЕЗОК', cx[0], y); x.textAlign = 'right'; x.fillText('ВРЕМЯ, С', cx[1], y); x.fillText('КМ/Ч', cx[2], y); x.fillText('М', cx[3], y); x.textAlign = 'left';
   for (const s of rc.splits) {

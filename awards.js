@@ -356,7 +356,7 @@ export function renderPassSheet(root, { pass, onBuy, onSave, available, onCustom
   root.replaceChildren();
   const hero = h('div', 'ps-hero');
   hero.appendChild(h('h2', 'ps-t ps-wm', 'PITLANE PASS')); // v305: только словесный знак (Michroma), без эмблемы
-  hero.appendChild(h('p', 'ps-d', pass?.active ? 'Активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'Твой стиль в паддоке: пины и рамка у ника'));
+  hero.appendChild(h('p', 'ps-d', pass?.active ? 'Активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'Твой стиль в Pitlane: пины и рамка у ника'));
   root.appendChild(hero);
   const ul = h('ul', 'ps-list');
   const perks = [

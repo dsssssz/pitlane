@@ -8536,3 +8536,74 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_) #padComSend:not(:disabled):active {
 .pfe-nick-st.ok::before { content: '✓ '; }
 .pfe-nick-st.bad { color: #ff5a4f; }
 .pfe-nick-st.wait { color: #6f7278; }
+
+/* ——— v316: цифры и поверхности в духе «601»: масштаб вместо украшений, один вес, плотный трекинг, волосяные линии 1px, без теней/стекла/градиентов ——— */
+:root { --v316-line: #1a1a1a; --v316-s1: #0d0d0d; --v316-s2: #101010; --v316-mute: #8a8a8a; --v316-num: 'Sofia Sans Condensed', var(--font-num); }
+.tk-pad { visibility: hidden; }
+/* живой замер */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .run-drive-top { background: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive #runDriveSpeed { font-family: var(--v316-num) !important; font-weight: 500 !important; letter-spacing: -.04em !important; font-variant-numeric: tabular-nums !important; font-feature-settings: 'tnum' 1 !important; line-height: .86 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive:not([data-phase="ready"]) #runDriveSpeed { font-size: clamp(112px, 19vh, 172px) !important; }
+@media (max-height: 800px) { html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive:not([data-phase="ready"]) #runDriveSpeed { font-size: clamp(92px, 15vh, 132px) !important; } }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .run-drive-speed span { font: 500 11px/1 var(--font-ui) !important; letter-spacing: .32em !important; text-transform: uppercase !important; color: var(--v316-mute) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows { background: var(--v316-s1) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: none !important; border: 1px solid var(--v316-line) !important; border-radius: 16px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row { border-color: var(--v316-line) !important; align-items: baseline !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row span { font: 500 11px/1 var(--font-ui) !important; letter-spacing: .16em !important; text-transform: uppercase !important; color: var(--v316-mute) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row b { font-family: var(--v316-num) !important; font-weight: 500 !important; font-size: 36px !important; line-height: .9 !important; letter-spacing: -.03em !important; font-variant-numeric: tabular-nums !important; color: #fff !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row:not(.on) b { color: #3a3a3a !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row .r275-dl { font: 600 15px/1 var(--v316-num) !important; letter-spacing: 0 !important; font-variant-numeric: tabular-nums !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row .r275-dl.dn { color: #e10600 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-row .r275-dl.up { color: #f2efe9 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive #runDriveStop#runDriveStop.go-btn { background: var(--v316-s2) !important; -webkit-backdrop-filter: none !important; backdrop-filter: none !important; box-shadow: none !important; border: 1px solid var(--v316-line) !important; font: 600 17px/1 var(--font-ui) !important; letter-spacing: .02em !important; transition: transform .14s ease !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive #runDriveStop#runDriveStop.go-btn:active { transform: scale(.98) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .run-pop-v, html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd-hero-v { font-family: var(--v316-num) !important; font-weight: 500 !important; letter-spacing: -.04em !important; font-variant-numeric: tabular-nums !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd-hero-k, html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .run-pop-k { font: 500 11px/1 var(--font-ui) !important; letter-spacing: .2em !important; text-transform: uppercase !important; color: var(--v316-mute) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd-delta { font-variant-numeric: tabular-nums !important; }
+@keyframes r277In { 0% { opacity: 0; transform: translateY(6px); } 100% { opacity: 1; transform: none; } } /* v316: без размытия */
+
+/* чек заезда: главная цифра огромная, ниже — таблица на волосяных линиях */
+html:not(#_):not(#_) .rc-card { background: var(--v316-s1); border: 1px solid var(--v316-line); -webkit-backdrop-filter: none; backdrop-filter: none; }
+html:not(#_):not(#_) .rc-row, html:not(#_):not(#_) .rc-tot, html:not(#_):not(#_) .rc-gps { border-top-color: var(--v316-line); }
+html:not(#_):not(#_) .rc-cap { letter-spacing: .18em; }
+.rc-hero { margin: 14px 0 2px; padding-top: 14px; border-top: 1px solid var(--v316-line); }
+.rc-hk { display: block; font: 500 10px/1 var(--font-ui); letter-spacing: .22em; text-transform: uppercase; color: #8e8e93; }
+.rc-hl { display: flex; align-items: baseline; gap: 6px; margin-top: 8px; }
+.rc-hv { font: 500 128px/.8 var(--v316-num); letter-spacing: -.04em; font-variant-numeric: tabular-nums; color: #fff; margin-left: -4px; }
+.rc-hv .rc-dd { color: #6e6e73; }
+.rc-hu { font: 500 22px/1 var(--v316-num); color: #6e6e73; letter-spacing: 0; }
+.rc-hd { display: flex; align-items: baseline; gap: 8px; margin: 10px 0 0; font: 600 18px/1 var(--v316-num); font-variant-numeric: tabular-nums; color: #f2efe9; }
+.rc-hd.dn { color: #e10600; }
+.rc-hd i { font: 400 11px/1 var(--font-ui); font-style: normal; letter-spacing: .04em; color: #8e8e93; }
+.rc-t { letter-spacing: -.01em; }
+html:not(#_):not(#_) .rc-bar { border-top-color: var(--v316-line); }
+html:not(#_):not(#_) .rc-bar button { transition: transform .14s ease; } html:not(#_):not(#_) .rc-bar button:active { transform: scale(.98); }
+
+/* топы: цифры лидера и строк — тот же шрифт цифр, без прыжков ширины */
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-t { font: 500 66px/.86 var(--v316-num); letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-tops .t72-lead-t small { letter-spacing: 0; }
+html:not(#_):not(#_):not(#_):not(#_) #view-tops .tb-t b, html:not(#_):not(#_):not(#_):not(#_) #view-tops .lb92-gap, html:not(#_):not(#_):not(#_):not(#_) #view-tops .tb-n { font-variant-numeric: tabular-nums; }
+
+/* PITLANE PASS — шторка снизу: пружина (JS), подложка гаснет/проявляется, содержимое по очереди, одна главная кнопка */
+html:not(#_):not(#_):not(#_):not(#_) #passSheet .pass-inner { animation: none !important; will-change: transform; }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet.ps316-on { animation: ps316Bg .3s ease-out backwards; }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet.ps316-out { animation: ps316BgOut .24s ease-in forwards; pointer-events: none; }
+@keyframes ps316Bg { from { background-color: rgba(0,0,0,0); } }
+@keyframes ps316BgOut { to { background-color: rgba(0,0,0,0); } }
+.ps316-st { animation: ps316Up .42s cubic-bezier(.2,.8,.2,1) backwards; }
+@keyframes ps316Up { from { opacity: 0; transform: translateY(12px); } }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet .ps-plan { transition: transform .14s ease, border-color .14s ease; }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet .ps-plan:active { transform: scale(.98); }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet .ps-plan.on .ps-plan-dot { background: #f2efe9; }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet .ps-plan-p b { font: 600 24px/1 var(--v316-num); letter-spacing: -.01em; font-variant-numeric: proportional-nums; color: #f2efe9; }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet .ps-plan-p s { font-variant-numeric: tabular-nums; }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet .ps-buy { height: 54px; border-radius: 14px; background: #f2efe9; color: #000; font: 600 17px/1 var(--font-ui); letter-spacing: .01em; transition: transform .14s ease; }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet .ps-buy:active { transform: scale(.98); }
+html:not(#_):not(#_):not(#_):not(#_) #passSheet .ps-buy:disabled { background: var(--v316-s2); color: #8a8a8f; border: 1px solid var(--v316-line); }
+@media (prefers-reduced-motion: reduce) { .ps316-st, html:not(#_):not(#_):not(#_):not(#_) #passSheet.ps316-on, html:not(#_):not(#_):not(#_):not(#_) #passSheet.ps316-out { animation: none !important; } }
+
+/* карточки машин в духе Wallet: глубина — поверхностью и волосяной линией (без свечения), тактильное нажатие */
+html:not(#_):not(#_):not(#_):not(#_) .cw291 { background: var(--v316-s1) !important; border: 1px solid #1c1c1c !important; box-shadow: inset 0 1px 0 rgba(255,255,255,.045) !important; transition: transform .18s cubic-bezier(.2,.8,.2,1), border-color .18s ease !important; }
+html:not(#_):not(#_):not(#_):not(#_) .cw291.tap302:active { transform: scale(.98) !important; border-color: #2c2c2c !important; transition-duration: .09s !important; }
+html:not(#_):not(#_):not(#_):not(#_) .cw291 .cw-tap { background: #000; -webkit-backdrop-filter: none; backdrop-filter: none; border-color: #262626; }
+html:not(#_):not(#_):not(#_):not(#_) .cw291 .cw-y { position: relative; z-index: 3; }
+html:not(#_):not(#_):not(#_):not(#_) .cw291 .cw-s { font-variant-numeric: tabular-nums; }
