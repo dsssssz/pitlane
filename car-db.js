@@ -169,4 +169,17 @@ function render() {
 function plural(n) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? 'версия' : a >= 2 && a <= 4 && (b < 12 || b > 14) ? 'версии' : 'версий'; }
 
 /** v305: фото строки кузова для варианта из БД (по id) — для карточки «Моя машина» */
+/** v317: витрина для онбординга — по ключу «марка|модель» из ROW_PH берём вариант с известным заводским 0–100 (самый быстрый) и фото.
+ * Экраны выбора машины не меняются — только чтение базы. */
+export async function carDbShowcase(keys) {
+  await loadCarDb(); const f = flat() || []; const out = [];
+  for (const k of keys) {
+    const ph = ROW_PH[k]; if (!ph) continue;
+    const vs = f.filter((r) => r.b.k + '|' + r.m.n === k); if (!vs.length) continue;
+    const known = vs.filter((r) => Number(r.v0100) > 0).sort((a, b) => a.v0100 - b.v0100);
+    const r = known[0] || vs[0];
+    out.push({ id: r.id, name: r.name, hp: r.hp ?? null, v0100: r.v0100 ?? null, years: r.years || null, brand: r.b.t, photo: './img/cars/user/' + ph + '.webp' });
+  }
+  return out;
+}
 export function carDbRowPhoto(id) { const r = carDbById(id); if (!r) return ''; const p = ROW_PH[r.b.k + '|' + r.m.n]; return p ? './img/cars/user/' + p + '.webp' : ''; }

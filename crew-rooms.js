@@ -814,22 +814,24 @@ export function initCrewRooms(deps) {
  * Резина/паспорт берутся с текущей «Моей машины»; если их нет — открываем полный лист с выбранной машиной.
  */
 /* v302: тап по карточке «Моя машина» — сразу каталог (марка → модель → кузов), выбор = моя машина */
+/** v317: тот же путь, что и выбор в каталоге (онбординг передаёт выбранную машину сюда — экраны выбора не меняются). */
+export async function pickCatalogCar(c) {
+  const base = st.car || null;
+  if (!base || !base.tyre) { setTimeout(() => openMyCarSheet({ dbCar: c }), 280); return; }
+  // v305: другая машина — паспорт (л.с./масса) не переносим со старой; мощность берём из варианта каталога
+  const same = (base.carId || '') === (c.id || '') && base.model === c.name;
+  const pp = same ? passportOf(base) : { ...passportOf(base), hp: c.hp ?? undefined, kg: undefined };
+  const local = { ...base, ...pp, model: c.name, carId: c.id || undefined, at: Date.now() }; if (!same) { if (pp.hp == null) delete local.hp; delete local.kg; delete local.mods; }
+  let car = local;
+  if (loggedIn()) {
+    const r = await api.putMyCar({ model: c.name, tyre: base.tyre, carId: c.id || undefined, ...pp });
+    if (!r || r.ok === false) { try { D.flash?.('Не сохранилось — проверь сеть'); } catch (_) {} return; }
+    car = r.car || local;
+  }
+  cacheCar(car); D.hap?.(10);
+}
 export function openCarPicker() {
-  const pickCar = async (c) => {
-    const base = st.car || null;
-    if (!base || !base.tyre) { setTimeout(() => openMyCarSheet({ dbCar: c }), 280); return; }
-    // v305: другая машина — паспорт (л.с./масса) не переносим со старой; мощность берём из варианта каталога
-    const same = (base.carId || '') === (c.id || '') && base.model === c.name;
-    const pp = same ? passportOf(base) : { ...passportOf(base), hp: c.hp ?? undefined, kg: undefined };
-    const local = { ...base, ...pp, model: c.name, carId: c.id || undefined, at: Date.now() }; if (!same) { if (pp.hp == null) delete local.hp; delete local.kg; delete local.mods; }
-    let car = local;
-    if (loggedIn()) {
-      const r = await api.putMyCar({ model: c.name, tyre: base.tyre, carId: c.id || undefined, ...pp });
-      if (!r || r.ok === false) { try { D.flash?.('Не сохранилось — проверь сеть'); } catch (_) {} return; }
-      car = r.car || local;
-    }
-    cacheCar(car); D.hap?.(10);
-  };
+  const pickCar = (c) => pickCatalogCar(c);
   openCarDb({ onPick: (c) => pickCar(c), onManual: () => setTimeout(() => openMyCarSheet(), 280) });
 }
 export function openQuickCarSheet() {

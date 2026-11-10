@@ -44,7 +44,8 @@ function ensureThree() {
 }
 import { createExtGps } from './ext-gps.js';
 import { spring, countUp, flyShared, drawIn, reduced as motionReduced } from './motion.js'; // v160: движение
-import { tick as tickNum } from './ticker.js'; // v316: докатывающиеся цифры (замер, дельты, топы)
+import { tick as tickNum } from './ticker.js';
+import { initV317, onbMaybeShow, openRecap, seasonNoteRun, renderNowStack, springFlip } from './v317.js'; // v317: онбординг, итог сезона, «Сейчас на трассе», пружины топов // v316: докатывающиеся цифры (замер, дельты, топы)
 /* v120: блок показывается, только когда в нём есть хотя бы N записей (пустая таблица хуже отсутствующей) */
 const SHOW_MIN = { leaders: 3, track: 1, sessionDay: 1, sectors: 3, season: 2 };
 function showWhen(id, on) { const e = typeof id === 'string' ? document.getElementById(id) : id; if (e) e.hidden = !on || e.classList.contains('v123-off'); } // v123: скрытые блоки старой Главной не всплывают
@@ -54,8 +55,8 @@ import * as LB from './lap-battle.js';
 import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, makeLineRef, createLineProgress, ghostTrack, deltaAt, deltaSeries, sectorGains, fmtDelta, encodeGhost } from './ghost.js';
 import { flushRunQueue, runQueueSize } from './api.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
-import { brandLogoEl, brandLogoKey, carDbById, carDbRowPhoto } from './car-db.js';
-import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, openCarPicker as openCarDbPicker, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
+import { brandLogoEl, brandLogoKey, carDbById, carDbRowPhoto, carDbShowcase, openCarDb } from './car-db.js';
+import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, openCarPicker as openCarDbPicker, pickCatalogCar, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 // v207: подсказки удалены полностью
 const tipsOnView = () => {};
@@ -5368,6 +5369,7 @@ function pushSlip() {
   state.slips = state.slips || [];
   state.slips.unshift({ car: currentCar().name, v0100: rec.v0100, v100200: rec.v100200, at: Date.now(), ...(run?.rc && Date.now() - run.rc.at < 600000 ? { rc: run.rc } : {}) }); // v287: чек заезда
   state.slips = state.slips.slice(0, 20);
+  try { seasonNoteRun(state, state.slips[0]); } catch (_) {} // v317: счётчик сезона (итоги года)
   save();
   renderSlips();
 }
@@ -6117,12 +6119,15 @@ async function shareStory(p) {
     } catch (_) {}
   }
   if (ok) return;
-  // fallback: системный share картинки или скачивание
+  await shareImageFile(cv, 'pitlane-story.jpg');
+}
+/** fallback сторис: системный share картинки или скачивание (v317: общий для итога сезона) */
+async function shareImageFile(cv, name = 'pitlane-story.jpg') {
   try {
     const blob = await new Promise((r) => cv.toBlob(r, 'image/jpeg', 0.9));
-    const file = new File([blob], 'pitlane-story.jpg', { type: 'image/jpeg' });
+    const file = new File([blob], name, { type: 'image/jpeg' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'PITLANE' }); return; }
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pitlane-story.jpg';
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   } catch (err) { if (err?.name !== 'AbortError') console.warn('story', err); }
 }
@@ -8672,6 +8677,7 @@ function renderPulseRows(rows0) {
     empty.appendChild(padEl('p', '', cpEmptyText()));
     feed.appendChild(empty);
     padPaintTopsFeed(feed, 0);
+    void cpNowPaint();
     return;
   }
   if (CP.ch === 'tracks' && !CP.trk) { // v260: обсуждение по трассам — группы, свежая активность сверху
@@ -8689,6 +8695,7 @@ function renderPulseRows(rows0) {
   }
   padPaintOut();
   padPaintTopsFeed(feed, rows.length);
+  void cpNowPaint();
 }
 
 async function padToggleLike(id, btn) {
@@ -11956,7 +11963,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v316';
+const APP_VERSION = 'v317';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -15808,32 +15815,22 @@ async function renderTopsBoard() {
     return;
   }
   const me = t72Me(rows);
-  t72RenderLead(sel, rows);
-  t72RenderLine(sel, rows, me);
+  // v317: плотная таблица — витрину лидера и «гоночную линию» прячем, сверху «X с до №N» (только если ты в топе), твоя строка закреплена снизу
+  if (lead) { lead.hidden = true; lead.replaceChildren(); }
+  if (line) { line.hidden = true; line.replaceChildren(); }
+  const rk = t317Ranks(t317BoardKey(sel, cls), rows);
   const frag = document.createDocumentFragment();
   const sec = (a, b) => { const h = padEl('li', 't72-sec'); h.appendChild(padEl('span', '', a)); if (b) h.appendChild(padEl('span', '', b)); return h; };
-  const show = new Set();
-  const maxGap = rows[Math.min(rows.length, 3) - 1]._ms - rows[0]._ms;
-  if (rows.length > 1) frag.appendChild(sec('Подиум', 'отставание'));
-  const add = (i) => { if (i >= rows.length || show.has(i)) return; show.add(i); frag.appendChild(i === me ? t72MeCard(sel, rows, me, cls) : t72Row(sel, rows, i, i < 3 ? maxGap : 0)); };
-  add(1); add(2);
-  const foldEnd = Math.min(rows.length, 9);
-  if (foldEnd > 3) {
-    const open = _t72Fold || _t72All || (me >= 3 && me < 9);
-    if (open) for (let i = 3; i < foldEnd; i++) add(i);
-    else {
-      const b = padEl('li', 't72-fold'); const bt = padEl('button', '', '4–' + foldEnd + ' · показать'); bt.type = 'button';
-      bt.addEventListener('click', (e) => { e.stopPropagation(); _t72Fold = true; hap(4); void renderTopsBoard(); });
-      b.appendChild(bt); frag.appendChild(b);
-    }
+  if (me >= 0) frag.appendChild(t317GapCard(sel, rows, me));
+  const lim = Math.min(rows.length, _t72All ? 100 : T317_DENSE);
+  frag.appendChild(sec('#  ' + T317.pilot, sel.kind === 'lap' ? T317.lapT : T317.timeS));
+  const rowEls = [];
+  const add = (i) => { const li = t72Row(sel, rows, i, 0); li.classList.add('t317-row'); t317Chip(li, rows[i], i, rk); rowEls[i] = li; frag.appendChild(li); };
+  for (let i = 0; i < lim; i++) add(i);
+  if (me >= lim) {
+    frag.appendChild(sec(T317.zone, [topsCityOn() ? myCity() : '', { today: 'сегодня', week: 'неделя', all: 'всё время' }[_topsPeriod]].filter(Boolean).join(' · ')));
+    for (let i = Math.max(lim, me - 2); i <= Math.min(rows.length - 1, me + 1); i++) add(i);
   }
-  if (me === 0 || (me > 0 && me < 3)) { /* ты на подиуме — карточка уже выше */ }
-  if (_t72All) for (let i = 9; i < Math.min(rows.length, 100); i++) add(i);
-  else if (me >= 9) {
-    frag.appendChild(sec('Твоя зона', [topsCityOn() ? myCity() : '', { today: 'сегодня', week: 'неделя', all: 'всё время' }[_topsPeriod]].filter(Boolean).join(' · ')));
-    for (let i = Math.max(9, me - 2); i <= Math.min(rows.length - 1, me + 1); i++) add(i);
-  }
-  if (me === 0) { const card = t72MeCard(sel, rows, 0, cls); card.classList.add('lead'); frag.insertBefore(card, frag.firstChild); }
   if (me < 0) {
     const li = padEl('li', 'tb-empty t72-empty t72-notyet');
     li.appendChild(padEl('b', '', 'Ты ещё не в топе'));
@@ -15843,12 +15840,86 @@ async function renderTopsBoard() {
     li.appendChild(go);
     frag.appendChild(li);
   }
-  if (!_t72All && rows.length > Math.max(9, me + 2)) {
+  if (!_t72All && rows.length > lim) {
     const b = padEl('li', 't72-fold'); const bt = padEl('button', '', 'Весь топ · ' + Math.min(rows.length, 100)); bt.type = 'button';
     bt.addEventListener('click', (e) => { e.stopPropagation(); _t72All = true; hap(4); void renderTopsBoard(); });
     b.appendChild(bt); frag.appendChild(b);
   }
+  let pin = null;
+  if (me >= 0) { pin = padEl('li', 't317-pin'); const r = t72Row(sel, rows, me, 0); r.classList.add('t317-row'); t317Chip(r, rows[me], me, rk); r.removeAttribute('tabindex'); pin.appendChild(r); frag.appendChild(pin); }
   ol.appendChild(frag);
+  t317PinWatch(pin, rowEls[me]);
+  t317Overtake(rk, me, rowEls, rows);
+}
+/* ——— v317: живые топы ——— */
+const T317 = { pilot: 'Пилот', timeS: 'время, с', lapT: 'круг', zone: 'Твоя зона', to: (n) => 'До №' + n, lead: 'Ты №1 · отрыв от №2', away: (n) => 'Отрыв от №' + n + ': ', close: 'сотые решают', s: 'с' };
+const T317_DENSE = 30;
+const T317_RANK_KEY = 'pitlane-tops-ranks-v317';
+const T317_CHIP_MS = 3 * 864e5; // стрелки места — 3 дня после того, как ты увидел изменение
+function t317BoardKey(sel, cls) {
+  return [sel.kind, sel.id, cls, _topsPeriod, _topsPrep, topsCityOn() ? myCity() : '', document.getElementById('topMyCarOnly')?.checked ? 'car' : '', document.getElementById('topModelFilter')?.value || '', sel.kind === 'lap' ? getTopsWeatherFilter() : ''].join('|');
+}
+const t317Pid = (r) => (r && (r.pilotId || ('n:' + (r.name || '')))) || '';
+/** Прошлые места — только то, что этот телефон уже видел на этой доске (ничего не выдумываем). */
+function t317Ranks(key, rows) {
+  let all = {}; try { all = JSON.parse(localStorage.getItem(T317_RANK_KEY) || '{}') || {}; } catch (_) { all = {}; }
+  const cur = {}; rows.slice(0, 100).forEach((r, i) => { const k = t317Pid(r); if (k && cur[k] == null) cur[k] = i; });
+  const old = all[key]; let fresh = false; let rec = old;
+  const same = old && old.cur && Object.keys(cur).length === Object.keys(old.cur).length && Object.keys(cur).every((k) => old.cur[k] === cur[k]);
+  if (!same) { rec = { cur, prev: old?.cur || null, at: Date.now() }; fresh = !!old?.cur; all[key] = rec;
+    const ks = Object.keys(all); if (ks.length > 40) ks.sort((a, b) => (all[a].at || 0) - (all[b].at || 0)).slice(0, ks.length - 40).forEach((k) => delete all[k]);
+    try { localStorage.setItem(T317_RANK_KEY, JSON.stringify(all)); } catch (_) {} }
+  const live = !!rec.prev && Date.now() - (rec.at || 0) < T317_CHIP_MS;
+  return { prev: live ? rec.prev : null, fresh };
+}
+function t317Chip(li, r, i, rk) {
+  if (!rk.prev) return;
+  const p = rk.prev[t317Pid(r)]; if (p == null || p === i) return;
+  const up = p > i; const c = padEl('span', 't317-chip ' + (up ? 'up' : 'dn'), (up ? '↑ ' : '↓ ') + Math.abs(p - i));
+  c.setAttribute('aria-label', up ? 'поднялся на ' + (p - i) : 'опустился на ' + (i - p));
+  (li.querySelector('.tb-nick') || li).appendChild(c);
+}
+function t317GapCard(sel, rows, me) {
+  const r = rows[me]; const li = padEl('li', 't317-gap');
+  const ahead = me > 0 ? rows[me - 1] : null; const below = rows[me + 1] || null;
+  const cap = padEl('span', 't317-gap-cap', ahead ? T317.to(me) + ' · ' + (isMyPilotId(ahead.pilotId) ? 'ты' : clipText(ahead.name || 'пилот', 16)) : T317.lead);
+  const big = padEl('div', 't317-gap-big'); const v = padEl('b'); big.appendChild(v); if (sel.kind !== 'lap') big.appendChild(padEl('small', '', T317.s));
+  const gapMs = ahead ? r._ms - ahead._ms : (below ? below._ms - r._ms : 0);
+  tickNum(v, t72Gap(gapMs), { key: 't317gap:' + sel.kind + sel.id, dur: 780 });
+  li.append(cap, big);
+  if (ahead && below && below._ms > ahead._ms) {
+    const bar = padEl('div', 't317-gap-bar'); const f = padEl('i'); f.style.width = (Math.max(0.04, Math.min(1, (below._ms - r._ms) / (below._ms - ahead._ms))) * 100).toFixed(1) + '%'; bar.appendChild(f); li.appendChild(bar);
+  }
+  const foot = padEl('div', 't317-gap-foot');
+  foot.appendChild(padEl('span', '', ahead && below ? T317.away(me + 2) + t72Gap(below._ms - r._ms) + ' ' + T317.s : ('№' + (me + 1) + ' из ' + rows.length)));
+  foot.appendChild(padEl('span', '', T317.close));
+  li.appendChild(foot);
+  const act = padEl('div', 't72-act');
+  const g = me > 0 ? t72Ghost(sel) : null;
+  if (g) { const b = padEl('button', 't72-btn pri', 'Призрак лидера'); b.type = 'button'; b.addEventListener('click', (e) => { e.stopPropagation(); t72AttackGhost(g); }); act.appendChild(b); }
+  const z = padEl('button', 't72-btn' + (g ? '' : ' pri'), sel.kind === 'lap' ? 'На трек' : 'Замер'); z.type = 'button';
+  z.addEventListener('click', (e) => { e.stopPropagation(); hap(6); goToView(sel.kind === 'lap' ? 'lap' : 'run'); });
+  act.appendChild(z); li.appendChild(act);
+  return li;
+}
+let _t317Io = null;
+function t317PinWatch(pin, row) {
+  try { _t317Io?.disconnect(); } catch (_) {} _t317Io = null;
+  if (!pin) return;
+  if (!row || typeof IntersectionObserver === 'undefined') { pin.hidden = false; return; }
+  _t317Io = new IntersectionObserver((es) => { for (const e of es) pin.classList.toggle('off', e.isIntersecting && e.intersectionRatio > 0.6); }, { threshold: [0, 0.6, 1], rootMargin: '0px 0px -' + 140 + 'px 0px' });
+  _t317Io.observe(row);
+}
+/** Обгон: твоя строка въезжает со старого места на пружине Animated List (Magic UI, MIT, 350/40), соседи — на строку вниз. */
+function t317Overtake(rk, me, rowEls, rows) {
+  if (!rk.fresh || me < 0 || !rk.prev) return;
+  const was = rk.prev[t317Pid(rows[me])];
+  const li = rowEls[me]; if (!li || !(was > me)) return;
+  li.classList.add('t317-up');
+  setTimeout(() => li.classList.remove('t317-up'), 1600);
+  const h = li.offsetHeight; const last = rowEls.length - 1; const steps = Math.min(was, last) - me; if (!(steps > 0) || !h) return;
+  springFlip(li, steps * h);
+  for (let k = me + 1; k <= me + steps; k++) springFlip(rowEls[k], -h);
 }
 // v273: нижняя граница шапки PITLANE (вкл. Telegram safe-area) — под ней закрепляется переключатель Чип/Телефон
 function t73HdrB() { try { const hd = document.querySelector('.brand-bar'); if (!hd || !hd.offsetParent) return; const cs = getComputedStyle(hd); if (cs.position !== 'fixed' && cs.position !== 'sticky') return; const sy = window.scrollY; const r = hd.getBoundingClientRect(); const hb = cs.position === 'fixed' || sy > 0 ? Math.max(0, Math.round(r.bottom)) : Math.round(r.height + (parseFloat(cs.top) || 0)); document.documentElement.style.setProperty('--hdr-b', hb + 'px'); } catch (_) {} }
@@ -17593,3 +17664,48 @@ document.addEventListener('click', (e) => {
   const c = e.target.closest?.('.cw291.tap302'); if (c) { try { hap(10); } catch (_) {} try { openCarDbPicker(); } catch (_) {} }
 });
 window.addEventListener('pl-car', () => { try { void renderAwards92(); } catch (_) {} });
+
+/* ——— v317: «Сейчас на трассе» над чатом — реальные замеры за 24 ч (замеры из чата + свежие строки топов), стопка Kokonut ——— */
+let _cpNowSeq = 0;
+async function cpNowPaint() {
+  const host = document.getElementById('cpNow'); if (!host) return;
+  const seq = ++_cpNowSeq;
+  if (!CP.open || !['gen', 'runs'].includes(CP.ch)) { host.hidden = true; host.replaceChildren(); return; }
+  const items = [];
+  for (const p of CP.all || []) if (p && p.run && Number(p.run.t) > 0 && PAD_DISC[p.run.d]) items.push({ id: 'p:' + p.id, nick: padName(p.who), pilotId: p.pilotId || '', t: Number(p.run.t), d: p.run.d, dl: padDiscLabel(p.run.d), car: p.run.car || p.car || '', at: Number(p.at) || 0 });
+  let tops = []; try { tops = await padTopsFeed(); } catch (_) { tops = []; }
+  if (seq !== _cpNowSeq) return;
+  for (const r of tops || []) if (r && Number(r.t) > 0 && PAD_DISC[r.d]) items.push({ id: 't:' + r.d + ':' + (r.pilotId || r.name) + ':' + r.t, nick: padName(r.name), pilotId: r.pilotId || '', t: Number(r.t), d: r.d, dl: padDiscLabel(r.d), car: shortCarName(r.car, r.carId) || r.car || '', at: Number(r.at) || 0 });
+  const seen = new Set(); const uniq = [];
+  for (const it of items.sort((a, b) => b.at - a.at)) { const k = it.nick + '|' + it.d + '|' + it.t.toFixed(2); if (seen.has(k) || !it.at) continue; seen.add(k); it.ago = padAgo(it.at); uniq.push(it); }
+  renderNowStack(host, uniq, { onPilot: (id) => { if (isPublicPilot(id)) void openPilotProfile(id); } });
+}
+/* ——— v317: контекст для модуля онбординга / итога сезона ——— */
+initV317({
+  hap: (ms) => { try { hap(ms); } catch (_) {} },
+  hasAnyRun: () => hasAnyRun(), myCarLocal: () => myCarLocal(),
+  deepLink: () => { try { const sp = window.Telegram?.WebApp?.initDataUnsafe?.start_param; return !!sp || /[?&#]s=/.test(location.search + location.hash); } catch (_) { return false; } },
+  goToView: (v) => { try { goToView(v); } catch (_) {} },
+  carShowcase: (keys) => carDbShowcase(keys),
+  carPhoto: (id) => userCarPhoto(id) || carDbRowPhoto(id) || '',
+  openCarDb: (o) => openCarDb(o), openMyCarSheet: () => openMyCarSheet(), pickCar: (c) => pickCatalogCar(c),
+  state: () => state, tracks: () => TRACKS,
+  carName: () => { try { const mc = myCarLocal(); return mc ? shortCarName(mc.model, mc.carId) : ''; } catch (_) { return ''; } },
+  carPhotoMine: () => { try { const mc = myCarLocal(); return mc ? (userCarPhoto(mc.carId) || carDbRowPhoto(mc.carId) || '') : ''; } catch (_) { return ''; } },
+  nick: () => { try { return pf6Nick(); } catch (_) { return ''; } },
+  shareImage: (cv, name) => shareImageFile(cv, name),
+  cityRank: async () => { // место в топе 0–100 своего города — по серверному топу города; нет города / не в топе — null
+    const city = myCity(); if (!city || !isRemoteApi()) return null;
+    let best = null;
+    for (const cls of ['ab', 'c']) {
+      let rows = []; try { rows = (await api.listDrag('0-100', { cls, city })) || []; } catch (_) { rows = []; }
+      rows = cls === 'c' ? rows.filter((r) => r && r.gps && r.valid !== false && r.gpsQ === 'C' && r.cls === 'c') : (() => { try { return filterTopRows(rows); } catch (_) { return rows; } })();
+      rows = rows.filter((r) => Number(r.t) > 0).sort((a, b) => Number(a.t) - Number(b.t));
+      const i = rows.findIndex((r) => r && r.pilotId && isMyPilotId(r.pilotId));
+      if (i >= 0 && (!best || i + 1 < best.rank)) best = { rank: i + 1, n: rows.length, cls, city };
+    }
+    return best;
+  },
+});
+document.getElementById('pf6Recap')?.addEventListener('click', () => { hap(8); void openRecap(); });
+setTimeout(() => { try { onbMaybeShow(); } catch (err) { console.warn('onb', err); } }, 1400);
