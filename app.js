@@ -56,7 +56,8 @@ import { saveGhostLocal, bestGhostLocal, markGhostUploaded, createRecorder, make
 import { flushRunQueue, runQueueSize } from './api.js';
 import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefreshToken, setReauthHandler, devicePilotId, accountPilotId, actingPilotId, isMyPilotId } from './api.js';
 import { brandLogoEl, brandLogoKey, carDbById, carDbRowPhoto, carDbShowcase, openCarDb } from './car-db.js';
-import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, openCarPicker as openCarDbPicker, pickCatalogCar, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
+import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, openCarPicker as openCarDbPicker, pickCatalogCar, pickOwnCar, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
+import { initV318, countdown318, cdClose, drawRunCard318, mountWalletDeck } from './v318.js';
 import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
 // v207: подсказки удалены полностью
 const tipsOnView = () => {};
@@ -2746,6 +2747,7 @@ function openRunDrive(phase = 'ready') {
 }
 
 function closeRunDrive() {
+  try { cdClose(true); } catch (_) {}
   const el = document.getElementById('runDrive');
   if (!el) return;
   el.classList.add('hidden');
@@ -3593,7 +3595,7 @@ function rdFinalButtons() {
 function rdShareAugment() {
   const p = run.pendingShare; const S = run.rm?.S;
   if (!p || !S || !run.sumPts) return;
-  try { const c = shareCurve(run.sumPts, S); if (c) p.curve = c; p.splits = shareSplits(S); } catch (_) {}
+  try { const c = shareCurve(run.sumPts, S); if (c) p.curve = c; p.splits = shareSplits(S); if (S.vmax > 0) p.vmax = Math.round(S.vmax); } catch (_) {}
   // v118: паспорт на карточке = паспорт итога (весь заезд), а не срез на момент сохранения 0–100 (было 73 vs 231 точка)
   try {
     const tp = tracePassport(run.sumPts); p.n = tp.n; p.hz = tp.hz; p.avgAcc = tp.avgAcc;
@@ -3929,6 +3931,13 @@ function armRun(opts = {}) {
   setRunText('runStatus', 'Вооружён. Почти остановитесь и газуйте');
   openRunDrive();
   ghostRunArm();
+  // v318: отсчёт 3-2-1 — только картинка; замер уже вооружён, время идёт с реального движения
+  if (!opts.auto && opts.rawSeq0 == null && opts.cd !== false) { try { countdown318({ isLive: () => !!run.launched || !run.armed, hap: cd318Hap }); } catch (_) {} }
+}
+function cd318Hap(kind) {
+  try { if (localStorage.getItem('pitlane-hap-off') === '1') return; } catch (_) {}
+  if (isTMA) { try { tmaHaptic(kind === 'medium' ? 'medium' : 'light'); } catch (_) {} return; }
+  try { if (navigator.userActivation?.hasBeenActive !== false) navigator.vibrate?.(kind === 'medium' ? 18 : 8); } catch (_) {}
 }
 
 function stopRun() {
@@ -6102,7 +6111,7 @@ async function shareStory(p) {
   p = p || _sharePayload;
   if (!p) return;
   hap(16);
-  const cv = drawStoryCard(p);
+  let cv; try { cv = await drawRunCard318(p, 'story'); } catch (_) { cv = drawStoryCard(p); } // v318: карточка в духе Strava; старая — запасная
   const WA = window.Telegram?.WebApp;
   let ok = false;
   if (WA && typeof WA.shareToStory === 'function' && (!WA.isVersionAtLeast || WA.isVersionAtLeast('7.8'))) {
@@ -6132,6 +6141,9 @@ async function shareImageFile(cv, name = 'pitlane-story.jpg') {
   } catch (err) { if (err?.name !== 'AbortError') console.warn('story', err); }
 }
 document.getElementById('shareCardStory')?.addEventListener('click', () => { void shareStory(_sharePayload); });
+/* v318: пост 4:5 (1080×1350) — тот же системный share картинки / скачивание */
+async function sharePost(p) { p = p || _sharePayload; if (!p) return; hap(12); let cv; try { cv = await drawRunCard318(p, 'post'); } catch (_) { return; } await shareImageFile(cv, 'pitlane-post.jpg'); }
+document.getElementById('shareCardPost')?.addEventListener('click', () => { void sharePost(_sharePayload); });
 
 async function bootShareFromUrl() {
   try {
@@ -11963,7 +11975,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v317';
+const APP_VERSION = 'v318';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12130,7 +12142,7 @@ async function openVideoTele(scope, opts = {}) {
 /* v154: «С видео» — тихая кнопка под «Старт» (Замер) и «Старт круга» (Трек): запускает замер/круг и сразу запись с камеры + телеметрия */
 document.getElementById('h54Video')?.addEventListener('click', () => {
   hap(12);
-  withSafety(() => { armRun(); void openVideoTele('run', { autostart: true }); })();
+  withSafety(() => { armRun({ cd: false }); void openVideoTele('run', { autostart: true }); })();
 });
 document.getElementById('l54Video')?.addEventListener('click', () => {
   hap(12);
@@ -16574,8 +16586,10 @@ async function renderAwards92() {
     if (pr && pr.ok !== false) pass = pr.pass || null;
     const base = { car: mc?.carId || '', carName: mc ? shortCarName(mc.model, mc.carId) : '', nick, pass, spec: mc ? carCardSpec(mc) : null, cardHtml: mc ? carCard293Html(mc.carId || '', mc.model, { tap: true, mods: mods302Get(mods302Key(mc)) }) : '', modsN: mc ? mods302Get(mods302Key(mc)).length : 0 };
     renderShowcase(sc, { ...base, res: computeAwards({ boards: {}, laps: state.laps, tracks: TRACKS, pid }) });
+    wl318Mount(sc);
     const boards = await aw92Boards();
     renderShowcase(sc, { ...base, res: computeAwards({ boards, laps: state.laps, tracks: TRACKS, pid }) });
+    wl318Mount(sc);
     if (pp) renderPassSheet(pp, {
       pass, available, guest: !currentUser(), onLogin: passLogin,
       onBuy: async (plan) => {
@@ -16596,8 +16610,20 @@ async function renderAwards92() {
   } finally { AW92.busy = false; }
 }
 
+/* v318: колода машин (Wallet) — только если в гараже больше одной машины; одна — обычная карточка */
+function wl318Others() {
+  const mc = myCarLocal(); const seen = new Set([mc?.model || '']); const out = [];
+  for (const c of garageList()) { if (!c || !c.name || seen.has(c.name)) continue; seen.add(c.name); out.push({ id: c.id || '', name: c.name, html: carCard293Html(c.id || '', c.name, {}) }); }
+  return out;
+}
+function wl318Mount(sc) {
+  const front = sc?.querySelector('.cw291.sc293.tap302'); if (!front) return;
+  front.classList.add('emb318');
+  const others = wl318Others(); if (!others.length) return;
+  mountWalletDeck(front, others, { onPick: (o) => { void pickOwnCar({ name: o.name, id: o.id }); } });
+}
 /* v279: гость → «Войти, чтобы купить» */
-function passLogin() { closePassSheet(); needLogin('Paddock Pass — после входа через Telegram'); }
+function passLogin() { closePassSheet(); needLogin('PITLANE PASS — после входа через Telegram'); }
 /* v200: Paddock Pass — пилюля в шапке → отдельная шторка */
 function openPassSheet() {
   const sh = document.getElementById('passSheet'); if (!sh) return;
@@ -16984,7 +17010,7 @@ function renderPfEdit() {
   const hd = padEl('div', 'pfe-ph');
   const pi = document.createElement('img'); pi.src = './img/awards/pass_s.webp'; pi.alt = '';
   hd.append(pi, padEl('b', '', 'Оформление Pass'));
-  if (!on) hd.append(padEl('span', 'pfe-lock', 'Paddock Pass'));
+  if (!on) hd.append(padEl('span', 'pfe-lock', 'PITLANE PASS'));
   ps.append(hd);
   const prev = padEl('div', 'pfe-prev'); prev.id = 'pfePrev'; ps.append(prev);
   const pick = (title, list, key, imgOf) => {
@@ -17004,7 +17030,7 @@ function renderPfEdit() {
   pick('Пин у ника', PF6_PIN, 'pin', (v) => (v ? awardImg(v, true) : ''));
   if (!on) {
     const up = padEl('button', 'pfe-buy'); up.type = 'button';
-    up.append(padEl('b', '', 'Открыть с Paddock Pass'), padEl('span', '', 'от ' + PASS_STARS_206 + ' ★ · сезон 350 ★ · год 1190 ★'));
+    up.append(padEl('b', '', 'Открыть с PITLANE PASS'), padEl('span', '', 'от ' + PASS_STARS_206 + ' ★ · сезон 350 ★ · год 1190 ★'));
     up.addEventListener('click', () => { hap(8); openPassSheet(); });
     ps.append(up);
   }
@@ -17079,7 +17105,7 @@ function openPin209(k, own, el) {
   const ov = padEl('div', 'pin209'); ov.id = 'pin209'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', m[0]);
   const c = padEl('div', 'pin209-c');
   let im; if (k === 'helmet') { im = helmet3d('pin209-i', true, true); } else { im = document.createElement('img'); im.src = awardImg(k); im.alt = ''; im.className = 'pin209-i'; } // v213: шлем — 3D 360°, крутится сам и пальцем
-  c.append(im, padEl('span', 'pin209-k', 'PADDOCK PASS'), padEl('h3', '', m[0]), padEl('p', '', m[1] + '. Украшение Paddock Pass — на время и топ не влияет.'));
+  c.append(im, padEl('span', 'pin209-k', 'PITLANE PASS'), padEl('h3', '', m[0]), padEl('p', '', m[1] + '. Украшение PITLANE PASS — на время и топ не влияет.'));
   if (own && currentUser()) { const b = padEl('button', 'pin209-b', 'Сменить пин'); b.type = 'button'; b.addEventListener('click', () => { close(); setTimeout(() => openPfEdit({ focusPass: true }), 150); }); c.append(b); }
   const x = padEl('button', 'pin209-x', 'Закрыть'); x.type = 'button'; x.addEventListener('click', () => close()); c.append(x);
   ov.append(c);
@@ -17709,3 +17735,5 @@ initV317({
 });
 document.getElementById('pf6Recap')?.addEventListener('click', () => { hap(8); void openRecap(); });
 setTimeout(() => { try { onbMaybeShow(); } catch (err) { console.warn('onb', err); } }, 1400);
+/* v318 */
+initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar293(p?.carId || '', p?.car || ''); return r.meta?.ph || (r.x?.id ? userCarPhoto(r.x.id) : ''); } catch (_) { return ''; } } });

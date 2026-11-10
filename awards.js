@@ -281,7 +281,7 @@ export function renderPassCard(root, { pass, onBuy, onSave, available }) {
   root.replaceChildren();
   const top = h('div', 'pp-top');
   top.appendChild(im(awardImg('pass'), 'pp-ic', ''));
-  const t = h('div'); t.appendChild(h('b', '', 'Paddock Pass'));
+  const t = h('div'); t.appendChild(h('b', '', 'PITLANE PASS'));
   t.appendChild(h('small', '', pass?.active ? 'активен до ' + new Date(pass.until).toLocaleDateString('ru-RU') : 'только внешний вид · награды не продаются'));
   top.appendChild(t);
   top.appendChild(h('span', 'pp-price', 'от ' + PASS_STARS + ' ★'));

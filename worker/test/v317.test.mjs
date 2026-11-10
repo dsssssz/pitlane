@@ -38,11 +38,11 @@ console.log('[сезон]');
 console.log('[топы]');
 ok(/T317_RANK_KEY = 'pitlane-tops-ranks-v317'/.test(app) && /function t317Ranks/.test(app) && /prev: live \? rec\.prev : null/.test(app), 'прошлые места — только сохранённые локально, по доске');
 ok(/function t317Chip[\s\S]{0,120}if \(!rk\.prev\) return;/.test(app), 'нет прошлых мест — нет стрелок');
-ok(/\.t317-chip\.dn \{ color: #e10600/.test(css) && /\.t317-chip \{[^}]*color: #f2f2f2/.test(css), '↑ белая, ↓ красная');
+ok(/\.t317-chip\.dn \{ color: #e10600/.test(css) && /\.t317-chip \{[^}]*color: (#f2f2f2|var\(--pl-t1\))/.test(css), '↑ белая, ↓ красная');
 ok(/function t317GapCard/.test(app) && /t317-pin/.test(app) && /t317Overtake/.test(app) && /springFlip/.test(v), '«До №N», своя строка снизу, пружина обгона');
 
 console.log('[чат]');
-ok(/#chatPage #chatFoot #pulseSend \{[^}]*background: #f2f2f2 !important; color: #0a0a0a !important/.test(css), 'белая кнопка «Отправить», чёрная стрелка');
+ok(/#chatPage #chatFoot #pulseSend \{[^}]*background: (#f2f2f2|var\(--pl-btn\)) !important; color: #0a0a0a !important/.test(css), 'белая кнопка «Отправить», чёрная стрелка');
 ok(/id="cpNow" hidden/.test(html) && /function cpNowPaint/.test(app) && /export function renderNowStack/.test(v), '«Сейчас на трассе» над чатом, скрыт без событий');
 ok(/id="pf6Recap"/.test(html) && /Итоги сезона/.test(html), 'кнопка «Итоги сезона» в профиле');
 

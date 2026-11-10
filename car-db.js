@@ -173,11 +173,15 @@ function plural(n) { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ?
  * Экраны выбора машины не меняются — только чтение базы. */
 export async function carDbShowcase(keys) {
   await loadCarDb(); const f = flat() || []; const out = [];
+  // When a body photo is a specific generation, prefer a matching variant so the onboarding label matches the picture.
+  const PHOTO_VAR = { 'toyota|Land Cruiser 200 / 300': /LC200/i };
   for (const k of keys) {
     const ph = ROW_PH[k]; if (!ph) continue;
     const vs = f.filter((r) => r.b.k + '|' + r.m.n === k); if (!vs.length) continue;
     const known = vs.filter((r) => Number(r.v0100) > 0).sort((a, b) => a.v0100 - b.v0100);
-    const r = known[0] || vs[0];
+    const prefer = PHOTO_VAR[k];
+    const match = prefer ? (known.find((r) => prefer.test(r.name)) || vs.find((r) => prefer.test(r.name))) : null;
+    const r = match || known[0] || vs[0];
     out.push({ id: r.id, name: r.name, hp: r.hp ?? null, v0100: r.v0100 ?? null, years: r.years || null, brand: r.b.t, photo: './img/cars/user/' + ph + '.webp' });
   }
   return out;
