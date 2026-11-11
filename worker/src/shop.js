@@ -311,6 +311,7 @@ export async function createOrder(env, buyer, rec, mine, h, { source = 'app', no
   const t = ttl();
   await kv.put(orderKey(o.id), JSON.stringify(o), { expirationTtl: t, metadata: { pid: buyer.pid } });
   await kv.put(ordersKey(buyer.pid), JSON.stringify([o, ...(mine || [])].slice(0, SHOP_ORDERS_MAX)), { expirationTtl: t });
+  try { if (typeof h.onShopOrder === 'function') await h.onShopOrder(env, o); } catch (_) {}
   return o;
 }
 
@@ -343,6 +344,7 @@ export async function setOrderStatus(env, id, st, h, extra = {}) {
   await kv.put(orderKey(id), JSON.stringify(o), { expirationTtl: t, metadata: { pid: o.pid } });
   const list = await listOrders(kv, o.pid, h);
   await kv.put(ordersKey(o.pid), JSON.stringify(list.map((x) => (x.id === id ? { ...x, status: st, history: o.history, founder: !!o.founder, track: o.track || null, payUrl: o.payUrl } : x))), { expirationTtl: t });
+  try { if (typeof h.onShopOrder === 'function') await h.onShopOrder(env, o); } catch (_) {}
   return { o, changed: true };
 }
 export const getOrder = (env, id, h) => (ID_RE.test(String(id || '')) ? h.kvJson(env.PITLANE, orderKey(id)) : null);

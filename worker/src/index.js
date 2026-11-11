@@ -14,6 +14,7 @@ import { musicRoute, musicFromBot, loadMusic, publicTrack, deleteAccountMusic } 
 import { gpsRoute, deleteAccountGps, GpsLive, chipAttest } from './gpslive.js';
 import { shopRoute, deleteAccountShop } from './shop.js';
 import { botCallback, botFlowMessage, botCommand, botStart, mainMenuRows, botTrackCommand } from './botshop.js';
+import { ensureHub, updateHubForOrder, deleteHubKeys, TG_ALLOWED_UPDATES, MENU_BUTTON } from './bothub.js';
 import { trackSuggestRoute, deleteAccountTrackSug } from './tracksug.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, roomsRefundedPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
@@ -2167,6 +2168,12 @@ async function tgHandleMessage(env, msg) {
     const tx = typeof msg.text === 'string' ? msg.text.trim() : '';
     const tm = tx.match(/^\/track(?:@[A-Za-z0-9_]{3,64})?(?:\s+(\S+)\s+([A-Za-z0-9-]{6,40}))?$/i); // v226: админ — трек-номер
     if (tm) { const r = await botTrackCommand(env, msg, tm[1], tm[2], BOT_H); if (r) return r; }
+    const hm = tx.match(/^\/hub(?:@[A-Za-z0-9_]{3,64})?$/i);
+    if (hm) {
+      const h = await ensureHub(env, chatId, BOT_H);
+      if (msg.message_id) await tgCall(env, 'deleteMessage', { chat_id: chatId, message_id: msg.message_id });
+      return { cmd: 'hub', sent: !!h.ok, mode: h.mode, mid: h.mid || null, kind: h.kind || null, fallback: !!h.fallback };
+    }
     const bm = tx.match(/^\/(shop|orders|chip|help|faq|menu|support|terms|cart)(?:@[A-Za-z0-9_]{3,64})?$/i) || (/^\/start(?:@\S+)?\s+(shop|orders|chip|faq|cart|support|terms)$/i.exec(tx));
     if (bm) { const r = await botCommand(env, msg, bm[1].toLowerCase(), BOT_H); if (r) return r; }
   }
@@ -2179,7 +2186,13 @@ async function tgHandleMessage(env, msg) {
   const text = typeof msg.text === 'string' ? msg.text.slice(0, 512) : '';
   const route = tgRoute(text, await startInfo(env, text));
   // v183: /start — один экран: прошлое меню удаляется, приходит одно новое (и команда пользователя убирается)
-  if (route.cmd === 'start') return botStart(env, msg, route, BOT_H);
+  if (route.cmd === 'start') {
+    const r = await botStart(env, msg, route, BOT_H);
+    try {
+      const h = await ensureHub(env, chatId, BOT_H);
+      return { ...r, hub: h.mode || null, hubKind: h.kind || null, hubMid: h.mid || null };
+    } catch (_) { return r; }
+  }
   let r = await tgCall(env, route.method, { chat_id: chatId, ...route.payload });
   if (!r?.ok && route.method === 'sendPhoto') {
     // banner unreachable → same text without the photo
@@ -2201,7 +2214,7 @@ async function tgSetup(env, origin) {
     out.setWebhook = await tgCall(env, 'setWebhook', {
       url: origin + '/tg/webhook/' + tgWebhookPath(secret),
       secret_token: secret,
-      allowed_updates: ['message', 'pre_checkout_query', 'callback_query'],
+      allowed_updates: TG_ALLOWED_UPDATES,
       max_connections: 20,
     });
   } else {
@@ -2213,7 +2226,7 @@ async function tgSetup(env, origin) {
   out.setMyDescriptionRu = await tgCall(env, 'setMyDescription', { description: BOT_DESCRIPTION, language_code: 'ru' });
   out.setMyShortDescription = await tgCall(env, 'setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION });
   out.setMyShortDescriptionRu = await tgCall(env, 'setMyShortDescription', { short_description: BOT_SHORT_DESCRIPTION, language_code: 'ru' });
-  out.setChatMenuButton = await tgCall(env, 'setChatMenuButton', { menu_button: { type: 'web_app', text: 'PITLANE', web_app: { url: APP_URL } } });
+  out.setChatMenuButton = await tgCall(env, 'setChatMenuButton', { menu_button: MENU_BUTTON() });
   if (me?.ok && me.result.first_name !== BOT_NAME) out.setMyName = await tgCall(env, 'setMyName', { name: BOT_NAME });
   // verification
   const wh = await tgCall(env, 'getWebhookInfo', {});
@@ -2560,6 +2573,7 @@ async function deleteAccount(kv, pid, currentToken, env = { PITLANE: kv }) {
     await deleteNotifyKeys(kv, pid, NOTIFY_H);
     await deleteFollowKeys(kv, pid, NOTIFY_H); // v131
     for (const p of rec?.providers || []) if (p.type === 'tg' && /^\d{1,20}$/.test(String(p.id))) await kv.delete('tgstart:' + p.id);
+    try { await deleteHubKeys(kv, rec); } catch (_) {}
   } catch (_) {}
 
   // providers → auth mappings (+ phone-keyed OTP / rate-limit leftovers, legacy user record)
@@ -3000,6 +3014,7 @@ const SHOP_H = {
   get kvJson() { return kvJson; }, get kvListAll() { return kvListAll; }, get cleanLabel() { return cleanLabel; }, get containsPhone() { return containsPhone; },
   get randB36() { return randB36; }, get tgCall() { return tgCall; }, get tgEsc() { return tgEsc; }, get tgChatOf() { return tgChatOf; }, get tgUsernameOf() { return tgUsernameOf; },
   get safeName() { return safeName; }, get moscowDateKey() { return moscowDateKey; }, get webAppBtn() { return webAppBtn; },
+  onShopOrder: (env, o) => updateHubForOrder(env, o, SHOP_H),
 };
 /** v182: helpers for ./botshop.js (бот: магазин, заказы, поддержка, статусы) */
 const BOT_H = {
@@ -3007,6 +3022,7 @@ const BOT_H = {
   get cleanLabel() { return cleanLabel; }, get containsPhone() { return containsPhone; }, get randB36() { return randB36; }, get safeName() { return safeName; },
   get tgChatOf() { return tgChatOf; }, get moscowDateKey() { return moscowDateKey; }, get webAppBtn() { return webAppBtn; }, get isPilotUuid() { return isPilotUuid; },
   get ensurePilotForProvider() { return ensurePilotForProvider; }, get tgFlood() { return tgFlood; },
+  onShopOrder: (env, o) => updateHubForOrder(env, o, BOT_H),
 };
 /** v121: helpers for ./notify.js */
 const NOTIFY_H = {
@@ -3168,6 +3184,12 @@ export default {
         if (upd && upd.pre_checkout_query) {
           const r = await roomsPreCheckout(env, upd.pre_checkout_query, ROOM_H);
           return json({ ok: true, precheckout: !!r?.ok }, 200, headers);
+        }
+        // v320: запросы HTML-виджета (хаб сам почти не шлёт request — кнопки открывают Mini App)
+        if (upd && upd.widget_query) {
+          const q = upd.widget_query;
+          if (q && q.id) await tgCall(env, 'answerWidgetQuery', { widget_query_id: q.id });
+          return json({ ok: true, cmd: 'widget_query' }, 200, headers);
         }
         // v182: кнопки бота (магазин, оформление, мои заказы, статусы заказов для Маги)
         if (upd && upd.callback_query) {

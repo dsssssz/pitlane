@@ -1,5 +1,6 @@
 // v81 Telegram bot tests: node test/tg.test.mjs
 import rawWorker, { tgRoute, tgWebhookPath, BOT_COMMANDS, BOT_DESCRIPTION, BOT_SHORT_DESCRIPTION } from '../src/index.js';
+import { TG_ALLOWED_UPDATES, MENU_BUTTON_TEXT } from '../src/bothub.js';
 import { withAutoRefresh } from './autorefresh.mjs';
 const worker = withAutoRefresh(rawWorker);
 import { MemKV } from './kvmock.mjs';
@@ -44,37 +45,38 @@ r = await worker.fetch(new Request('https://api.test' + P, { method: 'POST', hea
 ok(r.status === 404, 'short/unset secret disables the webhook');
 r = await hook('/start');
 sent = sent.filter((x) => x.method !== 'deleteMessage'); // v183: команда пользователя убирается (один экран)
-ok(r.status === 200 && sent.length === 2 && sent[0].method === 'setWebhook' && JSON.stringify(sent[0].body.allowed_updates) === '["message","pre_checkout_query","callback_query"]', 'first verified update self-heals payment updates (setWebhook once)');
+ok(r.status === 200 && sent[0].method === 'setWebhook' && JSON.stringify(sent[0].body.allowed_updates) === JSON.stringify(TG_ALLOWED_UPDATES), 'first verified update self-heals payment updates (setWebhook once, +widget_query)');
 sent.shift();
-ok(sent.length === 1, 'valid secret + path → 200 and one reply');
+ok(sent.some((x) => x.method === 'sendPhoto') && sent.some((x) => x.method === 'sendWidget'), 'valid secret + path → 200, banner + hub widget');
 r = await hook('/help', 556); sent = sent.filter((x) => x.method !== 'deleteMessage' && String(x.body.chat_id) !== '556');
 ok(!sent.some((x) => x.method === 'setWebhook'), 'self-heal runs only once (KV flag)');
 
 console.log('\n[command routing]');
-let s = sent.pop();
-ok(s.method === 'sendPhoto' && s.body.chat_id === 555 && /banner\.jpg(\?v=\d+)?$/.test(s.body.photo), '/start → sendPhoto banner to chat');
+const lastReply = () => { while (sent.length) { const x = sent.pop(); if (!/^(sendWidget|pinChatMessage|unpinChatMessage|editMessageWidgetData)$/.test(x.method)) return x; } return null; };
+let s = lastReply();
+ok(s && s.method === 'sendPhoto' && s.body.chat_id === 555 && /banner\.jpg(\?v=\d+)?$/.test(s.body.photo), '/start → sendPhoto banner to chat');
 const kb = s.body.reply_markup.inline_keyboard;
 ok(kb.length === 4 && kb[0][0].text === 'Открыть PITLANE' && kb[0][0].web_app.url === 'https://dsssssz.github.io/pitlane/', 'big open button');
 ok(kb[1][0].callback_data === 'p:pitlane-gps' && /PITLANE GPS · 8\u00a0499\u00a0₽/.test(kb[1][0].text) && kb[2].map((b) => b.callback_data).join() === 'sh,my' && kb[3].map((b) => b.callback_data).join() === 'chip,faq', 'v182: меню — PITLANE GPS, магазин/заказы, чип/вопросы');
 ok(s.body.parse_mode === 'HTML' && /^<b>PITLANE<\/b>/.test(s.body.caption), 'HTML caption with bold title');
 ok(!/\bpro\b|₽|руб\.|рубл|цена|стоимост|подписк/i.test(s.body.caption), 'no Pro/prices in caption');
 await hook('/start duel_Ab12-x');
-s = sent.pop();
+s = lastReply();
 ok(s.body.reply_markup.inline_keyboard[0][0].web_app.url === 'https://dsssssz.github.io/pitlane/?startapp=duel_Ab12-x' && /больше недоступен/.test(s.body.caption), '/start duel_… → startapp deep link + «раздел недоступен» (v206: дуэли убраны)');
 await hook('/start <script>alert(1)</script>');
-s = sent.pop();
+s = lastReply();
 ok(!/startapp|script/.test(JSON.stringify(s.body)), 'invalid payload ignored, not echoed');
 await hook('/start@pitlane_official_bot crew_x1');
-s = sent.pop();
+s = lastReply();
 ok(/startapp=crew_x1/.test(s.body.reply_markup.inline_keyboard[0][0].web_app.url), '/start@bot suffix handled');
 const expect = { '/login': /view=account/, '/garage': /view=garage/, '/tops': /view=tops/, '/duel': /\/pitlane\/$/, '/feedback': /screen=feedback/ };
 for (const [cmd, re] of Object.entries(expect)) {
   r = await hook(cmd, 777);
-  s = sent.pop();
+  s = lastReply();
   ok(r.data.cmd === cmd.slice(1) && s.method === 'sendMessage' && s.body.parse_mode === 'HTML' && re.test(s.body.reply_markup.inline_keyboard[0][0].web_app.url), cmd + ' → sendMessage + web_app button');
 }
 r = await hook('привет', 778);
-s = sent.pop();
+s = lastReply();
 ok(r.data.cmd === 'other' && /\/help/.test(s.body.text), 'free text → friendly hint');
 r = await hook('/unknown', 778);
 ok(r.data.cmd === 'other', 'unknown command → hint');
@@ -102,19 +104,19 @@ r = await post('/tg/setup', {}, { 'X-Admin-Secret': ADMIN });
 const methods = sent.map((x) => x.method);
 ok(r.status === 200 && ['setWebhook', 'setMyCommands', 'setMyDescription', 'setMyShortDescription', 'setChatMenuButton', 'setMyName'].every((m) => methods.includes(m)), 'setup calls all Bot API methods');
 const wh = sent.find((x) => x.method === 'setWebhook').body;
-ok(wh.secret_token === SECRET && wh.url === 'https://api.test' + P && JSON.stringify(wh.allowed_updates) === '["message","pre_checkout_query","callback_query"]', 'setWebhook url/secret/allowed_updates');
+ok(wh.secret_token === SECRET && wh.url === 'https://api.test' + P && JSON.stringify(wh.allowed_updates) === JSON.stringify(TG_ALLOWED_UPDATES), 'setWebhook url/secret/allowed_updates');
 ok(sent.filter((x) => x.method === 'setMyCommands').some((x) => x.body.language_code === 'ru'), 'ru commands set');
-ok(sent.find((x) => x.method === 'setChatMenuButton').body.menu_button.text === 'PITLANE', 'menu button PITLANE');
+ok(sent.find((x) => x.method === 'setChatMenuButton').body.menu_button.text === MENU_BUTTON_TEXT && /startapp=zamer/.test(sent.find((x) => x.method === 'setChatMenuButton').body.menu_button.web_app.url), 'menu button «Замер» → startapp=zamer');
 ok(!methods.includes('sendMessage') && !methods.includes('sendPhoto'), 'setup does not message anyone');
 ok(r.data.result.getWebhookInfo.urlMatches === true, 'verification reported');
-ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.map((c) => c.command).join() === 'start,shop,orders,chip,cart,help,support,terms,stop_notify' && BOT_COMMANDS.every((c) => c.description.length <= 256), 'description lengths within limits');
+ok([...BOT_DESCRIPTION].length <= 512 && [...BOT_SHORT_DESCRIPTION].length <= 120 && BOT_COMMANDS.map((c) => c.command).join() === 'start,hub,shop,orders,chip,cart,help,support,terms,stop_notify' && BOT_COMMANDS.every((c) => c.description.length <= 256), 'description lengths within limits');
 ok(!/\bpro\b|₽|руб\.|рубл|цена|стоимост|подписк/i.test(BOT_DESCRIPTION + BOT_SHORT_DESCRIPTION), 'no Pro/prices in descriptions');
 ok(tgRoute('/START').cmd === 'start', 'commands case-insensitive');
 
 sent.length = 0;
 env.FEEDBACK_CHAT_ID = '8591275999';
 r = await post('/tg/setup?preview=1', {}, { 'X-Admin-Secret': ADMIN });
-ok(r.status === 200 && sent.length === 1 && sent[0].method === 'sendPhoto' && sent[0].body.chat_id === 8591275999, 'preview sends exactly one /start to owner chat');
+ok(r.status === 200 && sent.some((x) => x.method === 'sendPhoto' && String(x.body.chat_id) === '8591275999') && sent.some((x) => x.method === 'sendWidget' && String(x.body.chat_id) === '8591275999') && !sent.some((x) => x.body.chat_id != null && String(x.body.chat_id) !== '8591275999'), 'preview /start to owner: баннер + хаб, больше никому');
 
 console.log(fails ? `\n${fails} FAILED` : '\nall tg tests passed');
 process.exit(fails ? 1 : 0);

@@ -64,7 +64,7 @@ console.log('\n[/start invite with team name]');
 // v206: команды и дуэли убраны из продукта — старые ссылки ведут в приложение, уведомлений нет
 sent.length = 0;
 await hook({ update_id: 1, message: { message_id: 1, chat: { id: 7003, type: 'private' }, from: { id: 7003 }, text: '/start room_' + room.invite } });
-let s = sent.pop();
+let s = [...sent].reverse().find((x) => x.method === 'sendPhoto') || sent.pop();
 ok(s && s.method === 'sendPhoto' && s.body.parse_mode === 'HTML' && /больше недоступен/.test(s.body.caption) && !s.body.caption.includes('Neon') && tagsBalanced(s.body.caption), 'v206: старое приглашение в команду — «раздел недоступен», имя команды не выводится');
 ok(s.body.reply_markup.inline_keyboard[0][0].text === 'Открыть ссылку' && s.body.reply_markup.inline_keyboard[0][0].web_app.url.endsWith('startapp=room_' + room.invite), 'invite button → web_app startapp');
 ok(s.body.photo.includes('banner.jpg'), 'banner kept');

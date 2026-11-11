@@ -4,7 +4,7 @@
  *
  *   node tools/tg-bot-setup.mjs --dry            — ничего не отправляет: печатает команды, описания и что будет вызвано
  *   TGA=<TG_ADMIN_SECRET> node tools/tg-bot-setup.mjs           — POST /tg/setup: setWebhook (+callback_query), setMyCommands (ru и по умолчанию),
- *                                                                 setMyDescription / ShortDescription, кнопка меню PITLANE; затем проверка get*
+ *                                                                 setMyDescription / ShortDescription, кнопка меню «Замер»; затем проверка get*
  *   TGA=… node tools/tg-bot-setup.mjs --preview — прислать настоящий /start только в чат владельца (FEEDBACK_CHAT_ID), больше никому
  *
  * Секрет берётся только из переменной окружения TGA и нигде не печатается. API — env PITLANE_API или прод-адрес ниже.
@@ -22,8 +22,8 @@ if (args.has('--dry')) {
   for (const c of BOT_COMMANDS) console.log('  /' + c.command.padEnd(12), c.description);
   console.log('\nsetMyShortDescription:', BOT_SHORT_DESCRIPTION);
   console.log('\nsetMyDescription:\n' + BOT_DESCRIPTION);
-  console.log('\nsetWebhook allowed_updates: message, pre_checkout_query, callback_query');
-  console.log('setChatMenuButton: web_app «PITLANE» → https://dsssssz.github.io/pitlane/');
+  console.log('\nsetWebhook allowed_updates: message, pre_checkout_query, callback_query, widget_query');
+  console.log('setChatMenuButton: web_app «Замер» → https://dsssssz.github.io/pitlane/?startapp=zamer');
   process.exit(0);
 }
 const secret = String(process.env.TGA || '').trim();

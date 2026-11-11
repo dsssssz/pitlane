@@ -42,7 +42,7 @@ await say('/start');
 let m = last(BUYER); keep('start', m);
 ok(m.method === 'sendPhoto' && /^<b>PITLANE<\/b>/.test(m.body.caption) && /Предзаказ — прямо в этом чате/.test(m.body.caption), '/start: баннер, PITLANE, предзаказ в чате');
 ok(kbOf(m)[0][0].web_app?.url === 'https://dsssssz.github.io/pitlane/' && datas(m).join() === 'p:pitlane-gps,sh,my,chip,faq', 'кнопки: открыть Mini App, PITLANE GPS, магазин, мои заказы, чип, вопросы', datas(m));
-ok(BOT_COMMANDS.map((c) => c.command).join() === 'start,shop,orders,chip,cart,help,support,terms,stop_notify', 'команды меню (v226): start, shop, orders, chip, cart, help, support, terms, stop_notify');
+ok(BOT_COMMANDS.map((c) => c.command).join() === 'start,hub,shop,orders,chip,cart,help,support,terms,stop_notify', 'команды меню (v320): start, hub, shop, orders, chip, cart, help, support, terms, stop_notify');
 
 console.log('\n[магазин и карточка]');
 await say('/shop'); m = last(BUYER); keep('shop', m);
@@ -149,7 +149,7 @@ ok(/ORDER_SHORT\[s\]/.test(ui), '«Мои заявки» в приложении
 
 console.log('\n[подписка на кнопки]');
 const rooms = fs.readFileSync(new URL('../src/rooms.js', import.meta.url), 'utf8'); const idx = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
-ok(/tg:wh:pay2/.test(rooms) && /'callback_query'\]/.test(rooms) && /allowed_updates: \['message', 'pre_checkout_query', 'callback_query'\]/.test(idx), 'webhook подписан на callback_query (self-heal после деплоя + /tg/setup)');
+ok(/tg:wh:w1/.test(rooms) && /widget_query/.test(rooms) && /TG_ALLOWED_UPDATES/.test(idx), 'webhook подписан на callback_query и widget_query (self-heal w1 после деплоя + /tg/setup)');
 ok(fs.existsSync(new URL('../../tools/tg-bot-setup.mjs', import.meta.url)), 'скрипт настройки бота tools/tg-bot-setup.mjs');
 
 try { if (fs.existsSync('/workspace/home-shots')) fs.writeFileSync('/workspace/home-shots/v182-bot-screens.json', JSON.stringify(screens, null, 1)); } catch (_) {}

@@ -100,6 +100,8 @@ export const START_ROUTE = parseStartParam(START_PARAM);
     for (const k of ['tgWebAppStartParam', 'startapp']) if (q.has(k)) { q.delete(k); changed = true; }
     // v297: t.me/<bot>?startapp=shop|chip → витрина чипа
     if (START_PARAM === 'shop' || START_PARAM === 'chip') { q.set('screen', 'shop'); q.set('skipIntro', '1'); changed = true; }
+    // v320: t.me/<bot>?startapp=zamer → экран замера, без онбординга
+    if (START_PARAM === 'zamer') { q.set('view', 'zamer'); q.set('skipIntro', '1'); changed = true; }
     const r = START_ROUTE;
     if (r) {
       changed = true;

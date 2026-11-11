@@ -112,6 +112,7 @@ export function simpleRoutes() {
 
 export const BOT_COMMANDS = [
   { command: 'start', description: 'Главное меню' },
+  { command: 'hub', description: 'Замер и заказ чипа' },
   { command: 'shop', description: 'Магазин и PITLANE GPS' },
   { command: 'orders', description: 'Мои заказы' },
   { command: 'chip', description: 'Как работает чип' },

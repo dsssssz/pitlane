@@ -1929,6 +1929,12 @@ function getDeepLinkView() {
     }
     if (!DEEP_VIEWS.has(view)) view = '';
     if (!view && SCREEN_PARAM) view = DEEP_SCREENS[SCREEN_PARAM];
+    // v320: startapp=zamer (меню «Замер» и кнопка хаба) — если tma.js не успел переписать URL.
+    // Только явный ?startapp= (служебные параметры запуска Telegram обрабатывает tma.js).
+    if (!view) {
+      const sp = String(params.get('startapp') || '').toLowerCase();
+      if (sp === 'zamer') view = 'zamer';
+    }
     return { view, skipIntro: skipFlag || !!view };
   } catch (_) {
     return { view: '', skipIntro: false };
@@ -11977,7 +11983,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v319';
+const APP_VERSION = 'v320';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;

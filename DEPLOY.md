@@ -465,12 +465,12 @@ Deployed wrangler@3.114.17 from `worker/`: version `2135cb57-740d-4396-945e-cebb
 **Работает только после деплоя Worker** («выкатывай»): `cd worker && npx wrangler@3.114.17 deploy`.
 
 После деплоя:
-1. Ничего не делать — бот сам переподпишет webhook на `callback_query` при первом сообщении (флаг `tg:wh:pay2`), кнопки заработают.
+1. Ничего не делать — бот сам переподпишет webhook на `callback_query` и `widget_query` при первом сообщении (флаг `tg:wh:w1`, раньше `tg:wh:pay2`), кнопки и виджет-хаб заработают.
 2. Чтобы обновить меню команд и описание бота: `node tools/tg-bot-setup.mjs --dry` (посмотреть) → `TGA=<TG_ADMIN_SECRET> node tools/tg-bot-setup.mjs` (= `POST /tg/setup`).
    Проверка: `TGA=… node tools/tg-bot-setup.mjs --preview` — /start придёт только Маге.
 3. Статусы меняет тот, чей Telegram id в `FEEDBACK_CHAT_ID` (или `SHOP_CHAT_ID`, если это личный чат, или в `SHOP_ADMIN_IDS` через запятую).
 
-Команды: /start (меню), /shop, /orders, /chip, /help (вопросы и поддержка), /stop_notify. Заказы из бота и из приложения — одни и те же записи `shoporder:*`.
+Команды: /start (меню + закреплённый хаб), /hub (переслать хаб), /shop, /orders, /chip, /help (вопросы и поддержка), /stop_notify. Заказы из бота и из приложения — одни и те же записи `shoporder:*`.
 
 ## v184 — аудит безопасности (worker + сайт, без изменений дизайна)
 
@@ -493,3 +493,15 @@ Deployed wrangler@3.114.17 from `worker/`: version `2135cb57-740d-4396-945e-cebb
 
 ## Сборка (v230+)
 Перед каждым коммитом: `cd tools && npm i` (один раз), затем `node tools/build.mjs`. Деплоится собранное: `b/` (JS) и `styles-HASH.css`, index.html и список в sw.js переписываются сборкой. Исходники (app.js, styles.css) правим как раньше.
+
+
+## v320 — закреплённый хаб-виджет в личке бота (Bot API 10.4)
+
+Код: `worker/src/bothub.js`. `/start` по-прежнему шлёт баннер (v182/v183), затем закрепляет один хаб-виджет на чат (`bothub:<chatId>`). `/hub` пересылает или правит тот же виджет. Если `sendWidget` ошибся — обычное сообщение с inline `web_app` («Сделать замер» / «Заказать чип»). Статусы заказа (`createOrder` / `setOrderStatus`) пишут tracker в тот же виджет (Принята → Собираем → Отправлен + трек); доставка и отмена возвращают хаб.
+
+Кнопка меню чата: «Замер» → Mini App `?startapp=zamer`. Команда `/hub` в `setMyCommands`. Webhook `allowed_updates` включает `widget_query`.
+
+Деплой (не секреты — те же `TELEGRAM_BOT_TOKEN`, `TG_WEBHOOK_SECRET`, `TG_ADMIN_SECRET`):
+1. `cd worker && npx wrangler@3.114.17 deploy`
+2. Обновить команды, меню и webhook: `TGA=<TG_ADMIN_SECRET> node tools/tg-bot-setup.mjs` (= `POST https://pitlane-api.pitlane-taksimaga.workers.dev/tg/setup` с заголовком `X-Admin-Secret`). Сухой прогон: `node tools/tg-bot-setup.mjs --dry`.
+3. Чтобы `startapp=zamer` гарантированно открывал замер (по умолчанию и так замер): задеплоить Pages с правками `tma.js` / `app.js` (`node tools/build.mjs`, затем Pages). Новый секрет не нужен. Self-heal флага `tg:wh:w1` хватает, чтобы webhook подписал `widget_query` и без шага 2, но меню «Замер» и команда `/hub` появятся только после `/tg/setup`.
