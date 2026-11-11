@@ -9207,9 +9207,11 @@ async function renderCarPhotoCard() {
   if (st === undefined) { try { await homeRemote(); } catch (_) {} st = myCarPhotoState(); }
   const img = document.getElementById('cphImg'); const tag = document.getElementById('cphTag');
   const ph = myCarPhotoUrl();
-  const id = homeHeroCarId();
+  const mc = (() => { try { return myCarLocal(); } catch (_) { return null; } })();
+  const id = mc?.carId || '';
+  const name = mc?.model || '';
   if (ph) { img.removeAttribute('srcset'); img.src = ph; tag.textContent = 'твоё фото'; }
-  else { fillCarImg293(img, id); tag.textContent = 'превью модели'; }
+  else { fillCarImg293(img, id, name); tag.textContent = name ? 'превью модели' : 'машина не выбрана'; }
   document.getElementById('cphDelete').hidden = !ph;
   document.getElementById('cphPickTxt').textContent = ph ? 'Заменить фото' : 'Загрузить фото';
   document.getElementById('cphShareRow').hidden = !ph;
@@ -11975,7 +11977,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v318';
+const APP_VERSION = 'v319';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;

@@ -7380,9 +7380,9 @@ canvas.pin209-i { width: 150px; height: 150px; display: block; margin: 0 auto; }
 .shop-head .shop-cartbtn { margin-left: auto; position: relative; width: 40px; height: 40px; flex: none; border: 1px solid var(--ds-line); border-radius: 50%; background: transparent; color: var(--ds-text); display: grid; place-items: center; cursor: pointer; }
 .shop-cartbtn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .shop-cartbtn-n { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: var(--pl-r3); background: var(--pl-btn); color: #0c0c0c; font: 700 11px/18px var(--font-ui); font-style: normal; text-align: center; }
-.shop-tabs { display: flex; gap: 6px; overflow-x: auto; margin: 14px 0 12px; scrollbar-width: none; }
+.shop-tabs { display: flex; gap: 4px; overflow-x: auto; margin: 14px 0 12px; scrollbar-width: none; }
 .shop-tabs::-webkit-scrollbar { display: none; }
-.shop-tab { flex: none; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--ds-line); background: transparent; color: var(--ds-muted, var(--pl-t2)); font: 500 14px/1 var(--font-ui); cursor: pointer; }
+.shop-tab { flex: none; padding: 9px 8px; border-radius: 999px; border: 1px solid var(--ds-line); background: transparent; color: var(--ds-muted, var(--pl-t2)); font: 500 13px/1.15 var(--font-ui); cursor: pointer; white-space: nowrap; }
 .shop-tab.on { background: var(--pl-btn); border-color: #f2f2f2; color: #0c0c0c; }
 .shop-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .shop-paybadge { padding: 5px 8px; border-radius: var(--pl-r1); border: 1px solid var(--ds-line); font: 700 10.5px/1 var(--font-ui); letter-spacing: .04em; color: var(--pl-t2); }
