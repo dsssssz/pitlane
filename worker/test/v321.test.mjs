@@ -16,7 +16,7 @@ const ok = (c, msg, extra) => { if (c) console.log('  ✓', msg); else { fails++
 const src = CARD_HTML + fs.readFileSync(new URL('../src/botncard.js', import.meta.url), 'utf8') + fs.readFileSync(new URL('../src/notify.js', import.meta.url), 'utf8');
 
 console.log('\n[html budget and profile]');
-const m = measureCardHtml();
+const m = measureCardHtml(undefined, (await import('node:zlib')).default);
 ok(m.utf8 <= 32768 && m.zlib <= 4096 && m.ok, 'CARD_HTML ≤ 32 KB / 4 KB zlib-9', m);
 ok(!/@font-face|url\(https?:|sofia|paddock|паддок|пэддок/i.test(CARD_HTML) && /system-ui/.test(CARD_HTML), 'system-ui, no fonts/network/paddock');
 ok(/\.bad\{color:#e10600\}/.test(CARD_HTML) && (CARD_HTML.match(/#e10600|#e10|#ff0000|#f00/g) || []).length === 1, 'red only for .bad (worse)');

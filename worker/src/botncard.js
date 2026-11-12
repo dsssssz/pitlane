@@ -3,7 +3,6 @@
  * Обгон в топ-10, чип отправлен, вызов принят/побит. Если sendWidget не принялся — вызывающий
  * шлёт прежний текстовый notify. HTML общий, вид задаёт chat_data (≤1024).
  */
-import zlib from 'node:zlib';
 
 const DEFAULT_BOT = 'pitlane_official_bot';
 
@@ -137,8 +136,9 @@ draw();
 if(TW){if(TW.onEvent)TW.onEvent('chatDataChanged',draw);if(TW.ready)TW.ready()}
 </script>`;
 
-export function measureCardHtml(html = CARD_HTML) {
-  const buf = Buffer.from(html, 'utf8');
+export function measureCardHtml(html = CARD_HTML, zlib) {
+  const buf = new TextEncoder().encode(html);
+  if (!zlib) return { utf8: buf.length, zlib: 0, ok: buf.length <= 32768 };
   const z = zlib.deflateSync(buf, { level: 9 });
   return { utf8: buf.length, zlib: z.length, ok: buf.length <= 32768 && z.length <= 4096 };
 }
