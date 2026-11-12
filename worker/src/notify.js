@@ -13,6 +13,7 @@
  * индекс «дуэль заканчивается» пишется только для дуэлей, созданных/принятых после v121.
  */
 import { esc, code, RULE, webAppBtn, trackTitle } from './botcopy.js';
+import { overtakeCard, sendNotifyWidget, isBlockedTg, botName } from './botncard.js';
 
 export const NOTIFY_TYPES = ['challenge', 'overtake', 'duel', 'ending', 'team', 'follow'];
 export const NOTIFY_LABELS = { challenge: 'Тебя вызвали', overtake: 'Тебя обогнали в топе', duel: 'Ответ и итог дуэли', ending: 'Дуэль заканчивается', team: 'Рекорд команды', follow: 'Подписки: улучшения' };
@@ -32,12 +33,13 @@ export function msgChallenge({ duelId, fromName, type, disc, trackId, days, cls 
     line: esc(fromName) + ' вызвал(а) вас на дуэль',
   };
 }
-export function msgOvertake({ boardTitle, rivalName, rivalT, myRank, open }) {
+export function msgOvertake({ boardTitle, rivalName, rivalT, myRank, myT, open, bot }) {
   return {
     text: '<b>Вас обогнали в топе</b>\n' + esc(boardTitle) + '\n' + RULE + '\n' +
       esc(rivalName) + '  ' + code(rivalT) + '\n' + 'Вы теперь  ' + code('#' + myRank),
     keyboard: [[webAppBtn('Открыть топ', open || { view: 'tops', skipIntro: '1' })]],
     line: esc(rivalName) + ' обогнал(а) вас: ' + esc(boardTitle) + ', вы #' + myRank,
+    widget: overtakeCard({ rivalName, rivalT, myT, myRank, boardTitle, bot }),
   };
 }
 export function msgEnding({ duelId, rivalName, hoursLeft, trackId }) {
@@ -119,10 +121,17 @@ async function bumpCount(kv, pid, h, now) {
   return true;
 }
 async function send(env, chat, pid, m, h) {
-  const r = await h.tgCall(env, 'sendMessage', { chat_id: chat, text: m.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: m.keyboard || [] } });
-  if (!r?.ok && (r?.error_code === 403 || /blocked|deactivated/i.test(String(r?.description || '')))) {
-    try { await env.PITLANE.delete(K.start(chat)); } catch (_) {}
+  const drop = async (r) => {
+    if (isBlockedTg(r)) { try { await env.PITLANE.delete(K.start(chat)); } catch (_) {} }
+  };
+  if (m.widget) {
+    const w = await sendNotifyWidget(env, chat, { ...m.widget, bot: m.widget.bot || botName(env) }, h);
+    if (w.ok) return true;
+    await drop(w.raw);
+    if (isBlockedTg(w.raw)) return false;
   }
+  const r = await h.tgCall(env, 'sendMessage', { chat_id: chat, text: m.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: m.keyboard || [] } });
+  await drop(r);
   return !!r?.ok;
 }
 /**
@@ -234,12 +243,15 @@ export function overtaken(before, after, submitterId, timeOf) {
 export async function overtakeNotify(env, h, { boardKey, boardTitle, before, after, submitterId, timeOf, fmt, open, now = Date.now() }) {
   const list = overtaken(before, after, submitterId, timeOf);
   if (!list.length) return 0;
-  const me = pilotRanks(after, timeOf).get(submitterId);
+  const ranks = pilotRanks(after, timeOf);
+  const me = ranks.get(submitterId);
   const rivalName = h.safeName(me?.name);
   const rivalT = fmt(me.t);
+  const bot = botName(env);
   let n = 0;
   for (const x of list) {
-    const r = await notifyEvent(env, x.pid, { type: 'overtake', key: 'ot:' + boardKey + ':' + submitterId + ':' + me.t, msg: msgOvertake({ boardTitle, rivalName, rivalT, myRank: x.rank, open }) }, h, now);
+    const mine = ranks.get(x.pid);
+    const r = await notifyEvent(env, x.pid, { type: 'overtake', key: 'ot:' + boardKey + ':' + submitterId + ':' + me.t, msg: msgOvertake({ boardTitle, rivalName, rivalT, myRank: x.rank, myT: mine?.t, open, bot }) }, h, now);
     if (r === 'sent' || r === 'queued') n++;
   }
   return n;

@@ -6973,14 +6973,14 @@ if (isTMA) {
   const backTarget = () => {
     if (visible('geoDenied')) return () => hideGeoDenied();
     if (visible('ls58')) return () => ls58Close(); // v158: итог сессии
-    if (document.getElementById('view-shop')?.classList.contains('active') && !visible('shopSheet') && ![...SHEETS].some(([id]) => visible(id))) return () => shop58Back(); // v158: магазин — страница
+    if (document.getElementById('view-shop')?.classList.contains('active') && !visible('shopSheet') && ![...SHEETS].some(([id]) => visible(id)) && document.getElementById('shopBody')?.dataset.view && document.getElementById('shopBody').dataset.view !== 'list') return () => shop58Back(); // v320c: назад внутри магазина; витрина — корневая вкладка
     for (const [id, btn] of SHEETS) if (visible(id)) return () => closeSheet(id, btn);
     if (visible('runDrive')) return run.armed ? null : () => closeRunDrive();
     if (visible('lapDrive')) return () => document.getElementById('lapDriveCancel')?.click();
     const active = document.querySelector('.view.active');
     // v206: корни вкладок — без «Назад»; подстраницы профиля — назад в профиль
     const vid = active?.id?.replace('view-', '') || '';
-    if (['garage', 'settings', 'history', 'cars', 'shop'].includes(vid)) return () => { goToView('account'); window.scrollTo(0, 0); };
+    if (['garage', 'settings', 'history', 'cars'].includes(vid)) return () => { goToView('account'); window.scrollTo(0, 0); }; // v320c: shop больше не подстраница профиля
     if (vid === 'home') return () => goToView('zamer');
     return null;
   };
@@ -11983,7 +11983,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v320';
+const APP_VERSION = 'v321';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12172,6 +12172,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     const b = e.target.closest('.nav3-btn'); if (!b) return;
     try { closeTgSheet({ instant: true }); } catch (_) {}
     try { closeShopSheet(); } catch (_) {}
+    if (b.dataset.n3 === 'shop') { void openShopSheet(); sync(); window.scrollTo(0, 0); return; } // v320c: вкладка Магазин
     goToView(b.dataset.n3); sync(); window.scrollTo(0, 0);
   });
   /* v156: «Замер» открыт — спидометр пре-смонтирован скрытым; ушли — снимаем и гасим ожидание автостарта */
@@ -17081,7 +17082,7 @@ document.getElementById('pfeSave')?.addEventListener('click', async (e) => {
 document.getElementById('accAvatarIn')?.addEventListener('change', () => setTimeout(() => { renderPf6(); if (!pfeEl()?.classList.contains('hidden')) renderPfEdit(); void padSyncAvatar(true).catch(() => {}); }, 300)); // v314: сразу на сервер
 
 /* —— навигация: нижняя панель синхронизируется со всеми экранами; подстраницы профиля → назад в профиль —— */
-const N6_SUB = { garage: 'account', settings: 'account', history: 'account', cars: 'account', shop: 'account', home: 'zamer' };
+const N6_SUB = { garage: 'account', settings: 'account', history: 'account', cars: 'account', home: 'zamer' }; // v320c: shop — своя вкладка
 function n6Sync() {
   const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'zamer';
   let key = CP.open ? 'pulse' : (act === 'run' ? 'zamer' : act);

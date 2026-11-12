@@ -15,6 +15,7 @@ import { gpsRoute, deleteAccountGps, GpsLive, chipAttest } from './gpslive.js';
 import { shopRoute, deleteAccountShop } from './shop.js';
 import { botCallback, botFlowMessage, botCommand, botStart, mainMenuRows, botTrackCommand } from './botshop.js';
 import { ensureHub, updateHubForOrder, deleteHubKeys, TG_ALLOWED_UPDATES, MENU_BUTTON } from './bothub.js';
+import { chalCard } from './botncard.js';
 import { trackSuggestRoute, deleteAccountTrackSug } from './tracksug.js';
 import { teamsRoute, teamsOnLap, teamsOnRoomDeleted, teamsOnMemberDeleted, syncTeamIndex, TEAM_RL_BUCKETS } from './teams.js';
 import { ensurePaymentUpdates, roomsRoute, roomsPreCheckout, roomsSuccessfulPayment, roomsRefundedPayment, loadMyCar, carClassStamp, PREP_CLASSES, TYRE_TYPES, deleteAccountRooms, ROOM_RL_BUCKETS, ROOM_SEASON_DAYS, ROOM_SEASON_STARS } from './rooms.js';
@@ -3039,7 +3040,7 @@ function chalMsg(x) {
   const d = DISC_TITLE[x.disc] || x.disc;
   const t = (v) => Number(v).toFixed(2).replace('.', ',') + ' с';
   const head = x.win ? '<b>Твой вызов побит</b>' : '<b>Твой вызов принят</b>';
-  return { text: head + '\n' + tgEsc(x.nick) + ' · ' + d + ': <b>' + t(x.t) + '</b> (у тебя ' + t(x.mine) + ')', keyboard: [[webAppBtn('Открыть вызов', { startapp: 'ch_' + x.id })]], line: tgEsc(x.nick) + ' · вызов ' + d + ': ' + t(x.t) };
+  return { text: head + '\n' + tgEsc(x.nick) + ' · ' + d + ': <b>' + t(x.t) + '</b> (у тебя ' + t(x.mine) + ')', keyboard: [[webAppBtn('Открыть вызов', { startapp: 'ch_' + x.id })]], line: tgEsc(x.nick) + ' · вызов ' + d + ': ' + t(x.t), widget: chalCard({ win: x.win, nick: x.nick, t: x.t, mine: x.mine, id: x.id, disc: d }) };
 }
 const DISC_TITLE = { '0-100': '0–100', '100-200': '100–200', '200-300': '200–300', '0-200': '0–200', '80-120': '80–120', '0-60': '0–60', '0-50': '0–50', '60ft': '60 ft', '201m': '⅛ мили', '402m': '¼ мили' };
 function clsTitle(c) { return c === 'c' ? 'телефон (C)' : 'внешний GPS (A/B)'; }

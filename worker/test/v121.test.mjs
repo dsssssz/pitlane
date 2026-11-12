@@ -44,6 +44,8 @@ async function login(nick, tg) {
   return { token: v.data.token, id: v.data.pilotId, tg, nick };
 }
 const msgsTo = (chat) => sent.filter((x) => x.method === 'sendMessage' && x.body.chat_id === chat);
+const notifyTo = (chat) => sent.filter((x) => (x.method === 'sendMessage' || x.method === 'sendWidget') && x.body.chat_id === chat);
+const otData = (chat) => { const w = sent.find((x) => x.method === 'sendWidget' && x.body.chat_id === chat); try { return JSON.parse(w?.body?.chat_data || 'null'); } catch { return null; } };
 const resetCoalesce = async () => { for (const k of [...kv.m.keys()]) if (k.startsWith('nlast:')) await kv.delete(k); };
 let seed = 10;
 const drag = (P, t) => call('POST', '/tops/drag/0-100', { token: P.token, body: { ...dragBody('0-100', t, { name: P.nick }, { seed: seed++ }), dev: 'dev-' + P.nick } });
@@ -63,12 +65,12 @@ sent = [];
 
 console.log('\n[«тебя обогнали в топе»]');
 r = await drag(A, 4.2); ok(r.status === 200 && r.data.stored, 'A 4.20 → #1');
-const toB = msgsTo(8002); const toC = msgsTo(8003);
-ok(toB.length === 1 && /<b>Вас обогнали в топе<\/b>/.test(toB[0].body.text) && /Топ 0–100 · внешний GPS \(A\/B\)/.test(toB[0].body.text) && toB[0].body.text.includes('<code>#2</code>') && /<code>4\.(1[6-9]|20) с<\/code>/.test(toB[0].body.text) /* v215: старт по 0.5 км/ч */, 'B (#1 → #2) получил: доска, время, новое место', toB[0]?.body.text);
-ok(toC.length === 1 && toC[0].body.text.includes('<code>#4</code>'), 'C (#3 → #4) получил');
-ok(msgsTo(8004).length === 0, 'D сдвинут, но боту не писал → тишина');
-ok(msgsTo(8001).length === 0, 'автору зачёта — ничего');
-ok(toB[0].body.reply_markup.inline_keyboard[0][0].web_app.url.includes('view=tops'), 'кнопка «Открыть топ»');
+const dB = otData(8002); const dC = otData(8003);
+ok(notifyTo(8002).length === 1 && dB && dB.v === 'ot' && /Топ 0–100 · внешний GPS \(A\/B\)/.test(dB.s) && /№2/.test(dB.t) && /4\.(1[6-9]|20)/.test(dB.s) /* v215: старт по 0.5 км/ч */, 'B (#1 → #2) получил виджет: доска, время, новое место', dB);
+ok(notifyTo(8003).length === 1 && dC && /№4/.test(dC.t), 'C (#3 → #4) получил виджет', dC);
+ok(notifyTo(8004).length === 0, 'D сдвинут, но боту не писал → тишина');
+ok(notifyTo(8001).length === 0, 'автору зачёта — ничего');
+ok(dB.a1 === 'Отыграться' && dB.p1 === 'zamer', 'кнопка «Отыграться» → startapp=zamer');
 sent = []; await resetCoalesce();
 r = await drag(A, 4.3);
 ok(sent.length === 0, 'A проехал медленнее (не улучшился) → никого не обогнал, тишина');
@@ -78,11 +80,11 @@ ok(sent.length === 0, 'B улучшился, но остался ниже A → 
 console.log('\n[склейка: второе событие < 15 мин → сводка по cron]');
 sent = [];
 r = await drag(Cc, 4.1); // C: #4 → #1, обгоняет A, B, D
-ok(msgsTo(8001).length === 1 && msgsTo(8002).length === 1, 'A и B: первое событие — сразу');
+ok(notifyTo(8001).length === 1 && notifyTo(8002).length === 1, 'A и B: первое событие — сразу');
 sent = [];
 r = await drag(E, 4.0); // E (без TG) обгоняет всех: A, B, C — у A и B только что было сообщение
-ok(msgsTo(8001).length === 0 && msgsTo(8002).length === 0 && kv.m.has('nq:' + A.id) && kv.m.has('nq:' + B.id), 'A и B: в копилку, не пачкой');
-ok(msgsTo(8003).length === 1, 'C: первое событие — сразу');
+ok(notifyTo(8001).length === 0 && notifyTo(8002).length === 0 && kv.m.has('nq:' + A.id) && kv.m.has('nq:' + B.id), 'A и B: в копилку, не пачкой');
+ok(notifyTo(8003).length === 1, 'C: первое событие — сразу');
 await rawWorker.scheduled({}, env, null);
 ok(msgsTo(8001).length === 0, 'cron раньше 15 мин — не шлёт');
 await resetCoalesce();

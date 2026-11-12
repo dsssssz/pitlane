@@ -8821,3 +8821,46 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_) .wl318 .wl-card.wl-drag, html:not(#
   html:not(#_):not(#_):not(#_):not(#_):not(#_) .wl318 .wl-card { transition: none !important; }
   .cd318, .cd-d, .cd-d.out, .cd-bar::after { animation: none !important; transition: none !important; }
 }
+
+/* v320c: «Магазин» в нижней панели — 6 равных вкладок, тот же стиль иконок, подписи Sofia Sans Condensed. Без неона, золота, красного и градиентов. */
+html.v152 .nav3.nav6,
+html:not(#_):not(#_):not(#_) .nav3.nav6 {
+  grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
+}
+html:not(#_):not(#_):not(#_) .nav3 {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+html:not(#_):not(#_):not(#_) .nav3-btn {
+  min-width: 0;
+  padding: 0 1px;
+  gap: 4px;
+  font: 500 11px/1 "Sofia Sans Condensed", var(--font-display), var(--font-ui), sans-serif !important;
+  letter-spacing: .02em !important;
+}
+html:not(#_):not(#_):not(#_) .nav3-btn span {
+  display: block;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: visible;
+  text-align: center;
+  font: inherit;
+}
+html:not(#_):not(#_):not(#_) .nav3-btn[data-n3="shop"] svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (max-width: 370px) {
+  html:not(#_):not(#_):not(#_) .nav3-btn {
+    font-size: 10px !important;
+    gap: 3px;
+  }
+  html:not(#_):not(#_):not(#_) .nav3-btn svg { width: 20px; height: 20px; }
+  html:not(#_):not(#_):not(#_) .nav6 .n6-ava,
+  html:not(#_):not(#_):not(#_) .nav6 .n6-ava svg { width: 20px; height: 20px; }
+}
+html.ln61-ui .nav3 > :nth-child(5) { animation-delay: 160ms; }
+html.ln61-ui .nav3 > :nth-child(6) { animation-delay: 200ms; }

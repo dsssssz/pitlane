@@ -15,6 +15,7 @@
 import { FOUNDERS, SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, fmtRub, orderTotal, SHOP_DELIVERY, deliveryById, cartTotals, PAY_BADGES, trackUrl, MAX_CART_LINES } from '../../shop-config.js';
 import { APP_URL, RULE, esc, webAppBtn, START_CAPTION, TG_BANNER_URL } from './botcopy.js';
 import { foundersState, createOrder, listOrders, setOrderStatus, getOrder, msgOrderOwner, adminStatusKeyboard, msgOrderStatusBuyer, msgOrderBuyer, shopAdmins, ownerChat, normPhone, SHOP_RL, priceRec, findOrder, itemLines, sumLines, orderNo } from './shop.js';
+import { sendBuyerStatus } from './botncard.js';
 import { paymentsOn } from './robokassa.js';
 import { resolvePromo } from './promo.js';
 
@@ -276,8 +277,8 @@ export async function botTrackCommand(env, msg, ref, track, H) {
   const tgId = o.buyer?.tgId || (await H.tgChatOf(env, o.pid));
   if (tgId) {
     const tu = trackUrl(o.delivery?.id, o.track);
-    const s = await H.tgCall(env, 'sendMessage', { chat_id: tgId, text: msgOrderStatusBuyer(o, H), parse_mode: 'HTML', link_preview_options: { is_disabled: true },
-      reply_markup: { inline_keyboard: [...(tu ? [[{ text: 'Отследить посылку', url: tu }]] : []), [cb('Мой заказ', 'n:mo:' + o.id), cb('Поддержка', 'n:sup')]] } });
+    const kb = [...(tu ? [[{ text: 'Отследить посылку', url: tu }]] : []), [cb('Мой заказ', 'n:mo:' + o.id), cb('Поддержка', 'n:sup')]];
+    const s = await sendBuyerStatus(env, tgId, o, H, { text: msgOrderStatusBuyer(o, H), keyboard: kb });
     notified = !!s?.ok;
   }
   await say('Заказ ' + esc(orderNo(o)) + ': трек <code>' + esc(o.track) + '</code>, статус «' + esc(ORDER_SHORT.shipped) + '»' + (notified ? ', покупатель уведомлён.' : ', покупателю не доставлено.'));
@@ -480,7 +481,7 @@ export async function botCallback(env, cq, H) {
     if (!e?.ok && !NOT_MODIFIED_RE.test(String(e?.description || ''))) await H.tgCall(env, 'editMessageText', { chat_id: chat, message_id: cq.message.message_id, text: m.text, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: adminStatusKeyboard(o) } });
     let notified = false;
     if (r.changed && buyer.tgId) {
-      const s = await H.tgCall(env, 'sendMessage', { chat_id: buyer.tgId, text: msgOrderStatusBuyer(o, H), parse_mode: 'HTML', link_preview_options: { is_disabled: true }, reply_markup: { inline_keyboard: [[cb('Мои заказы', 'n:my'), cb('Поддержка', 'n:sup')]] } });
+      const s = await sendBuyerStatus(env, buyer.tgId, o, H, { text: msgOrderStatusBuyer(o, H), keyboard: [[cb('Мои заказы', 'n:my'), cb('Поддержка', 'n:sup')]] });
       notified = !!s?.ok;
     }
     await ack(r.changed ? (ORDER_SHORT[o.status] + (notified ? ' · покупатель уведомлён' : ' · покупателю не доставлено')) : 'Статус уже такой');

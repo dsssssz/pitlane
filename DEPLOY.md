@@ -505,3 +505,10 @@ Deployed wrangler@3.114.17 from `worker/`: version `2135cb57-740d-4396-945e-cebb
 1. `cd worker && npx wrangler@3.114.17 deploy`
 2. Обновить команды, меню и webhook: `TGA=<TG_ADMIN_SECRET> node tools/tg-bot-setup.mjs` (= `POST https://pitlane-api.pitlane-taksimaga.workers.dev/tg/setup` с заголовком `X-Admin-Secret`). Сухой прогон: `node tools/tg-bot-setup.mjs --dry`.
 3. Чтобы `startapp=zamer` гарантированно открывал замер (по умолчанию и так замер): задеплоить Pages с правками `tma.js` / `app.js` (`node tools/build.mjs`, затем Pages). Новый секрет не нужен. Self-heal флага `tg:wh:w1` хватает, чтобы webhook подписал `widget_query` и без шага 2, но меню «Замер» и команда `/hub` появятся только после `/tg/setup`.
+
+
+## v321 — виджеты-уведомления в личке бота (Bot API 10.4)
+
+Карточки в ленте (хаб в пине не трогаем): обгон в топ-10, «чип отправлен», вызов принят/побит. Код: `worker/src/botncard.js`. Если `sendWidget` ошибся — прежний текстовый notify. Лимит 5 сообщений в сутки (МСК) из `notify.js` не менялся (обгон и вызов идут через него). Статусы заказа, кроме shipped, по-прежнему текстом; shipped — виджет, без этого суточного лимита (как и раньше, это транзакционное сообщение).
+
+После деплоя worker нового секрета нет. `/tg/setup` для карточек не обязателен (`widget_query` уже подписан в v320). Скопировать трек: `TelegramWidget.copyText`; если клиент его не умеет, номер остаётся крупно на карточке, в fallback — в тексте.
