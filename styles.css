@@ -9008,3 +9008,7 @@ html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-lap > h2,
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-pulse > h2 {
   padding-right: var(--bb-ava-clear) !important;
 }
+
+/* v324: в профиле и его разделах кружок профиля не показываем */
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.on,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.on { display: none !important; }
