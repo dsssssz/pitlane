@@ -11983,7 +11983,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v321';
+const APP_VERSION = 'v322';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12221,15 +12221,8 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
       withSafety(armRun)();
     });
   }
-  /* v154: аватар пилота в шапке (кнопка Профиля) */
-  {
-    const src = document.getElementById('accAvatar'); const btn = document.getElementById('btnProfile');
-    const paint = () => { if (!btn) return; const u = src?.getAttribute('src') || ''; let im = btn.querySelector('img.bb-ava');
-      if (u && !/^\s*$/.test(u)) { if (!im) { im = document.createElement('img'); im.className = 'bb-ava'; im.alt = ''; im.onerror = () => { im.remove(); btn.classList.remove('has-ava'); }; btn.appendChild(im); } if (im.getAttribute('src') !== u) im.src = u; btn.classList.add('has-ava'); }
-      else { im?.remove(); btn.classList.remove('has-ava'); } };
-    if (src) new MutationObserver(paint).observe(src, { attributes: true, attributeFilter: ['src'] });
-    setTimeout(paint, 800);
-  }
+  /* v322: аватар в шапке рисует pf6NavAva (фото или иконка человека, без инициалов) */
+  setTimeout(() => { try { pf6NavAva(); } catch (_) {} }, 800);
   /* v154: одна живая 3D-сцена (three.js) переезжает туда, где её видно: карточка Гаража или «Моя машина» на Главной */
   {
     const sync3d = () => {
@@ -16859,7 +16852,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && CP.open 
    Шапка профиля: аватар в рамке Pass, ник + гоночный номер + пин (как звезда Premium), статус Pass, «Изменить» справа.
    Экран «Изменить профиль»: аватар, ник, обложка, машина + «Оформление Pass» с живым превью. Всё остальное — строки списка. */
 document.documentElement.classList.add('v206p');
-['btnMenu', 'btnProfile', 'btnHome', 'plMenu'].forEach((id) => document.getElementById(id)?.remove()); // v206: ☰ и дубли входов убраны — всё в Профиле
+['btnMenu', 'btnHome', 'plMenu'].forEach((id) => document.getElementById(id)?.remove()); // v322: аватар профиля остаётся в шапке
 const PF6 = { pass: null, sales: false, at: 0, draft: null };
 const PF6_FR = [['', 'Без рамки'], ...PASS_FRAMES];
 const PF6_PIN = [['', 'Без пина'], ['helmet', 'Шлем'], ['wheel', 'Руль'], ['carbon', 'Карбон']];
@@ -16934,9 +16927,27 @@ function pf6PaintStats() {
 }
 const PASS_STARS_206 = 150; // v305: от 150 ★ (месяц) · сезон 350 · год 1190
 function pf6NavAva() {
-  const n = document.getElementById('n6Ava'); if (!n) return;
   const src = pf6Ava();
-  if (src && (PAD_IMG_RE.test(src) || PAD_AVA_RE.test(src))) { if (n.dataset.src !== src) { n.dataset.src = src; n.innerHTML = ''; const i = document.createElement('img'); i.alt = ''; i.src = src; n.append(i); n.classList.add('img'); } }
+  const btn = document.getElementById('btnProfile');
+  if (btn) {
+    const okImg = !!(src && (PAD_IMG_RE.test(src) || PAD_AVA_RE.test(src) || (apiBase() && String(src).startsWith(apiBase() + '/pilot/'))));
+    let im = btn.querySelector('img.bb-ava');
+    btn.querySelector('.bb-ini')?.remove();
+    btn.classList.remove('has-ini');
+    if (okImg) {
+      if (!im) {
+        im = document.createElement('img'); im.className = 'bb-ava'; im.alt = '';
+        im.referrerPolicy = 'no-referrer';
+        im.addEventListener('error', () => { im.remove(); btn.classList.remove('has-ava'); try { pf6NavAva(); } catch (_) {} }, { once: true });
+        btn.appendChild(im);
+      }
+      if (im.getAttribute('src') !== src) im.src = src;
+      btn.classList.add('has-ava');
+    } else {
+      im?.remove();
+      btn.classList.remove('has-ava');
+    }
+  }
 }
 async function pf6Refresh() { renderPf6(); await pf6LoadPass(); renderPf6(); }
 document.getElementById('pf6EditBtn')?.addEventListener('click', () => { hap(8); openPfEdit(); });
@@ -17088,12 +17099,14 @@ function n6Sync() {
   let key = CP.open ? 'pulse' : (act === 'run' ? 'zamer' : act);
   if (N6_SUB[key]) key = N6_SUB[key];
   document.querySelectorAll('#nav3 .nav3-btn').forEach((b) => { const on = b.dataset.n3 === key; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+  const av = document.getElementById('btnProfile');
+  if (av) { const on = key === 'account'; av.classList.toggle('on', on); if (on) av.setAttribute('aria-current', 'page'); else av.removeAttribute('aria-current'); }
 }
 document.getElementById('nav3')?.addEventListener('click', (e) => {
   const b = e.target.closest('.nav3-btn'); if (!b) return;
-  if (b.dataset.n3 === 'account') setTimeout(() => void pf6Refresh(), 0);
   setTimeout(n6Sync, 30);
 });
+document.getElementById('btnProfile')?.addEventListener('click', () => { hap(6); setTimeout(() => { n6Sync(); void pf6Refresh(); }, 0); }); // v322
 {
   const vh = document.getElementById('viewHost');
   if (vh) new MutationObserver(() => requestAnimationFrame(n6Sync)).observe(vh, { subtree: true, attributes: true, attributeFilter: ['class'] });

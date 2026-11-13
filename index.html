@@ -33,7 +33,7 @@
     <meta name="twitter:title" content="PITLANE — Замеряй. Сравнивай. Побеждай." />
     <meta name="twitter:description" content="Разгоны 0–100 и круги по GPS с проверкой на сервере. Честные топы — прямо в Telegram." />
     <meta name="twitter:image" content="https://dsssssz.github.io/pitlane/img/og-1200x630.jpg" />
-    <meta name="pitlane-build" content="v321" />
+    <meta name="pitlane-build" content="v322" />
     <script src="./upd.js"></script>
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/golos/cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin />
@@ -41,8 +41,8 @@
     <link rel="preload" href="./fonts/plex-mono/latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="./fonts.css" />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-QMHAGHTI.js" />
-    <link rel="stylesheet" href="./styles-FAC8CD44.css" />
+    <link rel="modulepreload" href="./b/app-CZCUCXQ5.js" />
+    <link rel="stylesheet" href="./styles-6C67E807.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -115,13 +115,10 @@
             <button type="button" class="profile-btn bb-menu-btn" id="btnMenu" hidden title="Меню" aria-label="Меню" aria-haspopup="dialog" aria-controls="plMenu" aria-expanded="false">
               <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M5 8h14M5 12h14M9 16h10"/></svg>
             </button>
-            <button type="button" class="profile-btn" data-view="account" id="btnProfile" hidden title="Профиль" aria-label="Профиль">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
-                <circle cx="12" cy="8" r="3.2"/>
-                <path d="M5.8 19.2c.8-3.1 3.1-4.7 6.2-4.7s5.4 1.6 6.2 4.7"/>
-              </svg>
-            </button>
           </div>
+          <button type="button" class="bb-ava-btn" data-view="account" id="btnProfile" title="Профиль" aria-label="Профиль">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.4"/><path d="M5.5 19.5c.8-3.2 3.2-4.9 6.5-4.9s5.7 1.7 6.5 4.9"/></svg>
+          </button>
         </div>
         <header class="top">
           <div>
@@ -663,14 +660,13 @@
           </div></div>
         </section>
         </div>
-      <!-- v320c: нижняя панель — Замер / Трек / Топы / Чат / Магазин / Профиль -->
+      <!-- v322: нижняя панель — Замер / Трек / Топы / Чат / Магазин; Профиль — аватар в шапке справа -->
       <nav class="nav3 nav6" id="nav3" aria-label="Разделы">
         <button type="button" class="nav3-btn on" data-n3="zamer" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Замер</span></button>
         <button type="button" class="nav3-btn" data-n3="lap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18c0-4 2.5-5.5 5.5-5.5S15 11 15 8s2.2-3.5 4.5-2.5"/><circle cx="5" cy="18" r="1.6"/><path d="M15.5 18h4M17.5 16v4"/></svg><span>Трек</span></button>
         <button type="button" class="nav3-btn" data-n3="tops"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/></svg><span>Топы</span></button>
         <button type="button" class="nav3-btn" data-n3="pulse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5h13A2.5 2.5 0 0 1 21 7.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17A2.5 2.5 0 0 1 3 14.5v-7A2.5 2.5 0 0 1 5.5 5z"/></svg><span>Чат</span><i class="n6-badge" id="n6BadgeChat" hidden></i></button>
         <button type="button" class="nav3-btn" data-n3="shop" title="Магазин"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/></svg><span>Магазин</span></button>
-        <button type="button" class="nav3-btn" data-n3="account"><span class="n6-ava" id="n6Ava"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.4"/><path d="M5.5 19.5c.8-3.2 3.2-4.9 6.5-4.9s5.7 1.7 6.5 4.9"/></svg></span><span>Профиль</span></button>
       </nav>
       </main>
       <!-- v206: «Изменить профиль» — полноэкранная страница -->
@@ -1312,6 +1308,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-QMHAGHTI.js"></script>
+    <script type="module" src="./b/app-CZCUCXQ5.js"></script>
   </body>
 </html>

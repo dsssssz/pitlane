@@ -8864,3 +8864,76 @@ html:not(#_):not(#_):not(#_) .nav3-btn[data-n3="shop"] svg {
 }
 html.ln61-ui .nav3 > :nth-child(5) { animation-delay: 160ms; }
 html.ln61-ui .nav3 > :nth-child(6) { animation-delay: 200ms; }
+
+
+/* v322: Профиль — кружок в правом верху шапки; нижняя панель снова из 5 вкладок. Без неона, золота, красного и градиентов. */
+html.v152 .nav3.nav6,
+html:not(#_):not(#_):not(#_) .nav3.nav6 {
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+}
+html:not(#_):not(#_):not(#_) .nav3 {
+  padding-left: 10px;
+  padding-right: 10px;
+}
+html:not(#_):not(#_):not(#_) .nav3-btn {
+  min-width: 0;
+  padding: 0 2px;
+  gap: 4px;
+  font: 500 11px/1 "Sofia Sans Condensed", var(--font-display), var(--font-ui), sans-serif !important;
+  letter-spacing: .02em !important;
+}
+@media (max-width: 370px) {
+  html:not(#_):not(#_):not(#_) .nav3-btn { font-size: 11px !important; gap: 4px; }
+  html:not(#_):not(#_):not(#_) .nav3-btn svg { width: 22px; height: 22px; }
+}
+
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn {
+  all: unset;
+  box-sizing: border-box;
+  position: absolute;
+  z-index: 16;
+  top: calc(var(--tg-sa, 0px) + (var(--tg-band, 44px) - 32px) / 2);
+  right: max(12px, var(--tma-right, 0px));
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(255,255,255,.16) !important;
+  background: #111 !important;
+  color: var(--pl-t2, #c8c4bc) !important;
+  display: grid !important;
+  place-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  box-shadow: none;
+  -webkit-tap-highlight-color: transparent;
+}
+html.tma:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn {
+  /* та же полоса, что и ⋯ Telegram: отступ, чтобы кружок не заехал под кнопку */
+  right: max(12px, calc(var(--tma-right, 0px) + 64px));
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: block;
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.has-ava svg { display: none; }
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn img.bb-ava {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.on {
+  border-color: rgba(242,239,233,.55);
+  box-shadow: 0 0 0 1px rgba(242,239,233,.35);
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:active { background: #1a1a1a; }
