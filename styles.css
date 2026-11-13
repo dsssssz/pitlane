@@ -8937,3 +8937,74 @@ html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.on {
   box-shadow: 0 0 0 1px rgba(242,239,233,.35);
 }
 html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:active { background: #1a1a1a; }
+
+/* v323-D: шторка как в v322 (PITLANE по центру, та же высота).
+   В fullscreen кружок 32 px плавает сразу под суммой safeAreaInset.top + contentSafeAreaInset.top,
+   не сдвигая вёрстку. Вне Telegram и не в fullscreen — в правом углу строки шапки, как сейчас.
+   Зона нажатия 44×44. На Android, если сумма < 80 px, берём 80. */
+:root {
+  --tg-ava-top: calc(var(--tg-sa, 0px) + var(--tg-ca, 0px));
+  --bb-ava-clear: calc(64px + var(--tma-right, 0px));
+}
+html.tma.tma-android.tma-fullscreen { --tg-ava-top: max(80px, calc(var(--tg-sa, 0px) + var(--tg-ca, 0px))); }
+
+/* общая зона 44×44, визуальный кружок 32×32 по центру — и в шапке, и во fullscreen */
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn {
+  width: 44px !important;
+  height: 44px !important;
+  min-width: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  box-shadow: none !important;
+  top: calc(var(--tg-sa, 0px) + (var(--tg-band, 44px) - 44px) / 2);
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before {
+  content: '';
+  position: absolute;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.16);
+  background: #111;
+  z-index: 0;
+  pointer-events: none;
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.on::before {
+  border-color: rgba(242,239,233,.55);
+  box-shadow: 0 0 0 1px rgba(242,239,233,.35);
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:active { background: transparent !important; }
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:active::before { background: #1a1a1a; }
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn svg,
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn img.bb-ava {
+  position: relative;
+  z-index: 1;
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn img.bb-ava {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50%;
+  object-fit: cover;
+  display: block;
+}
+
+/* fullscreen: кружок сразу под шторкой Telegram, без сдвига шапки и без +64 px */
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn {
+  position: fixed;
+  z-index: 20;
+  top: var(--tg-ava-top, calc(var(--tg-sa, 0px) + var(--tg-ca, 0px))) !important;
+  right: max(12px, var(--tma-right, 0px)) !important;
+}
+
+/* если кружок наезжает на первую строку экрана — только правый отступ, шапку не трогаем */
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) .pf6-top,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) .tops-head,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) .shop-head,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-lap > h2,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-pulse > h2 {
+  padding-right: var(--bb-ava-clear) !important;
+}

@@ -136,6 +136,11 @@ function applyInsets() {
   root.setProperty('--tma-bottom', (n(sa.bottom) + n(ca.bottom)) + 'px');
   root.setProperty('--tma-left', (n(sa.left) + n(ca.left)) + 'px');
   root.setProperty('--tma-right', (n(sa.right) + n(ca.right)) + 'px');
+  /* v323-D: точка старта кружка = сумма inset; на Android в fullscreen не меньше 80px */
+  let avaTop = n(sa.top) + n(ca.top);
+  const plat = String(WebApp.platform || '');
+  if (WebApp.isFullscreen && /android/i.test(plat) && avaTop < 80) avaTop = 80;
+  root.setProperty('--tg-ava-top', avaTop + 'px');
   // v147: стабильная высота окна Telegram (не прыгает при сворачивании/клавиатуре)
   const vh = n(WebApp.viewportStableHeight) || n(WebApp.viewportHeight);
   if (vh > 200) root.setProperty('--tma-vh', vh + 'px');
