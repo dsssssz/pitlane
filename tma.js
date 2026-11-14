@@ -261,6 +261,32 @@ export function tmaGetLocation(cb) {
 }
 
 /* ---------- sharing ---------- */
+
+/** Bot API 8.0+: Mini App on the device home screen. */
+export function tmaHomeScreenAvailable() {
+  return !!(isTMA && tmaAtLeast('8.0') && typeof WebApp.addToHomeScreen === 'function');
+}
+export function tmaCheckHomeScreen() {
+  return new Promise((res) => {
+    if (!tmaHomeScreenAvailable() || typeof WebApp.checkHomeScreenStatus !== 'function') {
+      res('unsupported');
+      return;
+    }
+    let done = false;
+    const fin = (s) => { if (done) return; done = true; res(String(s || 'unknown')); };
+    try { WebApp.checkHomeScreenStatus(fin); } catch (_) { fin('unsupported'); }
+    setTimeout(() => fin('unknown'), 2500);
+  });
+}
+export function tmaAddToHomeScreen() {
+  if (!tmaHomeScreenAvailable()) return false;
+  try { WebApp.addToHomeScreen(); return true; } catch (_) { return false; }
+}
+export function tmaOnHomeScreenAdded(fn) {
+  if (!isTMA) return;
+  try { WebApp.onEvent('homeScreenAdded', fn); } catch (_) {}
+}
+
 export function tmaStartLink(bot, param) {
   bot = String(bot || '').replace(/^@/, '');
   if (!/^\w{3,40}$/.test(bot) || !/^[A-Za-z0-9_-]{1,64}$/.test(String(param || ''))) return null;

@@ -9508,3 +9508,38 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-lap .t282-seg button 
   min-height: 44px !important;
   min-width: 44px !important;
 }
+
+/* v328: выбор «Поделиться» и предложение на экран Домой */
+.share-pick, .hs-ask {
+  position: fixed; inset: 0; z-index: 2147483646;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.share-pick.hidden, .hs-ask.hidden { display: none !important; }
+.share-pick-bg, .hs-ask-bg { position: absolute; inset: 0; background: rgba(0,0,0,.58); }
+.share-pick-panel, .hs-ask-panel {
+  position: relative; z-index: 1; width: 100%; max-width: 430px;
+  background: #000; border-top: 1px solid rgba(255,255,255,.1);
+  padding: 6px 16px calc(14px + var(--sab, env(safe-area-inset-bottom, 0px)));
+  box-sizing: border-box;
+}
+.share-pick-k, .hs-ask-t {
+  margin: 6px 0 10px; color: #fff;
+  font: 600 15px/1.2 var(--font-display, "Sofia Sans Condensed", sans-serif);
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.hs-ask-s { margin: 0 0 16px; color: #9a9a9a; font: 400 14px/1.4 var(--font-ui, sans-serif); }
+.share-pick-row {
+  display: block; width: 100%; min-height: 48px; margin: 0 0 8px;
+  border: 0; border-radius: var(--pl-r2, 8px); background: #161616; color: #fff;
+  font: 600 16px/1 var(--font-display, "Sofia Sans Condensed", sans-serif);
+  text-align: left; padding: 0 16px; cursor: pointer;
+}
+.share-pick-row.mute { background: transparent; color: #9a9a9a; border: 1px solid rgba(255,255,255,.12); }
+.share-pick-row:active, .hs-ask-no:active, .share-pick-cancel:active { opacity: .7; }
+.share-pick-cancel, .hs-ask-no {
+  display: block; width: 100%; min-height: 44px; margin: 2px 0 0;
+  border: 0; background: transparent; color: #9a9a9a;
+  font: 500 15px/1 var(--font-ui, sans-serif); cursor: pointer;
+}
+.hs-ask-panel .go-btn { width: 100%; min-height: 48px; margin-bottom: 4px; }
+#btnHomeScreen[hidden] { display: none !important; }

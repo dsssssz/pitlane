@@ -5,6 +5,7 @@ import {
   setBackHandler, showBack, setClosingGuard, tmaHaptic, canOpenLocationSettings, openLocationSettings,
   tmaStartLink, tmaShare, keepAwake,
   tmaLocationReady, tmaGetLocation,
+  tmaHomeScreenAvailable, tmaCheckHomeScreen, tmaAddToHomeScreen, tmaOnHomeScreenAdded,
 } from './tma.js';
 /* v119: three.js + аддоны + номера (plates.js) — dynamic import при первой надобности (Бокс, chase Сочи).
  * На первом экране их нет. Тот же origin (importmap → ./vendor/three) — CSP script-src 'self' не трогаем. */
@@ -6969,7 +6970,7 @@ if (isTMA) {
   // BackButton: close the top-most sheet / overlay, otherwise go back to the garage.
   const SHEETS = [
     ['plMenu', 'plMenuClose'], ['safetySheet', 'safetyCancel'], ['deleteSheet', 'deleteClose'], ['pitHelpSheet', 'pitHelpClose'],
-    ['shareCard', 'shareCardClose'], ['duelSheet', 'duelSheetClose'], ['crewSheet', 'crewSheetClose'],
+    ['shareCard', 'shareCardClose'], ['sharePick', 'sharePickClose'], ['hsAsk', 'hsAskNo'], ['duelSheet', 'duelSheetClose'], ['crewSheet', 'crewSheetClose'],
     ['autodromeSheet', 'autodromeSheetClose'], ['carPickerSheet', 'carPickerClose'],
     ['passSheet', 'passClose'], ['feedbackSheet', 'feedbackClose'], ['padCommentsSheet', 'padCommentsClose'], ['pilotSheet', 'pilotClose'],
     ['bannerSheet', 'bannerClose'], ['ghostResult', 'ghostResultClose'],
@@ -12010,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v327';
+const APP_VERSION = 'v328';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -17589,8 +17590,14 @@ function rcOpen(rc) {
   _rc = rc; const host = rcEnsure();
   host.classList.remove('hidden'); document.body.classList.add('rc-on');
   rcRender();
+  maybeQueueHsAsk(rc);
 }
-function rcClose() { document.getElementById('rcView')?.classList.add('hidden'); document.body.classList.remove('rc-on'); }
+function rcClose() {
+  document.getElementById('rcView')?.classList.add('hidden');
+  document.body.classList.remove('rc-on');
+  closeSharePick();
+  setTimeout(maybeShowHsAsk, 320);
+}
 /** После вердикта сервера: зачёт и печать (печать есть, только если сервер её выдал — иначе 409/null и печати нет). */
 async function rcVerdict() {
   const rc = run.rc; if (!rc) return;
@@ -17668,17 +17675,149 @@ async function rcCanvas(rc) {
   } else { y += 10; x.fillStyle = '#8e8e93'; x.font = UI(400, 10.5); x.fillText(rcTrustText(rc), cx[0], y); }
   return c;
 }
-async function rcShare() {
+async function rcShareSave(sys) {
   if (!_rc) return;
   try {
     const cv = await rcCanvas(_rc);
     const blob = await new Promise((r) => cv.toBlob(r, 'image/png'));
     const file = new File([blob], 'pitlane-result.png', { type: 'image/png' });
-    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'PITLANE' }); return; }
+    if (sys && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'PITLANE' }); return; }
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pitlane-result.png';
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   } catch (err) { if (err?.name !== 'AbortError') console.warn('rc share', err); }
 }
+function payloadFromRc(rc) {
+  if (run.pendingShare) return run.pendingShare;
+  if (_sharePayload) return _sharePayload;
+  if (!rc) return null;
+  let type = '0-100', time = '—';
+  try {
+    const HR = typeof rcHero === 'function' ? rcHero(rc) : null;
+    if (HR && Number.isFinite(HR.sec)) { type = HR.k || type; time = Number(HR.sec).toFixed(2) + ' с'; }
+    else if (rc.splits?.[0] && Number.isFinite(rc.splits[0].sec)) { type = rc.splits[0].k || type; time = Number(rc.splits[0].sec).toFixed(2) + ' с'; }
+  } catch (_) {}
+  return buildSharePayload({
+    type, time, valid: !!rc.ver, car: rc.car, at: rc.at,
+    gpsQ: rc.gps?.gpsQ, src: rc.gps?.src, n: rc.gps?.n, hz: rc.gps?.hz, avgAcc: rc.gps?.avgAcc,
+    trackName: rc.track, trackId: rc.trackId, wx: rc.wx,
+  });
+}
+function openSharePick() {
+  const el = document.getElementById('sharePick');
+  if (!el) return;
+  hap(8);
+  el.classList.remove('hidden');
+  el.setAttribute('aria-hidden', 'false');
+}
+function closeSharePick() {
+  const el = document.getElementById('sharePick');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.setAttribute('aria-hidden', 'true');
+}
+async function rcShare() {
+  if (!_rc && !run.pendingShare) return;
+  openSharePick();
+}
+async function sharePickAct(act) {
+  const p = payloadFromRc(_rc);
+  closeSharePick();
+  if (act === 'story') { if (p) await shareStory(p); return; }
+  if (act === 'chat') { if (p) await shareResult(p); return; }
+  if (act === 'save') { await rcShareSave(false); return; }
+  if (act === 'more') { await rcShareSave(true); return; }
+}
+document.getElementById('sharePick')?.addEventListener('click', (e) => {
+  const act = e.target?.closest?.('[data-sp]')?.dataset?.sp;
+  if (!act) return;
+  if (act === 'x') { closeSharePick(); return; }
+  void sharePickAct(act);
+});
+
+/* v328 Т1: ярлык Mini App на экран Домой + одно спокойное предложение после первого заезда */
+const HS_FLAG = 'pitlane-hs-offered-v1';
+let _hsStatus = '';
+let _hsPendingAsk = false;
+function hsOffered() { try { return localStorage.getItem(HS_FLAG) === '1'; } catch (_) { return true; } }
+function hsMarkOffered() { try { localStorage.setItem(HS_FLAG, '1'); } catch (_) {} }
+async function syncHomeScreenRow() {
+  const btn = document.getElementById('btnHomeScreen');
+  const g = document.getElementById('st66HomeG');
+  if (!btn) return _hsStatus;
+  if (!isTMA) { btn.hidden = true; if (g) g.hidden = false; return 'unsupported'; }
+  const st = await tmaCheckHomeScreen();
+  _hsStatus = st;
+  const show = st === 'missed' || st === 'unknown';
+  btn.hidden = !show;
+  if (g) {
+    const card = document.getElementById('iosHomeCard');
+    const cardOn = !!(card && !card.hidden && getComputedStyle(card).display !== 'none');
+    g.hidden = !show && !cardOn;
+  }
+  return st;
+}
+function showHsAsk() {
+  const el = document.getElementById('hsAsk');
+  if (!el) return;
+  hsMarkOffered();
+  _hsPendingAsk = false;
+  el.classList.remove('hidden');
+  el.setAttribute('aria-hidden', 'false');
+}
+function closeHsAsk() {
+  const el = document.getElementById('hsAsk');
+  if (!el) return;
+  el.classList.add('hidden');
+  el.setAttribute('aria-hidden', 'true');
+}
+function maybeQueueHsAsk(rc) {
+  if (hsOffered() || !isTMA || !rc || rc.old) return;
+  if (rc.gps?.src === 'sim') return;
+  if (run.rc !== rc && !run.pendingShare) return;
+  const go = (st) => { if (st === 'missed' || st === 'unknown') _hsPendingAsk = true; };
+  if (_hsStatus) go(_hsStatus);
+  else void tmaCheckHomeScreen().then((st) => { _hsStatus = st; go(st); });
+}
+function maybeShowHsAsk() {
+  if (!_hsPendingAsk || hsOffered()) return;
+  if (document.getElementById('sharePick') && !document.getElementById('sharePick').classList.contains('hidden')) return;
+  showHsAsk();
+}
+function hsAddNow() {
+  hap(12);
+  closeHsAsk();
+  hsMarkOffered();
+  if (!tmaAddToHomeScreen()) showAppToast('На этом устройстве ярлык недоступен');
+}
+tmaOnHomeScreenAdded(() => {
+  _hsStatus = 'added';
+  _hsPendingAsk = false;
+  closeHsAsk();
+  const btn = document.getElementById('btnHomeScreen');
+  if (btn) btn.hidden = true;
+  const g = document.getElementById('st66HomeG');
+  if (g && document.getElementById('btnHomeScreen')?.hidden) {
+    const card = document.getElementById('iosHomeCard');
+    const cardOn = !!(card && !card.hidden && getComputedStyle(card).display !== 'none');
+    if (!cardOn) g.hidden = true;
+  }
+  try { showAppToast('Добавлено на экран Домой'); } catch (_) {}
+});
+document.getElementById('btnHomeScreen')?.addEventListener('click', () => { hsAddNow(); });
+document.getElementById('hsAskYes')?.addEventListener('click', () => { hsAddNow(); });
+document.getElementById('hsAskNo')?.addEventListener('click', () => { hsMarkOffered(); closeHsAsk(); });
+document.getElementById('hsAsk')?.addEventListener('click', (e) => {
+  if (e.target?.id === 'hsAsk' || e.target?.dataset?.hs === 'x') { hsMarkOffered(); closeHsAsk(); }
+});
+void syncHomeScreenRow();
+document.getElementById('view-settings')?.addEventListener('transitionend', () => {
+  if (document.getElementById('view-settings')?.classList.contains('active')) void syncHomeScreenRow();
+});
+window.__v328 = {
+  openPick: openSharePick, closePick: closeSharePick, act: sharePickAct,
+  offer: () => { _hsPendingAsk = true; showHsAsk(); },
+  closeOffer: closeHsAsk, syncHome: syncHomeScreenRow, status: () => _hsStatus,
+};
 window.__rc287 = { open: rcOpen, close: rcClose, canvas: rcCanvas, cur: () => _rc, pending: (p, rc) => { run.pendingShare = p; if (rc) run.rc = rc; }, startDuel: (p, btn) => startShareDuel(p, btn) }; // QA/скриншоты
 
 /* v289: один понятный призыв на пустом профиле — «Сделай первый замер» */

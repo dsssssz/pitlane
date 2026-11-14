@@ -33,7 +33,7 @@
     <meta name="twitter:title" content="PITLANE — Замеряй. Сравнивай. Побеждай." />
     <meta name="twitter:description" content="Разгоны 0–100 и круги по GPS с проверкой на сервере. Честные топы — прямо в Telegram." />
     <meta name="twitter:image" content="https://dsssssz.github.io/pitlane/img/og-1200x630.jpg" />
-    <meta name="pitlane-build" content="v327" />
+    <meta name="pitlane-build" content="v328" />
     <script src="./upd.js"></script>
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/golos/cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin />
@@ -41,8 +41,8 @@
     <link rel="preload" href="./fonts/plex-mono/latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="./fonts.css" />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-QNOZR6M6.js" />
-    <link rel="stylesheet" href="./styles-1216EC97.css" />
+    <link rel="modulepreload" href="./b/app-DMAKYCXI.js" />
+    <link rel="stylesheet" href="./styles-E04C2395.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -638,7 +638,8 @@
             </select><i class="st66-chev" aria-hidden="true"></i>
           </label>
           </div></div>
-          <div class="st66-g"><p class="st66-h">Быстрый Замер</p><div class="st66-list">
+          <div class="st66-g" id="st66HomeG"><p class="st66-h">На экран Домой</p><div class="st66-list">
+            <button type="button" class="st66-row" id="btnHomeScreen" hidden><span class="st66-k">Добавить приложение</span><i class="st66-chev" aria-hidden="true"></i></button>
             <article class="card" id="iosHomeCard">
             <h3>Добавить Замер на Домой</h3>
             <p class="muted">iPhone: откройте страницу иконки → Поделиться → На экран «Домой». На Android long-press иконки Pitlane → «Быстрый замер».</p>
@@ -1137,6 +1138,30 @@
       </div>
     </div>
 
+    <div id="sharePick" class="share-pick hidden" aria-hidden="true" role="dialog" aria-label="Поделиться">
+      <div class="share-pick-bg" data-sp="x"></div>
+      <div class="share-pick-panel">
+        <i class="sd-handle" aria-hidden="true"></i>
+        <p class="share-pick-k">Поделиться</p>
+        <button type="button" class="share-pick-row" data-sp="story">В сторис</button>
+        <button type="button" class="share-pick-row" data-sp="chat">В чат</button>
+        <button type="button" class="share-pick-row" data-sp="save">Сохранить</button>
+        <button type="button" class="share-pick-row mute" data-sp="more">Ещё</button>
+        <button type="button" class="share-pick-cancel" id="sharePickClose" data-sp="x">Закрыть</button>
+      </div>
+    </div>
+
+    <div id="hsAsk" class="hs-ask hidden" aria-hidden="true" role="dialog" aria-label="На экран Домой">
+      <div class="hs-ask-bg" data-hs="x"></div>
+      <div class="hs-ask-panel">
+        <i class="sd-handle" aria-hidden="true"></i>
+        <p class="hs-ask-t">На экран Домой</p>
+        <p class="hs-ask-s">PITLANE откроется как обычное приложение, без поиска в чатах.</p>
+        <button type="button" class="go-btn" id="hsAskYes">Добавить</button>
+        <button type="button" class="hs-ask-no" id="hsAskNo">Не сейчас</button>
+      </div>
+    </div>
+
     <div id="appToast" class="app-toast hidden" role="status" aria-live="polite"></div>
 
     <div id="autodromeSheet" class="crew-sheet race-sheet hidden" aria-hidden="true" role="dialog" aria-label="Автодромы">
@@ -1308,6 +1333,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-QNOZR6M6.js"></script>
+    <script type="module" src="./b/app-DMAKYCXI.js"></script>
   </body>
 </html>
