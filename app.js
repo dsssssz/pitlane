@@ -5379,8 +5379,7 @@ document.getElementById('runDriveStop')?.addEventListener('click', () => {
 });
 document.getElementById('runDriveDuel')?.addEventListener('click', () => {
   if (!run.pendingShare) return;
-  openShareCard(run.pendingShare);
-  setTimeout(() => { try { document.getElementById('shareCardDuel')?.click(); } catch (_) {} }, 60);
+  void startShareDuel(run.pendingShare);
 });
 document.getElementById('runDriveAgain')?.addEventListener('click', () => { withSafety(() => armRun({ quiet: true }))(); });
 function pushSlip() {
@@ -10205,10 +10204,19 @@ async function ensureShareDuel(p) {
   return _shareDuelBusy;
 }
 
-document.getElementById('shareCardDuel')?.addEventListener('click', async () => {
+function armSharePayload(payload, own = true) {
+  if (!payload) return null;
+  _sharePayload = payload;
+  _shareOwn = !!own;
+  _shareNextForeign = false;
+  if (_shareOwn) { try { rememberDuelCandidateFromShare(payload); } catch (_) {} }
+  _shareCand = (_shareOwn && _lastDuelCandidate && _lastDuelCandidate.at === payload.at) ? _lastDuelCandidate : null;
+  return payload;
+}
+async function startShareDuel(payload, btn) {
+  if (payload) armSharePayload(payload, true);
   const p = _sharePayload;
   const isLap = p && (p.type === 'lap' || p.type === 'круг');
-  const btn = document.getElementById('shareCardDuel');
   let id = p?.duelId && /^d[a-z0-9]{6,40}$/.test(p.duelId) ? p.duelId : null;
   if (!id && _shareOwn) {
     if (btn) btn.disabled = true;
@@ -10216,7 +10224,6 @@ document.getElementById('shareCardDuel')?.addEventListener('click', async () => 
     if (btn) btn.disabled = false;
   }
   if (id) {
-    // outside Telegram: the deep link opens the Mini App straight on this challenge (startapp=duel_<id>)
     if (!isTMA && !_shareOwn) {
       const cfg = await ensureAuthCfg().catch(() => null);
       const link = tmaStartLink(cfg?.telegramBot, 'duel_' + id);
@@ -10226,7 +10233,6 @@ document.getElementById('shareCardDuel')?.addEventListener('click', async () => 
     openDuelSheet({ duelId: id });
     return;
   }
-  // fallback (¼ mile, not A/B, not logged in, no API): the old create sheet with the hint
   closeShareCard();
   openDuelSheet({
     type: isLap ? 'lap' : 'drag',
@@ -10234,6 +10240,9 @@ document.getElementById('shareCardDuel')?.addEventListener('click', async () => 
     createOnly: true,
   });
   if (!currentUser()) { const h = document.getElementById('duelHint'); if (h) h.textContent = REJECT_TEXT.no_account; }
+}
+document.getElementById('shareCardDuel')?.addEventListener('click', () => {
+  void startShareDuel(_sharePayload, document.getElementById('shareCardDuel'));
 });
 
 void bootDuelFromUrl();
@@ -11987,7 +11996,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v325';
+const APP_VERSION = 'v326';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12314,7 +12323,8 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     const hasCar = !!(mine || saved || box || (state.garage && state.garage.length));
     if (car) { const t = mine ? String(mine.model) : 'Выбери машину'; /* v279: без машины по умолчанию */ if (car.textContent !== t) car.textContent = t; const e = mine ? '0' : '1'; if (car.dataset.empty !== e) car.dataset.empty = e; }
     const s = homeGoGpsStatus(); const g = document.getElementById('h48Gps'); const v = document.getElementById('h48GpsV');
-    if (v && v.textContent !== s.text) v.textContent = s.text; if (g && g.dataset.q !== s.q) g.dataset.q = s.q;
+    const hint = zamerGpsHint(s);
+    if (v && v.textContent !== hint) v.textContent = hint; if (g && g.dataset.q !== s.q) g.dataset.q = s.q;
     try { r275Idle(); } catch (_) {}
   };
   setInterval(() => { if (!document.hidden) { try { renderH48(); } catch (_) {} } }, 2000); setTimeout(() => { try { renderH48(); } catch (_) {} }, 600);
@@ -14808,6 +14818,18 @@ function homeGoBuildTicks() {
     if (mj) ln.setAttribute('class', 'mj');
     g.appendChild(ln);
   }
+}
+
+function zamerGpsHint(s) {
+  let t = String(s?.text || '');
+  t = t.replace(/^Телефон · /, '')
+    .replace(/^Симулятор · /, '')
+    .replace(/^Чип · /, '')
+    .replace(/^Внешний GPS · (?:Wi-Fi|Bluetooth) · /, '')
+    .replace(/^Внешний GPS · /, '');
+  if (t === 'Симулятор') t = 'симулятор';
+  if (t === 'Телефон') t = 'GPS';
+  return t || 'GPS';
 }
 function homeGoGpsStatus() {
   const st = (typeof extGps !== 'undefined' && extGps?.state?.()) || 'off';
@@ -17541,7 +17563,7 @@ function rcEnsure() {
     hap(6);
     if (a === 'x') rcClose();
     else if (a === 'share') void rcShare();
-    else if (a === 'duel' && run.pendingShare) { rcClose(); openShareCard(run.pendingShare); setTimeout(() => { try { document.getElementById('shareCardDuel')?.click(); } catch (_) {} }, 60); }
+    else if (a === 'duel' && run.pendingShare) { rcClose(); void startShareDuel(run.pendingShare, e.target?.closest?.('[data-rc]')); }
     else if (a === 'tops') { rcClose(); try { if (run.summary) { stopRun(); closeRunDrive(); wifiSummaryReset(); } } catch (_) {} goToView('tops'); }
   });
   addEventListener('resize', rcFit);
@@ -17642,7 +17664,7 @@ async function rcShare() {
     document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   } catch (err) { if (err?.name !== 'AbortError') console.warn('rc share', err); }
 }
-window.__rc287 = { open: rcOpen, close: rcClose, canvas: rcCanvas, cur: () => _rc }; // QA/скриншоты
+window.__rc287 = { open: rcOpen, close: rcClose, canvas: rcCanvas, cur: () => _rc, pending: (p, rc) => { run.pendingShare = p; if (rc) run.rc = rc; }, startDuel: (p, btn) => startShareDuel(p, btn) }; // QA/скриншоты
 
 /* v289: один понятный призыв на пустом профиле — «Сделай первый замер» */
 async function pfCta289() {
@@ -17766,13 +17788,13 @@ setTimeout(() => { try { onbMaybeShow(); } catch (err) { console.warn('onb', err
 /* v318 */
 initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar293(p?.carId || '', p?.car || ''); return r.meta?.ph || (r.x?.id ? userCarPhoto(r.x.id) : ''); } catch (_) { return ''; } } });
 
-/* v325: горизонтальный свайп между пятью нижними вкладками */
+/* v326: горизонтальный свайп вкладок — устойчив к pointercancel в Telegram */
 (() => {
   const ORDER = ['zamer', 'lap', 'tops', 'pulse', 'shop'];
   const EDGE = 24;
   const LOCK = 16;
   const GO = 56;
-  let st = null; // { x, y, id, lock }
+  let st = null;
 
   function tabKey() {
     try {
@@ -17792,7 +17814,7 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
       if (!el || el.nodeType !== 1) continue;
       const ox = getComputedStyle(el).overflowX;
       if ((ox === 'auto' || ox === 'scroll') && el.scrollWidth > el.clientWidth + 4) return true;
-      if (el.getAttribute?.('role') === 'slider' || el.tagName === 'INPUT' && el.type === 'range') return true;
+      if (el.getAttribute?.('role') === 'slider' || (el.tagName === 'INPUT' && el.type === 'range')) return true;
     }
     return false;
   }
@@ -17813,28 +17835,38 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
     try { n6Sync(); } catch (_) {}
     try { window.scrollTo(0, 0); } catch (_) {}
   }
+  function xy(e) {
+    if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    if (e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+    return { x: e.clientX, y: e.clientY };
+  }
   function onDown(e) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.type === 'pointerdown' && e.pointerType === 'mouse' && e.button !== 0) return;
+    if (st && st.kind === 'touch' && e.type === 'pointerdown') return; // уже ведём пальцем
     if (runOn()) return;
     if (!tabKey()) return;
-    if (blocked(e.target)) return;
-    const x = e.clientX, y = e.clientY, w = window.innerWidth || 0;
-    if (x < EDGE || (w && x > w - EDGE)) return; // край — жест «назад» Telegram / iOS
-    st = { x, y, id: e.pointerId, lock: '' };
+    const t = e.target;
+    if (blocked(t)) return;
+    const p = xy(e);
+    const w = window.innerWidth || 0;
+    if (p.x < EDGE || (w && p.x > w - EDGE)) return;
+    st = { x: p.x, y: p.y, lx: p.x, ly: p.y, lock: '', kind: e.type.startsWith('touch') ? 'touch' : 'pointer' };
   }
   function onMove(e) {
-    if (!st || e.pointerId !== st.id) return;
-    const dx = e.clientX - st.x, dy = e.clientY - st.y;
+    if (!st) return;
+    if (st.kind === 'touch' && e.type === 'pointermove') return;
+    const p = xy(e);
+    if (!Number.isFinite(p.x)) return;
+    st.lx = p.x; st.ly = p.y;
+    const dx = p.x - st.x, dy = p.y - st.y;
     if (!st.lock) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) < LOCK) return;
       st.lock = (Math.abs(dx) > Math.abs(dy) * 1.15) ? 'x' : 'y';
     }
     if (st.lock === 'x' && e.cancelable) { try { e.preventDefault(); } catch (_) {} }
   }
-  function onUp(e) {
-    if (!st || e.pointerId !== st.id) { st = null; return; }
-    const dx = e.clientX - st.x;
-    const ok = st.lock === 'x' && Math.abs(dx) >= GO && !runOn();
+  function finish(dx) {
+    const ok = st && st.lock === 'x' && Math.abs(dx) >= GO && !runOn();
     const key = tabKey();
     st = null;
     if (!ok || !key) return;
@@ -17844,12 +17876,29 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
     try { hap(6); } catch (_) {}
     n6Go(next);
   }
-  const opts = { passive: true };
-  const moveOpts = { passive: false };
-  document.addEventListener('pointerdown', onDown, opts);
-  document.addEventListener('pointermove', onMove, moveOpts);
-  document.addEventListener('pointerup', onUp, opts);
-  document.addEventListener('pointercancel', () => { st = null; }, opts);
+  function onUp(e) {
+    if (!st) return;
+    if (st.kind === 'touch' && e.type.startsWith('pointer')) return;
+    const p = xy(e);
+    const dx = (Number.isFinite(p.x) ? p.x : st.lx) - st.x;
+    finish(dx);
+  }
+  function onCancel(e) {
+    if (!st) return;
+    if (st.kind === 'touch' && e.type === 'pointercancel') return; // ждём touchend
+    if (st.lock === 'x' && Math.abs(st.lx - st.x) >= GO) { finish(st.lx - st.x); return; }
+    // горизонталь начата, но палец ещё на экране — не сбрасываем, дождёмся touchend
+    if (st.lock === 'x' && e.type === 'pointercancel') return;
+    st = null;
+  }
+  document.addEventListener('pointerdown', onDown, { passive: true });
+  document.addEventListener('pointermove', onMove, { passive: false });
+  document.addEventListener('pointerup', onUp, { passive: true });
+  document.addEventListener('pointercancel', onCancel, { passive: true });
+  document.addEventListener('touchstart', onDown, { passive: true, capture: true });
+  document.addEventListener('touchmove', onMove, { passive: false, capture: true });
+  document.addEventListener('touchend', onUp, { passive: true, capture: true });
+  document.addEventListener('touchcancel', onCancel, { passive: true, capture: true });
   window.__n6Swipe = { go: n6Go, order: ORDER };
 })();
 /* v325: после первого кадра подгружаем магазин и журнал, на первый экран не влияют */

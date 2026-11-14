@@ -9143,3 +9143,253 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .sc92 { margin: 8px 0
   html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-top { padding-bottom: 4px !important; }
   html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .cw291.big { min-height: 118px !important; }
 }
+
+/* ===== v326: кнопки Замера A, рекорд/отрезки на узких экранах, свайп, профиль 320 ===== */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #app,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) main,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .view-host,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .view {
+  touch-action: pan-y;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tops-chips,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .bn52-track,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tk58,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .shop-gal-track,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .home-rail,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .jn-tracks,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .cp-chips,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .shop-tabs,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .t72-discs,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .spin-drag {
+  touch-action: pan-x pan-y;
+}
+
+/* Режим: два слова без коробки, активный с бордовой чертой 2 px */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h56Mode {
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: stretch !important;
+  justify-content: center !important;
+  gap: 0 !important;
+  padding: 0 !important;
+  margin: 0 0 16px !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  filter: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h56Mode button {
+  flex: none !important;
+  box-sizing: border-box !important;
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-height: 44px !important;
+  min-width: 44px !important;
+  padding: 0 16px !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #8A8A8A !important;
+  font: 500 16px/20px var(--font-display) !important;
+  letter-spacing: .02em !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h56Mode button[aria-checked="true"] {
+  color: #F2F2F2 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-radius: 0 !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h56Mode button[aria-checked="true"]::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  left: 16px !important;
+  right: 16px !important;
+  bottom: 6px !important;
+  height: 2px !important;
+  background: #A8233B !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Низ Замера: статус слева, действие справа */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 .z325-rows {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  width: 100% !important;
+  margin-top: auto !important;
+  padding: 8px 0 0 !important;
+  border-top: 1px solid #1A1A1A !important;
+  background: transparent !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 .z325-pill {
+  all: unset;
+  box-sizing: border-box;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 #z61Gps {
+  box-sizing: border-box !important;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 44px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 8px !important;
+  padding: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  color: #E8E8E8 !important;
+  cursor: pointer !important;
+  -webkit-tap-highlight-color: transparent;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 .z325-rows .ds-row-k { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 .z325-rows button.ds-row::after { display: none !important; content: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 .z325-rows .z61-src-v {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: baseline !important;
+  gap: 8px !important;
+  justify-content: flex-start !important;
+  text-align: left !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 .z325-rows .z61-src-v b {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  font: 500 16px/20px var(--font-display) !important;
+  color: #E8E8E8 !important;
+  letter-spacing: 0 !important;
+  font-weight: 500 !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 #z61SrcS,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 .z325-rows .z61-src-v small {
+  display: inline !important;
+  font: 400 13px/16px var(--font-display) !important;
+  color: #8A8A8A !important;
+  letter-spacing: .02em !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 .z325-rows .z61-dot {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: #7A7A7A !important;
+  box-shadow: none !important;
+  flex: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 #z61Chip {
+  box-sizing: border-box !important;
+  flex: 0 0 auto !important;
+  min-height: 44px !important;
+  min-width: 44px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  padding: 0 0 0 8px !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  color: #F2F2F2 !important;
+  font: 600 16px/20px var(--font-display) !important;
+  cursor: pointer !important;
+  position: relative !important;
+  -webkit-tap-highlight-color: transparent;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 #z61Chip::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  left: 8px !important;
+  right: 0 !important;
+  bottom: 10px !important;
+  height: 2px !important;
+  background: #A8233B !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 #z61Chip[hidden] { display: none !important; }
+
+/* У2: рекорд не наезжает на отрезки; отрезки не липнут к машине */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #r275Ticks,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .r275-ticks {
+  margin-top: 16px !important;
+  margin-bottom: 0 !important;
+  position: relative !important;
+  z-index: 0 !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .r275-pb {
+  margin: 12px 0 0 !important;
+  position: relative !important;
+  z-index: 1 !important;
+  white-space: pre-wrap !important;
+  text-align: center;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h48-car {
+  margin-top: 16px !important;
+}
+@media (max-height: 780px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #r275Ticks,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .r275-ticks {
+    margin-top: 12px !important;
+    margin-bottom: 0 !important;
+  }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .r275-pb { margin: 10px 0 0 !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h48-car { margin-top: 12px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode { margin-bottom: 8px !important; }
+}
+@media (max-height: 700px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #r275Ticks,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .r275-ticks {
+    margin-top: 10px !important;
+    margin-bottom: 0 !important;
+  }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .r275-pb { margin: 8px 0 0 !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h48-car { margin-top: 12px !important; }
+}
+@media (max-width: 360px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .r275-pb {
+    font-size: 11px !important;
+    line-height: 1.35 !important;
+    padding: 0 8px;
+  }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 #z61Chip,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48 .z325-rows .z61-src-v b {
+    font-size: 15px !important;
+  }
+}
+
+/* У3: на коротком экране пункты профиля видны целиком, круг в шапке остаётся */
+@media (max-height: 700px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-banner { height: 64px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-ava { margin-top: -36px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-hero { padding-bottom: 4px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-name { margin-top: 6px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-stats { margin-top: 6px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-pass { margin-top: 6px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .cw291.big { min-height: 96px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-recap { margin-top: 6px !important; padding-top: 8px !important; padding-bottom: 8px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-list { margin-top: 6px !important; margin-bottom: 8px !important; gap: 8px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .cta289 { margin: 6px 0 !important; padding: 8px 12px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .sc92 { margin: 6px 0 0 !important; padding-bottom: 4px !important; }
+}
