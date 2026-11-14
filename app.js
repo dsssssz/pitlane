@@ -533,14 +533,23 @@ let _sectorTopIdx = 0; // sector tops chip index (hoisted: renderTops() may run 
 
 function loadState() {
   try {
-    const s = JSON.parse(localStorage.getItem(storeKey)) || { carId: null, garage: [], meas: {}, laps: {}, scans: {}, passport: {}, passportGps: {} };
+    const s = JSON.parse(localStorage.getItem(storeKey)) || {};
+    const obj = (v) => (v && typeof v === 'object' && !Array.isArray(v) ? v : {});
+    s.garage = Array.isArray(s.garage) ? s.garage : [];
+    s.meas = obj(s.meas);
+    s.laps = obj(s.laps);
+    s.scans = obj(s.scans);
+    s.passport = obj(s.passport);
+    s.passportGps = obj(s.passportGps);
+    s.dragBest = obj(s.dragBest);
+    s.dragBestC = obj(s.dragBestC);
     const inCars = !!(s.carId && CARS.some((c) => c.id === s.carId));
-    const inGarage = !!(s.carId && (s.garage || []).some((c) => c.id === s.carId));
+    const inGarage = !!(s.carId && s.garage.some((c) => c.id === s.carId));
     // Catalog / stock ids must resolve; unknown ids fall back to G87 M2 (not M3).
     if (!s.carId || (!inCars && !inGarage)) s.carId = 'g87-m2';
     return s;
   } catch {
-    return { carId: 'g87-m2', garage: [], meas: {}, laps: {}, scans: {}, passport: {} };
+    return { carId: 'g87-m2', garage: [], meas: {}, laps: {}, scans: {}, passport: {}, passportGps: {}, dragBest: {}, dragBestC: {} };
   }
 }
 function save() {
@@ -6443,7 +6452,11 @@ function refreshAccount() {
     return;
   }
   phones.forEach((el) => { el.textContent = accountLabel(u); });
-  document.getElementById('btnDeleteAccount')?.classList.toggle('hidden', !getSessionToken() || String(getSessionToken()).startsWith('local-'));
+  {
+    const noAcc = !getSessionToken() || String(getSessionToken()).startsWith('local-');
+    document.getElementById('btnDeleteAccount')?.classList.toggle('hidden', noAcc);
+    document.getElementById('st66DelLink')?.classList.toggle('hidden', !noAcc);
+  }
   const plan = document.getElementById('accPlan');
   if (plan) {
     plan.textContent = (isTMA || !legalReady()) ? 'аккаунт сохранён' : ((isPro(u) ? ('Pro · ') : ('trial · ')) + 'аккаунт сохранён');
@@ -11996,8 +12009,9 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v326';
-{ const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
+window.__goToView = goToView;
+const APP_VERSION = 'v327';
+{ const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
 const FB_SHOT_MAX_SIDE = 1280;
@@ -16464,7 +16478,8 @@ window.__jn61 = { go: journalGo61, render: () => renderJournal61() };
     try { ht.checked = localStorage.getItem('pitlane-hap-off') !== '1'; } catch (_) {}
     ht.addEventListener('change', () => { try { if (ht.checked) localStorage.removeItem('pitlane-hap-off'); else localStorage.setItem('pitlane-hap-off', '1'); } catch (_) {} if (ht.checked) hap(10); });
   }
-  const ver = document.getElementById('st66Ver'); if (ver) ver.textContent = 'PITLANE 1.0 beta';
+  const ver = document.getElementById('st66Ver'); if (ver) ver.textContent = 'PITLANE · ' + APP_VERSION.replace(/^v/, '');
+  { const pe = document.getElementById('plVer'); if (pe) pe.hidden = true; }
   const who = () => {
     const nick = (document.getElementById('accNick')?.value || '').trim(); const ph = (document.getElementById('accPhone')?.textContent || '').trim();
     const t = nick || (ph && ph !== 'не вошли' ? ph : 'не вошли'); const el = document.getElementById('st66Who'); if (el && el.textContent !== t) el.textContent = t;

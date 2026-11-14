@@ -9393,3 +9393,118 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h48-car {
   html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .cta289 { margin: 6px 0 !important; padding: 8px 12px !important; }
   html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .sc92 { margin: 6px 0 0 !important; padding-bottom: 4px !important; }
 }
+
+/* ===== v327: имена без обрезки, кружок не наезжает на списки, тап ≥44 ===== */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tk58-n,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-v,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h48-car,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) [data-mycar-line],
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-car,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pd-car,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .lap-drive-car,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #topsBoardTitle,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .t282-pill b {
+  white-space: normal !important;
+  overflow: hidden !important;
+  text-overflow: unset !important;
+  display: -webkit-box !important;
+  -webkit-box-orient: vertical !important;
+  -webkit-line-clamp: 2 !important;
+  line-height: 1.2 !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-v {
+  max-width: 58% !important;
+  text-align: right;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-row { align-items: center !important; min-height: 52px !important; }
+
+/* У11: в fullscreen контент Трека, Топов, Магазина и Чата не заходит под кружок профиля */
+/* U11 padding moved to v327b */
+
+
+/* У14: тап не меньше 44 px. Визуал пилюль чуть выше, крестики — зона через ::after */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-edit-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-recap,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #topsMethodLink,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .method-link,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tq-chip,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .t72-per-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .t72-more-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .t72-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .t282-pill,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #cpTabs button,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .cp-tabs button,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .file-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #app .pulse-compose-bar .file-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #app .pulse-compose.pc-foot .file-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pc-foot #pulseSend,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .shop-docs-link,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .shop-tabs button,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .jn-tabs button,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) [data-jf] {
+  min-height: 44px !important;
+  min-width: 44px !important;
+  box-sizing: border-box !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-edit-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-recap {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #topsMethodLink,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .method-link,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .shop-docs-link {
+  display: inline-flex !important;
+  align-items: center !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tq-chip,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) label.tq-chip {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+/* крестик 30 px визуально, зона касания 44 */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pl-x::after {
+  content: '' !important;
+  position: absolute !important;
+  inset: -7px !important;
+  border-radius: 50% !important;
+}
+
+
+/* v327b: список трасс tv2 — перенос без схлопывания, один отступ от кружка, сегменты 44 px */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tv2-tx b,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tv2-tx span,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .st66-v {
+  white-space: normal !important;
+  overflow: hidden !important;
+  text-overflow: clip !important;
+  display: block !important;
+  max-height: calc(1.25em * 2);
+  line-height: 1.25 !important;
+  overflow-wrap: break-word !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tv2-tx { min-width: 8em !important; flex: 1 1 auto !important; }
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-lap,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-tops,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-shop,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-pulse,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-history {
+  padding-right: 56px !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #topsCls .seg-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .t72-cls .seg-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .seg-control .seg-btn {
+  min-height: 44px !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-lap .t282-seg {
+  height: auto !important;
+  min-height: 50px !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-lap .t282-seg button {
+  min-height: 44px !important;
+  min-width: 44px !important;
+}
