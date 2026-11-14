@@ -58,7 +58,11 @@ import { api, apiBase, isRemoteApi, setSessionToken, getSessionToken, getRefresh
 import { brandLogoEl, brandLogoKey, carDbById, carDbRowPhoto, carDbShowcase, openCarDb } from './car-db.js';
 import { initCrewRooms, openRoomSheet, openMyCarSheet, requireCar, pushLapToActiveRoom, loadMyCar, refreshMyCarBar, ensureCarBeforeRun, syncMyCarAfterAuth, openQuickCarSheet, openCarPicker as openCarDbPicker, pickCatalogCar, pickOwnCar, PREP_LABEL, TYRE_T_LABEL, classLine } from './crew-rooms.js';
 import { initV318, countdown318, cdClose, drawRunCard318, mountWalletDeck } from './v318.js';
-import { initTeams, openTeamsList, openTeamPage, openTeamEditor } from './teams-ui.js';
+/* v325: команды выключены (TEAMS_OFF) — не тащим teams-ui в первый бандл */
+function initTeams() {}
+function openTeamsList() {}
+function openTeamPage() {}
+function openTeamEditor() {}
 // v207: подсказки удалены полностью
 const tipsOnView = () => {};
 import { musicList, renderMyMusic, initMusic, stopMusic } from './music-ui.js';
@@ -11983,7 +11987,7 @@ document.addEventListener('click', (e) => {
 
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
-const APP_VERSION = 'v324';
+const APP_VERSION = 'v325';
 { const ve = document.getElementById('plVer'); if (ve) ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -13027,9 +13031,9 @@ function r275PbSnap() {
 function r275Idle() {
   const el = document.getElementById('r275Pb'); if (!el) return;
   const pb = r275PbSnap(); const parts = [];
-  if (pb['0-100'] > 0) parts.push('0–100 · PB ' + pb['0-100'].toFixed(2) + ' с');
-  if (pb['402m'] > 0) parts.push('¼ мили · PB ' + pb['402m'].toFixed(2) + ' с');
-  const t = parts.join('   |   ');
+  if (pb['0-100'] > 0) parts.push('рекорд  0–100  ' + pb['0-100'].toFixed(2) + ' с');
+  if (pb['402m'] > 0) parts.push('¼ мили  ' + pb['402m'].toFixed(2) + ' с');
+  const t = parts.join('   ·   ');
   if (el.textContent !== t) el.textContent = t; el.hidden = !t;
   const ph = document.getElementById('z61Gps')?.dataset.src === 'phone';
   const f = document.querySelector('#r275Ticks [data-k="60ft"]'); if (f) f.hidden = ph; // телефон 60 ft не меряет
@@ -16353,6 +16357,7 @@ document.addEventListener('click', (e) => {
   const close = () => { sh.classList.add('hidden'); sh.setAttribute('aria-hidden', 'true'); document.documentElement.classList.remove('gps61-on'); };
   const open = () => { hap(8); sh.classList.remove('hidden'); sh.setAttribute('aria-hidden', 'false'); document.documentElement.classList.add('gps61-on'); };
   ['z61Gps', 't61Gps'].forEach((id) => document.getElementById(id)?.addEventListener('click', open));
+  document.getElementById('z61Chip')?.addEventListener('click', () => { try { hap(6); } catch (_) {} void openShopSheet('pitlane-gps'); });
   sh.addEventListener('click', (e) => { if (e.target?.closest?.('[data-close61]')) close(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !sh.classList.contains('hidden')) close(); });
   const bar = document.getElementById('extGpsBar');
@@ -16369,12 +16374,13 @@ document.addEventListener('click', (e) => {
       const st = on ? (sim ? 'sim' : 'chip') : (conn ? 'conn' : 'phone');
       const hzT = hz && hz !== '—' ? ' · ' + Math.round(Number(hz)) + ' Гц' : '';
       const V = { chip: 'Чип' + hzT, sim: 'Симулятор' + hzT, conn: 'Чип · подключение…', phone: 'Телефон' }[st];
-      const S = { chip: 'в зачёт топов', sim: 'тест, не в зачёт', conn: '', phone: 'справочно · подключить чип' }[st];
+      const S = { chip: 'в зачёт топов', sim: 'тест, не в зачёт', conn: '', phone: 'справочно' }[st];
       row.dataset.src = st; row.dataset.q = bar?.dataset.q || '';
       const a = document.getElementById('z61SrcV'), b = document.getElementById('z61SrcS');
       if (a && a.textContent !== V) a.textContent = V; if (b && b.textContent !== S) b.textContent = S;
       const pv = document.getElementById('pf6ChipV'); const pt = { chip: 'подключён' + hzT, sim: 'симулятор', conn: 'подключение…', phone: 'не подключён' }[st];
       if (pv && pv.textContent !== pt) { pv.textContent = pt; pv.dataset.on = st === 'chip' ? '1' : '0'; }
+      const chipBtn = document.getElementById('z61Chip'); if (chipBtn) chipBtn.hidden = (st === 'chip');
     }
   };
   if (bar) new MutationObserver(paint).observe(bar, { childList: true, characterData: true, subtree: true });
@@ -17759,3 +17765,95 @@ document.getElementById('pf6Recap')?.addEventListener('click', () => { hap(8); v
 setTimeout(() => { try { onbMaybeShow(); } catch (err) { console.warn('onb', err); } }, 1400);
 /* v318 */
 initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar293(p?.carId || '', p?.car || ''); return r.meta?.ph || (r.x?.id ? userCarPhoto(r.x.id) : ''); } catch (_) { return ''; } } });
+
+/* v325: горизонтальный свайп между пятью нижними вкладками */
+(() => {
+  const ORDER = ['zamer', 'lap', 'tops', 'pulse', 'shop'];
+  const EDGE = 24;
+  const LOCK = 16;
+  const GO = 56;
+  let st = null; // { x, y, id, lock }
+
+  function tabKey() {
+    try {
+      if (typeof CP !== 'undefined' && CP.open) return 'pulse';
+      const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'zamer';
+      if (act === 'run') return 'zamer';
+      if (ORDER.includes(act)) return act;
+      return '';
+    } catch (_) { return ''; }
+  }
+  function runOn() {
+    const b = document.body, h = document.documentElement;
+    return b.classList.contains('run-drive-on') || b.classList.contains('lap-drive-on') || h.classList.contains('ln61-run');
+  }
+  function hScroll(el) {
+    for (; el && el !== document.body; el = el.parentElement) {
+      if (!el || el.nodeType !== 1) continue;
+      const ox = getComputedStyle(el).overflowX;
+      if ((ox === 'auto' || ox === 'scroll') && el.scrollWidth > el.clientWidth + 4) return true;
+      if (el.getAttribute?.('role') === 'slider' || el.tagName === 'INPUT' && el.type === 'range') return true;
+    }
+    return false;
+  }
+  function blocked(t) {
+    if (!t || !t.closest) return true;
+    if (t.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]')) return true;
+    if (t.closest('.sheet, .ds-sheet, .race-sheet, .crew-sheet, .pad-sheet, .shop-sheet, .tgs-panel, .tgs-body, .chal-sheet, .vt-sheet, .pl-menu, .mycar, [role="dialog"], .leaflet-container, .chase-canvas, canvas, .tk58')) return true;
+    if (hScroll(t)) return true;
+    try { const sel = window.getSelection?.(); if (sel && !sel.isCollapsed && String(sel).length > 0) return true; } catch (_) {}
+    return false;
+  }
+  function n6Go(key) {
+    if (!key || !ORDER.includes(key)) return;
+    try { closeTgSheet({ instant: true }); } catch (_) {}
+    try { closeShopSheet(); } catch (_) {}
+    if (key === 'shop') void openShopSheet();
+    else goToView(key);
+    try { n6Sync(); } catch (_) {}
+    try { window.scrollTo(0, 0); } catch (_) {}
+  }
+  function onDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (runOn()) return;
+    if (!tabKey()) return;
+    if (blocked(e.target)) return;
+    const x = e.clientX, y = e.clientY, w = window.innerWidth || 0;
+    if (x < EDGE || (w && x > w - EDGE)) return; // край — жест «назад» Telegram / iOS
+    st = { x, y, id: e.pointerId, lock: '' };
+  }
+  function onMove(e) {
+    if (!st || e.pointerId !== st.id) return;
+    const dx = e.clientX - st.x, dy = e.clientY - st.y;
+    if (!st.lock) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < LOCK) return;
+      st.lock = (Math.abs(dx) > Math.abs(dy) * 1.15) ? 'x' : 'y';
+    }
+    if (st.lock === 'x' && e.cancelable) { try { e.preventDefault(); } catch (_) {} }
+  }
+  function onUp(e) {
+    if (!st || e.pointerId !== st.id) { st = null; return; }
+    const dx = e.clientX - st.x;
+    const ok = st.lock === 'x' && Math.abs(dx) >= GO && !runOn();
+    const key = tabKey();
+    st = null;
+    if (!ok || !key) return;
+    const i = ORDER.indexOf(key); if (i < 0) return;
+    const next = dx < 0 ? ORDER[i + 1] : ORDER[i - 1];
+    if (!next) return;
+    try { hap(6); } catch (_) {}
+    n6Go(next);
+  }
+  const opts = { passive: true };
+  const moveOpts = { passive: false };
+  document.addEventListener('pointerdown', onDown, opts);
+  document.addEventListener('pointermove', onMove, moveOpts);
+  document.addEventListener('pointerup', onUp, opts);
+  document.addEventListener('pointercancel', () => { st = null; }, opts);
+  window.__n6Swipe = { go: n6Go, order: ORDER };
+})();
+/* v325: после первого кадра подгружаем магазин и журнал, на первый экран не влияют */
+(window.requestIdleCallback || ((f) => setTimeout(f, 1800)))(() => {
+  try { void import('./shop-ui.js?v=296'); } catch (_) {}
+  try { void import('./journal.js'); } catch (_) {}
+}, { timeout: 2500 });

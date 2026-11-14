@@ -1,8 +1,8 @@
-const CACHE = 'pitlane-v324';
+const CACHE = 'pitlane-v325';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
-const BUILD = /*BUILD*/["./b/app-6DLTAEU6.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-011CB3EB.css"]/*END*/;
+const BUILD = /*BUILD*/["./b/app-2QPIKOQO.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-2B72C329.css"]/*END*/;
 const CORE = [
   ...BUILD,
   './',

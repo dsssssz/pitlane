@@ -33,7 +33,7 @@
     <meta name="twitter:title" content="PITLANE — Замеряй. Сравнивай. Побеждай." />
     <meta name="twitter:description" content="Разгоны 0–100 и круги по GPS с проверкой на сервере. Честные топы — прямо в Telegram." />
     <meta name="twitter:image" content="https://dsssssz.github.io/pitlane/img/og-1200x630.jpg" />
-    <meta name="pitlane-build" content="v324" />
+    <meta name="pitlane-build" content="v325" />
     <script src="./upd.js"></script>
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/golos/cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin />
@@ -41,8 +41,8 @@
     <link rel="preload" href="./fonts/plex-mono/latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="./fonts.css" />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-6DLTAEU6.js" />
-    <link rel="stylesheet" href="./styles-011CB3EB.css" />
+    <link rel="modulepreload" href="./b/app-2QPIKOQO.js" />
+    <link rel="stylesheet" href="./styles-2B72C329.css" />
   </head>
   <body>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
@@ -145,14 +145,15 @@
           <!-- v152: вкладка «Замер» — одна кнопка «Старт», под ней машина и GPS -->
           <section class="h48" id="h48" aria-label="Замер">
             <div class="h56-mode" id="h56Mode" role="radiogroup" aria-label="Режим старта"><button type="button" role="radio" data-as56="0" aria-checked="true">Вручную</button><button type="button" role="radio" data-as56="1" aria-checked="false">Автостарт</button></div>
-            <p class="r275-pb" id="r275Pb" hidden></p>
             <button type="button" class="h48-start r275" id="h48Start">Старт<small class="h56-sub" id="h56Sub">все отрезки</small><span class="r275-d" aria-hidden="true"><i class="r275-bz"></i><i class="r275-rr"></i><i class="r275-dk"></i><i class="r275-lt"></i><svg class="r275-arc" viewBox="0 0 250 250"><circle cx="125" cy="125" r="120.5"/></svg></span></button>
             <p class="r275-ticks" id="r275Ticks"><span data-k="60ft">60 ft</span><span>0–60</span><span>0–100</span><span>100–200</span><span>¼ мили</span></p>
+            <p class="r275-pb" id="r275Pb" hidden></p>
             <button type="button" class="h48-car" id="h48Car" aria-haspopup="dialog" aria-label="Выбрать машину">Машина не выбрана</button>
             <p class="h48-gps" id="h48Gps" data-q="idle"><i aria-hidden="true"></i><span id="h48GpsV">GPS включится на старте</span></p>
             <p class="z202-hint" id="z202Hint">Сядь в машину и нажми Старт</p>
-            <div class="z61-rows" role="group" aria-label="Параметры замера">
-              <button type="button" class="ds-row z61-src" id="z61Gps" data-src="phone" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Чем мерить</span><span class="z61-src-v"><b><i class="z61-dot" aria-hidden="true"></i><span id="z61SrcV">Телефон</span></b><small id="z61SrcS">справочно</small></span></button>
+            <div class="z61-rows z325-rows" role="group" aria-label="Параметры замера">
+              <button type="button" class="ds-row z61-src z325-pill" id="z61Gps" data-src="phone" aria-haspopup="dialog" aria-controls="gps61"><span class="ds-row-k">Чем мерить</span><span class="z61-src-v"><b><i class="z61-dot" aria-hidden="true"></i><span id="z61SrcV">Телефон</span></b><small id="z61SrcS">справочно</small></span></button>
+              <button type="button" class="z325-pill z325-chip" id="z61Chip">Подключить чип</button>
             </div>
           </section>
         </section>
@@ -465,16 +466,6 @@
             <button type="button" class="pf6-pass" id="pf6Pass"></button>
             <button type="button" class="pf6-recap" id="pf6Recap"><span>Итоги сезона</span><i aria-hidden="true">›</i></button>
           </div>
-          <div class="cta289" id="pfCta" hidden><b>Сделай первый замер — попадёшь в топ</b><button type="button" class="cta289-go" data-cta-go="run">К замеру</button></div>
-          <div class="pf6-legacy" hidden>
-            <img id="accAvatar" alt="" />
-            <input id="accAvatarIn" type="file" accept="image/*" hidden />
-            <input id="accNick" maxlength="24" />
-            <p id="accPhone">не вошли</p>
-          </div>
-          <!-- v192: витрина (машина сверху, награды только за время) + Paddock Pass (Stars, только внешний вид) -->
-          <section class="card sc92" id="sc92" aria-label="Витрина"></section>
-          <!-- v206: всё остальное — сгруппированными строками, как настройки Telegram -->
           <div class="pf6-list" id="pf6List">
             <!-- v279: профиль — 5 пунктов: Машина, Журнал, Pass, Настройки, Помощь -->
             <div class="pf6-g">
@@ -487,6 +478,16 @@
               <button type="button" class="pf6-row" data-pf6="help"><i class="pf6-ic ic-f"></i><span class="pf6-k">Помощь</span><b class="pf6-ch"></b></button>
             </div>
           </div>
+          <div class="cta289" id="pfCta" hidden><b>Сделай первый замер — попадёшь в топ</b><button type="button" class="cta289-go" data-cta-go="run">К замеру</button></div>
+          <div class="pf6-legacy" hidden>
+            <img id="accAvatar" alt="" />
+            <input id="accAvatarIn" type="file" accept="image/*" hidden />
+            <input id="accNick" maxlength="24" />
+            <p id="accPhone">не вошли</p>
+          </div>
+          <!-- v192: витрина (машина сверху, награды только за время) + Paddock Pass (Stars, только внешний вид) -->
+          <section class="card sc92" id="sc92" aria-label="Витрина"></section>
+          <!-- v206: всё остальное — сгруппированными строками, как настройки Telegram -->
           <!-- v148: всё остальное — в Профиле. Соревнования первыми -->
           <section class="p48" id="p48" aria-label="Разделы" hidden>
             <div class="p48-group p48-main">
@@ -1308,6 +1309,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-6DLTAEU6.js"></script>
+    <script type="module" src="./b/app-2QPIKOQO.js"></script>
   </body>
 </html>

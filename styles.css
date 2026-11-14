@@ -9012,3 +9012,134 @@ html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-pulse > h2 {
 /* v324: в профиле и его разделах кружок профиля не показываем */
 html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.on,
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.on { display: none !important; }
+
+/* ===== v325: дыры удобства — отступ под вкладки, кнопки чипа, рекорд, профиль, без смены стиля ===== */
+html.v148 { --app-tab: calc(var(--n3-h, 64px) + var(--sab, 0px)); --app-pad-b: calc(var(--n3-h, 64px) + var(--sab, 0px) + 20px); }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) main {
+  padding-bottom: 0 !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .view-host {
+  overflow: hidden !important;
+  min-height: 0 !important;
+  padding-bottom: 0 !important;
+  margin-bottom: var(--app-tab) !important;
+  box-sizing: border-box !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .view:not(#view-zamer) { padding-bottom: 24px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-zamer { padding: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-settings.view,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-settings.active,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-history.view,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-help.view,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-cars.view,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-shop.view {
+  padding-bottom: 24px !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-shop .shop-body { padding-bottom: 24px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .tgs-body { padding-bottom: max(24px, calc(20px + var(--sab, 0px))) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .ds-sheet-body,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .pad-sheet .pad-sheet-inner,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .pilot-sheet-inner .pilot-body { padding-bottom: calc(20px + var(--sab, 0px)) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-view { padding-bottom: 24px !important; }
+
+/* Замер: колонка умещается над вкладками, кнопки источника и чипа — внизу */
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .h48 {
+  min-height: 100% !important;
+  box-sizing: border-box !important;
+  justify-content: flex-start !important;
+  padding: 8px 20px 12px !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .h48-car { margin-top: 16px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .r275-ticks { margin-top: 16px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .r275-pb {
+  margin: 12px 0 0 !important;
+  font: 500 12px/1.3 var(--font-ui) !important;
+  letter-spacing: .04em;
+  color: var(--pl-t3) !important;
+  white-space: pre;
+  font-variant-numeric: tabular-nums;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-rows {
+  display: flex;
+  width: 100%;
+  gap: 8px;
+  margin-top: auto;
+  padding: 16px 0 0;
+  box-sizing: border-box;
+  align-items: stretch;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill {
+  all: unset;
+  box-sizing: border-box;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--pl-line, rgba(255,255,255,.12));
+  border-radius: 999px;
+  background: var(--pl-s1, #111);
+  color: var(--pl-t1, #eee);
+  font: 500 13px/1.2 var(--font-ui);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill:active { background: var(--pl-s2, #1a1a1a); }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-rows .ds-row-k { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-rows button.ds-row::after { display: none !important; content: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-rows .z61-src-v {
+  display: inline-flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  text-align: center !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-rows .z61-src-v b {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font: 500 13px/1.2 var(--font-ui) !important;
+  letter-spacing: 0 !important;
+  color: var(--pl-t1) !important;
+  white-space: nowrap;
+  min-width: 0;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-rows .z61-src-v small { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-chip::after { content: ' ›'; color: var(--pl-t3); }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .z325-chip[hidden] { display: none !important; }
+
+@media (max-height: 780px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 { width: 210px !important; height: 210px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode { margin-bottom: 14px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) .h48-car { margin-top: 10px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) .r275-ticks { margin-top: 12px !important; }
+}
+@media (max-height: 700px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 { width: 180px !important; height: 180px !important; }
+}
+
+/* Профиль: пункты Машина / Журнал / Настройки сразу на экране */
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-hero { padding-bottom: 8px !important; margin-bottom: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-stats { margin-top: 10px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-pass { margin-top: 10px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-recap { margin-top: 8px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-list { margin-top: 10px !important; margin-bottom: 10px; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .cta289 { margin: 8px 0 !important; padding: 10px 14px !important; gap: 8px !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .sc92 { margin: 8px 0 0 !important; padding-bottom: 8px !important; }
+@media (max-height: 844px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-banner { height: 88px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-ava { margin-top: -40px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-name { margin-top: 8px !important; }
+}
+@media (max-height: 780px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-banner { height: 72px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .pf6-top { padding-bottom: 4px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_) #view-account .cw291.big { min-height: 118px !important; }
+}
