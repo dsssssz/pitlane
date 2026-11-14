@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v328';
+const APP_VERSION = 'v329';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12338,8 +12338,7 @@ document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', '
     const hasCar = !!(mine || saved || box || (state.garage && state.garage.length));
     if (car) { const t = mine ? String(mine.model) : 'Выбери машину'; /* v279: без машины по умолчанию */ if (car.textContent !== t) car.textContent = t; const e = mine ? '0' : '1'; if (car.dataset.empty !== e) car.dataset.empty = e; }
     const s = homeGoGpsStatus(); const g = document.getElementById('h48Gps'); const v = document.getElementById('h48GpsV');
-    const hint = zamerGpsHint(s);
-    if (v && v.textContent !== hint) v.textContent = hint; if (g && g.dataset.q !== s.q) g.dataset.q = s.q;
+    if (v && v.textContent !== s.text) v.textContent = s.text; if (g && g.dataset.q !== s.q) g.dataset.q = s.q;
     try { r275Idle(); } catch (_) {}
   };
   setInterval(() => { if (!document.hidden) { try { renderH48(); } catch (_) {} } }, 2000); setTimeout(() => { try { renderH48(); } catch (_) {} }, 600);
@@ -14835,17 +14834,6 @@ function homeGoBuildTicks() {
   }
 }
 
-function zamerGpsHint(s) {
-  let t = String(s?.text || '');
-  t = t.replace(/^Телефон · /, '')
-    .replace(/^Симулятор · /, '')
-    .replace(/^Чип · /, '')
-    .replace(/^Внешний GPS · (?:Wi-Fi|Bluetooth) · /, '')
-    .replace(/^Внешний GPS · /, '');
-  if (t === 'Симулятор') t = 'симулятор';
-  if (t === 'Телефон') t = 'GPS';
-  return t || 'GPS';
-}
 function homeGoGpsStatus() {
   const st = (typeof extGps !== 'undefined' && extGps?.state?.()) || 'off';
   const ext = st === 'wifi' || st === 'ble';
