@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v330';
+const APP_VERSION = 'v331';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -16833,10 +16833,10 @@ function cpSetTab(ch, { trk } = {}) {
 /* v330: кружок 44 px по вертикали в строке заголовка, справа как поле контента */
 function v330SyncAva() {
   const root = document.documentElement;
-  if (!root.classList.contains('tma-fullscreen')) return;
   const btn = document.getElementById('btnProfile');
   if (!btn || btn.classList.contains('on')) return;
   const chatOn = typeof CP !== 'undefined' && CP.open && document.getElementById('chatPage') && !document.getElementById('chatPage').classList.contains('hidden');
+  if (!chatOn && !root.classList.contains('tma-fullscreen')) return;
   const view = chatOn ? document.getElementById('view-pulse') : document.querySelector('.view.active');
   let gutter = 24;
   try {
@@ -16848,20 +16848,35 @@ function v330SyncAva() {
     }
   } catch (_) {}
   root.style.setProperty('--bb-ava-x', gutter + 'px');
-  const title = chatOn
-    ? (document.querySelector('#chatPage .cp-title') || document.querySelector('#chatPage .cp-bar'))
-    : view?.querySelector(':scope > h2, .tops-head, .shop-head, .pf6-top, .h56-mode');
-  if (!title) return;
-  const r = title.getBoundingClientRect();
-  if (!(r.height > 0) || r.bottom <= 0) return;
   const size = 44;
-  let top = Math.max(0, Math.round(r.top + (r.height - size) / 2));
-  const tabs = chatOn && (document.getElementById('cpTabs') || document.querySelector('#chatPage .cp-tabs, #chatPage .cp-modes'));
-  if (tabs) {
-    const tb = tabs.getBoundingClientRect().top;
-    if (tb > 0) top = Math.min(top, Math.round(tb - size - 2));
+  const box = (el) => {
+    const r = el.getBoundingClientRect();
+    let dy = 0;
+    for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+      const xf = getComputedStyle(n).transform;
+      if (xf && xf !== 'none') {
+        try { dy += new DOMMatrix(xf).m42; } catch (_) {}
+      }
+    }
+    return { top: r.top - dy, height: r.height, bottom: r.bottom - dy };
+  };
+  if (chatOn) {
+    const tabs = document.getElementById('cpTabs') || document.querySelector('#chatPage .cp-tabs');
+    if (tabs) {
+      const r = box(tabs);
+      if (r.height > 0 && r.bottom > 0) {
+        const top = Math.max(0, Math.round(r.top + (r.height - size) / 2));
+        root.style.setProperty('--bb-ava-y', top + 'px');
+        return;
+      }
+    }
   }
-  root.style.setProperty('--bb-ava-y', Math.max(0, top) + 'px');
+  const title = view?.querySelector(':scope > h2, .tops-head, .shop-head, .pf6-top, .h56-mode');
+  if (!title) return;
+  const r = box(title);
+  if (!(r.height > 0) || r.bottom <= 0) return;
+  const top = Math.max(0, Math.round(r.top + (r.height - size) / 2));
+  root.style.setProperty('--bb-ava-y', top + 'px');
 }
 
 function openChatPage() {
@@ -16884,7 +16899,8 @@ function openChatPage() {
     try { window.scrollTo(0, 0); const hd = document.querySelector('.brand-bar'); const hb = hd && hd.offsetParent ? Math.max(0, Math.round(hd.getBoundingClientRect().bottom)) : 0; document.documentElement.style.setProperty('--cp-top', hb + 'px'); } catch (_) {} // v262: чат — обычная вкладка под шапкой приложения
     pg.classList.remove('hidden'); pg.setAttribute('aria-hidden', 'false');
     document.documentElement.classList.add('chat-open');
-    requestAnimationFrame(() => requestAnimationFrame(() => { pg.classList.add('on'); try { v330SyncAva(); } catch (_) {} }));
+    requestAnimationFrame(() => requestAnimationFrame(() => { try { v330SyncAva(); } catch (_) {} pg.classList.add('on'); }));
+    setTimeout(() => { try { v330SyncAva(); } catch (_) {} }, 240);
   }
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.sheet === 'pulse'));
   cpSetTab(CP.ch);

@@ -9402,3 +9402,24 @@ html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-av
   visibility: visible !important;
   pointer-events: auto !important;
 }
+
+/* ===== v331: в чате панель разделов и кружок профиля на одной строке ===== */
+html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .cp-head {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
+}
+html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #chatPage .cp-tabs,
+html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #cpTabs {
+  margin-top: 0 !important;
+  margin-bottom: 6px !important;
+  margin-left: var(--bb-ava-x, var(--gutter, 24px)) !important;
+  margin-right: calc(var(--bb-ava-x, var(--gutter, 24px)) + var(--bb-ava-size, 44px) + 8px) !important;
+  box-sizing: border-box !important;
+}
+html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:not(.on) {
+  position: fixed !important;
+  z-index: 12100 !important;
+  top: var(--bb-ava-y, 0px) !important;
+  right: max(var(--bb-ava-x, var(--gutter, 24px)), var(--tma-right, 0px)) !important;
+}
