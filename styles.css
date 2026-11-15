@@ -8403,7 +8403,7 @@ html:not(#_):not(#_):not(#_) .pf6-pass .pf6-pass-star { display: none; }
 /* v304: PITLANE PASS — Michroma */
 html:not(#_):not(#_):not(#_):not(#_) #pf6Pass .pf6-pass-k { font: 400 15px/1 "Michroma", 'Sofia Sans Condensed', sans-serif; letter-spacing: .08em; }
 /* v305: шторка PITLANE PASS — чёрный, карбон, Michroma только у знака */
-html:not(#_):not(#_):not(#_) #passSheet .pass-inner { background: #000 url('img/carbon-twill.svg'); }
+html:not(#_):not(#_):not(#_) #passSheet .pass-inner { background: #111214 url('img/carbon-twill.svg'); }
 html:not(#_):not(#_):not(#_) #passSheet .ps-hero { padding: 8px 0 14px; text-align: left; }
 html:not(#_):not(#_):not(#_) #passSheet .ps-wm { margin: 0; font: 400 22px/1.1 "Michroma", 'Sofia Sans Condensed', sans-serif; letter-spacing: .08em; color: var(--pl-t1); }
 html:not(#_):not(#_):not(#_) #passSheet .ps-plan { background: rgba(0,0,0,.72); border: 1px solid rgba(255,255,255,.12); border-radius: var(--pl-r5); }
@@ -8611,7 +8611,7 @@ html:not(#_):not(#_):not(#_):not(#_) .cw291 .cw-s { font-variant-numeric: tabula
 /* ———————— v317: онбординг · живые топы · итог сезона · «Сейчас на трассе» · белая кнопка отправки ————————
    Чёрный #000, линии 1 px, без свечений и градиентов. Красный — только «хуже» (↓ в топах). */
 html.onb-open, html.rc-open { overflow: hidden; }
-.onb317 { position: fixed; inset: 0; z-index: 2147482000; background: #000; color: #fff; display: flex; flex-direction: column; padding: calc(var(--tg-top, 0px) + env(safe-area-inset-top, 0px) + 14px) 0 calc(env(safe-area-inset-bottom, 0px) + 18px); opacity: 0; transition: opacity .28s ease; font-family: var(--font-ui); }
+.onb317 { position: fixed; inset: 0; z-index: 2147482000; background: var(--pl-s0); color: var(--pl-t1); display: flex; flex-direction: column; padding: calc(var(--tg-top, 0px) + env(safe-area-inset-top, 0px) + 14px) 0 calc(env(safe-area-inset-bottom, 0px) + 18px); opacity: 0; transition: opacity .28s ease; font-family: var(--font-ui); }
 .onb317.on { opacity: 1; }
 .onb-seg { display: flex; gap: 4px; padding: 0 16px; }
 .onb-seg i { flex: 1; height: 2px; background: #2a2a2d; position: relative; overflow: hidden; }
@@ -8731,14 +8731,14 @@ html:not(#_):not(#_):not(#_):not(#_) #view-tops .t317-pin > .t72-row { border-to
 html:not(#_):not(#_):not(#_):not(#_) .rc317 .rc-share[hidden] { display: none; }
 
 /* ===== v318 ДИЗАЙН-ТОКЕНЫ (дисциплина Refero «Freshman» / «601»): одна система поверхностей, линий, текста, радиусов, отступов и шрифтов.
-   Поверхности: #000 → #0d0d0d → #101010 (+ два служебных уровня для полей/нажатия). Волосяная линия #1a1a1a. Один акцент — светлый (#f2efe9, как PASS);
+   v335: поверхности графит #111214 → карточки #1A1B1E, линии #26282C. Акцент бордо #9A1F33 (--pl-acc / --accent-signal); главные кнопки мягкий светлый #E8E6E3. Было: #000 → #0d0d0d → #101010, акцент светлый #f2efe9;
    красный — только «хуже». Без неона, золота, свечения, градиентов и стекла. Старые имена (--ds-*, --c-*, --v316-*) указывают сюда. ===== */
 :root {
-  --pl-s0: #000; --pl-s1: #0d0d0d; --pl-s2: #101010; --pl-s3: #161616; --pl-s4: #1c1c1c;
-  --pl-line: #1a1a1a; --pl-line-2: #2a2a2a; --pl-line-a: rgba(255,255,255,.1);
+  --pl-s0: #111214; --pl-s1: #1A1B1E; --pl-s2: #1A1B1E; --pl-s3: #1E1F22; --pl-s4: #222428;
+  --pl-line: #26282C; --pl-line-2: #303236; --pl-line-a: rgba(255,255,255,.10);
   --pl-t1: #f2efe9; --pl-t2: #a8a8a8; --pl-t3: #8f8f8f; --pl-t4: #5a5a5a;
-  --pl-acc: #f2efe9; --pl-bad: #e10600;
-  --pl-btn: #f2efe9; --pl-on-btn: #0a0a0a;
+  --pl-acc: #9A1F33; --pl-acc-hot: #A8233B; --pl-bad: #e10600;
+  --pl-btn: #E8E6E3; --pl-on-btn: #111214;
   --pl-r1: 4px; --pl-r2: 6px; --pl-r3: 8px; --pl-r4: 12px; --pl-r5: 16px; --pl-r6: 20px; --pl-pill: 999px;
   --pl-sp-1: 4px; --pl-sp-2: 8px; --pl-sp-3: 12px; --pl-sp-4: 16px; --pl-sp-5: 20px; --pl-sp-6: 24px; --pl-sp-8: 32px; --pl-sp-12: 48px;
   --pl-num: 'Sofia Sans Condensed', var(--font-num);
@@ -8783,7 +8783,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-ic { background: var(--pl-s4) 
 html:not(#_):not(#_):not(#_):not(#_):not(#_) #pulseText { background: var(--pl-s2) !important; border-color: var(--pl-line-2) !important; }
 
 /* ——— v318: отсчёт перед замером (только картинка; замер уже вооружён) ——— */
-.cd318 { position: fixed; inset: 0; z-index: 13000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(0,0,0,.97); color: var(--pl-t1); opacity: 0; transition: opacity .18s ease-out; touch-action: none; user-select: none; -webkit-user-select: none; }
+.cd318 { position: fixed; inset: 0; z-index: 13000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: rgba(17,18,20,.97); color: var(--pl-t1); opacity: 0; transition: opacity .18s ease-out; touch-action: none; user-select: none; -webkit-user-select: none; }
 .cd318.on { opacity: 1; } .cd318.bye { opacity: 0; transition-duration: .24s; }
 .cd-cap { font: var(--pl-f-label); letter-spacing: .28em; text-transform: uppercase; color: var(--pl-t3); }
 .cd-win { position: relative; width: 100%; height: min(66vw, 46vh); overflow: hidden; }
@@ -9347,7 +9347,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-lap .t282-seg button 
 .share-pick-bg, .hs-ask-bg { position: absolute; inset: 0; background: rgba(0,0,0,.58); }
 .share-pick-panel, .hs-ask-panel {
   position: relative; z-index: 1; width: 100%; max-width: 430px;
-  background: #000; border-top: 1px solid rgba(255,255,255,.1);
+  background: var(--pl-s1); border-top: 1px solid var(--pl-line);
   padding: 6px 16px calc(14px + var(--sab, env(safe-area-inset-bottom, 0px)));
   box-sizing: border-box;
 }
@@ -9911,4 +9911,195 @@ html.lg-reduce:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before {
   html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn {
     transition: none !important;
   }
+}
+
+
+/* ===== v335: графит #111214 + бордо #9A1F33. Стекло v334 сохранено (ободок, мокрые блики),
+   тинт и пик ободка подстроены под графит — без чёрных пятен и режущего чистого белого.
+   Бордо только дозированно: индикатор активной вкладки, кольцо Старта в wait/still,
+   live/запись, PB, С/Ф, счётчики непрочитанных, стрелка/игла. Без неона и свечения. ===== */
+html.v148 {
+  --lg-b-tint: rgba(36, 34, 33, 0.52);
+  --lg-b-knob: rgba(26, 27, 30, 0.78);
+  --lg-b-mute: rgba(232, 230, 227, 0.55);
+  --lg-b-rim-grad: linear-gradient(90deg,
+    rgba(232,230,227,.14) 0%,
+    rgba(232,230,227,.55) 18%,
+    rgba(232,230,227,.82) 50%,
+    rgba(232,230,227,.52) 82%,
+    rgba(232,230,227,.14) 100%);
+  --lg-b-sheen: linear-gradient(180deg,
+    rgba(232,230,227,0) 0%,
+    rgba(232,230,227,0) 55%,
+    rgba(232,230,227,.05) 74%,
+    rgba(232,230,227,.09) 88%,
+    rgba(232,230,227,.16) 100%);
+}
+
+/* softer rim + sheen (same geometry / opacity / screen blend as v334) */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::before {
+  background: var(--lg-b-sheen), var(--lg-b-tint) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table::before {
+  background: var(--lg-b-sheen) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-rr,
+html:not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::after {
+  background: var(--lg-b-rim-grad) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt {
+  background: var(--lg-b-sheen) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn {
+  color: #E8E6E3 !important;
+}
+
+/* cheap / reduced glass fallbacks sit on graphite, not black */
+@media (prefers-reduced-transparency: reduce) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz,
+  html:not(#_):not(#_) #btnProfile.bb-ava-btn::before {
+    background: rgba(26, 27, 30, 0.94) !important;
+  }
+}
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz,
+html.lg-cheap:not(#_):not(#_) #btnProfile.bb-ava-btn::before {
+  background: rgba(26, 27, 30, 0.88) !important;
+}
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz,
+html.lg-reduce:not(#_):not(#_) #btnProfile.bb-ava-btn::before {
+  background: rgba(26, 27, 30, 0.94) !important;
+}
+
+/* —— burgundy, dosed —— */
+/* active tab: burgundy glass knob + soft-light label (icon contrast of #9A1F33 on graphite is too weak) */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
+  background: #9A1F33 !important;
+  box-shadow: inset 0 1px 0 rgba(232,230,227,.18);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on {
+  color: #E8E6E3 !important;
+}
+
+/* Start ring during wait / still (autostart armed). Idle/manual stays glass. */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="wait"] .r275-arc circle,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="still"] .r275-arc circle {
+  stroke: #9A1F33 !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="wait"] .r275-rr,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="still"] .r275-rr,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="wait"]:active .r275-rr,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="still"]:active .r275-rr,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="wait"].h53-press .r275-rr,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="still"].h53-press .r275-rr {
+  background: linear-gradient(90deg,
+    rgba(154,31,51,.35) 0%,
+    rgba(168,35,59,.85) 18%,
+    #A8233B 50%,
+    rgba(168,35,59,.8) 82%,
+    rgba(154,31,51,.35) 100%) !important;
+  mix-blend-mode: normal;
+  opacity: 0.95;
+  box-shadow: none !important;
+}
+
+/* live / rec dots — no glow */
+html.v159:not(#_):not(#_):not(#_):not(#_) #runDrive[data-phase="live"] #rdLabel::before,
+html.v159:not(#_):not(#_):not(#_):not(#_) .chase-tag.live::before,
+html.v159:not(#_):not(#_):not(#_):not(#_) .vt-rec.on::before,
+html:not(#_):not(#_):not(#_):not(#_) .run-drive-label::before {
+  background: var(--pl-acc) !important;
+  box-shadow: none !important;
+}
+
+/* needle / arrow — override earlier #fff */
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .hgz-needle,
+html.v159:not(#_):not(#_):not(#_):not(#_) .hgz-needle {
+  stroke: var(--pl-acc) !important;
+  filter: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_) .hg-needle line {
+  stroke: var(--pl-acc);
+  filter: none;
+}
+
+/* new record (PB) */
+html.v159:not(#_):not(#_):not(#_):not(#_) .rd-hero.rd53-pb .rd-badge,
+html:not(#_):not(#_):not(#_):not(#_) .rd-hero.rd53-pb .rd-badge {
+  color: var(--pl-acc) !important;
+  border-color: var(--pl-acc) !important;
+}
+html.v159:not(#_):not(#_):not(#_):not(#_) .rd-hero.rd53-pb::after,
+html:not(#_):not(#_):not(#_):not(#_) .rd-hero.rd53-pb::after {
+  background: var(--pl-acc) !important;
+  box-shadow: none !important;
+}
+
+/* S/F marks on tracks */
+html.v159:not(#_):not(#_):not(#_):not(#_) .tk58-sf,
+html:not(#_):not(#_):not(#_):not(#_) .tk58-sf { fill: var(--pl-acc); }
+html.v159:not(#_):not(#_):not(#_):not(#_) .sf-mark line,
+html:not(#_):not(#_):not(#_):not(#_) .sf-mark line { stroke: var(--pl-acc); }
+html.v159:not(#_):not(#_):not(#_):not(#_) .sat-sf-flag,
+html:not(#_):not(#_):not(#_):not(#_) .sat-sf-flag { border-color: var(--pl-acc); }
+
+/* unread duel / call counters */
+html:not(#_):not(#_):not(#_):not(#_):not(#_) :is(#p48DuelsBadge, #plmDuelsBadge, #sbBadgeDuels),
+html.v159:not(#_):not(#_):not(#_):not(#_) #p48DuelsBadge,
+html.v159:not(#_):not(#_):not(#_):not(#_) #plmDuelsBadge,
+html.v159:not(#_):not(#_):not(#_):not(#_) #sbBadgeDuels {
+  background: var(--pl-acc) !important;
+  color: #E8E6E3 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_) .n6-badge {
+  background: var(--pl-acc) !important;
+  color: #E8E6E3 !important;
+}
+
+/* live-run stop button ring */
+html.v159:not(#_):not(#_):not(#_):not(#_) #runDrive[data-phase="live"] #runDriveStop.go-btn,
+html:not(#_):not(#_):not(#_):not(#_) #runDrive[data-phase="live"] #runDriveStop.go-btn,
+html.v159:not(#_):not(#_):not(#_):not(#_) .h48-start.h56-wait {
+  border-color: var(--pl-acc) !important;
 }
