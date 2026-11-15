@@ -9006,15 +9006,12 @@ html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn {
   right: max(var(--bb-ava-x, var(--gutter, 24px)), var(--tma-right, 0px)) !important;
 }
 
-/* если кружок наезжает на первую строку экрана — только правый отступ, шапку не трогаем */
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) .pf6-top,
+/* если кружок наезжает на первую строку экрана — только правый отступ, шапку не трогаем.
+   v332: в профиле и его разделах кружка нет — отступ только там, где кружок виден. */
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) .tops-head,
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) .shop-head,
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-lap > h2,
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-pulse > h2,
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-settings > h2,
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-help > h2,
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-history > h2 {
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-pulse > h2 {
   padding-right: var(--bb-ava-clear) !important;
 }
 
@@ -9422,4 +9419,17 @@ html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-av
   z-index: 12100 !important;
   top: var(--bb-ava-y, 0px) !important;
   right: max(var(--bb-ava-x, var(--gutter, 24px)), var(--tma-right, 0px)) !important;
+}
+
+/* ===== v332: профиль и его разделы — без пустого отступа под скрытый кружок ===== */
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-top,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-settings > h2,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-settings > .st66-title,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-help > h2,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-history > h2,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-cars > h2 {
+  padding-right: 0 !important;
+}
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-top {
+  padding-right: 2px !important; /* как в исходном padding: 4px 2px 10px */
 }
