@@ -9435,7 +9435,8 @@ html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-top
 }
 
 
-/* ===== v333: Louis Studios “Glass Tabs” (MIT)
+/* ===== v333–v334: Louis Studios “Glass Tabs” (MIT)
+   v334: restore wet highlights and rim opacity 0.8 (as on the first v333 stills).
    Source: https://21st.dev/@louisstudios/components/glass-tabs
    Ported onto Замер + the floating 5-tab bar. Colours recast to black /
    burgundy #9A1F33 (original teal rim desaturated). Background stays #000.
@@ -9446,11 +9447,11 @@ html.v148 {
   --app-tab: calc(var(--n3-h, 64px) + var(--n3-float, 10px) + var(--sab, 0px));
   --app-pad-b: calc(var(--n3-h, 64px) + var(--n3-float, 10px) + var(--sab, 0px) + 20px);
   --n3-h: 70px;
-  --lg-b-tint: rgba(22, 24, 26, 0.72);
+  --lg-b-tint: rgba(255, 255, 255, 0.03);
   --lg-b-blur: 8px;
-  --lg-b-knob: rgba(10, 16, 20, 0.78);
+  --lg-b-knob: rgba(10, 16, 20, 0.72);
   --lg-b-mute: rgba(255, 255, 255, 0.52);
-  --lg-b-rim: 0.4;
+  --lg-b-rim: 0.8;
 }
 
 /* —— shared glass fill (tint + 8px blur + Louis shadows + bottom sheen) —— */
@@ -9469,8 +9470,11 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table 
   -webkit-backdrop-filter: blur(var(--lg-b-blur)) !important;
   border: 0 !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 8px 22px rgba(0, 0, 0, 0.38) !important;
+    inset 0 18px 32px rgba(255, 255, 255, 0.10),
+    0 0 8px 1px rgba(0, 0, 0, 0.26),
+    0 4px 2px rgba(0, 0, 0, 0.2),
+    0 24px 40px rgba(0, 0, 0, 0.08),
+    0 -8px 20px rgba(255, 255, 255, 0.04) !important;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::before,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode::before,
@@ -9486,9 +9490,16 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table:
   border-radius: inherit;
   pointer-events: none;
   z-index: 0;
-  background: none;
-  opacity: 0;
-  mix-blend-mode: normal;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0) 55%,
+    rgba(255,255,255,0.06) 74%,
+    rgba(255,255,255,0.12) 88%,
+    rgba(255,255,255,0.20) 100%
+  );
+  opacity: 0.55;
+  mix-blend-mode: screen;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::after,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode::after,
@@ -9504,7 +9515,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table:
   border-radius: inherit;
   pointer-events: none;
   z-index: 1;
-  padding: 0.7px;
+  padding: 1.35px;
   box-sizing: border-box;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -9515,13 +9526,13 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table:
     linear-gradient(#000 0 0);
   mask-composite: exclude;
   background: linear-gradient(90deg,
-    rgba(255,255,255,.08) 0%,
-    rgba(255,255,255,.28) 40%,
-    rgba(255,255,255,.36) 50%,
-    rgba(255,255,255,.22) 80%,
-    rgba(255,255,255,.08) 100%);
-  opacity: 0.4;
-  mix-blend-mode: normal;
+    rgba(250,255,255,.15) 0%,
+    rgba(250,255,255,.75) 18%,
+    rgba(250,255,255,1) 50%,
+    rgba(250,255,255,.7) 82%,
+    rgba(250,255,255,.15) 100%);
+  opacity: 0.8;
+  mix-blend-mode: screen;
 }
 
 /* —— floating 5-tab bar on every screen —— */
@@ -9543,15 +9554,28 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3 {
   background: transparent !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38) !important;
+  box-shadow:
+    0 0 8px 1px rgba(0, 0, 0, 0.26),
+    0 4px 2px rgba(0, 0, 0, 0.2),
+    0 24px 40px rgba(0, 0, 0, 0.08),
+    0 -8px 20px rgba(255, 255, 255, 0.04) !important;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::before {
-  background: var(--lg-b-tint) !important;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255,255,255,0) 0%,
+      rgba(255,255,255,0) 55%,
+      rgba(255,255,255,0.033) 74%,
+      rgba(255,255,255,0.066) 88%,
+      rgba(255,255,255,0.11) 100%
+    ),
+    var(--lg-b-tint) !important;
   opacity: 1 !important;
   mix-blend-mode: normal !important;
   backdrop-filter: blur(var(--lg-b-blur));
   -webkit-backdrop-filter: blur(var(--lg-b-blur));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 18px 32px rgba(255, 255, 255, 0.10);
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
   position: relative;
@@ -9580,7 +9604,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
   border-radius: 999px;
   pointer-events: none;
   background: var(--lg-b-knob) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14);
   transition: transform .28s cubic-bezier(.22, 1, .36, 1), width .28s cubic-bezier(.22, 1, .36, 1), height .28s cubic-bezier(.22, 1, .36, 1), opacity .2s ease;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob.is-off { opacity: 0; }
@@ -9714,8 +9738,11 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r27
   backdrop-filter: blur(var(--lg-b-blur)) !important;
   -webkit-backdrop-filter: blur(var(--lg-b-blur)) !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 10px 28px rgba(0, 0, 0, 0.4) !important;
+    inset 0 18px 32px rgba(255, 255, 255, 0.10),
+    0 0 8px 1px rgba(0, 0, 0, 0.26),
+    0 4px 2px rgba(0, 0, 0, 0.2),
+    0 24px 40px rgba(0, 0, 0, 0.08),
+    0 -8px 20px rgba(255, 255, 255, 0.04) !important;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz::after { display: none !important; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-dk {
@@ -9726,11 +9753,19 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r27
     inset 0 0 0 1px rgba(250,255,255,.10),
     inset 0 -10px 18px rgba(255,255,255,.05) !important;
 }
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt,
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt::after {
-  display: none !important;
-  opacity: 0 !important;
-  background: none !important;
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt {
+  inset: 0 !important;
+  display: block !important;
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0) 55%,
+    rgba(255,255,255,0.06) 74%,
+    rgba(255,255,255,0.12) 88%,
+    rgba(255,255,255,0.20) 100%
+  ) !important;
+  opacity: 0.55 !important;
+  mix-blend-mode: screen;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt::after { display: none !important; box-shadow: none !important; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-rr,
@@ -9738,14 +9773,14 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275:acti
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275.h53-press .r275-rr {
   inset: 0 !important;
   border: 0 !important;
-  padding: 0.7px;
+  padding: 1.6px;
   box-sizing: border-box;
   background: linear-gradient(90deg,
-    rgba(255,255,255,.08) 0%,
-    rgba(255,255,255,.28) 40%,
-    rgba(255,255,255,.36) 50%,
-    rgba(255,255,255,.22) 80%,
-    rgba(255,255,255,.08) 100%) !important;
+    rgba(250,255,255,.15) 0%,
+    rgba(250,255,255,.75) 18%,
+    rgba(250,255,255,1) 50%,
+    rgba(250,255,255,.7) 82%,
+    rgba(250,255,255,.15) 100%) !important;
   box-shadow: none !important;
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
@@ -9755,8 +9790,8 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275.h53-
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
   mask-composite: exclude;
-  opacity: 0.4;
-  mix-blend-mode: normal;
+  opacity: 0.8;
+  mix-blend-mode: screen;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275:active,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275.h53-press {
@@ -9766,19 +9801,21 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275.h53-
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275:active .r275-bz,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275.h53-press .r275-bz {
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 10px 28px rgba(0, 0, 0, 0.4) !important;
+    inset 0 18px 32px rgba(255, 255, 255, 0.10),
+    0 0 8px 1px rgba(0, 0, 0, 0.26),
+    0 4px 2px rgba(0, 0, 0, 0.2) !important;
 }
 
 /* —— 44px corner avatar: glass surface, same position as v330–v332 —— */
 html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before {
   border: 0 !important;
-  background: var(--lg-b-tint, rgba(22, 24, 26, 0.72)) !important;
+  background: var(--lg-b-tint, rgba(255,255,255,.03)) !important;
   backdrop-filter: blur(var(--lg-b-blur, 8px));
   -webkit-backdrop-filter: blur(var(--lg-b-blur, 8px));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 4px 12px rgba(0, 0, 0, 0.35) !important;
+    inset 0 18px 32px rgba(255, 255, 255, 0.10),
+    0 0 8px 1px rgba(0, 0, 0, 0.26),
+    0 4px 2px rgba(0, 0, 0, 0.2) !important;
 }
 html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::after {
   content: '';
@@ -9788,7 +9825,7 @@ html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::after {
   height: var(--bb-ava-size, 44px);
   margin: auto;
   border-radius: 50%;
-  padding: 0.7px;
+  padding: 1.35px;
   box-sizing: border-box;
   pointer-events: none;
   z-index: 0;
@@ -9801,19 +9838,19 @@ html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::after {
     linear-gradient(#000 0 0);
   mask-composite: exclude;
   background: linear-gradient(90deg,
-    rgba(255,255,255,.08) 0%,
-    rgba(255,255,255,.28) 40%,
-    rgba(255,255,255,.36) 50%,
-    rgba(255,255,255,.22) 80%,
-    rgba(255,255,255,.08) 100%);
-  opacity: 0.4;
-  mix-blend-mode: normal;
+    rgba(250,255,255,.15) 0%,
+    rgba(250,255,255,.75) 18%,
+    rgba(250,255,255,1) 50%,
+    rgba(250,255,255,.7) 82%,
+    rgba(250,255,255,.15) 100%);
+  opacity: 0.8;
+  mix-blend-mode: screen;
 }
 html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.on::before {
   border: 0 !important;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.05),
-    0 4px 12px rgba(0, 0, 0, 0.35) !important;
+    inset 0 18px 32px rgba(255, 255, 255, 0.10),
+    0 0 8px 1px rgba(0, 0, 0, 0.26) !important;
 }
 html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:active {
   transform: scale(1.014, 0.955);
