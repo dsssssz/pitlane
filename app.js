@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v332';
+const APP_VERSION = 'v333';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -17207,6 +17207,59 @@ document.getElementById('btnProfile')?.addEventListener('click', () => { hap(6);
   window.addEventListener('resize', () => { try { v330SyncAva(); } catch (_) {} });
   try { window.Telegram?.WebApp?.onEvent?.('viewportChanged', () => { try { v330SyncAva(); } catch (_) {} }); } catch (_) {}
 }
+
+/* v333: Louis Studios “Glass Tabs” (MIT)
+   https://21st.dev/@louisstudios/components/glass-tabs
+   Recessed selected pill follow + cheap-glass fallback. */
+(function v333Glass() {
+  const root = document.documentElement;
+  try {
+    const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-transparency: reduce)').matches);
+    const supportsBf = !!(window.CSS && (CSS.supports('backdrop-filter', 'blur(8px)') || CSS.supports('-webkit-backdrop-filter', 'blur(8px)')));
+    const android = /Android/i.test(navigator.userAgent || '');
+    const mem = navigator.deviceMemory;
+    const cores = navigator.hardwareConcurrency || 8;
+    const weak = android && ((typeof mem === 'number' && mem <= 2) || cores <= 4);
+    if (reduced || !supportsBf || weak) root.classList.add('lg-cheap');
+    if (reduced) root.classList.add('lg-reduce');
+  } catch (_) {}
+
+  const nav = document.getElementById('nav3');
+  let blob = document.getElementById('n3Blob');
+  if (nav && !blob) {
+    blob = document.createElement('i');
+    blob.id = 'n3Blob';
+    blob.className = 'n3-blob';
+    blob.setAttribute('aria-hidden', 'true');
+    nav.insertBefore(blob, nav.firstChild);
+  }
+  function placeN3Blob() {
+    const on = nav && nav.querySelector('.nav3-btn.on');
+    if (!nav || !blob) return;
+    if (!on) { blob.classList.add('is-off'); return; }
+    blob.classList.remove('is-off');
+    const br = nav.getBoundingClientRect();
+    const r = on.getBoundingClientRect();
+    const rd = document.getElementById('runDrive');
+    const min = document.body.classList.contains('run-drive-on') && rd && rd.dataset.phase !== 'final';
+    const w = min ? Math.min(48, r.width + 8) : Math.min(64, Math.max(48, r.width - 4));
+    const h = min ? 38 : 44;
+    const x = r.left - br.left + (r.width - w) / 2;
+    const y = r.top - br.top + (r.height - h) / 2;
+    blob.style.width = w + 'px';
+    blob.style.height = h + 'px';
+    blob.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+  }
+  window.__placeN3Blob = placeN3Blob;
+  const _n6 = n6Sync;
+  n6Sync = function () { _n6(); requestAnimationFrame(placeN3Blob); };
+  window.addEventListener('resize', function () { requestAnimationFrame(placeN3Blob); });
+  const rd = document.getElementById('runDrive');
+  if (rd) new MutationObserver(function () { requestAnimationFrame(placeN3Blob); }).observe(rd, { attributes: true, attributeFilter: ['data-phase', 'class'] });
+  new MutationObserver(function () { requestAnimationFrame(placeN3Blob); }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  requestAnimationFrame(placeN3Blob);
+})();
+
 window.__pf6 = { openPfEdit, closePfEdit, renderPf6, renderPfEdit, PF6, n6Sync };
 setTimeout(() => { try { renderPf6(); if (document.getElementById('view-account')?.classList.contains('active')) void pf6Refresh(); } catch (_) {} }, 400);
 

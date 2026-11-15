@@ -9433,3 +9433,445 @@ html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-ca
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-top {
   padding-right: 2px !important; /* как в исходном padding: 4px 2px 10px */
 }
+
+
+/* ===== v333: Louis Studios “Glass Tabs” (MIT)
+   Source: https://21st.dev/@louisstudios/components/glass-tabs
+   Ported onto Замер + the floating 5-tab bar. Colours recast to black /
+   burgundy #9A1F33 (original teal rim desaturated). Background stays #000.
+   Do not copy this block without the MIT licence of the source component. ===== */
+html.v148 {
+  --n3-float: 10px;
+  --n3-inset: 16px;
+  --app-tab: calc(var(--n3-h, 64px) + var(--n3-float, 10px) + var(--sab, 0px));
+  --app-pad-b: calc(var(--n3-h, 64px) + var(--n3-float, 10px) + var(--sab, 0px) + 20px);
+  --n3-h: 70px;
+  --lg-b-tint: rgba(22, 24, 26, 0.72);
+  --lg-b-blur: 8px;
+  --lg-b-knob: rgba(10, 16, 20, 0.78);
+  --lg-b-mute: rgba(255, 255, 255, 0.52);
+  --lg-b-rim: 0.4;
+}
+
+/* —— shared glass fill (tint + 8px blur + Louis shadows + bottom sheen) —— */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table {
+  position: relative;
+  isolation: isolate;
+  background: var(--lg-b-tint) !important;
+  backdrop-filter: blur(var(--lg-b-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--lg-b-blur)) !important;
+  border: 0 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 22px rgba(0, 0, 0, 0.38) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table::before {
+  content: '' !important;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  background: none;
+  opacity: 0;
+  mix-blend-mode: normal;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table::after {
+  content: '' !important;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  padding: 0.7px;
+  box-sizing: border-box;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.08) 0%,
+    rgba(255,255,255,.28) 40%,
+    rgba(255,255,255,.36) 50%,
+    rgba(255,255,255,.22) 80%,
+    rgba(255,255,255,.08) 100%);
+  opacity: 0.4;
+  mix-blend-mode: normal;
+}
+
+/* —— floating 5-tab bar on every screen —— */
+html.v148 .nav3,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3 {
+  left: 50% !important;
+  right: auto !important;
+  width: min(calc(100% - (var(--n3-inset, 16px) * 2)), 488px) !important;
+  transform: translateX(-50%) !important;
+  position: fixed !important;
+  top: auto !important;
+  bottom: calc(var(--n3-float, 10px) + var(--sab, 0px)) !important;
+  height: var(--n3-h, 70px) !important;
+  padding: 8px 8px 10px !important;
+  border-radius: 999px !important;
+  border-top: 0 !important;
+  overflow: visible !important;
+  z-index: 11000;
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::before {
+  background: var(--lg-b-tint) !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+  backdrop-filter: blur(var(--lg-b-blur));
+  -webkit-backdrop-filter: blur(var(--lg-b-blur));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
+  position: relative;
+  z-index: 2;
+  color: var(--lg-b-mute) !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on::before {
+  content: none !important;
+  display: none !important;
+  transform: none !important;
+  background: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on {
+  color: #fff !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 56px;
+  height: 44px;
+  border-radius: 999px;
+  pointer-events: none;
+  background: var(--lg-b-knob) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+  transition: transform .28s cubic-bezier(.22, 1, .36, 1), width .28s cubic-bezier(.22, 1, .36, 1), height .28s cubic-bezier(.22, 1, .36, 1), opacity .2s ease;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob.is-off { opacity: 0; }
+
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .chat-page {
+  bottom: var(--app-tab) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-tops .t72-bar {
+  bottom: var(--app-tab) !important;
+}
+
+/* shrink to icons while the заезд overlay is up; expand again on the result */
+html.v148 body.run-drive-on .nav3,
+html.v156 body.run-drive-on.rd56-anim .nav3,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on .nav3 {
+  display: grid !important;
+  opacity: 1 !important;
+  pointer-events: none;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on:not(:has(#runDrive[data-phase="final"])) .nav3 {
+  width: min(calc(100% - 72px), 300px) !important;
+  height: 52px !important;
+  padding: 4px 6px !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on:not(:has(#runDrive[data-phase="final"])) .nav3-btn span {
+  display: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on:not(:has(#runDrive[data-phase="final"])) .nav3-btn {
+  gap: 0 !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on:has(#runDrive[data-phase="final"]) .nav3 {
+  pointer-events: auto;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on #runDrive:not(.hidden) .run-drive-actions {
+  padding-bottom: calc(var(--app-tab) + 8px) !important;
+  background: transparent !important;
+}
+
+/* —— mode pill Вручную / Автостарт —— */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0 !important;
+  padding: 3px !important;
+  margin-bottom: 30px !important;
+  border-radius: 999px !important;
+  overflow: hidden;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode button {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 0;
+  min-height: 38px !important;
+  padding: 0 18px !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+  color: var(--lg-b-mute) !important;
+  font: 500 14px/1 var(--font-ui) !important;
+  box-shadow: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode button[aria-checked="true"] {
+  background: var(--lg-b-knob) !important;
+  color: #fff !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.12),
+    0 8px 16px rgba(0,0,0,.25) !important;
+}
+@media (max-height: 780px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode { margin-bottom: 14px !important; }
+}
+
+/* —— Телефон / Подключить чип —— */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill {
+  overflow: hidden;
+  background: var(--lg-b-tint) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill > * {
+  position: relative;
+  z-index: 2;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-chip::after {
+  content: ' ›' !important;
+  color: var(--lg-b-mute) !important;
+  position: relative !important;
+  inset: auto !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  background: none !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+  -webkit-mask: none !important;
+  mask: none !important;
+  box-shadow: none !important;
+  z-index: 2;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill:active,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn:active,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn:active {
+  transform: scale(1.014, 0.955);
+  background: var(--lg-b-tint) !important;
+}
+
+/* —— Ещё раз / Опубликовать —— */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn {
+  border-radius: 999px !important;
+  overflow: hidden;
+  color: #fff !important;
+  z-index: 2;
+}
+
+/* result split group stays a list; glass is the surface, not a new grid */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table {
+  border-radius: 22px !important;
+  overflow: hidden;
+}
+
+/* —— Старт circle: forged metal → Louis dark glass. Size and type stay. —— */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 {
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #fff !important;
+  text-shadow: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz {
+  inset: 0 !important;
+  background: var(--lg-b-tint) !important;
+  backdrop-filter: blur(var(--lg-b-blur)) !important;
+  -webkit-backdrop-filter: blur(var(--lg-b-blur)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 28px rgba(0, 0, 0, 0.4) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz::after { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-dk {
+  inset: 0 !important;
+  background: transparent !important;
+  background-image: none !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(250,255,255,.10),
+    inset 0 -10px 18px rgba(255,255,255,.05) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt::after {
+  display: none !important;
+  opacity: 0 !important;
+  background: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt::after { display: none !important; box-shadow: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-rr,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275:active .r275-rr,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275.h53-press .r275-rr {
+  inset: 0 !important;
+  border: 0 !important;
+  padding: 0.7px;
+  box-sizing: border-box;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.08) 0%,
+    rgba(255,255,255,.28) 40%,
+    rgba(255,255,255,.36) 50%,
+    rgba(255,255,255,.22) 80%,
+    rgba(255,255,255,.08) 100%) !important;
+  box-shadow: none !important;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0.4;
+  mix-blend-mode: normal;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275:active,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275.h53-press {
+  transform: scale(1.014, 0.955) !important;
+  color: #fff !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275:active .r275-bz,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275.h53-press .r275-bz {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 10px 28px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* —— 44px corner avatar: glass surface, same position as v330–v332 —— */
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before {
+  border: 0 !important;
+  background: var(--lg-b-tint, rgba(22, 24, 26, 0.72)) !important;
+  backdrop-filter: blur(var(--lg-b-blur, 8px));
+  -webkit-backdrop-filter: blur(var(--lg-b-blur, 8px));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: var(--bb-ava-size, 44px);
+  height: var(--bb-ava-size, 44px);
+  margin: auto;
+  border-radius: 50%;
+  padding: 0.7px;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 0;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  background: linear-gradient(90deg,
+    rgba(255,255,255,.08) 0%,
+    rgba(255,255,255,.28) 40%,
+    rgba(255,255,255,.36) 50%,
+    rgba(255,255,255,.22) 80%,
+    rgba(255,255,255,.08) 100%);
+  opacity: 0.4;
+  mix-blend-mode: normal;
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn.on::before {
+  border: 0 !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 4px 12px rgba(0, 0, 0, 0.35) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:active {
+  transform: scale(1.014, 0.955);
+}
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:active::before {
+  background: var(--lg-b-tint, rgba(255,255,255,.03)) !important;
+}
+
+/* cheap / reduced-transparency fallback: solid dark fill, cheaper or no blur */
+@media (prefers-reduced-transparency: reduce) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz,
+  html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: rgba(16, 18, 20, 0.94) !important;
+  }
+}
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before {
+  backdrop-filter: blur(2px) !important;
+  -webkit-backdrop-filter: blur(2px) !important;
+  background: rgba(16, 18, 20, 0.88) !important;
+}
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz,
+html.lg-reduce:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background: rgba(16, 18, 20, 0.94) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275,
+  html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn {
+    transition: none !important;
+  }
+}
