@@ -8944,29 +8944,34 @@ html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:active { background:
    Зона нажатия 44×44. На Android, если сумма < 80 px, берём 80. */
 :root {
   --tg-ava-top: calc(var(--tg-sa, 0px) + var(--tg-ca, 0px));
-  --bb-ava-clear: calc(64px + var(--tma-right, 0px));
+  --bb-ava-size: 44px;
+  --bb-ava-clear: calc(var(--bb-ava-size) + 8px);
+  --bb-ava-x: var(--gutter, 24px);
+  --bb-ava-y: var(--tg-ava-top, calc(var(--tg-sa, 0px) + var(--tg-ca, 0px)));
 }
 html.tma.tma-android.tma-fullscreen { --tg-ava-top: max(80px, calc(var(--tg-sa, 0px) + var(--tg-ca, 0px))); }
 
-/* общая зона 44×44, визуальный кружок 32×32 по центру — и в шапке, и во fullscreen */
+/* v330: кружок профиля 44×44, как пилюли и кнопки */
 html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn {
-  width: 44px !important;
-  height: 44px !important;
-  min-width: 44px !important;
-  min-height: 44px !important;
+  width: var(--bb-ava-size, 44px) !important;
+  height: var(--bb-ava-size, 44px) !important;
+  min-width: var(--bb-ava-size, 44px) !important;
+  min-height: var(--bb-ava-size, 44px) !important;
   padding: 0 !important;
   background: transparent !important;
   border: 0 !important;
-  border-radius: 0 !important;
+  border-radius: 50% !important;
   overflow: visible !important;
   box-shadow: none !important;
-  top: calc(var(--tg-sa, 0px) + (var(--tg-band, 44px) - 44px) / 2);
+  top: calc(var(--tg-sa, 0px) + (var(--tg-band, 44px) - var(--bb-ava-size, 44px)) / 2);
 }
 html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before {
   content: '';
   position: absolute;
-  width: 32px;
-  height: 32px;
+  inset: 0;
+  width: var(--bb-ava-size, 44px);
+  height: var(--bb-ava-size, 44px);
+  margin: auto;
   border-radius: 50%;
   border: 1px solid rgba(255,255,255,.16);
   background: #111;
@@ -8984,9 +8989,10 @@ html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn img.bb-ava {
   position: relative;
   z-index: 1;
 }
-html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn img.bb-ava {
-  width: 32px !important;
-  height: 32px !important;
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn img.bb-ava,
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn svg {
+  width: var(--bb-ava-size, 44px) !important;
+  height: var(--bb-ava-size, 44px) !important;
   border-radius: 50%;
   object-fit: cover;
   display: block;
@@ -8995,9 +9001,9 @@ html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn img.bb-ava {
 /* fullscreen: кружок сразу под шторкой Telegram, без сдвига шапки и без +64 px */
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn {
   position: fixed;
-  z-index: 20;
-  top: var(--tg-ava-top, calc(var(--tg-sa, 0px) + var(--tg-ca, 0px))) !important;
-  right: max(12px, var(--tma-right, 0px)) !important;
+  z-index: 12100;
+  top: var(--bb-ava-y, var(--tg-ava-top, calc(var(--tg-sa, 0px) + var(--tg-ca, 0px)))) !important;
+  right: max(var(--bb-ava-x, var(--gutter, 24px)), var(--tma-right, 0px)) !important;
 }
 
 /* если кружок наезжает на первую строку экрана — только правый отступ, шапку не трогаем */
@@ -9005,7 +9011,10 @@ html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) .pf6-top,
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) .tops-head,
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) .shop-head,
 html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-lap > h2,
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-pulse > h2 {
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-pulse > h2,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-settings > h2,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-help > h2,
+html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_) #view-history > h2 {
   padding-right: var(--bb-ava-clear) !important;
 }
 
@@ -9317,13 +9326,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .st66-v {
   overflow-wrap: break-word !important;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tv2-tx { min-width: 8em !important; flex: 1 1 auto !important; }
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-lap,
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-tops,
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-shop,
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-pulse,
-html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-history {
-  padding-right: 56px !important;
-}
+/* v330: отступ под кружок только у строки заголовка, не у всего экрана */
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #topsCls .seg-btn,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .t72-cls .seg-btn,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .seg-control .seg-btn {
@@ -9372,3 +9375,30 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #view-lap .t282-seg button 
 }
 .hs-ask-panel .go-btn { width: 100%; min-height: 48px; margin-bottom: 4px; }
 #btnHomeScreen[hidden] { display: none !important; }
+
+/* ===== v330: чат как обычная вкладка, кружок 44, равные поля ===== */
+html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .view-host {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .view-host .view {
+  display: none !important;
+}
+html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .brand-bar {
+  visibility: visible !important;
+  z-index: 10950 !important; /* выше .chat-page (10900), ниже шторок */
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
+}
+html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .brand-bar > :not(#btnProfile) {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+html.chat-open:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn:not(.on) {
+  visibility: visible !important;
+  pointer-events: auto !important;
+}

@@ -1817,7 +1817,7 @@ function lerpAngle(obj, axis, target, dt) {
   obj.rotation[axis] = cur + (target - cur) * Math.min(1, dt * 6);
 }
 
-function onResize() {}
+function onResize() { try { v330SyncAva(); } catch (_) {} }
 window.addEventListener('resize', onResize);
 if (typeof ResizeObserver !== 'undefined') {
   const wrap = document.getElementById('podiumWrap');
@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v329';
+const APP_VERSION = 'v330';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -16829,11 +16829,51 @@ function cpSetTab(ch, { trk } = {}) {
   try { padPaintAttach(); } catch (_) {}
   document.getElementById('chatBody')?.scrollTo?.({ top: 0 });
 }
+
+/* v330: кружок 44 px по вертикали в строке заголовка, справа как поле контента */
+function v330SyncAva() {
+  const root = document.documentElement;
+  if (!root.classList.contains('tma-fullscreen')) return;
+  const btn = document.getElementById('btnProfile');
+  if (!btn || btn.classList.contains('on')) return;
+  const chatOn = typeof CP !== 'undefined' && CP.open && document.getElementById('chatPage') && !document.getElementById('chatPage').classList.contains('hidden');
+  const view = chatOn ? document.getElementById('view-pulse') : document.querySelector('.view.active');
+  let gutter = 24;
+  try {
+    const sample = (view && view.id !== 'view-zamer' && view.id !== 'view-pulse') ? view
+      : document.querySelector('#view-lap, #view-tops, #view-shop');
+    if (sample) {
+      const pl = parseFloat(getComputedStyle(sample).paddingLeft);
+      if (Number.isFinite(pl) && pl > 0) gutter = pl;
+    }
+  } catch (_) {}
+  root.style.setProperty('--bb-ava-x', gutter + 'px');
+  const title = chatOn
+    ? (document.querySelector('#chatPage .cp-title') || document.querySelector('#chatPage .cp-bar'))
+    : view?.querySelector(':scope > h2, .tops-head, .shop-head, .pf6-top, .h56-mode');
+  if (!title) return;
+  const r = title.getBoundingClientRect();
+  if (!(r.height > 0) || r.bottom <= 0) return;
+  const size = 44;
+  let top = Math.max(0, Math.round(r.top + (r.height - size) / 2));
+  const tabs = chatOn && (document.getElementById('cpTabs') || document.querySelector('#chatPage .cp-tabs, #chatPage .cp-modes'));
+  if (tabs) {
+    const tb = tabs.getBoundingClientRect().top;
+    if (tb > 0) top = Math.min(top, Math.round(tb - size - 2));
+  }
+  root.style.setProperty('--bb-ava-y', Math.max(0, top) + 'px');
+}
+
 function openChatPage() {
   const pg = document.getElementById('chatPage'); const v = document.getElementById('view-pulse');
   if (!pg || !v) return;
   try { plMenuClose(); } catch (_) {}
   setTimeout(() => { try { tipsOnView('pulse'); } catch (_) {} }, 600);
+  // v330: чат заменяет вкладку, предыдущий экран не остаётся активным под оверлеем
+  document.querySelectorAll('.view').forEach((el) => {
+    if (el.id !== 'view-pulse') el.classList.remove('active', 'leaving');
+  });
+  v.classList.add('active');
   if (!CP.open) {
     try { const s = localStorage.getItem('pitlane-chat-tab'); if (CP_TABS[s]) CP.ch = s; } catch (_) {}
     document.getElementById('chatSlot')?.appendChild(v);
@@ -16844,7 +16884,7 @@ function openChatPage() {
     try { window.scrollTo(0, 0); const hd = document.querySelector('.brand-bar'); const hb = hd && hd.offsetParent ? Math.max(0, Math.round(hd.getBoundingClientRect().bottom)) : 0; document.documentElement.style.setProperty('--cp-top', hb + 'px'); } catch (_) {} // v262: чат — обычная вкладка под шапкой приложения
     pg.classList.remove('hidden'); pg.setAttribute('aria-hidden', 'false');
     document.documentElement.classList.add('chat-open');
-    requestAnimationFrame(() => requestAnimationFrame(() => pg.classList.add('on')));
+    requestAnimationFrame(() => requestAnimationFrame(() => { pg.classList.add('on'); try { v330SyncAva(); } catch (_) {} }));
   }
   document.querySelectorAll('.nav-btn').forEach((b) => b.classList.toggle('active', b.dataset.sheet === 'pulse'));
   cpSetTab(CP.ch);
@@ -16852,6 +16892,7 @@ function openChatPage() {
   try { localStorage.setItem(PULSE_SEEN_KEY, String(Date.now())); } catch (_) {}
   try { setBadge('sbBadgePulse', 0); } catch (_) {}
   if (typeof _padChat !== 'undefined' && _padChat) { _padChat.fresh = 0; _hwPadAt = 0; }
+  try { v330SyncAva(); } catch (_) {}
 }
 function closeChatPage(opts = {}) {
   const pg = document.getElementById('chatPage'); if (!pg || !CP.open) return;
@@ -16863,7 +16904,7 @@ function closeChatPage(opts = {}) {
   const done = () => { if (!CP.open) pg.classList.add('hidden'); };
   if (opts.instant || tgsReduce()) done(); else setTimeout(done, 300);
 }
-document.getElementById('chatBack')?.addEventListener('click', () => { hap(6); closeChatPage(); });
+document.getElementById('chatBack')?.addEventListener('click', () => { hap(6); /* v330: назад не возвращает предыдущий экран из-под чата */ });
 document.getElementById('cpTabs')?.addEventListener('click', (e) => {
   const b = e.target?.closest?.('[data-ch]'); if (!b || b.dataset.ch === CP.ch) return;
   hap(6); cpSetTab(b.dataset.ch);
@@ -16878,7 +16919,7 @@ document.getElementById('cpPin')?.addEventListener('click', (e) => {
 document.getElementById('pulseFeed')?.addEventListener('click', (e) => {
   const t = e.target?.closest?.('.pad-trk'); if (t && CP.open) { e.stopPropagation(); cpSetTab('tracks', { trk: t.dataset.trk }); }
 }, true);
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && CP.open && !document.querySelector('.pad-sheet:not(.hidden)')) closeChatPage(); });
+/* v330: Escape не закрывает вкладку Чат как модалку */
 
 /* ——— v206: Профиль как в Telegram + единая навигация (Замер · Трек · Топы · Чат · Профиль) ———
    Шапка профиля: аватар в рамке Pass, ник + гоночный номер + пин (как звезда Premium), статус Pass, «Изменить» справа.
@@ -17133,6 +17174,7 @@ function n6Sync() {
   document.querySelectorAll('#nav3 .nav3-btn').forEach((b) => { const on = b.dataset.n3 === key; b.classList.toggle('on', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
   const av = document.getElementById('btnProfile');
   if (av) { const on = key === 'account'; av.classList.toggle('on', on); if (on) av.setAttribute('aria-current', 'page'); else av.removeAttribute('aria-current'); }
+  try { v330SyncAva(); } catch (_) {}
 }
 document.getElementById('nav3')?.addEventListener('click', (e) => {
   const b = e.target.closest('.nav3-btn'); if (!b) return;
@@ -17146,6 +17188,8 @@ document.getElementById('btnProfile')?.addEventListener('click', () => { hap(6);
   const src = document.getElementById('sbBadgePulse'); const dst = document.getElementById('n6BadgeChat');
   if (src && dst) setInterval(() => { dst.hidden = src.hidden || !src.textContent.trim(); dst.textContent = src.textContent; }, 2500);
   n6Sync();
+  window.addEventListener('resize', () => { try { v330SyncAva(); } catch (_) {} });
+  try { window.Telegram?.WebApp?.onEvent?.('viewportChanged', () => { try { v330SyncAva(); } catch (_) {} }); } catch (_) {}
 }
 window.__pf6 = { openPfEdit, closePfEdit, renderPf6, renderPfEdit, PF6, n6Sync };
 setTimeout(() => { try { renderPf6(); if (document.getElementById('view-account')?.classList.contains('active')) void pf6Refresh(); } catch (_) {} }, 400);
