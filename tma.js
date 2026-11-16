@@ -123,7 +123,7 @@ export const START_ROUTE = parseStartParam(START_PARAM);
 })();
 
 /* ---------- chrome: colors, fullscreen, swipes, safe areas ---------- */
-const THEME = '#111214'; // v335: graphite app ground
+const THEME = '#101214'; // v336: S4 ground
 function call(fn) { try { return fn(); } catch (err) { console.warn('[tma]', err?.message || err); return undefined; } }
 
 function applyInsets() {

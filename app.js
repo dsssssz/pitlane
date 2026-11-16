@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v335';
+const APP_VERSION = 'v336';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12190,7 +12190,8 @@ document.getElementById('btnVideoLap')?.addEventListener('click', () => { void o
 /* ——— v148: структура «Старт / Гараж / Профиль» ——— */
 document.documentElement.classList.add('v148', 'v150', 'v152', 'v153', 'v154', 'v155', 'v156', 'v158', 'v159', 'v160', 'v161', 'v162', 'v163', 'v164', 'v165', 'v166', 'v167', 'v168', 'v169', 'v170', 'v171', 'v172', 'v173', 'v174', 'v175', 'v176', 'v177', 'v178', 'v179', 'v180', 'v181', 'v182', 'v184');
 (() => {
-  const nav = document.getElementById('nav3'); if (nav) document.body.appendChild(nav); // fixed вне трансформируемых контейнеров
+  const nav = document.getElementById('nav3');
+  const dock = document.getElementById('n3Dock') || nav; if (dock) document.body.appendChild(dock); // fixed вне трансформируемых контейнеров
   const sync = () => {
     const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'zamer';
     const key = act === 'garage' ? 'garage' : act === 'home' ? 'home' : act === 'zamer' || act === 'run' ? 'zamer' : act === 'lap' ? 'lap' : ''; // v154: Профиль — из аватара в шапке
@@ -18043,9 +18044,84 @@ setTimeout(() => { try { onbMaybeShow(); } catch (err) { console.warn('onb', err
 /* v318 */
 initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar293(p?.carId || '', p?.car || ''); return r.meta?.ph || (r.x?.id ? userCarPhoto(r.x.id) : ''); } catch (_) { return ''; } } });
 
+
+/* v336: «+» spring grid. Track is the first action; other items already exist in the app. */
+(function v336Plus() {
+  const dock = document.getElementById('n3Dock');
+  const fab = document.getElementById('n3Fab');
+  const grid = document.getElementById('n3Grid');
+  const mask = document.getElementById('n3GridMask');
+  if (!dock || !fab || !grid) return;
+
+  function open() {
+    if (document.body.classList.contains('run-drive-on') || document.body.classList.contains('lap-drive-on')) return;
+    fab.setAttribute('aria-expanded', 'true');
+    grid.removeAttribute('hidden');
+    grid.setAttribute('aria-hidden', 'false');
+    if (mask) { mask.hidden = false; }
+    requestAnimationFrame(() => {
+      dock.classList.add('is-open');
+      if (mask) mask.classList.add('is-on');
+    });
+    try { hap(8); } catch (_) {}
+  }
+  function close() {
+    if (!dock.classList.contains('is-open')) return;
+    dock.classList.remove('is-open');
+    fab.setAttribute('aria-expanded', 'false');
+    grid.setAttribute('aria-hidden', 'true');
+    if (mask) mask.classList.remove('is-on');
+    setTimeout(() => {
+      if (!dock.classList.contains('is-open')) {
+        grid.setAttribute('hidden', '');
+        if (mask) mask.hidden = true;
+      }
+    }, 420);
+  }
+  function toggle() { dock.classList.contains('is-open') ? close() : open(); }
+
+  fab.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggle(); });
+  mask?.addEventListener('click', () => close());
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  document.getElementById('nav3')?.addEventListener('click', () => close());
+
+  grid.addEventListener('click', (e) => {
+    const b = e.target.closest('.n3-act'); if (!b) return;
+    const act = b.dataset.act;
+    close();
+    try { hap(8); } catch (_) {}
+    try {
+      if (act === 'lap' || act === 'zamer') {
+        try { closeShopSheet(); } catch (_) {}
+        try { closeTgSheet({ instant: true }); } catch (_) {}
+        goToView(act);
+        try { n6Sync(); } catch (_) {}
+        try { window.scrollTo(0, 0); } catch (_) {}
+      } else if (act === 'duel') {
+        try { openDuelSheet({ createOnly: true }); } catch (_) {}
+      } else if (act === 'car') {
+        try { openMyCarSheet({}); } catch (_) { try { openQuickCarSheet(); } catch (__) {} }
+      } else if (act === 'share') {
+        try {
+          if (typeof run !== 'undefined' && run.pendingShare) { openShareCard(run.pendingShare); return; }
+          const rec = (state.meas && state.meas[state.carId]) || {};
+          if (rec.v0100 != null) {
+            const ps = rec.pass0100 || {};
+            openShareCard(buildSharePayload({ type: '0-100', time: Number(rec.v0100).toFixed(2) + ' с', valid: !!ps.top, src: ps.src || 'phone', n: ps.n, gpsQ: ps.gpsQ, avgAcc: ps.avgAcc, hz: ps.hz }));
+            return;
+          }
+        } catch (_) {}
+        try { showAppToast('Сначала сделай замер'); } catch (_) {}
+      }
+    } catch (err) { console.warn('n3-act', err); }
+  });
+
+  window.__n3Plus = { open, close, toggle };
+})();
+
 /* v326: горизонтальный свайп вкладок — устойчив к pointercancel в Telegram */
 (() => {
-  const ORDER = ['zamer', 'lap', 'tops', 'pulse', 'shop'];
+  const ORDER = ['zamer', 'lap', 'tops', 'pulse', 'shop']; // v336: lap stays in swipe / deep links, not in the tab bar
   const EDGE = 24;
   const LOCK = 16;
   const GO = 56;
@@ -18082,6 +18158,7 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
     return false;
   }
   function n6Go(key) {
+    try { window.__n3Plus?.close(); } catch (_) {}
     if (!key || !ORDER.includes(key)) return;
     try { closeTgSheet({ instant: true }); } catch (_) {}
     try { closeShopSheet(); } catch (_) {}

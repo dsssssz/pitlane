@@ -8731,14 +8731,15 @@ html:not(#_):not(#_):not(#_):not(#_) #view-tops .t317-pin > .t72-row { border-to
 html:not(#_):not(#_):not(#_):not(#_) .rc317 .rc-share[hidden] { display: none; }
 
 /* ===== v318 ДИЗАЙН-ТОКЕНЫ (дисциплина Refero «Freshman» / «601»): одна система поверхностей, линий, текста, радиусов, отступов и шрифтов.
-   v335: поверхности графит #111214 → карточки #1A1B1E, линии #26282C. Акцент бордо #9A1F33 (--pl-acc / --accent-signal); главные кнопки мягкий светлый #E8E6E3. Было: #000 → #0d0d0d → #101010, акцент светлый #f2efe9;
-   красный — только «хуже». Без неона, золота, свечения, градиентов и стекла. Старые имена (--ds-*, --c-*, --v316-*) указывают сюда. ===== */
+   v336: S4 — земля #101214, стекло #1E2023, текст #F0F1F2 / #909396, акцент алый #D3262E (--pl-acc / --accent-signal); главные кнопки мягкий светлый #F0F1F2.
+   Было v335: графит #111214, бордо var(--pl-acc). Красный — только маленькие акценты и «хуже». Без неона и золота. Старые имена (--ds-*, --c-*, --v316-*) указывают сюда. ===== */
 :root {
-  --pl-s0: #111214; --pl-s1: #1A1B1E; --pl-s2: #1A1B1E; --pl-s3: #1E1F22; --pl-s4: #222428;
-  --pl-line: #26282C; --pl-line-2: #303236; --pl-line-a: rgba(255,255,255,.10);
-  --pl-t1: #f2efe9; --pl-t2: #a8a8a8; --pl-t3: #8f8f8f; --pl-t4: #5a5a5a;
-  --pl-acc: #9A1F33; --pl-acc-hot: #A8233B; --pl-bad: #e10600;
-  --pl-btn: #E8E6E3; --pl-on-btn: #111214;
+  --pl-s0: #101214; --pl-s1: #1A1C1E; --pl-s2: #1E2023; --pl-s3: #1E2023; --pl-s4: #26282C;
+  --pl-line: #2A2C30; --pl-line-2: #34363A; --pl-line-a: rgba(240,241,242,.12);
+  --pl-t1: #F0F1F2; --pl-t2: #909396; --pl-t3: #7A7E82; --pl-t4: #5C5F62;
+  --pl-acc: #D3262E; --pl-acc-hot: #E03A42; --pl-bad: #e10600;
+  --pl-btn: #F0F1F2; --pl-on-btn: #101214;
+  --pl-glass: rgba(30, 32, 35, 0.72); --pl-hair: rgba(230, 232, 234, 0.22);
   --pl-r1: 4px; --pl-r2: 6px; --pl-r3: 8px; --pl-r4: 12px; --pl-r5: 16px; --pl-r6: 20px; --pl-pill: 999px;
   --pl-sp-1: 4px; --pl-sp-2: 8px; --pl-sp-3: 12px; --pl-sp-4: 16px; --pl-sp-5: 20px; --pl-sp-6: 24px; --pl-sp-8: 32px; --pl-sp-12: 48px;
   --pl-num: 'Sofia Sans Condensed', var(--font-num);
@@ -9439,7 +9440,7 @@ html.tma.tma-fullscreen:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .pf6-top
    v334: restore wet highlights and rim opacity 0.8 (as on the first v333 stills).
    Source: https://21st.dev/@louisstudios/components/glass-tabs
    Ported onto Замер + the floating 5-tab bar. Colours recast to black /
-   burgundy #9A1F33 (original teal rim desaturated). Background stays #000.
+   burgundy var(--pl-acc) (original teal rim desaturated). Background stays #000.
    Do not copy this block without the MIT licence of the source component. ===== */
 html.v148 {
   --n3-float: 10px;
@@ -9914,7 +9915,7 @@ html.lg-reduce:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before {
 }
 
 
-/* ===== v335: графит #111214 + бордо #9A1F33. Стекло v334 сохранено (ободок, мокрые блики),
+/* ===== v335: графит #111214 + бордо var(--pl-acc). Стекло v334 сохранено (ободок, мокрые блики),
    тинт и пик ободка подстроены под графит — без чёрных пятен и режущего чистого белого.
    Бордо только дозированно: индикатор активной вкладки, кольцо Старта в wait/still,
    live/запись, PB, С/Ф, счётчики непрочитанных, стрелка/игла. Без неона и свечения. ===== */
@@ -10011,9 +10012,9 @@ html.lg-reduce:not(#_):not(#_) #btnProfile.bb-ava-btn::before {
 }
 
 /* —— burgundy, dosed —— */
-/* active tab: burgundy glass knob + soft-light label (icon contrast of #9A1F33 on graphite is too weak) */
+/* active tab: burgundy glass knob + soft-light label (icon contrast of var(--pl-acc) on graphite is too weak) */
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
-  background: #9A1F33 !important;
+  background: var(--pl-acc) !important;
   box-shadow: inset 0 1px 0 rgba(232,230,227,.18);
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on {
@@ -10023,7 +10024,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on {
 /* Start ring during wait / still (autostart armed). Idle/manual stays glass. */
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="wait"] .r275-arc circle,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="still"] .r275-arc circle {
-  stroke: #9A1F33 !important;
+  stroke: var(--pl-acc) !important;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="wait"] .r275-rr,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="still"] .r275-rr,
@@ -10034,7 +10035,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data
   background: linear-gradient(90deg,
     rgba(154,31,51,.35) 0%,
     rgba(168,35,59,.85) 18%,
-    #A8233B 50%,
+    var(--pl-acc-hot) 50%,
     rgba(168,35,59,.8) 82%,
     rgba(154,31,51,.35) 100%) !important;
   mix-blend-mode: normal;
@@ -10102,4 +10103,361 @@ html.v159:not(#_):not(#_):not(#_):not(#_) #runDrive[data-phase="live"] #runDrive
 html:not(#_):not(#_):not(#_):not(#_) #runDrive[data-phase="live"] #runDriveStop.go-btn,
 html.v159:not(#_):not(#_):not(#_):not(#_) .h48-start.h56-wait {
   border-color: var(--pl-acc) !important;
+}
+
+
+/* ===== v336: S4 ground (pre-blurred B4 photo, fixed, no runtime filter),
+   dense smoked glass plates with a thin light edge, D-style 4-tab dock + «+» grid.
+   Accent #D3262E only on the active-tab drop, wait ring, live dots, badges.
+   Track lives in the + grid; swipe order still includes lap. ===== */
+html.v148 {
+  --lg-b-tint: rgba(30, 32, 35, 0.72);
+  --lg-b-knob: rgba(30, 32, 35, 0.78);
+  --lg-b-mute: rgba(240, 241, 242, 0.55);
+  --lg-b-rim-grad: linear-gradient(90deg,
+    rgba(230,232,234,.10) 0%,
+    rgba(230,232,234,.36) 18%,
+    rgba(230,232,234,.55) 50%,
+    rgba(230,232,234,.34) 82%,
+    rgba(230,232,234,.10) 100%);
+  --lg-b-sheen: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 40%);
+}
+
+.pl-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background-color: #101214;
+  background-image: image-set(
+    url('./img/bg-b4.avif') type('image/avif'),
+    url('./img/bg-b4.webp') type('image/webp')
+  );
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.pl-bg-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 11, 13, 0.28) 0%, transparent 18%, transparent 66%, rgba(10, 11, 13, 0.42) 100%),
+    rgba(10, 11, 13, 0.16);
+  pointer-events: none;
+}
+html { background: #101214 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_) body,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #app,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) main,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) #viewHost,
+html:not(#_):not(#_):not(#_):not(#_):not(#_) .view {
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* smoked plates: denser #1E2023, thin light edge, matte (no wet sheen) */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275,
+html:not(#_):not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid {
+  background: var(--pl-glass, rgba(30, 32, 35, 0.72)) !important;
+  backdrop-filter: blur(20px) saturate(1.04) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(1.04) !important;
+  border: 1px solid var(--pl-hair, rgba(230, 232, 234, 0.22)) !important;
+  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.20) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-lt {
+  background: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 42%) !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+  box-shadow: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveAgain.share-hud-btn::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDriveShare.share-hud-btn::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #runDrive .rd50-rows::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-stats::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #rdFinal .rd-table::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-rr,
+html:not(#_):not(#_):not(#_) #btnProfile.bb-ava-btn::after {
+  background: transparent !important;
+  opacity: 0 !important;
+}
+
+/* dock: 4-tab smoked pill + round + */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock {
+  position: fixed !important;
+  left: 12px !important;
+  right: 12px !important;
+  bottom: calc(var(--n3-float, 10px) + var(--sab, 0px)) !important;
+  top: auto !important;
+  width: auto !important;
+  height: auto !important;
+  z-index: 11000;
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: none;
+  transform: none !important;
+  background: none !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock > .nav3,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock > .n3-fab,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock > .n3-grid {
+  pointer-events: auto;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock > .nav3 {
+  position: relative !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  top: auto !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto !important;
+  max-width: none !important;
+  transform: none !important;
+  height: var(--n3-h, 64px) !important;
+  padding: 4px !important;
+  display: flex !important;
+  align-items: stretch;
+  justify-content: space-between;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab {
+  all: unset;
+  box-sizing: border-box;
+  position: relative;
+  flex: 0 0 52px;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+  margin-bottom: 6px;
+  border-radius: 50% !important;
+  color: var(--pl-t1, #F0F1F2);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  align-self: center;
+  padding: 0;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-plus {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  display: block;
+  transition: transform .42s cubic-bezier(.22, 1.2, .36, 1);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-plus::before,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-plus::after {
+  content: "";
+  position: absolute;
+  background: currentColor;
+  border-radius: 1px;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-plus::before { left: 7px; top: 2px; width: 1.6px; height: 12px; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-plus::after { left: 2px; top: 7px; width: 12px; height: 1.6px; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.is-open .n3-plus {
+  transform: rotate(45deg);
+}
+
+/* smoky active underlay (not a solid scarlet pill) + scarlet drop */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.16) !important;
+  border-radius: 18px !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  color: var(--pl-t3, #7A7E82) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on {
+  color: var(--pl-t1, #F0F1F2) !important;
+  background: transparent !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  right: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 11px;
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(90deg, transparent 0%, color-mix(in srgb, var(--pl-acc) 35%, transparent) 45%, var(--pl-acc) 100%);
+  box-shadow:
+    0 0 8px 1px color-mix(in srgb, var(--pl-acc) 40%, transparent),
+    0 0 14px 3px color-mix(in srgb, var(--pl-acc) 20%, transparent);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* + action grid — spring open from the fab */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 10px);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: min(280px, calc(100vw - 24px));
+  padding: 10px !important;
+  border-radius: 20px !important;
+  transform-origin: 100% 100%;
+  transform: scale(.84) translateY(8px);
+  opacity: 0;
+  pointer-events: none !important;
+  visibility: hidden;
+  transition: transform .42s cubic-bezier(.22, 1.2, .36, 1), opacity .28s ease, visibility 0s linear .42s;
+  z-index: 3;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.is-open .n3-grid {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+  pointer-events: auto !important;
+  visibility: visible;
+  transition: transform .42s cubic-bezier(.22, 1.2, .36, 1), opacity .22s ease, visibility 0s;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 64px;
+  padding: 10px 6px;
+  border-radius: 14px;
+  color: var(--pl-t1, #F0F1F2);
+  font: 500 12px/1.1 var(--font-ui);
+  text-align: center;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(230, 232, 234, 0.10);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act:active {
+  transform: scale(.96);
+}
+.n3-grid-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 10990;
+  background: rgba(8, 9, 11, 0.28);
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity .28s ease, visibility 0s linear .28s;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.is-open ~ .n3-grid-mask,
+.n3-grid-mask.is-on {
+  opacity: 1;
+  pointer-events: auto;
+  visibility: visible;
+  transition: opacity .22s ease, visibility 0s;
+}
+
+/* run-drive: shrink the dock, hide + */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on .n3-dock {
+  pointer-events: none;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on:not(:has(#runDrive[data-phase="final"])) .n3-fab,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on:not(:has(#runDrive[data-phase="final"])) .n3-grid,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on:not(:has(#runDrive[data-phase="final"])) .n3-grid-mask {
+  display: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on:not(:has(#runDrive[data-phase="final"])) .n3-dock {
+  left: 50% !important;
+  right: auto !important;
+  width: min(calc(100% - 72px), 300px) !important;
+  transform: translateX(-50%) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) body.run-drive-on:not(:has(#runDrive[data-phase="final"])) .n3-dock > .nav3 {
+  height: 52px !important;
+  padding: 4px 6px !important;
+}
+
+@media (max-width: 360px) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock {
+    left: 8px !important;
+    right: 8px !important;
+    gap: 6px;
+  }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab {
+    flex-basis: 48px;
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+  }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn span {
+    font-size: 10px !important;
+  }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid {
+    width: min(260px, calc(100vw - 16px));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-plus,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid-mask,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
+    transition: none !important;
+  }
+}
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .h56-mode,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .z325-pill,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid,
+html.lg-cheap:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275 .r275-bz,
+html.lg-cheap:not(#_):not(#_) #btnProfile.bb-ava-btn::before {
+  background: rgba(30, 32, 35, 0.94) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* wait / still Start ring stays the scarlet accent, no burgundy */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="wait"] .r275-arc circle,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="still"] .r275-arc circle {
+  stroke: var(--pl-acc) !important;
 }

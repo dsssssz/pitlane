@@ -1,8 +1,8 @@
-const CACHE = 'pitlane-v335';
+const CACHE = 'pitlane-v336';
 const GLB_CACHE = 'pitlane-glb-v2';
 const THREE_CACHE = 'pitlane-three-v1';
 
-const BUILD = /*BUILD*/["./b/app-AZH4VKCM.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-29D82E3C.css"]/*END*/;
+const BUILD = /*BUILD*/["./b/app-23NNJWTW.js","./b/chunk-WOT6VMZA.js","./b/chunk-XFCFYOWB.js","./styles-B21944CB.css"]/*END*/;
 const CORE = [
   ...BUILD,
   './',
@@ -20,6 +20,8 @@ const CORE = [
   './tools/tma-check.html',
   './legal.css', './fonts.css', './fonts/golos/cyrillic-400-normal.woff2', './fonts/golos/latin-400-normal.woff2', './fonts/sofia-condensed/cyrillic-700-normal.woff2', './fonts/michroma/latin-400-normal.woff2', './fonts/plex-mono/latin-600-normal.woff2',
   './img/forged.webp',
+  './img/bg-b4.webp',
+  './img/bg-b4.avif',
   './img/shop/gps-hero-720.webp',
   './img/banners/bn-gps-800.webp',
   './img/banners/bn-tops-800.webp',

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#111214" />
+    <meta name="theme-color" content="#101214" />
     <!-- v80: minimal CSP that cannot break the app (no plugins, no <base> hijack, forms only to self) -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'sha256-z2CTz9Y7ug2+lIHkdShb8RDoC8+FDWBnh50ogSss6nA=' 'sha256-8XvUhfOyAQ0xrN2l4lAR1NWN2swizirH1cFFwd7NzCY='; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob: https:; connect-src 'self' data: blob: https://pitlane-api.pitlane-taksimaga.workers.dev wss://pitlane-api.pitlane-taksimaga.workers.dev https://api.open-meteo.com https://server.arcgisonline.com https://tile.openstreetmap.org; media-src 'self' data: blob: https://pitlane-api.pitlane-taksimaga.workers.dev; worker-src 'self' blob:; manifest-src 'self'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <script>try{if(/tgWebAppData|tgWebAppVersion/.test(location.hash)||sessionStorage.getItem("pitlane-tma")==="1")document.documentElement.classList.add("tma")}catch(e){}</script>
@@ -11,6 +11,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="PITLANE" />
+    <link rel="preload" href="./img/bg-b4.avif" as="image" type="image/avif" />
+    <link rel="preload" href="./img/bg-b4.webp" as="image" type="image/webp" />
     <link rel="manifest" href="./manifest.json" />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <link rel="icon" type="image/png" sizes="32x32" href="./img/favicon-32.png" />
@@ -33,7 +35,7 @@
     <meta name="twitter:title" content="PITLANE — Замеряй. Сравнивай. Побеждай." />
     <meta name="twitter:description" content="Разгоны 0–100 и круги по GPS с проверкой на сервере. Честные топы — прямо в Telegram." />
     <meta name="twitter:image" content="https://dsssssz.github.io/pitlane/img/og-1200x630.jpg" />
-    <meta name="pitlane-build" content="v335" />
+    <meta name="pitlane-build" content="v336" />
     <script src="./upd.js"></script>
     <title>PITLANE — Замеряй. Сравнивай. Побеждай.</title>
     <link rel="preload" href="./fonts/golos/cyrillic-400-normal.woff2" as="font" type="font/woff2" crossorigin />
@@ -41,10 +43,12 @@
     <link rel="preload" href="./fonts/plex-mono/latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="./fonts.css" />
     <link rel="preconnect" href="https://pitlane-api.pitlane-taksimaga.workers.dev" crossorigin />
-    <link rel="modulepreload" href="./b/app-AZH4VKCM.js" />
-    <link rel="stylesheet" href="./styles-29D82E3C.css" />
+    <link rel="modulepreload" href="./b/app-23NNJWTW.js" />
+    <link rel="stylesheet" href="./styles-B21944CB.css" />
   </head>
   <body>
+    <!-- v336: fully pre-blurred B4 ground — fixed, no runtime filter -->
+    <div class="pl-bg" id="plBg" aria-hidden="true"><i class="pl-bg-scrim"></i></div>
     <!-- v161: запуск — тёмный экран, волосок из центра, панели расходятся, слово PITLANE, интерфейс разъезжается по местам. Раз за сессию, тап — пропустить -->
     <div id="launch" class="ln61" role="presentation" aria-hidden="true">
       <i class="ln61-p ln61-t"><b class="ln61-mark" role="img" aria-label="PITLANE"><svg viewBox="-2 -78 510 146" aria-hidden="true" focusable="false"><path class="ln61-arc" fill="#e12323" d="M66 -37Q250 -111 434 -36.4Q250 -98.6 66 -37Z"/><g class="ln61-word" fill="#f2efe9"><path d="M0 0H46A16.5 16.5 0 0 1 62.5 16.5V26A16.5 16.5 0 0 1 46 42.5H19V32H46A6 6 0 0 0 52 26V16.5A6 6 0 0 0 46 10.5H10.5V66H0Z"/><rect x="85" y="0" width="10.5" height="66"/><path d="M117 0H179.5V10.5H153.5V66H143V10.5H117Z"/><path d="M201 0H211.5V55.5H252.5V66H201Z"/><path d="M270.5 66L303.5 0H309L342.5 66H330.5L306 19L281.5 66Z"/><path d="M362 0H372.5L415 46V0H425.5V66H418L372.5 16.8V66H362Z"/><path d="M451 0H505.5V10.5H461.5V28H502V38.5H461.5V55.5H505.5V66H451Z"/></g></svg></b></i>
@@ -661,15 +665,27 @@
           </div></div>
         </section>
         </div>
-      <!-- v322: нижняя панель — Замер / Трек / Топы / Чат / Магазин; Профиль — аватар в шапке справа -->
+      <!-- v336: панель — Замер / Топы / Чат / Магазин; Трек — первый пункт сетки «+». Профиль — аватар 44px в шапке. -->
+      <div class="n3-dock" id="n3Dock">
       <nav class="nav3 nav6" id="nav3" aria-label="Разделы">
         <i class="n3-blob" id="n3Blob" aria-hidden="true"></i>
         <button type="button" class="nav3-btn on" data-n3="zamer" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Замер</span></button>
-        <button type="button" class="nav3-btn" data-n3="lap"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18c0-4 2.5-5.5 5.5-5.5S15 11 15 8s2.2-3.5 4.5-2.5"/><circle cx="5" cy="18" r="1.6"/><path d="M15.5 18h4M17.5 16v4"/></svg><span>Трек</span></button>
         <button type="button" class="nav3-btn" data-n3="tops"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8.5 20h7"/></svg><span>Топы</span></button>
         <button type="button" class="nav3-btn" data-n3="pulse"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.5 5h13A2.5 2.5 0 0 1 21 7.5v7a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17A2.5 2.5 0 0 1 3 14.5v-7A2.5 2.5 0 0 1 5.5 5z"/></svg><span>Чат</span><i class="n6-badge" id="n6BadgeChat" hidden></i></button>
         <button type="button" class="nav3-btn" data-n3="shop" title="Магазин"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 8h14l-1.2 11.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 10V7a3 3 0 0 1 6 0v3"/></svg><span>Магазин</span></button>
       </nav>
+      <button type="button" class="n3-fab" id="n3Fab" aria-label="Ещё" aria-haspopup="true" aria-expanded="false" aria-controls="n3Grid">
+        <span class="n3-plus" aria-hidden="true"></span>
+      </button>
+      <div class="n3-grid" id="n3Grid" role="menu" aria-label="Ещё" hidden>
+        <button type="button" class="n3-act" data-act="lap" role="menuitem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18c0-4 2.5-5.5 5.5-5.5S15 11 15 8s2.2-3.5 4.5-2.5"/><circle cx="5" cy="18" r="1.6"/><path d="M15.5 18h4M17.5 16v4"/></svg><span>Трек</span></button>
+        <button type="button" class="n3-act" data-act="zamer" role="menuitem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 13l4-4"/></svg><span>Старт замера</span></button>
+        <button type="button" class="n3-act" data-act="duel" role="menuitem"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3"/><circle cx="16" cy="12" r="3"/><path d="M11 12h2"/></svg><span>Вызов</span></button>
+        <button type="button" class="n3-act" data-act="car" role="menuitem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 16l1.5-5h11L19 16"/><path d="M7 16v2.5M17 16v2.5"/><circle cx="8.5" cy="18.5" r="1.4"/><circle cx="15.5" cy="18.5" r="1.4"/><path d="M12 6v6M9 9h6"/></svg><span>Добавить машину</span></button>
+        <button type="button" class="n3-act" data-act="share" role="menuitem"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 8l5-5M21 3h-5.5V8M9 7H6.5A2.5 2.5 0 0 0 4 9.5v9A2.5 2.5 0 0 0 6.5 21h9a2.5 2.5 0 0 0 2.5-2.5V15"/></svg><span>Поделиться</span></button>
+      </div>
+      </div>
+      <i class="n3-grid-mask" id="n3GridMask" hidden></i>
       </main>
       <!-- v206: «Изменить профиль» — полноэкранная страница -->
       <div class="pfe hidden" id="pfEdit" role="dialog" aria-modal="true" aria-hidden="true" aria-label="Изменить профиль">
@@ -1334,6 +1350,6 @@
     </div>
 
     
-    <script type="module" src="./b/app-AZH4VKCM.js"></script>
+    <script type="module" src="./b/app-23NNJWTW.js"></script>
   </body>
 </html>
