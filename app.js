@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v336';
+const APP_VERSION = 'v337';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -17235,21 +17235,32 @@ document.getElementById('btnProfile')?.addEventListener('click', () => { hap(6);
     nav.insertBefore(blob, nav.firstChild);
   }
   function placeN3Blob() {
+    /* v337: transform + opacity only; skip identical targets to avoid swipe jitter */
     const on = nav && nav.querySelector('.nav3-btn.on');
     if (!nav || !blob) return;
     if (!on) { blob.classList.add('is-off'); return; }
-    blob.classList.remove('is-off');
     const br = nav.getBoundingClientRect();
     const r = on.getBoundingClientRect();
     const rd = document.getElementById('runDrive');
     const min = document.body.classList.contains('run-drive-on') && rd && rd.dataset.phase !== 'final';
-    const w = min ? Math.min(48, r.width + 8) : Math.min(64, Math.max(48, r.width - 4));
-    const h = min ? 38 : 44;
-    const x = r.left - br.left + (r.width - w) / 2;
-    const y = r.top - br.top + (r.height - h) / 2;
-    blob.style.width = w + 'px';
-    blob.style.height = h + 'px';
-    blob.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+    const w = Math.round(min ? Math.min(48, r.width + 8) : Math.min(64, Math.max(48, r.width - 4)));
+    const h = min ? 38 : 48;
+    const x = Math.round(r.left - br.left + (r.width - w) / 2);
+    const y = Math.round(r.top - br.top + (r.height - h) / 2);
+    const key = x + ',' + y + ',' + w + ',' + h;
+    const wasOff = blob.classList.contains('is-off');
+    blob.classList.remove('is-off');
+    if (!wasOff && blob.dataset.pos === key) return;
+    if (!blob.dataset.ready) blob.style.transition = 'none';
+    if (blob.dataset.w !== String(w)) { blob.style.width = w + 'px'; blob.dataset.w = String(w); }
+    if (blob.dataset.h !== String(h)) { blob.style.height = h + 'px'; blob.dataset.h = String(h); }
+    blob.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+    blob.dataset.pos = key;
+    if (!blob.dataset.ready) {
+      void blob.offsetWidth;
+      blob.style.transition = '';
+      blob.dataset.ready = '1';
+    }
   }
   window.__placeN3Blob = placeN3Blob;
   const _n6 = n6Sync;

@@ -8734,7 +8734,7 @@ html:not(#_):not(#_):not(#_):not(#_) .rc317 .rc-share[hidden] { display: none; }
    v336: S4 — земля #101214, стекло #1E2023, текст #F0F1F2 / #909396, акцент алый #D3262E (--pl-acc / --accent-signal); главные кнопки мягкий светлый #F0F1F2.
    Было v335: графит #111214, бордо var(--pl-acc). Красный — только маленькие акценты и «хуже». Без неона и золота. Старые имена (--ds-*, --c-*, --v316-*) указывают сюда. ===== */
 :root {
-  --pl-s0: #101214; --pl-s1: #1A1C1E; --pl-s2: #1E2023; --pl-s3: #1E2023; --pl-s4: #26282C;
+  --pl-s0: #000000; --pl-s1: #1A1C1E; --pl-s2: #1E2023; --pl-s3: #1E2023; --pl-s4: #26282C;
   --pl-line: #2A2C30; --pl-line-2: #34363A; --pl-line-a: rgba(240,241,242,.12);
   --pl-t1: #F0F1F2; --pl-t2: #909396; --pl-t3: #7A7E82; --pl-t4: #5C5F62;
   --pl-acc: #D3262E; --pl-acc-hot: #E03A42; --pl-bad: #e10600;
@@ -10106,9 +10106,8 @@ html.v159:not(#_):not(#_):not(#_):not(#_) .h48-start.h56-wait {
 }
 
 
-/* ===== v336: S4 ground (pre-blurred B4 photo, fixed, no runtime filter),
-   dense smoked glass plates with a thin light edge, D-style 4-tab dock + «+» grid.
-   Accent #D3262E only on the active-tab drop, wait ring, live dots, badges.
+/* ===== v336: S4 tokens, smoked glass, D-style 4-tab dock + «+» grid.
+   v337: photo ground removed — pure black. Accent #D3262E on a thin tab line, wait ring, dots, badges.
    Track lives in the + grid; swipe order still includes lap. ===== */
 html.v148 {
   --lg-b-tint: rgba(30, 32, 35, 0.72);
@@ -10123,36 +10122,14 @@ html.v148 {
   --lg-b-sheen: linear-gradient(180deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 40%);
 }
 
-.pl-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-  background-color: #101214;
-  background-image: image-set(
-    url('./img/bg-b4.avif') type('image/avif'),
-    url('./img/bg-b4.webp') type('image/webp')
-  );
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-.pl-bg-scrim {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(10, 11, 13, 0.28) 0%, transparent 18%, transparent 66%, rgba(10, 11, 13, 0.42) 100%),
-    rgba(10, 11, 13, 0.16);
-  pointer-events: none;
-}
-html { background: #101214 !important; }
+.pl-bg, .pl-bg-scrim { display: none !important; }
+html { background: #000 !important; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_) body,
 html:not(#_):not(#_):not(#_):not(#_):not(#_) #app,
 html:not(#_):not(#_):not(#_):not(#_):not(#_) main,
 html:not(#_):not(#_):not(#_):not(#_):not(#_) #viewHost,
 html:not(#_):not(#_):not(#_):not(#_):not(#_) .view {
-  background-color: transparent !important;
+  background-color: #000 !important;
   background-image: none !important;
 }
 
@@ -10460,4 +10437,97 @@ html.lg-cheap:not(#_):not(#_) #btnProfile.bb-ava-btn::before {
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="wait"] .r275-arc circle,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #h48Start.r275[data-st="still"] .r275-arc circle {
   stroke: var(--pl-acc) !important;
+}
+
+
+/* ===== v337: pure black ground; clean sliding tab highlight; smooth panel ===== */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .chat-page {
+  background: #000 !important;
+}
+
+/* dock pill on black: crisp 1px light edge, top inner highlight, slight lift */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock > .nav3,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.16),
+    0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+/* ONE highlight: smoky plate + inner light rim + thin crisp scarlet line. Transform/opacity only. */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 0 !important;
+  border-radius: 16px !important;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14) !important;
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease !important;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob::after {
+  content: "" !important;
+  display: block !important;
+  position: absolute;
+  left: 50%;
+  bottom: 4px;
+  width: 14px;
+  height: 1.5px;
+  margin-left: -7px;
+  border-radius: 1px;
+  background: #D3262E;
+  box-shadow: 0 0 4px 0.5px rgba(211, 38, 46, 0.40);
+  pointer-events: none;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob.is-off {
+  opacity: 0 !important;
+}
+
+/* kill the blotchy v336 scarlet drop */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
+  color: #909396 !important;
+  background: transparent !important;
+  transition: color 160ms ease, transform 120ms ease !important;
+  transform-origin: center center;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on {
+  color: #fff !important;
+  background: transparent !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn:active {
+  transform: scale(0.96);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab {
+  transition: transform 120ms ease, background 160ms ease, border-color 160ms ease !important;
+  transform-origin: center center;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab:active {
+  transform: scale(0.96);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-plus {
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* + grid: same 380ms soft spring, no overshoot jitter */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid {
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease, visibility 0s linear 380ms !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.is-open .n3-grid {
+  transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1), opacity 180ms ease, visibility 0s !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-plus,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
+    transition: none !important;
+  }
 }
