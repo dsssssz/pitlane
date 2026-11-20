@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v338';
+const APP_VERSION = 'v339';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -18201,50 +18201,136 @@ setTimeout(() => { try { onbMaybeShow(); } catch (err) { console.warn('onb', err
 initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar293(p?.carId || '', p?.car || ''); return r.meta?.ph || (r.x?.id ? userCarPhoto(r.x.id) : ''); } catch (_) { return ''; } } });
 
 
-/* v336: «+» spring grid. Track is the first action; other items already exist in the app. */
-(function v336Plus() {
+/* v339: expandable tab bar — rAF spring fitted to roman's video (k=196, d=18.2, peak 0.30s). */
+(function v339Menu() {
   const dock = document.getElementById('n3Dock');
+  const pill = document.getElementById('n3Pill');
+  const surface = document.getElementById('n3Surface');
   const fab = document.getElementById('n3Fab');
+  const fabIcon = document.getElementById('n3FabIcon');
   const grid = document.getElementById('n3Grid');
+  const tabs = document.getElementById('nav3');
   const mask = document.getElementById('n3GridMask');
-  if (!dock || !fab || !grid) return;
+  if (!dock || !pill || !surface || !fab || !grid || !tabs) return;
 
-  function open() {
-    if (document.body.classList.contains('run-drive-on') || document.body.classList.contains('lap-drive-on')) return;
-    fab.setAttribute('aria-expanded', 'true');
-    grid.removeAttribute('hidden');
-    grid.setAttribute('aria-hidden', 'false');
-    if (mask) { mask.hidden = false; }
-    requestAnimationFrame(() => {
-      dock.classList.add('is-open');
-      if (mask) mask.classList.add('is-on');
-    });
-    try { hap(8); } catch (_) {}
-  }
-  function close() {
-    if (!dock.classList.contains('is-open')) return;
-    dock.classList.remove('is-open');
-    fab.setAttribute('aria-expanded', 'false');
-    grid.setAttribute('aria-hidden', 'true');
-    if (mask) mask.classList.remove('is-on');
-    setTimeout(() => {
-      if (!dock.classList.contains('is-open')) {
-        grid.setAttribute('hidden', '');
-        if (mask) mask.hidden = true;
-      }
-    }, 420);
-  }
-  function toggle() { dock.classList.contains('is-open') ? close() : open(); }
+  const blob = document.getElementById('n3Blob');
+  if (blob) blob.style.display = 'none';
 
-  fab.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); toggle(); });
-  mask?.addEventListener('click', () => close());
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
-  document.getElementById('nav3')?.addEventListener('click', () => close());
+  const K = 196, D = 18.2, MASS = 1;
+  const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  let open = false, tval = 0, vel = 0, raf = 0, last = 0;
+
+  function cssPx(name) {
+    return parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
+  }
+
+  function apply(p) {
+    const hIdle = cssPx('--n3-pill-h') || 48;
+    const hOpen = cssPx('--n3-open-h') || 218;
+    const rIdle = cssPx('--n3-pill-r') || 24;
+    const rOpen = cssPx('--n3-open-r') || 34;
+    const fabW = cssPx('--n3-fab') || 48;
+    const gap = cssPx('--n3-gap') || 7;
+    const side = cssPx('--n3-side') || 32;
+    const dockW = dock.getBoundingClientRect().width || Math.max(200, window.innerWidth - side * 2);
+    const wIdle = Math.max(120, dockW - fabW - gap);
+    const wOpen = dockW;
+    const rightIdle = fabW + gap;
+    const rightOpen = 0;
+    const c = Math.max(0, Math.min(p, 1));
+    const w = wIdle + (wOpen - wIdle) * Math.max(0, Math.min(p, 1.08));
+    const right = rightIdle + (rightOpen - rightIdle) * c;
+    const h = hIdle + (hOpen - hIdle) * p;
+    const r = rIdle + (rOpen - rIdle) * c;
+    surface.style.width = w + 'px';
+    surface.style.right = right + 'px';
+    surface.style.height = Math.max(hIdle, h) + 'px';
+    surface.style.borderRadius = r + 'px';
+    tabs.style.opacity = String(1 - Math.min(c / 0.45, 1));
+    tabs.style.pointerEvents = p > 0.2 ? 'none' : 'auto';
+    const g = Math.max(0, Math.min((c - 0.18) / 0.7, 1));
+    grid.style.opacity = String(g);
+    grid.style.transform = 'scale(' + (0.8 + 0.2 * g) + ')';
+    if (fabIcon) fabIcon.style.transform = 'rotate(' + (45 * c) + 'deg)';
+    fab.setAttribute('aria-expanded', p > 0.5 ? 'true' : 'false');
+    fab.setAttribute('aria-label', p > 0.5 ? 'Закрыть меню' : 'Ещё');
+    const isOpen = p > 0.5;
+    pill.classList.toggle('is-open', isOpen);
+    dock.classList.toggle('is-open', isOpen);
+    if (isOpen) {
+      grid.removeAttribute('hidden');
+      grid.setAttribute('aria-hidden', 'false');
+      if (mask) { mask.hidden = false; mask.classList.add('is-on'); }
+    } else if (p <= 0.02) {
+      grid.setAttribute('hidden', '');
+      grid.setAttribute('aria-hidden', 'true');
+      if (mask) { mask.classList.remove('is-on'); mask.hidden = true; }
+    }
+  }
+
+  function tick(now) {
+    if (!last) last = now;
+    let dt = (now - last) / 1000;
+    last = now;
+    if (dt < 0) dt = 0;
+    if (dt > 0.032) dt = 0.032;
+    const target = open ? 1 : 0;
+    const acc = (K * (target - tval) - D * vel) / MASS;
+    vel += acc * dt;
+    tval += vel * dt;
+    apply(tval);
+    const settled = Math.abs(target - tval) < 0.0015 && Math.abs(vel) < 0.02;
+    if (settled) {
+      tval = target; vel = 0; apply(tval);
+      raf = 0; last = 0;
+      return;
+    }
+    raf = requestAnimationFrame(tick);
+  }
+
+  function go(next) {
+    if (next && (document.body.classList.contains('run-drive-on') || document.body.classList.contains('lap-drive-on'))) return;
+    open = next;
+    if (reduced) { tval = next ? 1 : 0; vel = 0; apply(tval); raf = 0; last = 0; return; }
+    last = 0;
+    if (!raf) raf = requestAnimationFrame(tick);
+  }
+  function openMenu() { go(true); try { hap(8); } catch (_) {} }
+  function closeMenu() { if (!open && tval < 0.02) return; go(false); }
+  function toggle() { open ? closeMenu() : openMenu(); }
+
+  apply(0);
+  requestAnimationFrame(() => apply(tval));
+
+  fab.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fab.classList.add('is-press');
+    toggle();
+  });
+  const clearPress = () => fab.classList.remove('is-press');
+  fab.addEventListener('pointerup', clearPress);
+  fab.addEventListener('pointercancel', clearPress);
+  fab.addEventListener('pointerleave', clearPress);
+  fab.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); });
+  mask?.addEventListener('pointerdown', () => closeMenu());
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+  document.addEventListener('pointerdown', (e) => {
+    if (!open) return;
+    if (pill.contains(e.target) || fab.contains(e.target)) return;
+    closeMenu();
+  }, true);
+
+  tabs.querySelectorAll('.nav3-btn').forEach((btn) => {
+    btn.addEventListener('pointerdown', () => btn.classList.add('is-press'));
+    btn.addEventListener('pointerup', () => btn.classList.remove('is-press'));
+    btn.addEventListener('pointercancel', () => btn.classList.remove('is-press'));
+  });
 
   grid.addEventListener('click', (e) => {
-    const b = e.target.closest('.n3-act'); if (!b) return;
+    const b = e.target.closest('.n3-act'); if (!b || b.classList.contains('n3-act-ghost')) return;
     const act = b.dataset.act;
-    close();
+    closeMenu();
     try { hap(8); } catch (_) {}
     try {
       if (act === 'lap' || act === 'zamer') {
@@ -18268,12 +18354,77 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
           }
         } catch (_) {}
         try { showAppToast('Сначала сделай замер'); } catch (_) {}
+      } else if (act === 'profile') {
+        try { closeShopSheet(); } catch (_) {}
+        goToView('account');
+        try { window.scrollTo(0, 0); } catch (_) {}
+      } else if (act === 'settings') {
+        try { closeShopSheet(); } catch (_) {}
+        goToView('settings');
+        try { window.scrollTo(0, 0); } catch (_) {}
+      } else if (act === 'journal') {
+        try { closeShopSheet(); } catch (_) {}
+        goToView('history');
+        try { window.scrollTo(0, 0); } catch (_) {}
+      } else if (act === 'ghost') {
+        try { closeShopSheet(); } catch (_) {}
+        goToView('lap');
+        try { window.scrollTo(0, 0); } catch (_) {}
+      } else if (act === 'video') {
+        try { openVideoTele(); } catch (_) { try { openVideoTele('zamer'); } catch (__) {} }
+      } else if (act === 'help') {
+        try { closeShopSheet(); } catch (_) {}
+        try { window.__route48?.('settings'); } catch (_) { goToView('settings'); }
+        setTimeout(() => {
+          const el = document.getElementById('st66Help');
+          if (!el) return;
+          const hb = document.querySelector('.brand-bar')?.getBoundingClientRect().bottom || 0;
+          window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - hb - 12), behavior: 'smooth' });
+        }, 260);
       }
     } catch (err) { console.warn('n3-act', err); }
   });
 
-  window.__n3Plus = { open, close, toggle };
+  window.addEventListener('resize', () => apply(tval));
+
+  window.__n3Plus = {
+    open: openMenu,
+    close: closeMenu,
+    toggle,
+    snap(state) {
+      if (raf) { cancelAnimationFrame(raf); raf = 0; last = 0; }
+      if (state === 'idle') { open = false; tval = 0; vel = 0; apply(0); }
+      else if (state === 'open') { open = true; tval = 1; vel = 0; apply(1); }
+      else if (state === 'mid' || state === 'peak') {
+        open = true;
+        tval = 1.065;
+        vel = 0;
+        apply(tval);
+      }
+    },
+    get t() { return tval; },
+    seek(seconds, opening) {
+      if (raf) { cancelAnimationFrame(raf); raf = 0; last = 0; }
+      const w0 = Math.sqrt(K / MASS);
+      const z = D / (2 * Math.sqrt(K * MASS));
+      const wd = w0 * Math.sqrt(Math.max(0, 1 - z * z));
+      const s = Math.max(0, Number(seconds) || 0);
+      const und = Math.exp(-z * w0 * s);
+      const amp = z / Math.sqrt(Math.max(1e-6, 1 - z * z));
+      const x = 1 - und * (Math.cos(wd * s) + amp * Math.sin(wd * s));
+      open = opening !== false;
+      tval = open ? x : (1 - x);
+      vel = 0;
+      apply(tval);
+      return tval;
+    }
+  };
 })();
+window.__placeN3Blob = function () { const b = document.getElementById('n3Blob'); if (b) b.style.display = 'none'; };
+window.__n3BlobDrag = function () {};
+window.__n3BlobRelease = function () {};
+
+
 
 /* v326: горизонтальный свайп вкладок — устойчив к pointercancel в Telegram */
 (() => {
