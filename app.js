@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v339';
+const APP_VERSION = 'v340';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -18201,7 +18201,7 @@ setTimeout(() => { try { onbMaybeShow(); } catch (err) { console.warn('onb', err
 initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar293(p?.carId || '', p?.car || ''); return r.meta?.ph || (r.x?.id ? userCarPhoto(r.x.id) : ''); } catch (_) { return ''; } } });
 
 
-/* v339: expandable tab bar — rAF spring fitted to roman's video (k=196, d=18.2, peak 0.30s). */
+/* v340: expandable tab bar — rAF spring fitted to roman's video (k=196, d=18.2, peak 0.30s). */
 (function v339Menu() {
   const dock = document.getElementById('n3Dock');
   const pill = document.getElementById('n3Pill');
@@ -18229,38 +18229,37 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
     const hOpen = cssPx('--n3-open-h') || 218;
     const rIdle = cssPx('--n3-pill-r') || 24;
     const rOpen = cssPx('--n3-open-r') || 34;
-    const fabW = cssPx('--n3-fab') || 48;
     const gap = cssPx('--n3-gap') || 7;
+    const fabW = (fab.getBoundingClientRect().width || cssPx('--n3-fab') || 48);
     const side = cssPx('--n3-side') || 32;
     const dockW = dock.getBoundingClientRect().width || Math.max(200, window.innerWidth - side * 2);
     const wIdle = Math.max(120, dockW - fabW - gap);
-    const wOpen = dockW;
     const rightIdle = fabW + gap;
-    const rightOpen = 0;
     const c = Math.max(0, Math.min(p, 1));
-    const w = wIdle + (wOpen - wIdle) * Math.max(0, Math.min(p, 1.08));
-    const right = rightIdle + (rightOpen - rightIdle) * c;
+    /* Panel keeps the idle pill's left/right edges; X stays a separate circle. */
     const h = hIdle + (hOpen - hIdle) * p;
     const r = rIdle + (rOpen - rIdle) * c;
-    surface.style.width = w + 'px';
-    surface.style.right = right + 'px';
+    surface.style.width = wIdle + 'px';
+    surface.style.right = rightIdle + 'px';
     surface.style.height = Math.max(hIdle, h) + 'px';
     surface.style.borderRadius = r + 'px';
     tabs.style.opacity = String(1 - Math.min(c / 0.45, 1));
     tabs.style.pointerEvents = p > 0.2 ? 'none' : 'auto';
-    const g = Math.max(0, Math.min((c - 0.18) / 0.7, 1));
+    /* Icons appear late, like the video: none at ~100ms (p≈0.50), ghosted at 150ms, clear by 200ms. */
+    const g = Math.max(0, Math.min((c - 0.55) / 0.40, 1));
     grid.style.opacity = String(g);
     grid.style.transform = 'scale(' + (0.8 + 0.2 * g) + ')';
+    grid.style.pointerEvents = g > 0.7 ? 'auto' : 'none';
     if (fabIcon) fabIcon.style.transform = 'rotate(' + (45 * c) + 'deg)';
     fab.setAttribute('aria-expanded', p > 0.5 ? 'true' : 'false');
     fab.setAttribute('aria-label', p > 0.5 ? 'Закрыть меню' : 'Ещё');
     const isOpen = p > 0.5;
     pill.classList.toggle('is-open', isOpen);
     dock.classList.toggle('is-open', isOpen);
-    if (isOpen) {
+    if (p > 0.02) {
       grid.removeAttribute('hidden');
-      grid.setAttribute('aria-hidden', 'false');
-      if (mask) { mask.hidden = false; mask.classList.add('is-on'); }
+      grid.setAttribute('aria-hidden', open ? 'false' : 'true');
+      if (mask && open) { mask.hidden = false; mask.classList.add('is-on'); }
     } else if (p <= 0.02) {
       grid.setAttribute('hidden', '');
       grid.setAttribute('aria-hidden', 'true');

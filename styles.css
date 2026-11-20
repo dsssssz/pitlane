@@ -10581,7 +10581,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab.is-press {
   }
 }
 
-/* ===== v339: Expandable Tab Bar — measured from roman's video ===== */
+/* ===== v340: Expandable Tab Bar — panel stays left of the X, one-line labels ===== */
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) {
   --n3-side: 32px;
   --n3-float: 12px;
@@ -10589,7 +10589,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) {
   --n3-pill-r: 24px;
   --n3-fab: 48px;
   --n3-gap: 7px;
-  --n3-open-h: 218px;
+  --n3-open-h: 252px;
   --n3-open-r: 34px;
   --n3-glass: rgba(28, 28, 30, 0.88);
   --n3-line: rgba(255, 255, 255, 0.14);
@@ -10602,8 +10602,8 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) {
     --n3-pill-h: 46px;
     --n3-pill-r: 23px;
     --n3-fab: 46px;
-    --n3-gap: 6px;
-    --n3-open-h: 208px;
+    --n3-gap: 7px;
+    --n3-open-h: 228px;
     --n3-open-r: 30px;
   }
 }
@@ -10750,8 +10750,14 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab {
   bottom: 0 !important;
   top: auto !important;
   left: auto !important;
+  box-sizing: border-box !important;
+  flex: 0 0 var(--n3-fab) !important;
   width: var(--n3-fab) !important;
   height: var(--n3-fab) !important;
+  min-width: var(--n3-fab) !important;
+  min-height: var(--n3-fab) !important;
+  max-width: var(--n3-fab) !important;
+  max-height: var(--n3-fab) !important;
   margin: 0 !important;
   border-radius: 50% !important;
   border: 1px solid rgba(255, 255, 255, 0.16) !important;
@@ -10788,9 +10794,11 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid,
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #n3Grid {
   position: absolute !important;
   left: 12px !important;
-  right: 12px !important;
+  right: calc(var(--n3-fab) + var(--n3-gap) + 12px) !important;
   top: 12px !important;
-  bottom: calc(var(--n3-fab) + 4px) !important;
+  bottom: 12px !important;
+  width: auto !important;
+  max-width: none !important;
   display: grid !important;
   grid-template-columns: repeat(4, 1fr) !important;
   grid-template-rows: repeat(3, 1fr) !important;
@@ -10801,9 +10809,11 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #n3Grid {
   border: 0 !important;
   box-shadow: none !important;
   opacity: 0;
+  visibility: visible !important;
   transform: scale(0.8);
   transform-origin: center center;
   pointer-events: none;
+  transition: none !important;
   z-index: 2;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-pill.is-open .n3-grid,
@@ -10819,6 +10829,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act {
   justify-content: flex-start !important;
   gap: 5px !important;
   min-width: 0 !important;
+  min-height: 0 !important;
   padding: 0 !important;
   margin: 0 !important;
   cursor: pointer;
@@ -10826,8 +10837,8 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act {
   -webkit-tap-highlight-color: transparent;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act i {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   max-width: 100%;
   aspect-ratio: 1;
   border-radius: 16px;
@@ -10846,19 +10857,19 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act svg
   stroke-linejoin: round !important;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act span {
-  font-size: 11px !important;
+  font-size: 9.5px !important;
   font-weight: 500 !important;
-  line-height: 1.15 !important;
-  letter-spacing: 0.01em !important;
+  line-height: 1.2 !important;
+  letter-spacing: 0 !important;
   color: rgba(240, 241, 242, 0.86) !important;
   text-align: center !important;
   max-width: 100%;
   position: static !important;
   width: auto !important;
   height: auto !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   clip: auto !important;
-  white-space: normal !important;
+  white-space: nowrap !important;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act-ghost {
   visibility: hidden !important;
@@ -10876,11 +10887,18 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #n3GridMask
   pointer-events: auto;
 }
 @media (max-width: 360px) {
-  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act i { width: 50px; height: 50px; border-radius: 14px; }
-  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act svg { width: 22px !important; height: 22px !important; }
-  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act span { font-size: 10px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act i { width: 46px; height: 46px; border-radius: 14px; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act svg { width: 20px !important; height: 20px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act span { font-size: 8.5px !important; }
   html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn svg { width: 20px !important; height: 20px !important; }
-  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid { inset: 10px 10px calc(var(--n3-fab) + 2px) 10px !important; gap: 6px 4px !important; }
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #n3Grid {
+    left: 10px !important;
+    right: calc(var(--n3-fab) + var(--n3-gap) + 10px) !important;
+    top: 10px !important;
+    bottom: 10px !important;
+    gap: 6px 4px !important;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-surface,
