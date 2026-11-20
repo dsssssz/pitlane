@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v337';
+const APP_VERSION = 'v338';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -17234,34 +17234,179 @@ document.getElementById('btnProfile')?.addEventListener('click', () => { hap(6);
     blob.setAttribute('aria-hidden', 'true');
     nav.insertBefore(blob, nav.firstChild);
   }
-  function placeN3Blob() {
-    /* v337: transform + opacity only; skip identical targets to avoid swipe jitter */
-    const on = nav && nav.querySelector('.nav3-btn.on');
-    if (!nav || !blob) return;
-    if (!on) { blob.classList.add('is-off'); return; }
+  if (blob && !blob.querySelector('.n3-glow')) {
+    const g = document.createElement('i');
+    g.className = 'n3-glow';
+    g.setAttribute('aria-hidden', 'true');
+    blob.appendChild(g);
+  }
+
+  /* v338: 120 Hz critically-damped spring (k=260, d=30). dt-based, compositor only. */
+  const K = 260, D = 30, MASS = 1;
+  let sx = 0, sy = 0, sv = 0, tx = 0, ty = 0, tw = 56, th = 48, topa = 1;
+  let sop = 1, running = 0, lastT = 0, ready = 0, dragging = 0;
+  const reduced = !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const btns = () => nav ? [...nav.querySelectorAll('.nav3-btn')] : [];
+
+  function measureOn(el) {
+    if (!nav || !el) return null;
     const br = nav.getBoundingClientRect();
-    const r = on.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
     const rd = document.getElementById('runDrive');
     const min = document.body.classList.contains('run-drive-on') && rd && rd.dataset.phase !== 'final';
     const w = Math.round(min ? Math.min(48, r.width + 8) : Math.min(64, Math.max(48, r.width - 4)));
     const h = min ? 38 : 48;
-    const x = Math.round(r.left - br.left + (r.width - w) / 2);
-    const y = Math.round(r.top - br.top + (r.height - h) / 2);
-    const key = x + ',' + y + ',' + w + ',' + h;
-    const wasOff = blob.classList.contains('is-off');
-    blob.classList.remove('is-off');
-    if (!wasOff && blob.dataset.pos === key) return;
-    if (!blob.dataset.ready) blob.style.transition = 'none';
-    if (blob.dataset.w !== String(w)) { blob.style.width = w + 'px'; blob.dataset.w = String(w); }
-    if (blob.dataset.h !== String(h)) { blob.style.height = h + 'px'; blob.dataset.h = String(h); }
-    blob.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
-    blob.dataset.pos = key;
-    if (!blob.dataset.ready) {
-      void blob.offsetWidth;
-      blob.style.transition = '';
-      blob.dataset.ready = '1';
+    const x = r.left - br.left + (r.width - w) / 2;
+    const y = r.top - br.top + (r.height - h) / 2;
+    return { x, y, w, h };
+  }
+
+  let slots = [];
+  function cacheSlots() {
+    if (!nav) { slots = []; return; }
+    const br = nav.getBoundingClientRect();
+    slots = btns().map((b) => {
+      const r = b.getBoundingClientRect();
+      return { b, cx: r.left - br.left + r.width / 2, w: r.width, svg: b.querySelector('svg'), lab: b.querySelector('span') };
+    });
+  }
+  function applyVisual(x, y, stretch) {
+    blob.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0) scaleX(' + stretch + ')';
+    blob.style.opacity = String(sop);
+    if (sop < 0.04) blob.classList.add('is-off');
+    else blob.classList.remove('is-off');
+    const mid = x + tw / 2;
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i];
+      const p = Math.max(0, 1 - Math.abs(mid - s.cx) / Math.max(s.w, 1)) * sop;
+      const sc = 0.96 + 0.04 * p;
+      if (s.svg) s.svg.style.transform = 'scale(' + sc + ')';
+      const col = 'rgb(' + Math.round(144 + 111 * p) + ',' + Math.round(147 + 108 * p) + ',' + Math.round(150 + 105 * p) + ')';
+      s.b.style.color = col;
+      if (s.lab) s.lab.style.color = col;
     }
   }
+
+  function tick(now) {
+    if (!lastT) lastT = now;
+    let dt = (now - lastT) / 1000;
+    lastT = now;
+    if (dt < 0) dt = 0;
+    if (dt > 0.032) dt = 0.032; // numerical cap only; rAF is not throttled
+    const work0 = performance.now();
+    if (dragging) {
+      running = requestAnimationFrame(tick);
+      return;
+    }
+    const ax = (K * (tx - sx) - D * sv) / MASS;
+    sv += ax * dt;
+    sx += sv * dt;
+    sy += (ty - sy) * Math.min(1, dt * 16);
+    sop += (topa - sop) * Math.min(1, dt * 14);
+    const stretch = 1 + Math.max(-0.14, Math.min(0.14, sv / 900));
+    applyVisual(sx, sy, stretch);
+    if (window.__n3PerfOn) {
+      const cost = performance.now() - work0;
+      (window.__n3Perf || (window.__n3Perf = [])).push(cost);
+    }
+    const settled = Math.abs(tx - sx) < 0.15 && Math.abs(sv) < 2 && Math.abs(topa - sop) < 0.01;
+    if (settled) {
+      sx = tx; sv = 0; sy = ty; sop = topa;
+      applyVisual(sx, sy, 1);
+      running = 0; lastT = 0;
+      return;
+    }
+    running = requestAnimationFrame(tick);
+  }
+
+  function kick() {
+    if (reduced) {
+      sx = tx; sy = ty; sv = 0; sop = topa;
+      if (blob.dataset.w !== String(tw)) { blob.style.width = tw + 'px'; blob.dataset.w = String(tw); }
+      if (blob.dataset.h !== String(th)) { blob.style.height = th + 'px'; blob.dataset.h = String(th); }
+      applyVisual(sx, sy, 1);
+      return;
+    }
+    if (blob.dataset.w !== String(tw)) { blob.style.width = tw + 'px'; blob.dataset.w = String(tw); }
+    if (blob.dataset.h !== String(th)) { blob.style.height = th + 'px'; blob.dataset.h = String(th); }
+    if (!running) { lastT = 0; running = requestAnimationFrame(tick); }
+  }
+
+  function setTarget(m, opa) {
+    cacheSlots();
+    if (!m) { topa = 0; kick(); return; }
+    tx = m.x; ty = m.y; tw = m.w; th = m.h;
+    topa = opa == null ? 1 : opa;
+    kick();
+  }
+
+  function placeN3Blob() {
+    if (!nav || !blob) return;
+    if (dragging) return;
+    const on = nav.querySelector('.nav3-btn.on');
+    if (!on) { topa = 0; kick(); return; }
+    const m = measureOn(on);
+    if (!m) return;
+    cacheSlots();
+    if (!ready) {
+      sx = m.x; sy = m.y; tx = m.x; ty = m.y; tw = m.w; th = m.h; sv = 0; sop = 1; topa = 1;
+      blob.style.width = tw + 'px'; blob.dataset.w = String(tw);
+      blob.style.height = th + 'px'; blob.dataset.h = String(th);
+      applyVisual(sx, sy, 1);
+      ready = 1;
+      return;
+    }
+    setTarget(m, 1);
+  }
+
+  nav?.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('.nav3-btn');
+    if (!b) return;
+    b.classList.add('is-press');
+    const m = measureOn(b);
+    if (m) setTarget(m, 1);
+  });
+  const releasePress = () => { btns().forEach((b) => b.classList.remove('is-press')); };
+  nav?.addEventListener('pointerup', releasePress);
+  nav?.addEventListener('pointercancel', () => { releasePress(); placeN3Blob(); });
+  nav?.addEventListener('pointerleave', (e) => { if (e.target === nav) { releasePress(); } });
+  const fab = document.getElementById('n3Fab');
+  fab?.addEventListener('pointerdown', () => fab.classList.add('is-press'));
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach((ev) => fab?.addEventListener(ev, () => fab.classList.remove('is-press')));
+
+  window.__n3BlobDrag = function (dx, fromKey, vw) {
+    if (!nav || !blob) return;
+    dragging = 1;
+    cacheSlots();
+    const order = (window.__n6Swipe && window.__n6Swipe.order) || ['zamer', 'lap', 'tops', 'pulse', 'shop'];
+    const i = order.indexOf(fromKey);
+    if (i < 0) return;
+    const toKey = order[i + (dx < 0 ? 1 : -1)];
+    const fromBtn = nav.querySelector('.nav3-btn[data-n3="' + fromKey + '"]');
+    const toBtn = toKey ? nav.querySelector('.nav3-btn[data-n3="' + toKey + '"]') : null;
+    const travel = Math.max(64, (vw || innerWidth) * 0.28);
+    const p = Math.max(-1, Math.min(1, dx / travel));
+    const a = fromBtn ? measureOn(fromBtn) : null;
+    const b = toBtn ? measureOn(toBtn) : null;
+    const ap = Math.min(1, Math.abs(p));
+    if (a && b) {
+      sx = a.x + (b.x - a.x) * ap;
+      sy = a.y + (b.y - a.y) * ap;
+      tw = a.w; th = a.h; sop = 1; topa = 1; sv = 0;
+    } else if (a && !b) {
+      sx = a.x; sy = a.y; sop = 1 - ap; topa = sop; sv = 0;
+    } else if (!a && b) {
+      sx = b.x; sy = b.y; sop = ap; topa = sop; sv = 0;
+    }
+    if (blob.dataset.w !== String(tw)) { blob.style.width = tw + 'px'; blob.dataset.w = String(tw); }
+    if (blob.dataset.h !== String(th)) { blob.style.height = th + 'px'; blob.dataset.h = String(th); }
+    applyVisual(sx, sy, 1 + Math.max(-0.1, Math.min(0.1, p * 0.1)));
+  };
+  window.__n3BlobRelease = function () {
+    dragging = 0;
+    placeN3Blob();
+  };
+
   window.__placeN3Blob = placeN3Blob;
   const _n6 = n6Sync;
   n6Sync = function () { _n6(); requestAnimationFrame(placeN3Blob); };
@@ -18206,18 +18351,22 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
       if (Math.max(Math.abs(dx), Math.abs(dy)) < LOCK) return;
       st.lock = (Math.abs(dx) > Math.abs(dy) * 1.15) ? 'x' : 'y';
     }
-    if (st.lock === 'x' && e.cancelable) { try { e.preventDefault(); } catch (_) {} }
+    if (st.lock === 'x') {
+      if (e.cancelable) { try { e.preventDefault(); } catch (_) {} }
+      try { window.__n3BlobDrag?.(dx, tabKey(), window.innerWidth); } catch (_) {}
+    }
   }
   function finish(dx) {
     const ok = st && st.lock === 'x' && Math.abs(dx) >= GO && !runOn();
     const key = tabKey();
     st = null;
-    if (!ok || !key) return;
+    if (!ok || !key) { try { window.__n3BlobRelease?.(); } catch (_) {} return; }
     const i = ORDER.indexOf(key); if (i < 0) return;
     const next = dx < 0 ? ORDER[i + 1] : ORDER[i - 1];
     if (!next) return;
     try { hap(6); } catch (_) {}
     n6Go(next);
+    try { window.__n3BlobRelease?.(); } catch (_) {}
   }
   function onUp(e) {
     if (!st) return;
@@ -18233,6 +18382,7 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
     // горизонталь начата, но палец ещё на экране — не сбрасываем, дождёмся touchend
     if (st.lock === 'x' && e.type === 'pointercancel') return;
     st = null;
+    try { window.__n3BlobRelease?.(); } catch (_) {}
   }
   document.addEventListener('pointerdown', onDown, { passive: true });
   document.addEventListener('pointermove', onMove, { passive: false });

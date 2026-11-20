@@ -10531,3 +10531,52 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.is-open .n
     transition: none !important;
   }
 }
+
+
+/* ===== v338: Nextmove pink glow (#E41F85) + 120 Hz critically-damped tab spring ===== */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
+  overflow: hidden !important;
+  /* JS spring owns transform; no CSS duration, no per-frame shadow/filter */
+  transition: opacity 180ms ease !important;
+  will-change: transform;
+  backface-visibility: hidden;
+  transform: translate3d(0,0,0);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob::after {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-glow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40px;
+  pointer-events: none;
+  background: url('./img/tab-glow.png') right center / auto 100% no-repeat;
+  transform: translateZ(0);
+  will-change: transform;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
+  transition: none !important; /* color driven in rAF; press via class */
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn svg,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn span {
+  transform: translateZ(0);
+  will-change: transform, opacity;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.is-press {
+  transform: scale(0.96) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab.is-press {
+  transform: scale(0.96) !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn svg,
+  html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn span {
+    transition: none !important;
+  }
+}
