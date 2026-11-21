@@ -12010,7 +12010,9 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v343';
+const APP_VERSION = 'v344';
+// v344: стекло — на слабых устройствах размытие под панелью легче (меньше радиус), вид тот же.
+try { const hc = navigator.hardwareConcurrency || 8, dm = navigator.deviceMemory || 8; if (hc <= 4 || dm <= 2) document.documentElement.classList.add('gl-lite'); } catch (_) {}
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
