@@ -10960,3 +10960,16 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #n3GridMask
   html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #n3FabIcon,
   html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3 { transition: none !important; }
 }
+
+/* ===== v342 MOTION — designbookmark.com/motion: переезжающая плашка сегментов, лесенка, нажатие с пружиной. Только transform/scale/opacity. ===== */
+html.m342 .m342-plate { position: absolute !important; z-index: 1 !important; margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; pointer-events: none !important; transform-origin: 50% 50%; will-change: transform; display: block !important; }
+@media (prefers-reduced-motion: no-preference) {
+  html.m342:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.jn-f, .jn-sum-c, .jn-hit, .jn-go, .jn-a, .jn-tr, #h56Mode button, .seg-btn, .tq-chip, .tv2-row, .tb-row[data-pilot], .t72-dc):not(#n3Dock *) {
+    transition-property: scale, background-color, border-color, color, opacity, transform !important;
+    transition-duration: 520ms, .2s, .2s, .2s, .2s, .25s !important;
+    transition-timing-function: cubic-bezier(.34,1.56,.64,1), ease, ease, ease, ease, cubic-bezier(.2,0,0,1) !important;
+    transition-timing-function: linear(0, 0.05, 0.167, 0.325, 0.497, 0.671, 0.821, 0.946, 1.042, 1.109, 1.147, 1.161, 1.158, 1.142, 1.118, 1.09, 1.062, 1.036, 1.014, 0.997, 0.985, 0.978, 0.974, 0.974, 0.976, 0.98, 0.984, 0.989, 0.993, 0.997, 1, 1.002, 1), ease, ease, ease, ease, cubic-bezier(.2,0,0,1) !important;
+  }
+  html.m342:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.jn-f, .jn-sum-c, .jn-go, .jn-a, .jn-tr, #h56Mode button, .seg-btn, .tq-chip, .t72-dc).m342-dn:not(#n3Dock *) { scale: .955; transition-duration: 90ms !important; transition-timing-function: cubic-bezier(.2,0,0,1) !important; }
+  html.m342:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.jn-hit, .tv2-row, .tb-row[data-pilot]).m342-dn:not(#n3Dock *) { scale: .982; transition-duration: 90ms !important; transition-timing-function: cubic-bezier(.2,0,0,1) !important; }
+}

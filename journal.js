@@ -4,6 +4,7 @@
 const GAP = 45 * 60 * 1000; // круги без сохранённой сессии — склеиваем, если между ними < 45 мин
 const KINDS = [['all', 'Все'], ['run', 'Замеры'], ['lap', 'Круги']];
 const FKEY = 'pitlane-journal-f';
+import { tick } from './ticker.js';
 const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = String(text); return n; };
 const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; };
 const num = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Number(v));
@@ -87,7 +88,7 @@ export function renderJournal(host, D, entries, filter) {
   const sum = el('div', 'jn-sum');
   [['run', 'замеры', cnt.run], ['lap', 'сессии', cnt.lap]].forEach(([k, l, n]) => {
     const b = el('button', 'jn-sum-c'); b.type = 'button'; b.dataset.jf = k; b.setAttribute('aria-pressed', String(filter === k));
-    b.append(el('b', '', n), el('span', '', l)); sum.appendChild(b);
+    const nb = el('b', '', '0'); tick(nb, String(n), { key: 'jn:' + k, dur: 600 }); b.append(nb, el('span', '', l)); sum.appendChild(b); // v342: счётчики докатываются
   });
   host.appendChild(sum);
   const seg = el('div', 'jn-seg'); seg.setAttribute('role', 'tablist'); seg.setAttribute('aria-label', 'Фильтр журнала');

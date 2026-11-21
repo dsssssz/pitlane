@@ -46,6 +46,7 @@ function ensureThree() {
 import { createExtGps } from './ext-gps.js';
 import { spring, countUp, flyShared, drawIn, reduced as motionReduced } from './motion.js'; // v160: движение
 import { tick as tickNum } from './ticker.js';
+import { initMotion342, viewEnter as m342ViewEnter } from './motion342.js'; // v342: плашка сегментов, лесенка, нажатие, сторона вкладки
 import { initV317, onbMaybeShow, openRecap, seasonNoteRun, renderNowStack, springFlip } from './v317.js'; // v317: онбординг, итог сезона, «Сейчас на трассе», пружины топов // v316: докатывающиеся цифры (замер, дельты, топы)
 /* v120: блок показывается, только когда в нём есть хотя бы N записей (пустая таблица хуже отсутствующей) */
 const SHOW_MIN = { leaders: 3, track: 1, sessionDay: 1, sectors: 3, season: 2 };
@@ -1595,6 +1596,7 @@ function goToView(id, opts = {}) {
     };
     prev.addEventListener('animationend', cleanup, { once: true });
     viewTransitionTimer = setTimeout(cleanup, 520);
+    try { m342ViewEnter(next, prev); } catch (_) {}
   } else {
     document.querySelectorAll('.view').forEach((v) => v.classList.remove('active', 'leaving'));
     next.classList.add('active');
@@ -12011,7 +12013,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v341';
+const APP_VERSION = 'v342';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -17013,7 +17015,7 @@ function pf6PaintStats() {
   const box = document.getElementById('pf6Stats'); if (!box) return;
   const best = (d) => { let b = 0; for (const st of [state.dragBest, state.dragBestC]) for (const c of Object.values(st || {})) { const t = Number(c?.[d]?.t); if (t > 0 && (!b || t < b)) b = t; } return b; };
   const items = [[best('0-100'), '0–100', 'с'], [best('402m'), '¼ мили', 'с'], [Array.isArray(state.laps) ? state.laps.length : 0, 'кругов', '']];
-  box.replaceChildren(...items.map(([v, k, u]) => { const c = padEl('div', 'pf6-st'); const b = padEl('b', '', v ? (u ? Number(v).toFixed(2) : String(v)) : '—'); if (v && u) b.append(padEl('small', '', ' ' + u)); c.append(b, padEl('span', '', k)); return c; }));
+  box.replaceChildren(...items.map(([v, k, u]) => { const c = padEl('div', 'pf6-st'); const b = padEl('b', '', '—'); if (v) tickNum(b, u ? Number(v).toFixed(2) : String(v), { key: 'pf6:' + k, dur: 700, render: (el, pre, pad, sign, body, post) => { el.replaceChildren(document.createTextNode(pre + sign + body + post)); if (u) el.append(padEl('small', '', ' ' + u)); } }); c.append(b, padEl('span', '', k)); return c; })); // v342: рекорды докатываются
 }
 const PASS_STARS_206 = 150; // v305: от 150 ★ (месяц) · сезон 350 · год 1190
 function pf6NavAva() {
@@ -18170,6 +18172,7 @@ async function cpNowPaint() {
   renderNowStack(host, uniq, { onPilot: (id) => { if (isPublicPilot(id)) void openPilotProfile(id); } });
 }
 /* ——— v317: контекст для модуля онбординга / итога сезона ——— */
+try { initMotion342(); } catch (_) {} // v342
 initV317({
   hap: (ms) => { try { hap(ms); } catch (_) {} },
   hasAnyRun: () => hasAnyRun(), myCarLocal: () => myCarLocal(),
