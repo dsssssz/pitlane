@@ -12011,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v340';
+const APP_VERSION = 'v341';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -17254,8 +17254,9 @@ document.getElementById('btnProfile')?.addEventListener('click', () => { hap(6);
     const r = el.getBoundingClientRect();
     const rd = document.getElementById('runDrive');
     const min = document.body.classList.contains('run-drive-on') && rd && rd.dataset.phase !== 'final';
-    const w = Math.round(min ? Math.min(48, r.width + 8) : Math.min(64, Math.max(48, r.width - 4)));
-    const h = min ? 38 : 48;
+    const pillH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--n3-pill-h')) || r.height;
+    const w = Math.round(min ? Math.min(48, r.width + 8) : Math.max(44, r.width - 2));
+    const h = min ? 38 : Math.max(36, Math.round(pillH - 6));
     const x = r.left - br.left + (r.width - w) / 2;
     const y = r.top - br.top + (r.height - h) / 2;
     return { x, y, w, h };
@@ -17281,7 +17282,7 @@ document.getElementById('btnProfile')?.addEventListener('click', () => { hap(6);
       const p = Math.max(0, 1 - Math.abs(mid - s.cx) / Math.max(s.w, 1)) * sop;
       const sc = 0.96 + 0.04 * p;
       if (s.svg) s.svg.style.transform = 'scale(' + sc + ')';
-      const col = 'rgb(' + Math.round(144 + 111 * p) + ',' + Math.round(147 + 108 * p) + ',' + Math.round(150 + 105 * p) + ')';
+      const col = 'rgb(' + Math.round(210 + 19 * p) + ',' + Math.round(210 + 18 * p) + ',' + Math.round(212 + 17 * p) + ')';
       s.b.style.color = col;
       if (s.lab) s.lab.style.color = col;
     }
@@ -18201,7 +18202,7 @@ setTimeout(() => { try { onbMaybeShow(); } catch (err) { console.warn('onb', err
 initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar293(p?.carId || '', p?.car || ''); return r.meta?.ph || (r.x?.id ? userCarPhoto(r.x.id) : ''); } catch (_) { return ''; } } });
 
 
-/* v340: expandable tab bar — rAF spring fitted to roman's video (k=196, d=18.2, peak 0.30s). */
+/* v341: expandable tab bar — rAF spring fitted to roman's video (k=196, d=18.2, peak 0.30s). */
 (function v339Menu() {
   const dock = document.getElementById('n3Dock');
   const pill = document.getElementById('n3Pill');
@@ -18256,6 +18257,7 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
     const isOpen = p > 0.5;
     pill.classList.toggle('is-open', isOpen);
     dock.classList.toggle('is-open', isOpen);
+    if (isOpen) syncActOn();
     if (p > 0.02) {
       grid.removeAttribute('hidden');
       grid.setAttribute('aria-hidden', open ? 'false' : 'true');
@@ -18299,7 +18301,11 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
   function toggle() { open ? closeMenu() : openMenu(); }
 
   apply(0);
-  requestAnimationFrame(() => apply(tval));
+  requestAnimationFrame(() => { apply(tval); syncActOn(); });
+  try {
+    const _n6b = n6Sync;
+    n6Sync = function () { _n6b(); syncActOn(); };
+  } catch (_) {}
 
   fab.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -18325,6 +18331,25 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
     btn.addEventListener('pointerup', () => btn.classList.remove('is-press'));
     btn.addEventListener('pointercancel', () => btn.classList.remove('is-press'));
   });
+
+
+  function syncActOn() {
+    const act = document.querySelector('.view.active')?.id?.replace('view-', '') || 'zamer';
+    const map = { zamer: 'zamer', run: 'zamer', lap: 'lap', account: 'profile', settings: 'settings', history: 'journal' };
+    const key = map[act] || '';
+    grid.querySelectorAll('.n3-act[data-act]').forEach((b) => {
+      b.classList.toggle('is-on', b.dataset.act === key);
+    });
+  }
+  grid.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest('.n3-act');
+    if (!b || b.classList.contains('n3-act-ghost')) return;
+    b.classList.add('is-press');
+  });
+  const clearActPress = () => grid.querySelectorAll('.n3-act.is-press').forEach((b) => b.classList.remove('is-press'));
+  grid.addEventListener('pointerup', clearActPress);
+  grid.addEventListener('pointercancel', clearActPress);
+  grid.addEventListener('pointerleave', (e) => { if (e.target === grid) clearActPress(); });
 
   grid.addEventListener('click', (e) => {
     const b = e.target.closest('.n3-act'); if (!b || b.classList.contains('n3-act-ghost')) return;
@@ -18402,6 +18427,9 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
       }
     },
     get t() { return tval; },
+    press(act) { const b = grid.querySelector('.n3-act[data-act="' + act + '"]'); if (b) b.classList.add('is-press'); },
+    unpress() { grid.querySelectorAll('.n3-act.is-press').forEach((b) => b.classList.remove('is-press')); },
+    syncAct: syncActOn,
     seek(seconds, opening) {
       if (raf) { cancelAnimationFrame(raf); raf = 0; last = 0; }
       const w0 = Math.sqrt(K / MASS);
@@ -18419,9 +18447,6 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
     }
   };
 })();
-window.__placeN3Blob = function () { const b = document.getElementById('n3Blob'); if (b) b.style.display = 'none'; };
-window.__n3BlobDrag = function () {};
-window.__n3BlobRelease = function () {};
 
 
 

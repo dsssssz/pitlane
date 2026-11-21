@@ -10581,7 +10581,7 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab.is-press {
   }
 }
 
-/* ===== v340: Expandable Tab Bar — panel stays left of the X, one-line labels ===== */
+/* ===== v341: Expandable Tab Bar — video-matched active plate + pressed tiles ===== */
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) {
   --n3-side: 32px;
   --n3-float: 12px;
@@ -10682,8 +10682,62 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3::afte
   -webkit-mask: none !important;
   mask: none !important;
 }
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob,
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-glow { display: none !important; }
+/* v341: active-tab plate sampled from roman's video (glass ~21, plate ~36, stadium, almost full pill height). */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
+  display: block !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.10) !important;
+  box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.20) !important;
+  pointer-events: none !important;
+  z-index: 0 !important;
+  overflow: hidden !important;
+  transition: none !important;
+  will-change: transform;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob.is-off { opacity: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob::after,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-glow {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+  box-shadow: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on::before {
+  content: none !important;
+  display: none !important;
+  background: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
+  color: rgba(240, 241, 242, 0.85) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on {
+  color: rgb(229, 228, 229) !important;
+}
+
+/* Pressed / current-screen tile: video Undo fill ~#98979e, icon stays white. Instant on press, fade off. */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act i {
+  transition: background-color 180ms ease !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act.is-on i,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act.is-press i,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act:active i {
+  background: rgb(152, 151, 158) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act.is-press i,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act:active i {
+  transition: none !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act.is-on svg,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act.is-press svg,
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act:active svg {
+  stroke: #FFFFFF !important;
+}
 
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
   flex: 1 1 0 !important;
