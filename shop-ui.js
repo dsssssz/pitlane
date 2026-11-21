@@ -1,6 +1,7 @@
 /* v137: магазин PITLANE — шторка: витрина → карточка товара → заявка → «Заявка принята», плюс «Мои заявки».
  * Всё строится через DOM + textContent (без вставки HTML-строк). Оплаты онлайн нет (SHOP_CONFIG.payments=false). */
-import { flyShared } from './motion.js'; // v160: фото карточки перелетает в галерею товара
+import { flyShared, reduced as reducedM } from './motion.js';
+import { sendBtn } from './ui343.js'; // v343: кнопка отправки // v160: фото карточки перелетает в галерею товара
 import { SHOP_SUBS, SHOP_CONFIG, ORDER_STATUS, ORDER_SHORT, visibleProducts, productById, statusOf, orderable, priceLine, fmtRub, orderTotal, FOUNDERS, gated, founderTotal, SHOP_CATS, SHOP_DELIVERY, deliveryById, SHOP_PAY_METHODS, PAY_BADGES, cartTotals, MAX_CART_LINES, trackUrl } from './shop-config.js?v=296';
 
 let D = null; // deps from app.js: { api, currentUser, needLogin, hap, close }
@@ -267,11 +268,13 @@ function viewForm(v) {
     if (d.dl !== 'pickup' && d.addr.trim().length < 5) { msg.textContent = d.dl === 'post' ? 'Укажите индекс и адрес' : 'Укажите адрес пункта СДЭК'; ai.focus(); return; }
     if (d.method === 'tg_other' && !/^@?[A-Za-z][A-Za-z0-9_]{4,31}$/.test(d.value.trim())) { msg.textContent = 'Ник Telegram: от 5 символов, латиница, цифры и _'; vi.focus(); return; }
     if (d.method === 'phone' && d.value.replace(/\D/g, '').length < 10) { msg.textContent = 'Проверьте номер телефона'; vi.focus(); return; }
-    st.busy = true; send.disabled = true; send.textContent = 'Отправляем…'; msg.textContent = '';
+    const sb = sendBtn(send); // v343: Отправляем → ✓ Заявка у нас / ошибка, кнопка не меняет размер
+    st.busy = true; send.disabled = true; sb.busy('Отправляем'); msg.textContent = '';
     const r = await D.api.shopOrder({ items: lines.map((x) => ({ productId: x.id, qty: x.qty })), delivery: { id: d.dl, addr: d.dl === 'pickup' ? '' : d.addr.trim() }, promo: d.promo ? d.promo.code : undefined, payMethod: st.payOn ? d.pm : undefined, city, contact: { method: d.method, value: d.method === 'tg' ? undefined : d.value.trim() }, comment: d.comment.trim(), cid: d.cid });
-    st.busy = false; send.disabled = false; send.textContent = sendLabel;
-    if (r && r.ok && r.order && r.order.payUrl) { delete st.draft.co; cart.set([]); location.href = r.order.payUrl; return; }
-    if (r && r.ok && r.order) { delete st.draft.co; cart.set([]); st.orders = [r.order, ...(st.orders || []).filter((o) => o.id !== r.order.id)]; st.stack = [{ k: 'list' }, { k: 'done', order: r.order }]; D.hap?.(12); render(); return; }
+    st.busy = false; send.disabled = false;
+    if (r && r.ok && r.order && r.order.payUrl) { delete st.draft.co; cart.set([]); sb.ok('Переходим к оплате'); location.href = r.order.payUrl; return; }
+    if (r && r.ok && r.order) { delete st.draft.co; cart.set([]); st.orders = [r.order, ...(st.orders || []).filter((o) => o.id !== r.order.id)]; D.hap?.(12); send.disabled = true; sb.ok('Заявка у нас'); setTimeout(() => { st.stack = [{ k: 'list' }, { k: 'done', order: r.order }]; render(); }, reducedM() ? 300 : 1100); return; }
+    sb.err('Не отправилось'); try { D.hapErr?.(); } catch (_) {}
     msg.textContent = r?.status === 429 ? 'Лимит заявок на сегодня. Завтра или в бота.'
       : r?.status === 401 ? 'Сессия истекла — войдите снова.'
       : r?.code === 'no_tg' ? 'В аккаунте нет Telegram — выберите другой способ связи.'

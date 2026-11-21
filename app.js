@@ -46,7 +46,8 @@ function ensureThree() {
 import { createExtGps } from './ext-gps.js';
 import { spring, countUp, flyShared, drawIn, reduced as motionReduced } from './motion.js'; // v160: движение
 import { tick as tickNum } from './ticker.js';
-import { initMotion342, viewEnter as m342ViewEnter } from './motion342.js'; // v342: плашка сегментов, лесенка, нажатие, сторона вкладки
+import { initMotion342, viewEnter as m342ViewEnter } from './motion342.js';
+import { toast as toast343, copyText as copy343, initPull as initPull343 } from './ui343.js'; // v343: стопка уведомлений, «Готово ✓», потянуть — обновить // v342: плашка сегментов, лесенка, нажатие, сторона вкладки
 import { initV317, onbMaybeShow, openRecap, seasonNoteRun, renderNowStack, springFlip } from './v317.js'; // v317: онбординг, итог сезона, «Сейчас на трассе», пружины топов // v316: докатывающиеся цифры (замер, дельты, топы)
 /* v120: блок показывается, только когда в нём есть хотя бы N записей (пустая таблица хуже отсутствующей) */
 const SHOW_MIN = { leaders: 3, track: 1, sessionDay: 1, sectors: 3, season: 2 };
@@ -6092,10 +6093,7 @@ async function shareResult(payload) {
   } catch (err) {
     if (err && err.name === 'AbortError') return;
   }
-  try {
-    await navigator.clipboard.writeText(text + '\n' + url);
-    hap(20);
-  } catch (_) {}
+  if (await copy343(text + '\n' + url, null, { note: 'Ссылка скопирована' })) hap(20); // v343
 }
 
 // v233: результат → Telegram Stories (WebApp.shareToStory, Bot API 7.8+); иначе — картинка 9:16 (share файла / скачать)
@@ -6218,11 +6216,12 @@ document.getElementById('shareCardJournal')?.addEventListener('click', () => {
   try { localStorage.setItem('pitlane-journal-f', 'run'); } catch (_) {}
   closeShareCard(); try { journalGo61('run'); } catch (_) {}
 });
-document.getElementById('shareCardCopy')?.addEventListener('click', async () => {
+document.getElementById('shareCardCopy')?.addEventListener('click', async (e) => {
   if (!_sharePayload) return;
+  const btn = e.currentTarget;
   const url = sharePublicUrl(_sharePayload);
   if (isTMA) { await shareViaTelegram('', url, shareTextRu(_sharePayload)); return; }
-  try { await navigator.clipboard.writeText(url); hap(16); } catch (_) {}
+  if (await copy343(url, btn, { note: 'Ссылка скопирована' })) hap(16); // v343
 });
 
 /* -------- Monetization stub (trial gate) -------- */
@@ -10070,9 +10069,7 @@ async function createDuelFromUi() {
   if (cand && cand.type === duel.type && (duel.type !== 'lap' || !duel.trackId || cand.trackId === duel.trackId)) {
     // leave manual attach — user taps button; optional auto:
   }
-  try {
-    await navigator.clipboard.writeText(publicLinkFor('duel_' + duel.id, duelPublicUrl(duel.id)));
-  } catch (_) {}
+  await copy343(publicLinkFor('duel_' + duel.id, duelPublicUrl(duel.id)), null, { note: 'Ссылка на дуэль скопирована' }); // v343
   await refreshDuelList();
 }
 
@@ -10163,13 +10160,11 @@ document.querySelectorAll('[data-duel-type]').forEach((b) => {
   b.addEventListener('click', () => setDuelType(b.getAttribute('data-duel-type')));
 });
 document.getElementById('duelCreateBtn')?.addEventListener('click', () => { void createDuelFromUi(); });
-document.getElementById('duelCopyLink')?.addEventListener('click', async () => {
+document.getElementById('duelCopyLink')?.addEventListener('click', async (e) => {
   if (!_activeDuel?.id) return;
+  const btn = e.currentTarget;
   if (isTMA) { await shareViaTelegram('duel_' + _activeDuel.id, duelPublicUrl(_activeDuel.id), 'PITLANE · вызов на дуэль'); return; }
-  try {
-    await navigator.clipboard.writeText(duelPublicUrl(_activeDuel.id));
-    hap(16);
-  } catch (_) {}
+  if (await copy343(duelPublicUrl(_activeDuel.id), btn, { note: 'Ссылка скопирована' })) hap(16); // v343
 });
 document.getElementById('duelSubmitRun')?.addEventListener('click', () => { void submitMyRunToActiveDuel(); });
 document.getElementById('duelRefresh')?.addEventListener('click', async () => {
@@ -11415,7 +11410,7 @@ async function createCrewFromUi() {
   rememberCrewId(crew.id);
   hap(18);
   await showCrewView(crew.id);
-  try { await navigator.clipboard.writeText(publicLinkFor('crew_' + crew.id, crewPublicUrl(crew.id))); } catch (_) {}
+  await copy343(publicLinkFor('crew_' + crew.id, crewPublicUrl(crew.id)), null, { note: 'Ссылка на экипаж скопирована' }); // v343
   await refreshCrewList();
 }
 
@@ -11744,14 +11739,15 @@ document.getElementById('crewSheet')?.addEventListener('click', (e) => {
 });
 document.getElementById('crewCreateBtn')?.addEventListener('click', () => { void createCrewFromUi(); });
 document.getElementById('crewJoinBtn')?.addEventListener('click', () => { void joinCrewByCodeUi(); });
-document.getElementById('crewCopyLink')?.addEventListener('click', async () => {
+document.getElementById('crewCopyLink')?.addEventListener('click', async (e) => {
   if (!_activeCrew?.id) return;
+  const btn = e.currentTarget;
   if (isTMA) { await shareViaTelegram('crew_' + _activeCrew.id, crewPublicUrl(_activeCrew.id), 'PITLANE · вступай в экипаж'); return; }
-  try { await navigator.clipboard.writeText(crewPublicUrl(_activeCrew.id)); hap(16); } catch (_) {}
+  if (await copy343(crewPublicUrl(_activeCrew.id), btn, { note: 'Ссылка скопирована' })) hap(16); // v343
 });
-document.getElementById('crewCopyCode')?.addEventListener('click', async () => {
+document.getElementById('crewCopyCode')?.addEventListener('click', async (e) => {
   if (!_activeCrew?.inviteCode) return;
-  try { await navigator.clipboard.writeText(String(_activeCrew.inviteCode)); hap(16); } catch (_) {}
+  if (await copy343(String(_activeCrew.inviteCode), e.currentTarget, { note: 'Код скопирован' })) hap(16); // v343
 });
 document.getElementById('crewRefresh')?.addEventListener('click', async () => {
   if (_activeCrew?.id) await showCrewView(_activeCrew.id);
@@ -11788,6 +11784,7 @@ void bootCrewFromUrl();
 
 /* -------- v97: «Это моя машина» + комнаты экипажа (crew-rooms.js) -------- */
 function plFlash(text) {
+  toast343(text); return; // v343: всё в стопку уведомлений
   let t = document.getElementById('plToast');
   if (!t) { t = document.createElement('div'); t.id = 'plToast'; t.className = 'pl-toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
   t.textContent = String(text || '');
@@ -11799,7 +11796,7 @@ function roomShare(param, url, text) {
   if (isTMA) { void shareViaTelegram(param, url, text); return; }
   const full = text + '\n' + url;
   if (navigator.share) { navigator.share({ title: 'PITLANE', text, url }).catch(() => {}); return; }
-  try { void navigator.clipboard?.writeText(full); plFlash('Ссылка скопирована'); } catch (_) { prompt('Ссылка', url); }
+  void copy343(full, null, { note: 'Ссылка скопирована' }); // v343
 }
 function roomWebUrl(param) {
   const [kind, id] = String(param).split(/_(.+)/);
@@ -12013,7 +12010,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v342';
+const APP_VERSION = 'v343';
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
 const FB_MIN = 10;
 const FB_MAX = 2000;
@@ -12022,6 +12019,7 @@ const FB_SHOT_MAX_BYTES = 400 * 1024;
 const _fb = { type: 'bug', openedAt: 0, shot: null, sending: false };
 
 function showAppToast(text, ms = 2600) {
+  toast343(text, { ms }); return; // v343: всё в стопку уведомлений
   const el = document.getElementById('appToast');
   if (!el) return;
   el.textContent = text;
@@ -15142,7 +15140,7 @@ document.getElementById('seasonShareText')?.addEventListener('click', async () =
   const url = SHARE_ORIGIN;
   if (isTMA) { await shareViaTelegram('', url, text); return; }
   try { if (navigator.share) { await navigator.share({ title: 'PITLANE · сезон экипажей', text, url }); return; } } catch (err) { if (err?.name === 'AbortError') return; }
-  try { await navigator.clipboard.writeText(text + '\n' + url); if (msg) msg.textContent = 'Скопировано — вставь в чат.'; hap(20); } catch (_) { if (msg) msg.textContent = 'Не удалось скопировать.'; }
+  if (await copy343(text + '\n' + url, document.getElementById('seasonShareText'), { note: 'Скопировано — вставь в чат' })) hap(20); // v343
 });
 document.getElementById('seasonShareImg')?.addEventListener('click', async () => {
   const msg = document.getElementById('seasonMsg');
@@ -17554,7 +17552,7 @@ async function chalCreateAndShare(btn) {
   btn.disabled = false; btn.textContent = 'Вызов';
   if (isTMA) { await shareViaTelegram('ch_' + c.id, web, text); return; }
   try { if (navigator.share) { await navigator.share({ title: 'PITLANE', text, url: web }); return; } } catch (_) { return; }
-  try { await navigator.clipboard.writeText(text + ' ' + web); btn.textContent = 'Ссылка скопирована'; } catch (_) {}
+  await copy343(text + ' ' + web, btn, { note: 'Ссылка на вызов скопирована' }); // v343
 }
 document.getElementById('shareCardChal')?.addEventListener('click', (e) => { hap(8); void chalCreateAndShare(e.currentTarget); });
 try { const chq = new URLSearchParams(location.search).get('ch'); if (chq && /^c[a-z0-9]{8,24}$/.test(chq)) setTimeout(() => { void openChalSheet(chq); }, 1200); } catch (_) {}
@@ -17720,7 +17718,7 @@ async function openStampSheet(code) {
   box.appendChild(dl);
   const web = location.origin + location.pathname + '?st=' + s.code;
   const cp = padEl('button', 'go-btn', 'Ссылка на проверку'); cp.type = 'button';
-  cp.addEventListener('click', async () => { hap(6); if (isTMA) { await shareViaTelegram('st_' + s.code, web, 'Печать PITLANE ' + stampCode(s.code)); return; } try { await navigator.clipboard.writeText(web); cp.textContent = 'Ссылка скопирована'; } catch (_) {} });
+  cp.addEventListener('click', async () => { hap(6); if (isTMA) { await shareViaTelegram('st_' + s.code, web, 'Печать PITLANE ' + stampCode(s.code)); return; } await copy343(web, cp, { note: 'Ссылка скопирована' }); /* v343 */ });
   box.appendChild(cp);
 }
 try { const stq = new URLSearchParams(location.search).get('st'); if (stq && /^[2-9A-HJ-NP-Za-hj-np-z]{8}$/.test(stq)) setTimeout(() => { void openStampSheet(stq.toUpperCase()); }, 1200); } catch (_) {}
@@ -18173,6 +18171,8 @@ async function cpNowPaint() {
 }
 /* ——— v317: контекст для модуля онбординга / итога сезона ——— */
 try { initMotion342(); } catch (_) {} // v342
+if (/^(127\.0\.0\.1|localhost)$/.test(location.hostname)) window.__qaShare343 = () => openShareCard(buildSharePayload({ type: '0-100', time: '4.21 с', valid: true, src: 'phone', n: 1 })); // только локальная QA-съёмка
+try { initPull343({ view: '#view-tops', refresh: () => renderTopsBoard() }); } catch (_) {} // v343: потянуть вниз — обновить топ
 initV317({
   hap: (ms) => { try { hap(ms); } catch (_) {} },
   hasAnyRun: () => hasAnyRun(), myCarLocal: () => myCarLocal(),
