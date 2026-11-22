@@ -6,8 +6,8 @@
 const LENS_VIEWS = new Set(['view-lap', 'view-history', 'view-settings', 'view-account', 'view-zamer', 'view-tops']);
 // слои: w — ширина кольца (0 — тело), s — увеличение, f — фильтр
 const LAYERS = [
-  { e: 0, d: 6, k: 2, f: '', ring: true }, // сзади: увеличенная копия — видна только кольцом у кромки
-  { e: 4.5, d: 0, k: 4, f: 'blur(1px)' }, // спереди: тело, утоплено на ширину кольца, размыто (1px × k=4 ≈ 4px)
+  { e: 0, d: 6, k: +(globalThis.__lgKr || 2), f: '', ring: true }, // сзади: увеличенная копия — видна только кольцом у кромки
+  { e: 4.5, d: 0, k: +(globalThis.__lgKb || 4), f: `blur(${4 / +(globalThis.__lgKb || 4)}px)` }, // спереди: тело, утоплено на ширину кольца, размыто (1px × k=4 ≈ 4px)
 ];
 const BAND = 320; // px от низа экрана, где может лежать стекло (открытая панель ~242)
 
@@ -53,7 +53,7 @@ export function initLens346() {
     return { el, box, poss: layers.map((l) => l.pos), lays: layers, r: { x: 0, y: 0, w: 0, h: 0 } };
   });
 
-  let view = null, rows = [], clonedFor = null, raf = 0, until = 0, mo = null, reTimer = 0;
+  let recTok = 0, view = null, rows = [], clonedFor = null, raf = 0, until = 0, mo = null, reTimer = 0;
   const hostRect = () => host.getBoundingClientRect();
 
   function copyCanvases(src, dst) {
@@ -97,12 +97,17 @@ export function initLens346() {
     const lo = window.innerHeight - BAND - vr.top + st, hi = window.innerHeight - vr.top + st;
     // далеко от дока (±900px) — content-visibility:hidden (не раскладывается вовсе); ближе — только visibility при скролле
     rows = meta.map((m) => ({ ...m, els: [], vis: m.bot > lo && m.top < hi, cv: !(m.bot > lo - 900 && m.top < hi + 900) }));
-    let k = 0;
+    let k = 0; const jobs = [];
     for (const h of hosts) for (const pos of h.poss) {
       const { c, map } = make(k++);
       map.forEach((e, i) => { if (!e) return; rows[i].els.push(e); const r = rows[i]; if (r.cv) { e.style.contentVisibility = 'hidden'; e.style.containIntrinsicSize = `${r.w}px ${r.h}px`; } else if (!r.vis) e.style.visibility = 'hidden'; });
-      pos.replaceChildren(c); // вставляем уже «обрезанную» копию — раскладывается только полоса под доком
+      jobs.push(() => pos.replaceChildren(c)); // вставляем уже «обрезанную» копию — раскладывается только полоса под доком
     }
+    // по одной копии за кадр: вместо одного кадра ~60 мс — четыре по ~15 мс (тело пилюли первым)
+    const order = [1, 0, 3, 2].filter((i) => jobs[i]); const tok = ++recTok;
+    jobs[order[0]]();
+    const step = (n) => { if (tok !== recTok || n >= order.length) return; jobs[order[n]](); requestAnimationFrame(() => step(n + 1)); };
+    requestAnimationFrame(() => step(1));
     clonedFor = view;
   }
 
@@ -134,7 +139,7 @@ export function initLens346() {
         const R = parseFloat(h.box.style.borderRadius) || 0;
         h.box.classList.toggle('lg-open', r.height > 90); // открытая панель — как меню iOS: сильнее размытие и темнее
         for (const l of h.lays) {
-          const e = h.moving ? 0 : l.e; l.lay.style.inset = e + 'px';
+          const e = (h.moving || h.flat) ? 0 : l.e; l.lay.style.inset = e + 'px';
           const w = (r.width - 2 * e) / l.k, hh = (r.height - 2 * e) / l.k;
           l.lay.style.borderRadius = Math.max(0, R - e) + 'px'; l.ee = e;
           l.dn.style.width = w + 'px'; l.dn.style.height = hh + 'px';
@@ -152,7 +157,15 @@ export function initLens346() {
   function loop() { sync(); raf = performance.now() < until ? requestAnimationFrame(loop) : 0; }
   function kick(ms = 260) { until = Math.max(until, performance.now() + ms); if (!raf) raf = requestAnimationFrame(loop); }
 
-  function onScroll() { if (clonedFor && !window.__lensNoSync) { sync(); kick(120); } }
+  // экономный режим: во время скролла кольцо-линза прячется (тело на всю ширину), после остановки возвращается
+  let scT = 0, scL = 0, scF = [];
+  const setFlat = (on) => { for (const h of hosts) { if (h.flat === on) continue; h.flat = on; h.box.classList.toggle('lg-flat', on); h.r = { x: 0, y: 0, w: 0, h: 0 }; } };
+  function onScroll() {
+    if (!clonedFor) return;
+    if (!econ) { const t = performance.now(); if (scL && t - scL < 100) scF.push(t - scL); scL = t; if (scF.length >= 24) { const a = scF.sort((x, y) => x - y); if (a[a.length >> 1] > 22) setEcon(); scF = []; } }
+    if (econ) { setFlat(true); clearTimeout(scT); scT = setTimeout(() => { setFlat(false); sync(); }, 140); }
+    sync(); kick(120);
+  }
   // смена экрана: пока экран въезжает (~0.5 с), линза выключена (стекло = обычный backdrop-filter),
   // копия делается уже по готовому экрану, без анимаций — переключение вкладок не платит за клон
   let pickT = 0;
@@ -167,8 +180,10 @@ export function initLens346() {
     view?.removeEventListener('scroll', onScroll);
     view = next; mo?.disconnect(); clearTimeout(pickT); clearTimeout(reTimer);
     if (clonedFor) { for (const h of hosts) for (const p of h.poss) p.replaceChildren(); rows = []; clonedFor = null; }
-    setOn(false);
-    if (!view) return;
+    // пока новый экран въезжает, под стеклом — пустое тёмное тело (как стекло над чёрным), backdrop-filter не включаем:
+    // в софт-рендере он дороже линзы. Через ~0.5 с появляется копия готового экрана.
+    if (!view) { setOn(false); return; }
+    setOn(true);
     view.addEventListener('scroll', onScroll, { passive: true });
     pickT = setTimeout(() => requestAnimationFrame(() => {
       if (view !== next) return;
@@ -191,7 +206,8 @@ export function initLens346() {
   // тогда на время пружины тело не размывается (только затемняется), размытие и кольцо возвращаются после остановки
   let econ = sessionStorage.getItem('lg-econ') === '1', fr = [], fl = 0;
   const meter = (t) => { if (fl) fr.push(t - fl); fl = t; if (hosts[0].moving) requestAnimationFrame(meter); else { fl = 0; judge(); } };
-  const judge = () => { if (econ || fr.length < 8) { fr = []; return; } const a = fr.slice().sort((x, y) => x - y); const med = a[a.length >> 1]; fr = []; if (med > 20) { econ = true; mirror.classList.add('lg-econ'); try { sessionStorage.setItem('lg-econ', '1'); } catch (_) {} } };
+  const judge = () => { if (econ || fr.length < 8) { fr = []; return; } const a = fr.slice().sort((x, y) => x - y); const med = a[a.length >> 1]; fr = []; if (med > 20) setEcon(); };
+  function setEcon() { econ = true; mirror.classList.add('lg-econ'); try { sessionStorage.setItem('lg-econ', '1'); } catch (_) {} }
   if (econ) mirror.classList.add('lg-econ');
   const setMoving = (h, on) => { if (h.moving === on) return; h.moving = on; if (on && h === hosts[0] && !econ) requestAnimationFrame(meter); h.box.classList.toggle('lg-moving', on); h.r = { x: 0, y: 0, w: 0, h: 0 }; sync(); };
   const ro = new ResizeObserver((ents) => {
@@ -205,7 +221,7 @@ export function initLens346() {
     el?.addEventListener('pointerdown', () => kick(700), { passive: true });
     el?.addEventListener('pointerup', () => kick(700), { passive: true });
   }
-  de.classList.add('lg-lens');
+  de.classList.add('lg-lens'); mirror.style.setProperty('--lg-kb', String(LAYERS[1].k));
   pick();
   window.__lens346 = { pick, reclone, sync, get view() { return view; }, get cloned() { return clonedFor; } };
 }

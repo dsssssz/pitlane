@@ -11144,8 +11144,8 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is
 .lg-dn { position: absolute; left: 0; top: 0; overflow: hidden; box-sizing: border-box; transform-origin: 0 0; will-change: transform; }
 .lg-lay::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(0,0,0,.08); pointer-events: none; }
 .lg-lay.lg-ring::after { background: rgba(255,255,255,.07); }
-.lg-host.lg-moving > .lg-ring { visibility: hidden; }
-.lg-host.lg-open .lg-body .lg-dn { filter: blur(3.2px) !important; -webkit-filter: blur(3.2px) !important; }
+.lg-host.lg-moving > .lg-ring, .lg-host.lg-flat > .lg-ring { visibility: hidden; }
+.lg-host.lg-open .lg-body .lg-dn { filter: blur(calc(12.8px / var(--lg-kb, 4))) !important; -webkit-filter: blur(calc(12.8px / var(--lg-kb, 4))) !important; }
 .lg-host.lg-open .lg-body::after { background: rgba(0,0,0,.3); }
 .lg-econ .lg-host.lg-moving .lg-body .lg-dn { filter: none !important; -webkit-filter: none !important; }
 .lg-econ .lg-host .lg-body::after { transition: background-color .18s ease; }
@@ -11158,3 +11158,5 @@ html:not(#lens):not(#lens) .lg-mirror { display: none; }
 html:not(#lens):not(#lens) .lg-mirror.is-on { display: block; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.lg-lens-on :is(.n3-surface, .n3-fab)::before { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.lg-lens-on .n3-edge { display: none !important; }
+/* в копии под стеклом дорогие эффекты не нужны (всё равно под размытием): без backdrop-filter, теней и анимаций */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .lg-clone, html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .lg-clone * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: none !important; text-shadow: none !important; will-change: auto !important; }
