@@ -48,6 +48,7 @@ import { spring, countUp, flyShared, drawIn, reduced as motionReduced } from './
 import { tick as tickNum } from './ticker.js';
 import { initMotion342, viewEnter as m342ViewEnter } from './motion342.js';
 import { initGlass345 } from './glass345.js'; // v345: iOS-стекло, рефракция кромки в Chromium
+import { initLens346 } from './lens346.js'; // v346: линза-копия контента для WebKit/iOS
 import { toast as toast343, copyText as copy343, initPull as initPull343 } from './ui343.js'; // v343: стопка уведомлений, «Готово ✓», потянуть — обновить // v342: плашка сегментов, лесенка, нажатие, сторона вкладки
 import { initV317, onbMaybeShow, openRecap, seasonNoteRun, renderNowStack, springFlip } from './v317.js'; // v317: онбординг, итог сезона, «Сейчас на трассе», пружины топов // v316: докатывающиеся цифры (замер, дельты, топы)
 /* v120: блок показывается, только когда в нём есть хотя бы N записей (пустая таблица хуже отсутствующей) */
@@ -18583,3 +18584,4 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
 
 /* v345: iOS 26 Liquid Glass */
 try { initGlass345(); } catch (err) { console.warn('glass345', err); }
+try { initLens346(); } catch (err) { console.warn('lens346', err); }

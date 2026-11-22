@@ -11029,16 +11029,16 @@ html { --u343-spring: linear(0, 0.05, 0.167, 0.325, 0.497, 0.671, 0.821, 0.946, 
    .n3-edge — кромка-линза (сильнее размытие/яркость по краю: так в WebKit выглядит преломление на толщине стекла),
    ::after — спекулярный блик по кромке (ярче сверху-слева и снизу-справа). Работает одинаково в WebKit (iOS) и Chromium. ===== */
 html {
-  --ig-body: rgba(255, 255, 255, 0.088);
+  --ig-body: rgba(255, 255, 255, 0.095);
   --ig-filter: blur(7px) saturate(1.9) brightness(0.78);
   --ig-filter-r: url(#lg345s) blur(6px) saturate(1.9) brightness(0.78);
   --ig-filter-rf: url(#lg345f) blur(6px) saturate(1.9) brightness(0.78);
   --ig-edge-filter: blur(9px) saturate(1.6) brightness(1.14);
   --ig-rim: linear-gradient(128deg, rgba(255,255,255,.58) 0%, rgba(255,255,255,.26) 10%, rgba(255,255,255,.11) 26%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.10) 74%, rgba(255,255,255,.24) 90%, rgba(255,255,255,.42) 100%);
   --ig-rim-w: 1px;
-  --ig-shadow: 0 10px 30px rgba(0,0,0,.42), 0 2px 6px rgba(0,0,0,.30);
+  --ig-shadow: 0 6px 18px rgba(0,0,0,.4);
   --ig-inner: inset 0 0 0 .5px rgba(255,255,255,.05), inset 0 1px 10px rgba(255,255,255,.035);
-  --ig-drop: rgba(255,255,255,.15);
+  --ig-drop: rgba(255,255,255,.152);
   --ig-solid: rgb(13, 13, 14);
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-surface, .n3-fab) {
@@ -11124,8 +11124,8 @@ html.gl-lite { --ig-filter: blur(3px) saturate(1.6); --ig-edge-filter: blur(6px)
 @media (prefers-reduced-transparency: reduce) { html { --ig-body: rgb(30, 30, 32); --ig-filter: none; --ig-edge-filter: none; } }
 
 /* контент уезжает под стеклянную панель (как в iOS): список/журнал/настройки/профиль скроллятся под пилюлей */
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):has(:is(#view-lap, #view-history, #view-settings, #view-account).active) .view-host { margin-bottom: 0 !important; }
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):has(:is(#view-lap, #view-history, #view-settings, #view-account).active) :is(#view-lap, #view-history, #view-settings, #view-account).view { padding-bottom: calc(var(--app-tab) + 24px) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #viewHost.view-host.lg-under { margin-bottom: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #viewHost.lg-under > :is(#view-lap, #view-history, #view-settings, #view-account).view { padding-bottom: calc(var(--app-tab) + 24px) !important; }
 
 /* Chromium (Android): настоящая рефракция кромки картой смещения; CSS-кромка не нужна */
 html.lg-refract:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-surface::before { backdrop-filter: var(--ig-filter-r); -webkit-backdrop-filter: var(--ig-filter-r); }
@@ -11135,3 +11135,26 @@ html.lg-refract:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab { transition: transform 460ms cubic-bezier(.34,1.56,.64,1) !important; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-fab.is-press, .n3-fab:active) { transform: scale(1.1) !important; transition-duration: 160ms !important; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-fab.is-press, .n3-fab:active)::before { background: rgba(255,255,255,.16); }
+
+/* v346: линза для WebKit/iOS — копия контента под стеклом (lens346.js) вместо backdrop-filter */
+.lg-mirror { position: absolute; inset: 0; pointer-events: none; z-index: 6; overflow: hidden; contain: strict; }
+.lg-lay.lg-body, .lg-lay.lg-ring { background: #000; }
+.lg-host { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: hidden; will-change: transform; isolation: isolate; contain: strict; }
+.lg-lay { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.lg-dn { position: absolute; left: 0; top: 0; overflow: hidden; box-sizing: border-box; transform-origin: 0 0; will-change: transform; }
+.lg-lay::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(0,0,0,.08); pointer-events: none; }
+.lg-lay.lg-ring::after { background: rgba(255,255,255,.07); }
+.lg-host.lg-moving > .lg-ring { visibility: hidden; }
+.lg-host.lg-open .lg-body .lg-dn { filter: blur(3.2px) !important; -webkit-filter: blur(3.2px) !important; }
+.lg-host.lg-open .lg-body::after { background: rgba(0,0,0,.3); }
+.lg-econ .lg-host.lg-moving .lg-body .lg-dn { filter: none !important; -webkit-filter: none !important; }
+.lg-econ .lg-host .lg-body::after { transition: background-color .18s ease; }
+.lg-econ .lg-host.lg-moving .lg-body::after { background: rgba(0,0,0,.5); transition-duration: 0s; }
+.lg-sc { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.lg-pos { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .lg-clone { position: relative !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; margin: 0 !important; pointer-events: none !important; contain: layout style; }
+.lg-still, .lg-still * { animation-duration: 0s !important; animation-delay: 0s !important; transition: none !important; }
+html:not(#lens):not(#lens) .lg-mirror { display: none; }
+html:not(#lens):not(#lens) .lg-mirror.is-on { display: block; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.lg-lens-on :is(.n3-surface, .n3-fab)::before { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.lg-lens-on .n3-edge { display: none !important; }
