@@ -7,7 +7,7 @@ const LENS_VIEWS = new Set(['view-lap', 'view-history', 'view-settings', 'view-a
 // слои: w — ширина кольца (0 — тело), s — увеличение, f — фильтр
 const LAYERS = [
   { e: 0, d: 6, k: +(globalThis.__lgKr || 2), f: '', ring: true }, // сзади: увеличенная копия — видна только кольцом у кромки
-  { e: 4.5, d: 0, k: +(globalThis.__lgKb || 4), f: `blur(${4 / +(globalThis.__lgKb || 4)}px)` }, // спереди: тело, утоплено на ширину кольца, размыто (1px × k=4 ≈ 4px)
+  { e: 4.5, d: 0, k: +(globalThis.__lgKb || 2), f: `blur(${2.4 / +(globalThis.__lgKb || 2)}px)` }, // спереди: тело, утоплено на ширину кольца, размыто (копия в 1/2 разрешения + blur ≈ 3–4px)
 ];
 const BAND = 320; // px от низа экрана, где может лежать стекло (открытая панель ~242)
 
