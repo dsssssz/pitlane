@@ -12,7 +12,7 @@ const LAYERS = [
 const BAND = 320; // px от низа экрана, где может лежать стекло (открытая панель ~242)
 
 // контент уходит под док (как в iOS) только на экранах-списках; класс на #viewHost вместо html:has() — дешевле при смене вкладок
-const UNDER_VIEWS = new Set(['view-lap', 'view-history', 'view-settings', 'view-account']);
+const UNDER_VIEWS = new Set(['view-lap', 'view-history', 'view-settings', 'view-account', 'view-tops', 'view-shop']); // v348: + Топы, Магазин — контент просвечивает из-под таб-бара
 function initUnder346() {
   const host = document.getElementById('viewHost'); if (!host) return;
   const upd = () => { const v = host.querySelector(':scope > .view.active'); host.classList.toggle('lg-under', !!(v && UNDER_VIEWS.has(v.id))); };

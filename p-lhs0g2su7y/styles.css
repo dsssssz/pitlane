@@ -11197,3 +11197,111 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is
    свой backdrop-filter: blur(20px) без затемнения поверх стекла панели; он ещё раз размывал белую кнопку под панелью
    в широкую бледную полосу. Стекло панели — только ::before у #n3Surface (или линза), сетке фильтр не нужен. */
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+
+/* ===== v348: нижняя навигация = tab bar iOS 26 Liquid Glass (ТЗ Маги 22.11, эталон — TabBar из Glisse).
+   Капсула 60px (padding 4 + табы 52), radius 30, left/right 21px; «+» — отдельная стеклянная кнопка 60px справа (вариант a).
+   Стекло капсулы — ровно по ТЗ; в WebKit (Safari/Telegram iOS) — морозный фоллбек blur 16 / saturate 1.8.
+   Индикатор .tb-lens (tabbar348.js): покой — капсула rgb(255 255 255/.145); нажатие — линза +24×16px, фон .055, ободок. ===== */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) {
+  --n3-side: 21px; --n3-pill-h: 60px; --n3-pill-r: 30px; --n3-fab: 60px; --n3-gap: 8px;
+  --tb-acc: var(--accent-signal, #e12323);
+  --tb-glass: rgb(40 40 40 / 0.62);
+  --tb-bf: blur(16px) saturate(1.8);              /* WebKit / iOS: морозное стекло */
+  --tb-rim: inset 0 0.5px 0 rgb(255 255 255 / 0.22), inset 0 -0.5px 0 rgb(255 255 255 / 0.14), inset 0 0 0 0.5px rgb(255 255 255 / 0.08);
+  --tb-drop: 0 8px 24px rgb(0 0 0 / 0.38);
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-blue { --tb-acc: #0091ff; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).lg-refract { --tb-bf: url(#lg345s) blur(3px) saturate(1.5); }  /* Chromium: ровно ТЗ blur 3 / saturate 1.5 + рефракция кромки */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-nobf { --tb-glass: rgb(28 28 31 / 0.96); --tb-bf: none; }
+@media (prefers-reduced-transparency: reduce) { html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) { --tb-glass: rgb(28 28 31 / 0.96); --tb-bf: none; } }
+@media (max-width: 360px) { html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) { --n3-side: 21px; --n3-pill-h: 60px; --n3-pill-r: 30px; --n3-fab: 60px; --n3-gap: 8px; } }
+
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock { bottom: max(21px, env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px)) !important; }
+/* капсула (закрытое состояние; открытая панель-меню остаётся как в v347) */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock:not(.is-open) .n3-surface { box-shadow: var(--tb-drop) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock:not(.is-open) .n3-surface::before {
+  background: var(--tb-glass) !important;
+  -webkit-backdrop-filter: var(--tb-bf) !important; backdrop-filter: var(--tb-bf) !important;
+  box-shadow: none !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock:not(.is-open) .n3-surface::after { box-shadow: var(--tb-rim) !important; background: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-edge { display: none !important; }
+/* «+»: то же стекло, круг 60px */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab { box-shadow: var(--tb-drop) !important; border: 0 !important; background: transparent !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock:not(.is-open) .n3-fab::before {
+  background: var(--tb-glass) !important;
+  -webkit-backdrop-filter: var(--tb-bf) !important; backdrop-filter: var(--tb-bf) !important; box-shadow: none !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).lg-refract .n3-dock:not(.is-open) .n3-fab::before { -webkit-backdrop-filter: url(#lg345f) blur(3px) saturate(1.5) !important; backdrop-filter: url(#lg345f) blur(3px) saturate(1.5) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-nobf .n3-dock .n3-fab::before, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-nobf .n3-dock .n3-surface::before { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab::after { box-shadow: var(--tb-rim) !important; background: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab svg, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #n3FabIcon { width: 26px !important; height: 26px !important; stroke: #fff !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-fab.is-press, .n3-fab:active) { transform: scale(1.06) !important; }
+
+/* ряд вкладок */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #nav3 {
+  height: 60px !important; padding: 4px !important; box-sizing: border-box !important;
+  width: calc(100% - var(--n3-fab) - var(--n3-gap)) !important;
+  justify-content: stretch !important; align-items: stretch !important;
+  -webkit-tap-highlight-color: transparent; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob { display: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
+  flex: 1 1 0 !important; height: 52px !important; min-height: 52px !important; max-height: 52px !important;
+  display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;
+  gap: 1px !important; padding: 0 !important; margin: 0 !important; border: 0 !important; border-radius: 26px !important;
+  background: none !important; box-shadow: none !important; outline: none !important;
+  color: #fff !important; transform: none !important; z-index: 1 !important;
+  font: 500 10px/1 system-ui, -apple-system, "SF Pro Text", sans-serif !important;
+  -webkit-tap-highlight-color: transparent !important; transition: color 160ms ease !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn::before, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn::after, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on::before { content: none !important; display: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.tb-hi { color: var(--tb-acc) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn svg { width: 26px !important; height: 26px !important; transform: none !important; stroke: currentColor !important; stroke-width: 1.6 !important; flex: 0 0 auto; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn span:not(.n6-badge) {
+  position: static !important; width: auto !important; height: auto !important; overflow: visible !important; clip: auto !important;
+  display: block !important; white-space: nowrap !important; color: inherit !important; opacity: 1 !important;
+  font: 500 10px/1.1 system-ui, -apple-system, "SF Pro Text", sans-serif !important; letter-spacing: 0 !important; text-transform: none !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn:focus-visible { box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / .5) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n6-badge { top: 4px !important; margin-right: -20px !important; }
+
+/* индикатор / линза */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lens {
+  position: absolute; top: 4px; left: 4px; height: 52px; width: calc((100% - 8px) / var(--tabs, 4));
+  border-radius: 26px; pointer-events: none; z-index: 0; transform-origin: 50% 50%; will-change: transform;
+  transition: opacity 160ms ease;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lens.tb-off { opacity: 0; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-rest, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lift { position: absolute; inset: 0; border-radius: inherit; will-change: opacity; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-rest { background: rgb(255 255 255 / 0.145); }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lift {
+  opacity: 0; background: rgb(255 255 255 / 0.055);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.28), inset 0 -0.5px 0 rgb(255 255 255 / 0.12), inset 0 0 0 0.5px rgb(255 255 255 / 0.10), 0 6px 16px rgb(0 0 0 / 0.28);
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-refract .tb-lift { -webkit-backdrop-filter: url(#tb348l) saturate(1.4); backdrop-filter: url(#tb348l) saturate(1.4); }
+/* подсветка капсулы под пальцем во время нажатия (как Glisse) */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #nav3::after {
+  content: "" !important; display: block !important; position: absolute; inset: 0; border-radius: 30px; pointer-events: none; z-index: 0;
+  background: radial-gradient(circle 200px at var(--tb-x, 50%) 50%, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.035) 60%, transparent) !important;
+  opacity: 0 !important; transition: opacity 160ms ease; box-shadow: none !important; -webkit-mask: none !important; mask: none !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #nav3.is-pressed::after { opacity: 1 !important; transition-duration: 90ms; }
+@media (prefers-reduced-motion: reduce) { html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lift { display: none; } html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn { transition: none !important; } }
+
+/* вариант b (?tbv=b): «+» пятым табом внутри капсулы во всю ширину */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 #nav3 { width: calc(4px + (100% - 8px) * 0.8) !important; padding-right: 0 !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .n3-dock .n3-surface { width: 100% !important; right: 0 !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .n3-fab {
+  right: 4px !important; bottom: 4px !important; width: calc((100% - 8px) / 5) !important; min-width: 0 !important; max-width: none !important;
+  height: 52px !important; min-height: 52px !important; max-height: 52px !important; border-radius: 26px !important;
+  box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 1px !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .n3-fab::before, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .n3-fab::after { content: none !important; display: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .tb-fab-label { font: 500 10px/1.1 system-ui, -apple-system, sans-serif; color: #fff; position: relative; z-index: 3; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-fab-label { display: none; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .tb-fab-label { display: block; }
+
+/* v348: контент уходит под таб-бар и просвечивает сквозь стекло; в конце списка — отступ, чтобы ничего не пряталось */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #viewHost.lg-under > :is(#view-tops, #view-shop).view { padding-bottom: calc(60px + max(21px, env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px)) + 20px) !important; }
