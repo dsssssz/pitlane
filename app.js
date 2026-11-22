@@ -47,6 +47,7 @@ import { createExtGps } from './ext-gps.js';
 import { spring, countUp, flyShared, drawIn, reduced as motionReduced } from './motion.js'; // v160: движение
 import { tick as tickNum } from './ticker.js';
 import { initMotion342, viewEnter as m342ViewEnter } from './motion342.js';
+import { initGlass345 } from './glass345.js'; // v345: iOS-стекло, рефракция кромки в Chromium
 import { toast as toast343, copyText as copy343, initPull as initPull343 } from './ui343.js'; // v343: стопка уведомлений, «Готово ✓», потянуть — обновить // v342: плашка сегментов, лесенка, нажатие, сторона вкладки
 import { initV317, onbMaybeShow, openRecap, seasonNoteRun, renderNowStack, springFlip } from './v317.js'; // v317: онбординг, итог сезона, «Сейчас на трассе», пружины топов // v316: докатывающиеся цифры (замер, дельты, топы)
 /* v120: блок показывается, только когда в нём есть хотя бы N записей (пустая таблица хуже отсутствующей) */
@@ -12010,7 +12011,7 @@ document.addEventListener('click', (e) => {
 
 /* -------- v80: Обратная связь (feedback sheet → Worker POST /feedback) -------- */
 window.__goToView = goToView;
-const APP_VERSION = 'v344';
+const APP_VERSION = 'v345';
 // v344: стекло — на слабых устройствах размытие под панелью легче (меньше радиус), вид тот же.
 try { const hc = navigator.hardwareConcurrency || 8, dm = navigator.deviceMemory || 8; if (hc <= 4 || dm <= 2) document.documentElement.classList.add('gl-lite'); } catch (_) {}
 { const ve = document.getElementById('plVer'); if (ve) { ve.textContent = 'PITLANE · версия ' + APP_VERSION.replace(/^v/, ''); ve.hidden = true; } }
@@ -18579,3 +18580,6 @@ initV318({ hap: (ms) => hap(ms), photoFor: (p) => { try { const r = resolveCar29
   try { void import('./shop-ui.js?v=296'); } catch (_) {}
   try { void import('./journal.js'); } catch (_) {}
 }, { timeout: 2500 });
+
+/* v345: iOS 26 Liquid Glass */
+try { initGlass345(); } catch (err) { console.warn('glass345', err); }
