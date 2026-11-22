@@ -11160,3 +11160,40 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.lg-lens-on .n3-edge { display: none !important; }
 /* в копии под стеклом дорогие эффекты не нужны (всё равно под размытием): без backdrop-filter, теней и анимаций */
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .lg-clone, html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .lg-clone * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: none !important; text-shadow: none !important; will-change: auto !important; }
+
+/* ===== v347: стекло прозрачнее (эталон — Apple Music со скрина Маги 22.11): тонкая тонировка, лёгкое размытие,
+   тихая кромка вместо светло-серого контура. Открытая панель: без светлой полосы — раньше белые элементы под ней
+   (кнопка «Оставить заявку» в Магазине) размывались всего на 7px и подсвечивались кромкой-линзой (.n3-edge, brightness 1.14)
+   → широкая бледная полоса. Теперь: сильное размытие + приглушение светлого, кромка-линза на открытой панели выключена. ===== */
+html {
+  --ig-body: rgba(255, 255, 255, 0.05);
+  --ig-filter: blur(4px) saturate(1.7) brightness(0.9);
+  --ig-filter-r: url(#lg345s) blur(3.5px) saturate(1.7) brightness(0.9);
+  --ig-filter-rf: url(#lg345f) blur(3.5px) saturate(1.7) brightness(0.9);
+  --ig-edge-filter: blur(5px) saturate(1.5) brightness(1.05);
+  --ig-shadow: 0 6px 18px rgba(0,0,0,.32);
+  --ig-inner: none;
+  --ig-open-filter: blur(28px) saturate(1.3) brightness(0.56) contrast(0.82);
+}
+html.gl-lite { --ig-filter: blur(3px) saturate(1.5); --ig-edge-filter: blur(4px) saturate(1.5) brightness(1.05); }
+@media (prefers-reduced-transparency: reduce) { html { --ig-body: rgb(30, 30, 32); --ig-filter: none; --ig-edge-filter: none; --ig-open-filter: none; } }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-surface, .n3-fab)::after {
+  box-shadow: inset .8px .8px 0 -.2px rgba(255,255,255,.26), inset -.8px -.8px 0 -.2px rgba(255,255,255,.13), inset 0 0 0 .6px rgba(255,255,255,.07);
+}
+/* открытая панель: прозрачная, но светлое под ней растворяется (без полосы) */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-pill.is-open, .n3-dock.is-open) .n3-surface::before {
+  background: rgba(0, 0, 0, .12);
+  backdrop-filter: var(--ig-open-filter); -webkit-backdrop-filter: var(--ig-open-filter);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-pill.is-open, .n3-dock.is-open) .n3-surface .n3-edge { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-pill.is-open, .n3-dock.is-open) .n3-fab::before { background: rgba(255, 255, 255, .09); }
+/* линза (WebKit/iOS): тело прозрачнее, на открытой панели — сильное размытие и приглушение вместо плотной заливки */
+.lg-lay::after { background: rgba(0,0,0,.03); }
+.lg-lay.lg-ring::after { background: rgba(255,255,255,.045); }
+.lg-host.lg-open .lg-body .lg-dn { filter: blur(calc(22px / var(--lg-kb, 2))) brightness(.6) contrast(.82) !important; -webkit-filter: blur(calc(22px / var(--lg-kb, 2))) brightness(.6) contrast(.82) !important; }
+.lg-host.lg-open .lg-body::after { background: rgba(0,0,0,.1); }
+.lg-host.lg-open > .lg-ring { visibility: hidden; }
+/* v347: ГЛАВНАЯ причина полосы — старое правило «smoked plates» (v33x) оставляло на сетке плиток #n3Grid
+   свой backdrop-filter: blur(20px) без затемнения поверх стекла панели; он ещё раз размывал белую кнопку под панелью
+   в широкую бледную полосу. Стекло панели — только ::before у #n3Surface (или линза), сетке фильтр не нужен. */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }

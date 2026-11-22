@@ -3,11 +3,11 @@
 // обрезанный клон активного экрана, синхронный со скроллом (transform), размытый (filter:blur),
 // а по кромке — увеличенная копия (выпуклая линза), которую тело перекрывает везде, кроме кольца у края.
 // Клон рисуется только в полосе под доком (остальные строки visibility:hidden), обновляется по MutationObserver.
-const LENS_VIEWS = new Set(['view-lap', 'view-history', 'view-settings', 'view-account', 'view-zamer', 'view-tops']);
+const LENS_VIEWS = new Set(['view-lap', 'view-history', 'view-settings', 'view-account', 'view-zamer', 'view-tops']); // v347: Магазин — на обычном backdrop-filter (у его вёрстки скролл не в .view, копия съезжает)
 // слои: w — ширина кольца (0 — тело), s — увеличение, f — фильтр
 const LAYERS = [
   { e: 0, d: 6, k: +(globalThis.__lgKr || 2), f: '', ring: true }, // сзади: увеличенная копия — видна только кольцом у кромки
-  { e: 4.5, d: 0, k: +(globalThis.__lgKb || 2), f: `blur(${2.4 / +(globalThis.__lgKb || 2)}px)` }, // спереди: тело, утоплено на ширину кольца, размыто (копия в 1/2 разрешения + blur ≈ 3–4px)
+  { e: 4.5, d: 0, k: +(globalThis.__lgKb || 2), f: `blur(${1.8 / +(globalThis.__lgKb || 2)}px)` } /* v347: прозрачнее — 1.8 вместо 2.4 */, // спереди: тело, утоплено на ширину кольца, размыто (копия в 1/2 разрешения + blur ≈ 3–4px)
 ];
 const BAND = 320; // px от низа экрана, где может лежать стекло (открытая панель ~242)
 
