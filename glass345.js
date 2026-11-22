@@ -5,7 +5,7 @@ const NS = 'http://www.w3.org/2000/svg';
 const isChromium = () => { const ua = navigator.userAgent || ''; return /Chrome\/|Chromium\//.test(ua) && !/iPhone|iPad|iPod|CriOS|FxiOS|EdgiOS/.test(ua); };
 
 // карта смещения: R/G = 128 ± наружная нормаль × сила. Сила растёт к кромке (выпуклая линза).
-function mapURL(w, h, r, bezel) {
+export function mapURL(w, h, r, bezel) {
   w = Math.max(2, Math.round(w)); h = Math.max(2, Math.round(h)); r = Math.min(r, w / 2, h / 2);
   const c = document.createElement('canvas'); c.width = w; c.height = h;
   const ctx = c.getContext('2d'); const img = ctx.createImageData(w, h); const d = img.data;
@@ -26,7 +26,7 @@ function mapURL(w, h, r, bezel) {
   ctx.putImageData(img, 0, 0); return c.toDataURL('image/png');
 }
 
-function makeFilter(svg, id, scale) {
+export function makeFilter(svg, id, scale) {
   const f = document.createElementNS(NS, 'filter');
   f.setAttribute('id', id); f.setAttribute('x', '0'); f.setAttribute('y', '0'); f.setAttribute('width', '100%'); f.setAttribute('height', '100%');
   f.setAttribute('color-interpolation-filters', 'sRGB');
