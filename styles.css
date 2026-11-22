@@ -11023,87 +11023,302 @@ html { --u343-spring: linear(0, 0.05, 0.167, 0.325, 0.497, 0.671, 0.821, 0.946, 
   .u343-sb.u343-shake, .u343-toast.bump, .u343-ring.spin svg { animation: none !important; }
 }
 
-/* ===== v344 GLASS — материал по Glisse (glisse.kelvinzhang.ca, Liquid Glass for the web), тёмная тема, адаптация под чёрный фон.
-   Glisse dark: --lg-glass #2828289e, blur(3px) saturate(1.5), inset 0 0 0 .5px #ffffff14 (край), rim-shine .13 (блик по кромке),
-   --lg-selection #ffffff25 (выбранное), нажатие — radial-gradient #ffffff09 из точки касания.
-   На чёрном размытию нечего показывать, поэтому стекло «держат» кромка-блик, верхний градиент и внутренний свет.
-   Без новых DOM-узлов и без смены размеров: только background / box-shadow / border-color. backdrop-filter — только у плавающего. ===== */
+
+/* ===== v345 iOS 26 LIQUID GLASS (тёмная тема) — эталоны /workspace/qa/ios-glass/ref. Без бледной заливки.
+   Слои плавающего стекла: ::before — тело (прозрачная тёмная тонировка + backdrop blur/saturate),
+   .n3-edge — кромка-линза (сильнее размытие/яркость по краю: так в WebKit выглядит преломление на толщине стекла),
+   ::after — спекулярный блик по кромке (ярче сверху-слева и снизу-справа). Работает одинаково в WebKit (iOS) и Chromium. ===== */
 html {
-  --gl-tint: rgba(24, 24, 26, 0.62);
-  --gl-fill: linear-gradient(180deg, rgba(255,255,255,.078) 0, rgba(255,255,255,.034) 22px, rgba(255,255,255,.026) calc(100% - 12px), rgba(255,255,255,.048) 100%);
-  --gl-rim: inset 0 0 0 .5px rgba(255,255,255,.085), inset 0 1px 0 rgba(255,255,255,.15), inset 1px 0 0 rgba(255,255,255,.045), inset -1px 0 0 rgba(255,255,255,.03), inset 0 -1px 0 rgba(255,255,255,.045), inset 0 12px 18px -14px rgba(255,255,255,.08);
-  --gl-edge: rgba(255,255,255,.075);
-  --gl-drop: 0 1px 3px rgba(0,0,0,.55);
-  --gl-chip: linear-gradient(180deg, rgba(255,255,255,.085), rgba(255,255,255,.04) 55%, rgba(255,255,255,.05));
-  --gl-chip-rim: inset 0 0 0 .5px rgba(255,255,255,.09), inset 0 1px 0 rgba(255,255,255,.14), inset 0 -1px 0 rgba(255,255,255,.035);
-  --gl-lens: linear-gradient(180deg, rgba(255,255,255,.19) 0%, rgba(255,255,255,.105) 55%, rgba(255,255,255,.13) 100%);
-  --gl-lens-rim: inset 0 0 0 .5px rgba(255,255,255,.16), inset 0 1px 0 rgba(255,255,255,.30), inset 0 -1px 0 rgba(255,255,255,.07), inset 0 12px 16px -12px rgba(255,255,255,.16), 0 1px 4px rgba(0,0,0,.45);
-  --gl-press: radial-gradient(120% 95% at 50% 8%, rgba(255,255,255,.30), rgba(255,255,255,.15) 58%, rgba(255,255,255,.11) 100%);
-  --gl-press-rim: inset 0 0 0 .5px rgba(255,255,255,.24), inset 0 1px 0 rgba(255,255,255,.42), inset 0 -1px 0 rgba(255,255,255,.10), inset 0 0 14px rgba(255,255,255,.07);
-  --gl-float-tint: rgba(22, 22, 24, 0.64);
-  --gl-blur: blur(18px) saturate(1.5);
+  --ig-body: rgba(255, 255, 255, 0.095);
+  --ig-filter: blur(7px) saturate(1.9) brightness(0.78);
+  --ig-filter-r: url(#lg345s) blur(6px) saturate(1.9) brightness(0.78);
+  --ig-filter-rf: url(#lg345f) blur(6px) saturate(1.9) brightness(0.78);
+  --ig-edge-filter: blur(9px) saturate(1.6) brightness(1.14);
+  --ig-rim: linear-gradient(128deg, rgba(255,255,255,.58) 0%, rgba(255,255,255,.26) 10%, rgba(255,255,255,.11) 26%, rgba(255,255,255,.08) 50%, rgba(255,255,255,.10) 74%, rgba(255,255,255,.24) 90%, rgba(255,255,255,.42) 100%);
+  --ig-rim-w: 1px;
+  --ig-shadow: 0 6px 18px rgba(0,0,0,.4);
+  --ig-inner: inset 0 0 0 .5px rgba(255,255,255,.05), inset 0 1px 10px rgba(255,255,255,.035);
+  --ig-drop: rgba(255,255,255,.152);
+  --ig-solid: rgb(13, 13, 14);
 }
-html.gl-lite { --gl-blur: blur(10px) saturate(1.35); }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-surface, .n3-fab) {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: var(--ig-shadow) !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  isolation: auto !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-surface, .n3-fab)::before {
+  content: "" !important; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 0;
+  background: var(--ig-body);
+  backdrop-filter: var(--ig-filter); -webkit-backdrop-filter: var(--ig-filter);
+  box-shadow: var(--ig-inner);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-edge {
+  position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 1; display: block;
+  padding: 3px; box-sizing: border-box;
+  backdrop-filter: var(--ig-edge-filter); -webkit-backdrop-filter: var(--ig-edge-filter);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-surface, .n3-fab)::after {
+  content: "" !important; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2;
+  /* v346: спекулярная кромка внутренними тенями без размытия (вместо маски-кольца): ярче сверху-слева и снизу-справа */
+  background: none;
+  box-shadow: inset 1px 1px 0 -.2px rgba(255,255,255,.42), inset -1px -1px 0 -.2px rgba(255,255,255,.26), inset 0 0 0 1px rgba(255,255,255,.085);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab > * { position: relative; z-index: 3; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-pill.is-open, .n3-dock.is-open) .n3-fab::before { background: rgba(70, 70, 74, .52); }
 
-/* 1) Нижняя панель: пилюля/шторка, «+», плитки, активная плашка, нажатая плитка */
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-surface {
-  background: var(--gl-fill), var(--gl-float-tint) !important;
-  border: 1px solid var(--gl-edge) !important;
-  backdrop-filter: var(--gl-blur) !important; -webkit-backdrop-filter: var(--gl-blur) !important;
-  box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.3), var(--gl-rim) !important;
-}
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab {
-  background: var(--gl-fill), var(--gl-float-tint) !important;
-  border: 1px solid var(--gl-edge) !important;
-  backdrop-filter: var(--gl-blur) !important; -webkit-backdrop-filter: var(--gl-blur) !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,.45), var(--gl-rim), inset 0 0 12px rgba(255,255,255,.035) !important;
-}
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-pill.is-open, .n3-dock.is-open) .n3-fab {
-  background: var(--gl-lens), var(--gl-float-tint) !important; box-shadow: 0 8px 24px rgba(0,0,0,.45), var(--gl-lens-rim) !important;
-}
+/* активная вкладка — стеклянная капля */
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob {
-  background: var(--gl-lens) !important; box-shadow: var(--gl-lens-rim) !important;
+  background: var(--ig-drop) !important;
+  box-shadow: inset 0 .5px 0 rgba(255,255,255,.22), inset 0 -.5px 0 rgba(255,255,255,.08) !important;
+  overflow: visible !important;
+  transition: scale 420ms cubic-bezier(.34,1.56,.64,1), background-color 180ms ease !important;
 }
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act i {
-  background: var(--gl-chip) !important; box-shadow: var(--gl-chip-rim) !important;
-  transition: background-color 180ms ease, box-shadow 180ms ease !important;
-}
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-act.is-on, .n3-act.is-press, .n3-act:active) i {
-  background: var(--gl-press) !important; box-shadow: var(--gl-press-rim) !important;
-}
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-act.is-press, .n3-act:active) i { transition: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #nav3:has(.nav3-btn.is-press) .n3-blob { scale: 1.12 1.22; background: rgba(255,255,255,.19) !important; transition-duration: 160ms !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on::before { content: none !important; display: none !important; }
 
-/* 2) Поверхности в потоке (над чёрным): стекло без backdrop-filter — дёшево для GPU */
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(#h56Mode, .z325-pill, .tq-chip:not(.on), .t282-pill, #t282Seg, .tv2-box, .tv2-card, .tv2-stage, .tv2-sk, .tb-empty, .t72-empty, .pf6-edit-btn, .pad-ava, .pf6-g, .cta289, .st66-list, .go-btn, .pf6-recap, .jn-seg, .seg-control:not(.t72-cls), .lb-chips > span):not(#n3Dock *) {
-  background: var(--gl-fill), var(--gl-tint) !important;
-  border-color: var(--gl-edge) !important;
-  box-shadow: var(--gl-drop), var(--gl-rim) !important;
+/* плитки меню: прозрачное стекло; нажатие — капля раздувается и светится */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act i {
+  background: rgba(255,255,255,.055) !important;
+  box-shadow: inset 0 .6px 0 rgba(255,255,255,.20), inset 0 0 0 .5px rgba(255,255,255,.06), inset 0 -.5px 0 rgba(255,255,255,.07) !important;
+  transition: background-color 200ms ease, box-shadow 200ms ease, scale 460ms cubic-bezier(.34,1.56,.64,1) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-act.is-on i {
+  background: rgba(255,255,255,.15) !important;
+  box-shadow: inset 0 .6px 0 rgba(255,255,255,.34), inset 0 0 0 .5px rgba(255,255,255,.10), inset 0 -.5px 0 rgba(255,255,255,.12) !important;
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-act.is-press, .n3-act:active) i {
+  background: rgba(255,255,255,.22) !important; scale: 1.09;
+  box-shadow: inset 0 .8px 0 rgba(255,255,255,.55), inset 0 0 0 .6px rgba(255,255,255,.16), inset 0 0 14px rgba(255,255,255,.10), 0 0 18px rgba(255,255,255,.07) !important;
+  transition: background-color 60ms ease, box-shadow 60ms ease, scale 160ms cubic-bezier(.2,0,0,1) !important;
+}
+
+/* поверхности в потоке (над чёрным): тёмное прозрачное стекло, блик по кромке градиентом — без серой заливки */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(#h56Mode, .z325-pill, .t282-pill, #t282Seg, .tv2-box, .pf6-edit-btn, .pad-ava, .pf6-recap, .pf6-g, .cta289, .t72-dc:not(.on):not(.t72-more), .tb-empty, .t72-empty, .tq-chip, .st66-list, .go-btn, .jn-seg):not(#n3Dock *) {
+  /* v346: кромка — цветом рамки по сторонам (свет сверху-слева), а не градиентом border-box: в 3–4 раза дешевле при скролле */
+  border-color: rgba(255,255,255,.17) rgba(255,255,255,.085) rgba(255,255,255,.075) rgba(255,255,255,.13) !important;
+  background: var(--ig-solid) !important;
+  box-shadow: none !important;
   backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
 }
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.pf6-ic, .t72-dc:not(.on):not(.t72-more)):not(#n3Dock *) {
-  background: var(--gl-chip) !important; border-color: var(--gl-edge) !important; box-shadow: var(--gl-chip-rim) !important;
-}
-/* строки внутри стеклянных коробок — разделитель тоньше и светлее, без серой заливки */
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tv2-row { border-top-color: rgba(255,255,255,.06) !important; }
-
-/* 3) Выбранное (плашки переключателей, бегунки, активная карточка) — «линза» Glisse */
-html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(#h56Mode > [aria-checked="true"], .jn-f[aria-selected="true"], .jn-f.on, .seg-control:not(.t72-cls) .seg-btn.on, .seg-control .duel-chip.on, .seg-control .sec-chip.on, .t282-thumb, #view-tops .t72-ind, .t72-dc.on, .tq-chip.on, #topsPeriod .seg-btn.on):not(#n3Dock *):not(.t72-cls *) {
-  background: var(--gl-lens) !important;
-  border-color: rgba(255,255,255,.14) !important;
-  box-shadow: var(--gl-lens-rim) !important;
+/* выбранное в переключателях — светлая стеклянная капля */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(#h56Mode > [aria-checked="true"], .jn-f[aria-selected="true"], .seg-control:not(.t72-cls) .seg-btn.on, .t282-thumb, #view-tops .t72-ind, .tq-chip.on, #topsPeriod .seg-btn.on):not(#n3Dock *):not(.t72-cls *) {
+  background: rgba(255,255,255,.14) !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 .6px 0 rgba(255,255,255,.34), inset 0 0 0 .5px rgba(255,255,255,.09), inset 0 -.5px 0 rgba(255,255,255,.12) !important;
   backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .t72-ind ~ .t72-dc.on:not(#n3Dock *) { background: transparent !important; box-shadow: none !important; border-color: transparent !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tv2-row { border-top-color: rgba(255,255,255,.06) !important; }
 
-/* 4) Плавающие уведомления — стекло с размытием */
+/* уведомления — плавающее стекло */
 html:not(#_) .u343-toast, html:not(#_) .u343-upd {
-  background: var(--gl-fill), var(--gl-float-tint) !important;
-  border-color: var(--gl-edge) !important;
-  backdrop-filter: var(--gl-blur); -webkit-backdrop-filter: var(--gl-blur);
-  box-shadow: 0 10px 30px rgba(0,0,0,.5), var(--gl-rim) !important;
+  background: var(--ig-body) !important; border-color: rgba(255,255,255,.10) !important;
+  backdrop-filter: blur(12px) saturate(1.9); -webkit-backdrop-filter: blur(12px) saturate(1.9);
+  box-shadow: var(--ig-shadow), inset 0 .6px 0 rgba(255,255,255,.28), inset 0 0 0 .5px rgba(255,255,255,.06) !important;
 }
+html.gl-lite { --ig-filter: blur(3px) saturate(1.6); --ig-edge-filter: blur(6px) saturate(1.8) brightness(1.25); }
+@media (prefers-reduced-transparency: reduce) { html { --ig-body: rgb(30, 30, 32); --ig-filter: none; --ig-edge-filter: none; } }
 
-/* Доступность: «Уменьшить прозрачность» — сплошная тонировка без размытия */
-@media (prefers-reduced-transparency: reduce) {
-  html { --gl-float-tint: rgb(26, 26, 28); --gl-blur: none; }
+/* контент уезжает под стеклянную панель (как в iOS): список/журнал/настройки/профиль скроллятся под пилюлей */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #viewHost.view-host.lg-under { margin-bottom: 0 !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #viewHost.lg-under > :is(#view-lap, #view-history, #view-settings, #view-account).view { padding-bottom: calc(var(--app-tab) + 24px) !important; }
+
+/* Chromium (Android): настоящая рефракция кромки картой смещения; CSS-кромка не нужна */
+html.lg-refract:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-surface::before { backdrop-filter: var(--ig-filter-r); -webkit-backdrop-filter: var(--ig-filter-r); }
+html.lg-refract:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab::before { backdrop-filter: var(--ig-filter-rf); -webkit-backdrop-filter: var(--ig-filter-rf); }
+html.lg-refract:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-edge { display: none !important; }
+/* нажатие «+»: стекло раздувается и светлеет (iOS), а не вдавливается */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab { transition: transform 460ms cubic-bezier(.34,1.56,.64,1) !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-fab.is-press, .n3-fab:active) { transform: scale(1.1) !important; transition-duration: 160ms !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-fab.is-press, .n3-fab:active)::before { background: rgba(255,255,255,.16); }
+
+/* v346: линза для WebKit/iOS — копия контента под стеклом (lens346.js) вместо backdrop-filter */
+.lg-mirror { position: absolute; inset: 0; pointer-events: none; z-index: 6; overflow: hidden; contain: strict; }
+.lg-lay.lg-body, .lg-lay.lg-ring { background: #000; }
+.lg-host { position: absolute; left: 0; top: 0; width: 0; height: 0; overflow: hidden; will-change: transform; isolation: isolate; contain: strict; }
+.lg-lay { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+.lg-dn { position: absolute; left: 0; top: 0; overflow: hidden; box-sizing: border-box; transform-origin: 0 0; will-change: transform; }
+.lg-lay::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: rgba(0,0,0,.08); pointer-events: none; }
+.lg-lay.lg-ring::after { background: rgba(255,255,255,.07); }
+.lg-host.lg-moving > .lg-ring, .lg-host.lg-flat > .lg-ring { visibility: hidden; }
+.lg-host.lg-open .lg-body .lg-dn { filter: blur(calc(12.8px / var(--lg-kb, 2))) !important; -webkit-filter: blur(calc(12.8px / var(--lg-kb, 2))) !important; }
+.lg-host.lg-open .lg-body::after { background: rgba(0,0,0,.3); }
+.lg-econ .lg-host.lg-moving .lg-body .lg-dn { filter: none !important; -webkit-filter: none !important; }
+.lg-econ .lg-host .lg-body::after { transition: background-color .18s ease; }
+.lg-econ .lg-host.lg-moving .lg-body::after { background: rgba(0,0,0,.5); transition-duration: 0s; }
+.lg-sc { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
+.lg-pos { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; will-change: transform; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .lg-clone { position: relative !important; display: block !important; height: auto !important; min-height: 0 !important; overflow: visible !important; margin: 0 !important; pointer-events: none !important; contain: layout style; }
+.lg-still, .lg-still * { animation-duration: 0s !important; animation-delay: 0s !important; transition: none !important; }
+html:not(#lens):not(#lens) .lg-mirror { display: none; }
+html:not(#lens):not(#lens) .lg-mirror.is-on { display: block; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.lg-lens-on :is(.n3-surface, .n3-fab)::before { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.lg-lens-on .n3-edge { display: none !important; }
+/* в копии под стеклом дорогие эффекты не нужны (всё равно под размытием): без backdrop-filter, теней и анимаций */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .lg-clone, html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .lg-clone * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: none !important; text-shadow: none !important; will-change: auto !important; }
+
+/* ===== v347: стекло прозрачнее (эталон — Apple Music со скрина Маги 22.11): тонкая тонировка, лёгкое размытие,
+   тихая кромка вместо светло-серого контура. Открытая панель: без светлой полосы — раньше белые элементы под ней
+   (кнопка «Оставить заявку» в Магазине) размывались всего на 7px и подсвечивались кромкой-линзой (.n3-edge, brightness 1.14)
+   → широкая бледная полоса. Теперь: сильное размытие + приглушение светлого, кромка-линза на открытой панели выключена. ===== */
+html {
+  --ig-body: rgba(255, 255, 255, 0.05);
+  --ig-filter: blur(4px) saturate(1.7) brightness(0.9);
+  --ig-filter-r: url(#lg345s) blur(3.5px) saturate(1.7) brightness(0.9);
+  --ig-filter-rf: url(#lg345f) blur(3.5px) saturate(1.7) brightness(0.9);
+  --ig-edge-filter: blur(5px) saturate(1.5) brightness(1.05);
+  --ig-shadow: 0 6px 18px rgba(0,0,0,.32);
+  --ig-inner: none;
+  --ig-open-filter: blur(28px) saturate(1.3) brightness(0.56) contrast(0.82);
 }
+html.gl-lite { --ig-filter: blur(3px) saturate(1.5); --ig-edge-filter: blur(4px) saturate(1.5) brightness(1.05); }
+@media (prefers-reduced-transparency: reduce) { html { --ig-body: rgb(30, 30, 32); --ig-filter: none; --ig-edge-filter: none; --ig-open-filter: none; } }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-surface, .n3-fab)::after {
+  box-shadow: inset .8px .8px 0 -.2px rgba(255,255,255,.26), inset -.8px -.8px 0 -.2px rgba(255,255,255,.13), inset 0 0 0 .6px rgba(255,255,255,.07);
+}
+/* открытая панель: прозрачная, но светлое под ней растворяется (без полосы) */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-pill.is-open, .n3-dock.is-open) .n3-surface::before {
+  background: rgba(0, 0, 0, .12);
+  backdrop-filter: var(--ig-open-filter); -webkit-backdrop-filter: var(--ig-open-filter);
+}
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-pill.is-open, .n3-dock.is-open) .n3-surface .n3-edge { display: none !important; }
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-pill.is-open, .n3-dock.is-open) .n3-fab::before { background: rgba(255, 255, 255, .09); }
+/* линза (WebKit/iOS): тело прозрачнее, на открытой панели — сильное размытие и приглушение вместо плотной заливки */
+.lg-lay::after { background: rgba(0,0,0,.03); }
+.lg-lay.lg-ring::after { background: rgba(255,255,255,.045); }
+.lg-host.lg-open .lg-body .lg-dn { filter: blur(calc(22px / var(--lg-kb, 2))) brightness(.6) contrast(.82) !important; -webkit-filter: blur(calc(22px / var(--lg-kb, 2))) brightness(.6) contrast(.82) !important; }
+.lg-host.lg-open .lg-body::after { background: rgba(0,0,0,.1); }
+.lg-host.lg-open > .lg-ring { visibility: hidden; }
+/* v347: ГЛАВНАЯ причина полосы — старое правило «smoked plates» (v33x) оставляло на сетке плиток #n3Grid
+   свой backdrop-filter: blur(20px) без затемнения поверх стекла панели; он ещё раз размывал белую кнопку под панелью
+   в широкую бледную полосу. Стекло панели — только ::before у #n3Surface (или линза), сетке фильтр не нужен. */
+html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-grid { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+
+
+/* ===== v348: нижняя навигация = tab bar iOS 26 Liquid Glass (ТЗ Маги 22.11, эталон — TabBar из Glisse).
+   Капсула 60px (padding 4 + табы 52), radius 30, left/right 21px; «+» — отдельная стеклянная кнопка 60px справа (вариант a).
+   Стекло капсулы — ровно по ТЗ; в WebKit (Safari/Telegram iOS) — морозный фоллбек blur 16 / saturate 1.8.
+   Индикатор .tb-lens (tabbar348.js): покой — капсула rgb(255 255 255/.145); нажатие — линза +24×16px, фон .055, ободок. ===== */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) {
+  --n3-side: 21px; --n3-pill-h: 60px; --n3-pill-r: 30px; --n3-fab: 60px; --n3-gap: 8px;
+  --tb-acc: var(--accent-signal, #e12323);
+  --tb-glass: rgb(40 40 40 / 0.62);
+  --tb-bf: blur(16px) saturate(1.8);              /* WebKit / iOS: морозное стекло */
+  --tb-rim: inset 0 0.5px 0 rgb(255 255 255 / 0.22), inset 0 -0.5px 0 rgb(255 255 255 / 0.14), inset 0 0 0 0.5px rgb(255 255 255 / 0.08);
+  --tb-drop: 0 8px 24px rgb(0 0 0 / 0.38);
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-blue { --tb-acc: #0091ff; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).lg-refract { --tb-bf: url(#lg345s) blur(3px) saturate(1.5); }  /* Chromium: ровно ТЗ blur 3 / saturate 1.5 + рефракция кромки */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-nobf { --tb-glass: rgb(28 28 31 / 0.96); --tb-bf: none; }
+@media (prefers-reduced-transparency: reduce) { html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) { --tb-glass: rgb(28 28 31 / 0.96); --tb-bf: none; } }
+@media (max-width: 360px) { html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) { --n3-side: 21px; --n3-pill-h: 60px; --n3-pill-r: 30px; --n3-fab: 60px; --n3-gap: 8px; } }
+
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock { bottom: max(21px, env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px)) !important; }
+/* капсула (закрытое состояние; открытая панель-меню остаётся как в v347) */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock:not(.is-open) .n3-surface { box-shadow: var(--tb-drop) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock:not(.is-open) .n3-surface::before {
+  background: var(--tb-glass) !important;
+  -webkit-backdrop-filter: var(--tb-bf) !important; backdrop-filter: var(--tb-bf) !important;
+  box-shadow: none !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock:not(.is-open) .n3-surface::after { box-shadow: var(--tb-rim) !important; background: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-edge { display: none !important; }
+/* «+»: то же стекло, круг 60px */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab { box-shadow: var(--tb-drop) !important; border: 0 !important; background: transparent !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock:not(.is-open) .n3-fab::before {
+  background: var(--tb-glass) !important;
+  -webkit-backdrop-filter: var(--tb-bf) !important; backdrop-filter: var(--tb-bf) !important; box-shadow: none !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).lg-refract .n3-dock:not(.is-open) .n3-fab::before { -webkit-backdrop-filter: url(#lg345f) blur(3px) saturate(1.5) !important; backdrop-filter: url(#lg345f) blur(3px) saturate(1.5) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-nobf .n3-dock .n3-fab::before, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-nobf .n3-dock .n3-surface::before { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab::after { box-shadow: var(--tb-rim) !important; background: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab svg, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #n3FabIcon { width: 26px !important; height: 26px !important; stroke: #fff !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-fab.is-press, .n3-fab:active) { transform: scale(1.06) !important; }
+
+/* ряд вкладок */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #nav3 {
+  height: 60px !important; padding: 4px !important; box-sizing: border-box !important;
+  width: calc(100% - var(--n3-fab) - var(--n3-gap)) !important;
+  justify-content: stretch !important; align-items: stretch !important;
+  -webkit-tap-highlight-color: transparent; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-blob { display: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn {
+  flex: 1 1 0 !important; height: 52px !important; min-height: 52px !important; max-height: 52px !important;
+  display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important;
+  gap: 1px !important; padding: 0 !important; margin: 0 !important; border: 0 !important; border-radius: 26px !important;
+  background: none !important; box-shadow: none !important; outline: none !important;
+  color: #fff !important; transform: none !important; z-index: 1 !important;
+  font: 500 10px/1 system-ui, -apple-system, "SF Pro Text", sans-serif !important;
+  -webkit-tap-highlight-color: transparent !important; transition: color 160ms ease !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn::before, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn::after, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.on::before { content: none !important; display: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn.tb-hi { color: var(--tb-acc) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn svg { width: 26px !important; height: 26px !important; transform: none !important; stroke: currentColor !important; stroke-width: 1.6 !important; flex: 0 0 auto; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn span:not(.n6-badge) {
+  position: static !important; width: auto !important; height: auto !important; overflow: visible !important; clip: auto !important;
+  display: block !important; white-space: nowrap !important; color: inherit !important; opacity: 1 !important;
+  font: 500 10px/1.1 system-ui, -apple-system, "SF Pro Text", sans-serif !important; letter-spacing: 0 !important; text-transform: none !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn:focus-visible { box-shadow: inset 0 0 0 1.5px rgb(255 255 255 / .5) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n6-badge { top: 4px !important; margin-right: -20px !important; }
+
+/* индикатор / линза */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lens {
+  position: absolute; top: 4px; left: 4px; height: 52px; width: calc((100% - 8px) / var(--tabs, 4));
+  border-radius: 26px; pointer-events: none; z-index: 0; transform-origin: 50% 50%; will-change: transform;
+  transition: opacity 160ms ease;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lens.tb-off { opacity: 0; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-rest, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lift { position: absolute; inset: 0; border-radius: inherit; will-change: opacity; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-rest { background: rgb(255 255 255 / 0.145); }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lift {
+  opacity: 0; background: rgb(255 255 255 / 0.055);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.28), inset 0 -0.5px 0 rgb(255 255 255 / 0.12), inset 0 0 0 0.5px rgb(255 255 255 / 0.10), 0 6px 16px rgb(0 0 0 / 0.28);
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-refract .tb-lift { -webkit-backdrop-filter: url(#tb348l) saturate(1.4); backdrop-filter: url(#tb348l) saturate(1.4); }
+/* подсветка капсулы под пальцем во время нажатия (как Glisse) */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #nav3::after {
+  content: "" !important; display: block !important; position: absolute; inset: 0; border-radius: 30px; pointer-events: none; z-index: 0;
+  background: radial-gradient(circle 200px at var(--tb-x, 50%) 50%, rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.035) 60%, transparent) !important;
+  opacity: 0 !important; transition: opacity 160ms ease; box-shadow: none !important; -webkit-mask: none !important; mask: none !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #nav3.is-pressed::after { opacity: 1 !important; transition-duration: 90ms; }
+@media (prefers-reduced-motion: reduce) { html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lift { display: none; } html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn { transition: none !important; } }
+
+/* вариант b (?tbv=b): «+» пятым табом внутри капсулы во всю ширину */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 #nav3 { width: calc(4px + (100% - 8px) * 0.8) !important; padding-right: 0 !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .n3-dock .n3-surface { width: 100% !important; right: 0 !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .n3-fab {
+  right: 4px !important; bottom: 4px !important; width: calc((100% - 8px) / 5) !important; min-width: 0 !important; max-width: none !important;
+  height: 52px !important; min-height: 52px !important; max-height: 52px !important; border-radius: 26px !important;
+  box-shadow: none !important; display: flex !important; flex-direction: column !important; align-items: center !important; justify-content: center !important; gap: 1px !important;
+}
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .n3-fab::before, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .n3-fab::after { content: none !important; display: none !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .tb-fab-label { font: 500 10px/1.1 system-ui, -apple-system, sans-serif; color: #fff; position: relative; z-index: 3; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-fab-label { display: none; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-v5 .tb-fab-label { display: block; }
+
+/* v348: контент уходит под таб-бар и просвечивает сквозь стекло; в конце списка — отступ, чтобы ничего не пряталось */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) #viewHost.lg-under > :is(#view-tops, #view-shop).view { padding-bottom: calc(60px + max(21px, env(safe-area-inset-bottom), var(--tg-safe-area-inset-bottom, 0px)) + 20px) !important; }
+
+/* ===== v349: плавность таб-бара — линза на WAAPI (композитор), will-change только во время анимации,
+   «дешёвое стекло» на время протяжки/скролла, без покадровых box-shadow/background/backdrop-filter ===== */
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lens { will-change: auto; transform-origin: 0 0; contain: layout style; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-scale { position: absolute; inset: 0; border-radius: inherit; transform-origin: 50% 50%; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-rest, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lift { will-change: auto; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lens.tb-anim, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lens.tb-anim .tb-scale { will-change: transform; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lens.tb-anim .tb-rest, html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .tb-lens.tb-anim .tb-lift { will-change: opacity; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .nav3-btn { transition: color 200ms cubic-bezier(0.33, 1, 0.68, 1) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.tb-moving { --tb-bf: blur(10px) saturate(1.6); }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).lg-refract .n3-dock.tb-moving { --tb-bf: blur(3px) saturate(1.5); }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).lg-refract .n3-dock.tb-moving:not(.is-open) .n3-fab::before { -webkit-backdrop-filter: blur(3px) saturate(1.5) !important; backdrop-filter: blur(3px) saturate(1.5) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_).tb-nobf .n3-dock.tb-moving { --tb-bf: none; }
+@media (prefers-reduced-transparency: reduce) { html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-dock.tb-moving { --tb-bf: none; } }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-fab.is-press, .n3-fab:active) { transform: translate3d(0,0,0) scale(1.06) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab { transition: transform 380ms cubic-bezier(0.22, 1, 0.36, 1) !important; }
+html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-fab.is-press, .n3-fab:active) { transition-duration: 90ms !important; }
