@@ -74,7 +74,7 @@ export function initLens346() {
       }
     };
     walk(view, 0);
-    const meta = origRows.map((c) => { const r = c.getBoundingClientRect(); return { top: r.top - vr.top + st, bot: r.bottom - vr.top + st }; });
+    const meta = origRows.map((c) => { const r = c.getBoundingClientRect(); return { top: r.top - vr.top + st, bot: r.bottom - vr.top + st, w: r.width, h: r.height }; });
     // клонируем с отметками, чтобы найти пары
     origRows.forEach((c, i) => c.setAttribute('data-lgr', i));
     const tpl = view.cloneNode(true);
@@ -85,20 +85,25 @@ export function initLens346() {
       for (let i = 0; i < a.length && i < b.length; i++) { const p = getComputedStyle(a[i]).position; if (p === 'fixed' || p === 'sticky') b[i].style.visibility = 'hidden'; } }
     tpl.classList.add('lg-clone'); if (still) tpl.classList.add('lg-still');
     tpl.style.cssText += `;width:${view.offsetWidth}px`;
-    const make = (k) => {
-      const c = k ? tpl.cloneNode(true) : tpl; if (k) copyCanvases(tpl, c);
+    const copies = [];
+    for (const h of hosts) for (let j = 0; j < h.poss.length; j++) copies.push(copies.length ? tpl.cloneNode(true) : tpl);
+    copies.forEach((c, j) => { if (j) copyCanvases(tpl, c); });
+    const make = (j) => {
+      const c = copies[j];
       const map = new Array(origRows.length);
       c.querySelectorAll('[data-lgr]').forEach((e) => { map[+e.getAttribute('data-lgr')] = e; e.removeAttribute('data-lgr'); });
       return { c, map };
     };
-    rows = meta.map((m) => ({ ...m, els: [], vis: true }));
+    const lo = window.innerHeight - BAND - vr.top + st, hi = window.innerHeight - vr.top + st;
+    // далеко от дока (±900px) — content-visibility:hidden (не раскладывается вовсе); ближе — только visibility при скролле
+    rows = meta.map((m) => ({ ...m, els: [], vis: m.bot > lo && m.top < hi, cv: !(m.bot > lo - 900 && m.top < hi + 900) }));
     let k = 0;
     for (const h of hosts) for (const pos of h.poss) {
-      const { c, map } = make(k++ ? 1 : 0);
-      pos.replaceChildren(c);
-      map.forEach((e, i) => { if (e) rows[i].els.push(e); });
+      const { c, map } = make(k++);
+      map.forEach((e, i) => { if (!e) return; rows[i].els.push(e); const r = rows[i]; if (r.cv) { e.style.contentVisibility = 'hidden'; e.style.containIntrinsicSize = `${r.w}px ${r.h}px`; } else if (!r.vis) e.style.visibility = 'hidden'; });
+      pos.replaceChildren(c); // вставляем уже «обрезанную» копию — раскладывается только полоса под доком
     }
-    clonedFor = view; cull(true);
+    clonedFor = view;
   }
 
   function cull(force) {
@@ -107,7 +112,8 @@ export function initLens346() {
     const lo = window.innerHeight - BAND - vr.top + st, hi = window.innerHeight - vr.top + st;
     for (const r of rows) {
       const v = r.bot > lo && r.top < hi;
-      if (v !== r.vis || force) { r.vis = v; for (const e of r.els) e.style.visibility = v ? '' : 'hidden'; }
+      // вне полосы строка в копии не раскладывается и не рисуется (content-visibility), размер держит intrinsic-size
+      if (v !== r.vis || force) { r.vis = v; for (const e of r.els) { if (r.cv && v) { e.style.contentVisibility = ''; e.style.containIntrinsicSize = ''; } e.style.visibility = v ? '' : 'hidden'; } if (v) r.cv = false; }
     }
     void hr;
   }

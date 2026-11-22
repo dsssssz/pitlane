@@ -11063,10 +11063,9 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-surface, .n3-fab)::after {
   content: "" !important; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 2;
-  padding: var(--ig-rim-w); box-sizing: border-box;
-  background: var(--ig-rim);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor; mask-composite: exclude;
+  /* v346: спекулярная кромка внутренними тенями без размытия (вместо маски-кольца): ярче сверху-слева и снизу-справа */
+  background: none;
+  box-shadow: inset 1px 1px 0 -.2px rgba(255,255,255,.42), inset -1px -1px 0 -.2px rgba(255,255,255,.26), inset 0 0 0 1px rgba(255,255,255,.085);
 }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3-fab > * { position: relative; z-index: 3; }
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(.n3-pill.is-open, .n3-dock.is-open) .n3-fab::before { background: rgba(70, 70, 74, .52); }
@@ -11099,8 +11098,9 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is
 
 /* поверхности в потоке (над чёрным): тёмное прозрачное стекло, блик по кромке градиентом — без серой заливки */
 html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) :is(#h56Mode, .z325-pill, .t282-pill, #t282Seg, .tv2-box, .pf6-edit-btn, .pad-ava, .pf6-recap, .pf6-g, .cta289, .t72-dc:not(.on):not(.t72-more), .tb-empty, .t72-empty, .tq-chip, .st66-list, .go-btn, .jn-seg):not(#n3Dock *) {
-  border-color: transparent !important;
-  background: linear-gradient(var(--ig-solid), var(--ig-solid)) padding-box, var(--ig-rim) border-box !important;
+  /* v346: кромка — цветом рамки по сторонам (свет сверху-слева), а не градиентом border-box: в 3–4 раза дешевле при скролле */
+  border-color: rgba(255,255,255,.17) rgba(255,255,255,.085) rgba(255,255,255,.075) rgba(255,255,255,.13) !important;
+  background: var(--ig-solid) !important;
   box-shadow: none !important;
   backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
 }
