@@ -1,0 +1,71 @@
+{
+  "id": "/pitlane/",
+  "name": "PITLANE",
+  "short_name": "PITLANE",
+  "description": "Замеряй. Сравнивай. Побеждай.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "./img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./img/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./img/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Быстрый замер",
+      "short_name": "Замер",
+      "description": "GPS 0–100",
+      "url": "./index.html?view=zamer&skipIntro=1",
+      "icons": [
+        {
+          "src": "./img/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Сессия на треке",
+      "short_name": "Трек",
+      "description": "Круги по GPS",
+      "url": "./index.html?view=lap&skipIntro=1",
+      "icons": [
+        {
+          "src": "./img/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}
