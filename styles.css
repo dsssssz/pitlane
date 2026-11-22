@@ -11201,12 +11201,13 @@ html:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) .n3
 
 /* ===== v348: нижняя навигация = tab bar iOS 26 Liquid Glass (ТЗ Маги 22.11, эталон — TabBar из Glisse).
    Капсула 60px (padding 4 + табы 52), radius 30, left/right 21px; «+» — отдельная стеклянная кнопка 60px справа (вариант a).
-   Стекло капсулы — ровно по ТЗ; в WebKit (Safari/Telegram iOS) — морозный фоллбек blur 16 / saturate 1.8.
+   v350: заливка капсулы и «+» rgb(40 40 40 / 0.18) — по выбору Маги (v349 было 0.62); кромка и тень те же.
+   Стекло капсулы; в WebKit (Safari/Telegram iOS) — морозный фоллбек blur 16 / saturate 1.8 (заливка тоже 0.18).
    Индикатор .tb-lens (tabbar348.js): покой — капсула rgb(255 255 255/.145); нажатие — линза +24×16px, фон .055, ободок. ===== */
 html.tb348:not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_):not(#_) {
   --n3-side: 21px; --n3-pill-h: 60px; --n3-pill-r: 30px; --n3-fab: 60px; --n3-gap: 8px;
   --tb-acc: var(--accent-signal, #e12323);
-  --tb-glass: rgb(40 40 40 / 0.62);
+  --tb-glass: rgb(40 40 40 / 0.18);  /* v350: Maga выбрал 0.18 (было 0.62, черновик 0.28); кромка и тень те же */
   --tb-bf: blur(16px) saturate(1.8);              /* WebKit / iOS: морозное стекло */
   --tb-rim: inset 0 0.5px 0 rgb(255 255 255 / 0.22), inset 0 -0.5px 0 rgb(255 255 255 / 0.14), inset 0 0 0 0.5px rgb(255 255 255 / 0.08);
   --tb-drop: 0 8px 24px rgb(0 0 0 / 0.38);
